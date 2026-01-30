@@ -13,6 +13,7 @@ import com.economatom.inventory.repository.RecipeAuditRepository;
 import com.economatom.inventory.repository.RecipeRepository;
 import com.economatom.inventory.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Slf4j
 @Service
+@Profile("!test")
 public class AuditEventConsumer {
 
     private final InventoryAuditRepository inventoryAuditRepository;
