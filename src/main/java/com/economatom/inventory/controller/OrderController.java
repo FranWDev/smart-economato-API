@@ -84,7 +84,10 @@ public class OrderController {
 
     @Operation(
         summary = "Actualizar un pedido existente",
-        description = "Permite modificar los detalles de un pedido ya existente, incluyendo sus productos asociados.",
+        description = "Permite modificar los detalles de un pedido ya existente, incluyendo sus productos asociados. " +
+                      "Este endpoint utiliza **bloqueo optimista** con reintentos automáticos (@Retryable) para manejar " +
+                      "actualizaciones concurrentes. Se realizan hasta 3 intentos con backoff exponencial (100ms inicial). " +
+                      "Si después de los reintentos persiste el conflicto, se retorna error 409.",
         requestBody = @RequestBody(
             description = "Datos del pedido actualizados",
             required = true,
@@ -92,7 +95,8 @@ public class OrderController {
         ),
         responses = {
             @ApiResponse(responseCode = "200", description = "Pedido actualizado correctamente"),
-            @ApiResponse(responseCode = "404", description = "No se encontró el pedido a actualizar")
+            @ApiResponse(responseCode = "404", description = "No se encontró el pedido a actualizar"),
+            @ApiResponse(responseCode = "409", description = "Conflicto de concurrencia persistente después de 3 reintentos")
         }
     )
     @PutMapping("/{id}")
@@ -186,7 +190,11 @@ public class OrderController {
 
     @Operation(
         summary = "Procesar recepción de una orden",
-        description = "Procesa la recepción de una orden, validando cantidades y actualizando el inventario si se confirma.",
+        description = "Procesa la recepción de una orden, validando cantidades y actualizando el inventario si se confirma. " +
+                      "Este endpoint utiliza **bloqueo pesimista (Pessimistic Locking)** con nivel de aislamiento " +
+                      "REPEATABLE_READ para garantizar la consistencia del stock durante actualizaciones concurrentes. " +
+                      "El bloqueo se aplica a los productos involucrados para prevenir condiciones de carrera " +
+                      "mientras se actualiza el inventario.",
         requestBody = @RequestBody(
             description = "Datos de la recepción (orden, productos y estado)",
             required = true,
@@ -194,8 +202,8 @@ public class OrderController {
         ),
         responses = {
             @ApiResponse(responseCode = "200", description = "Recepción procesada correctamente"),
-            @ApiResponse(responseCode = "400", description = "Datos inválidos o validación de cantidades fallida"),
-            @ApiResponse(responseCode = "404", description = "Orden no encontrada")
+            @ApiResponse(responseCode = "400", description = "Datos inválidos, validación de cantidades fallida, o cantidades recibidas menores a las solicitadas"),
+            @ApiResponse(responseCode = "404", description = "Orden o producto no encontrado")
         }
     )
     @PostMapping("/reception")

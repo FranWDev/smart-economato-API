@@ -1,6 +1,7 @@
 package com.economatom.inventory.config;
 
 import com.economatom.inventory.dto.event.InventoryAuditEvent;
+import com.economatom.inventory.dto.event.OrderAuditEvent;
 import com.economatom.inventory.dto.event.RecipeAuditEvent;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -66,6 +67,16 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<String, RecipeAuditEvent> recipeAuditKafkaTemplate() {
         return new KafkaTemplate<>(recipeAuditProducerFactory());
+    }
+
+    @Bean
+    public ProducerFactory<String, OrderAuditEvent> orderAuditProducerFactory() {
+        return new DefaultKafkaProducerFactory<>(producerConfigs());
+    }
+
+    @Bean
+    public KafkaTemplate<String, OrderAuditEvent> orderAuditKafkaTemplate() {
+        return new KafkaTemplate<>(orderAuditProducerFactory());
     }
 
     // ========== CONSUMER CONFIGURATION ==========
@@ -141,6 +152,37 @@ public class KafkaConfig {
         ConcurrentKafkaListenerContainerFactory<String, RecipeAuditEvent> factory =
             new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(recipeAuditConsumerFactory());
+        factory.setConcurrency(3); // 3 hilos concurrentes
+        factory.getContainerProperties().setAckMode(
+            org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD
+        );
+        return factory;
+    }
+
+    @Bean
+    public ConsumerFactory<String, OrderAuditEvent> orderAuditConsumerFactory() {
+        // Configurar el deserializer SOLO programáticamente
+        JsonDeserializer<OrderAuditEvent> deserializer = new JsonDeserializer<>(OrderAuditEvent.class);
+        deserializer.addTrustedPackages("*");
+        deserializer.setRemoveTypeHeaders(false);
+        deserializer.setUseTypeMapperForKey(false);
+
+        ErrorHandlingDeserializer<OrderAuditEvent> errorHandlingDeserializer = 
+            new ErrorHandlingDeserializer<>(deserializer);
+
+        return new DefaultKafkaConsumerFactory<>(
+            consumerConfigs("order-audit-consumer-group"),
+            new StringDeserializer(),
+            errorHandlingDeserializer
+        );
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, OrderAuditEvent> 
+            orderAuditKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, OrderAuditEvent> factory =
+            new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(orderAuditConsumerFactory());
         factory.setConcurrency(3); // 3 hilos concurrentes
         factory.getContainerProperties().setAckMode(
             org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD

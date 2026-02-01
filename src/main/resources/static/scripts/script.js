@@ -7,6 +7,7 @@ import { showCreateOrderModal } from "./components/order-creation.component.js";
 import { initNavRouter } from "./components/router.component.js";
 import OrdersComponent from "./components/orders.component.js";
 import { BarcodeScannerUtils } from "./utils/barcode-scanner.utils.js";
+import { HistoryComponent } from "./components/history.component.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   try {
@@ -57,6 +58,12 @@ document.addEventListener("DOMContentLoaded", () => {
     );
   } catch (error) {
     console.warn("Reception/Orders component error:", error);
+  }
+
+  try {
+    HistoryComponent.init();
+  } catch (error) {
+    console.warn("History component error:", error);
   }
 
   const createOrderBtn = document.querySelector("#createOrderBtn");

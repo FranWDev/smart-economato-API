@@ -31,37 +31,15 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
     @Query("SELECT p FROM Product p WHERE p.id = :id")
     Optional<Product> findByIdOptimized(@Param("id") Integer id);
 
-    /**
-     * Busca un producto con bloqueo pesimista de escritura.
-     * Utiliza PESSIMISTIC_WRITE para prevenir lecturas y escrituras concurrentes
-     * durante actualizaciones críticas de stock.
-     * 
-     * @param id ID del producto
-     * @return Optional con el producto bloqueado
-     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.id = :id")
     Optional<Product> findByIdForUpdate(@Param("id") Integer id);
 
-    /**
-     * Busca múltiples productos con bloqueo pesimista de escritura.
-     * Útil para operaciones batch que actualizan varios productos.
-     * 
-     * @param ids Lista de IDs de productos
-     * @return Lista de productos bloqueados
-     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.id IN :ids")
     List<Product> findByIdsForUpdate(@Param("ids") List<Integer> ids);
 
-    /**
-     * Busca un producto con bloqueo pesimista de lectura.
-     * Permite lecturas concurrentes pero previene escrituras.
-     * Útil para cálculos que requieren consistencia pero no modifican datos.
-     * 
-     * @param id ID del producto
-     * @return Optional con el producto
-     */
+
     @Lock(LockModeType.PESSIMISTIC_READ)
     @Query("SELECT p FROM Product p WHERE p.id = :id")
     Optional<Product> findByIdForRead(@Param("id") Integer id);

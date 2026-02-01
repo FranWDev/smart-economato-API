@@ -24,6 +24,7 @@
     <link rel="stylesheet" href="styles/order-creation.css" />
     <link rel="stylesheet" href="styles/orders.css" />
     <link rel="stylesheet" href="styles/loading.css" />
+    <link rel="stylesheet" href="styles/history.css" />
   </head>
   <body>
     <header>
@@ -157,10 +158,111 @@
         </div>
       </section>
 
-      <section id="history-section" class="route-section">
-        <div class="section-placeholder">
-          <h2>Historial</h2>
-          <p>Sección de historial - Próximamente</p>
+      <section id="history-section" class="route-section history-section">
+        <div class="history-header">
+          <h2>Historial de Cambios</h2>
+          <div class="history-controls">
+            <div class="tab-selector">
+              <button class="tab-btn active" data-tab="inventory">Inventario</button>
+              <button class="tab-btn" data-tab="recipes">Recetas</button>
+              <button class="tab-btn" data-tab="orders">Órdenes</button>
+            </div>
+            <input
+              class="history-search"
+              type="text"
+              placeholder="Buscar por producto o usuario"
+            />
+            <select class="history-filter">
+              <option value="all">Todos</option>
+              <option value="ENTRADA">Entradas</option>
+              <option value="SALIDA">Salidas</option>
+              <option value="AJUSTE">Ajustes</option>
+              <option value="DEVOLUCION">Devoluciones</option>
+            </select>
+            <div class="date-range-picker">
+              <input type="date" class="date-input" id="dateFrom" />
+              <span>-</span>
+              <input type="date" class="date-input" id="dateTo" />
+            </div>
+          </div>
+        </div>
+
+        <div class="history-content">
+          <div class="history-tab-content active" id="inventoryHistoryTab">
+            <div class="table-container">
+              <table class="history-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Producto</th>
+                    <th>Tipo</th>
+                    <th>Cantidad</th>
+                    <th>Usuario</th>
+                    <th>Estado Anterior</th>
+                    <th>Estado Nuevo</th>
+                  </tr>
+                </thead>
+                <tbody id="inventoryHistoryBody">
+                  <tr class="loading-row">
+                    <td colspan="7">
+                      <div class="loading-spinner"></div>
+                      Cargando historial...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="history-tab-content" id="recipesHistoryTab">
+            <div class="table-container">
+              <table class="history-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Receta</th>
+                    <th>Acción</th>
+                    <th>Usuario</th>
+                    <th>Estado Anterior</th>
+                    <th>Estado Nuevo</th>
+                  </tr>
+                </thead>
+                <tbody id="recipesHistoryBody">
+                  <tr class="loading-row">
+                    <td colspan="6">
+                      <div class="loading-spinner"></div>
+                      Cargando historial...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="history-tab-content" id="ordersHistoryTab">
+            <div class="table-container">
+              <table class="history-table">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Orden ID</th>
+                    <th>Acción</th>
+                    <th>Usuario</th>
+                    <th>Estado Anterior</th>
+                    <th>Estado Nuevo</th>
+                  </tr>
+                </thead>
+                <tbody id="ordersHistoryBody">
+                  <tr class="loading-row">
+                    <td colspan="6">
+                      <div class="loading-spinner"></div>
+                      Cargando historial...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -196,9 +298,11 @@
     <script  type="module" src="scripts/api/recipes.api.js"></script>
     <script  type="module" src="scripts/api/orders.api.js"></script>
     <script  type="module" src="scripts/api/reception.api.js"></script>
+    <script  type="module" src="scripts/api/audit.api.js"></script>
 
     <script type="module" src="scripts/components/auth.component.js"></script>
     <script type="module" src="scripts/components/orders.component.js"></script>
+    <script type="module" src="scripts/components/history.component.js"></script>
 
     <script type="module" src="scripts/script.js"></script>
   </body>

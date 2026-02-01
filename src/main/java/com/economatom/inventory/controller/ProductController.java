@@ -87,13 +87,19 @@ public class ProductController {
     }
 
     @Operation(summary = "Actualizar un producto existente",
-               description = "Modifica los datos de un producto existente según su ID.")
+               description = "Modifica los datos de un producto existente según su ID. " +
+                           "Este endpoint utiliza **bloqueo optimista** con reintentos automáticos " +
+                           "para prevenir conflictos de concurrencia. Si múltiples usuarios intentan " +
+                           "actualizar el mismo producto simultáneamente, el sistema reintentará hasta 3 veces " +
+                           "con un retraso de 100ms entre intentos.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Producto actualizado correctamente",
                      content = @Content(mediaType = "application/json",
                      schema = @Schema(implementation = ProductResponseDTO.class))),
         @ApiResponse(responseCode = "404", description = "Producto no encontrado"),
-        @ApiResponse(responseCode = "400", description = "Datos inválidos")
+        @ApiResponse(responseCode = "400", description = "Datos inválidos o producto con nombre duplicado"),
+        @ApiResponse(responseCode = "409", description = "Conflicto de concurrencia - El producto fue modificado por otro usuario. " +
+                     "Por favor, recargue los datos e intente nuevamente.")
     })
     @PutMapping("/{id}")
     public ResponseEntity<ProductResponseDTO> updateProduct(

@@ -4,10 +4,12 @@ import com.economatom.inventory.dto.response.OrderDetailResponseDTO;
 import com.economatom.inventory.dto.response.OrderResponseDTO;
 import com.economatom.inventory.model.Order;
 import com.economatom.inventory.model.User;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -32,6 +34,14 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
            "LEFT JOIN FETCH o.users " +
            "WHERE o.id = :id")
     Optional<Order> findByIdWithDetails(@Param("id") Integer id);
+
+    /**
+     * Busca una orden por ID con bloqueo pesimista para actualizaciones concurrentes
+     * Utiliza PESSIMISTIC_WRITE para prevenir conflictos de escritura
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT o FROM Order o WHERE o.id = :id")
+    Optional<Order> findByIdForUpdate(@Param("id") Integer id);
 
     @Query("SELECT DISTINCT o FROM Order o " +
            "LEFT JOIN FETCH o.details d " +

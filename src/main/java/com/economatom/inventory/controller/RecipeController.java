@@ -75,12 +75,17 @@ public class RecipeController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Actualizar receta", description = "Actualiza los datos de una receta existente")
+    @Operation(summary = "Actualizar receta", 
+               description = "Actualiza los datos de una receta existente. " +
+                           "Este endpoint utiliza **bloqueo optimista** mediante control de versión para detectar " +
+                           "actualizaciones concurrentes. Si otro usuario modifica la receta simultáneamente, " +
+                           "se generará un error de concurrencia.")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Receta actualizada",
             content = @Content(mediaType = "application/json",
                 schema = @Schema(implementation = RecipeResponseDTO.class))),
-        @ApiResponse(responseCode = "404", description = "Receta no encontrada")
+        @ApiResponse(responseCode = "404", description = "Receta no encontrada"),
+        @ApiResponse(responseCode = "409", description = "Conflicto de concurrencia - La receta fue modificada por otro usuario")
     })
     public ResponseEntity<RecipeResponseDTO> update(
             @Parameter(description = "ID de la receta", required = true) @PathVariable Integer id,

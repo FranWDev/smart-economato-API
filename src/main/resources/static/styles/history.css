@@ -1,0 +1,421 @@
+/* ============================================
+   HISTORY SECTION STYLES
+   ============================================ */
+
+.history-section {
+  animation: fadeUp 0.5s ease both;
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-md);
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.history-header h2 {
+  font-weight: 600;
+  color: rgba(45, 45, 45, 0.95);
+  letter-spacing: -0.5px;
+  font-size: 24px;
+  margin: 0;
+  width: 100%;
+}
+
+.history-controls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+/* Tab Selector */
+.tab-selector {
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(100, 150, 255, 0.08);
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid rgba(100, 150, 255, 0.15);
+}
+
+.tab-btn {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  color: rgba(45, 45, 45, 0.7);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.tab-btn:hover {
+  background: rgba(100, 150, 255, 0.1);
+  color: rgba(45, 45, 45, 0.9);
+}
+
+.tab-btn.active {
+  background: rgba(100, 150, 255, 0.2);
+  color: #4a90e2;
+  font-weight: 600;
+}
+
+/* History Search */
+.history-search {
+  padding: 10px 12px;
+  border: 1.5px solid rgba(100, 150, 255, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  background: rgba(100, 150, 255, 0.05);
+  transition: all 0.3s ease;
+  font-family: inherit;
+  min-width: 200px;
+  flex: 1;
+}
+
+.history-search:focus {
+  outline: none;
+  border-color: rgba(100, 150, 255, 0.6);
+  background: rgba(100, 150, 255, 0.08);
+  box-shadow: 0 4px 14px rgba(100, 150, 255, 0.12);
+}
+
+/* History Filter */
+.history-filter {
+  padding: 10px 12px;
+  border: 1.5px solid rgba(100, 150, 255, 0.3);
+  border-radius: 8px;
+  font-size: 13px;
+  background: rgba(100, 150, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  color: rgba(45, 45, 45, 0.85);
+}
+
+.history-filter:focus {
+  outline: none;
+  border-color: rgba(100, 150, 255, 0.6);
+  background: rgba(100, 150, 255, 0.08);
+  box-shadow: 0 4px 14px rgba(100, 150, 255, 0.12);
+}
+
+/* Date Range Picker */
+.date-range-picker {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(100, 150, 255, 0.05);
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1.5px solid rgba(100, 150, 255, 0.3);
+}
+
+.date-input {
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  color: rgba(45, 45, 45, 0.85);
+}
+
+.date-input:focus {
+  outline: none;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 8px rgba(100, 150, 255, 0.15);
+}
+
+.date-range-picker span {
+  color: rgba(45, 45, 45, 0.5);
+  font-weight: 500;
+}
+
+/* History Content */
+.history-content {
+  position: relative;
+}
+
+.history-tab-content {
+  display: none;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.history-tab-content.active {
+  display: block;
+}
+
+/* History Table Specific Styles */
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.history-table thead th {
+  text-align: left;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(45, 45, 45, 0.9);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+}
+
+.history-table tbody tr {
+  transition: all 0.2s ease;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.history-table tbody tr:hover {
+  background: rgba(100, 150, 255, 0.06);
+}
+
+.history-table tbody td {
+  padding: 12px;
+  font-size: 13px;
+  color: rgba(45, 45, 45, 0.85);
+}
+
+/* Movement Type Badge */
+.movement-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.movement-badge.entrada {
+  background: rgba(76, 175, 80, 0.15);
+  color: #2e7d32;
+}
+
+.movement-badge.salida {
+  background: rgba(244, 67, 54, 0.15);
+  color: #c62828;
+}
+
+.movement-badge.ajuste {
+  background: rgba(255, 152, 0, 0.15);
+  color: #ef6c00;
+}
+
+.movement-badge.devolucion {
+  background: rgba(33, 150, 243, 0.15);
+  color: #1565c0;
+}
+
+/* Recipe Action Badge */
+.action-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.action-badge.creacion {
+  background: rgba(76, 175, 80, 0.15);
+  color: #2e7d32;
+}
+
+.action-badge.modificacion {
+  background: rgba(33, 150, 243, 0.15);
+  color: #1565c0;
+}
+
+.action-badge.eliminacion {
+  background: rgba(244, 67, 54, 0.15);
+  color: #c62828;
+}
+
+/* State Diff Display */
+.state-diff {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.03);
+  padding: 6px 8px;
+  border-radius: 4px;
+  max-width: 250px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  line-height: 1.6;
+}
+
+.state-diff:hover {
+  background: rgba(0, 0, 0, 0.06);
+  max-width: none;
+  overflow: visible;
+}
+
+.state-diff.previous {
+  border-left: 3px solid rgba(244, 67, 54, 0.5);
+}
+
+.state-diff.new {
+  border-left: 3px solid rgba(76, 175, 80, 0.5);
+}
+
+/* State Field Styles */
+.state-field {
+  display: flex;
+  gap: 4px;
+  padding: 2px 0;
+  transition: all 0.2s ease;
+}
+
+.state-field .field-label {
+  font-weight: 600;
+  color: rgba(45, 45, 45, 0.7);
+  text-transform: capitalize;
+}
+
+.state-field .field-value {
+  color: rgba(45, 45, 45, 0.9);
+}
+
+/* Highlight changed fields */
+.state-field.changed {
+  background: rgba(255, 193, 7, 0.2);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.state-diff.previous .state-field.changed {
+  background: rgba(244, 67, 54, 0.15);
+}
+
+.state-diff.previous .state-field.changed .field-value {
+  color: #c62828;
+  text-decoration: line-through;
+}
+
+.state-diff.new .state-field.changed {
+  background: rgba(76, 175, 80, 0.15);
+}
+
+.state-diff.new .state-field.changed .field-value {
+  color: #2e7d32;
+  font-weight: 700;
+}
+
+/* Removed/Added fields */
+.state-field.removed {
+  opacity: 0.5;
+  font-style: italic;
+}
+
+/* Empty State */
+.empty-history {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: rgba(45, 45, 45, 0.5);
+}
+
+.empty-history svg {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 1rem;
+  opacity: 0.3;
+}
+
+.empty-history h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: rgba(45, 45, 45, 0.7);
+}
+
+.empty-history p {
+  font-size: 14px;
+}
+
+/* Loading Row */
+.loading-row td {
+  text-align: center;
+  padding: 2rem;
+  color: rgba(45, 45, 45, 0.6);
+}
+
+/* Quantity Display */
+.quantity-display {
+  font-weight: 600;
+}
+
+.quantity-display.positive {
+  color: #2e7d32;
+}
+
+.quantity-display.negative {
+  color: #c62828;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .history-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .tab-selector {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .history-search,
+  .history-filter,
+  .date-range-picker {
+    width: 100%;
+  }
+
+  .date-range-picker {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .history-table {
+    font-size: 12px;
+  }
+
+  .history-table thead th,
+  .history-table tbody td {
+    padding: 8px;
+  }
+
+  .state-diff {
+    max-width: 150px;
+    font-size: 10px;
+  }
+
+  .date-range-picker {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .date-input {
+    width: 100%;
+  }
+}

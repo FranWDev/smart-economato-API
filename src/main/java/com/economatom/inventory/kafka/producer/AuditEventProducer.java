@@ -1,6 +1,7 @@
 package com.economatom.inventory.kafka.producer;
 
 import com.economatom.inventory.dto.event.InventoryAuditEvent;
+import com.economatom.inventory.dto.event.OrderAuditEvent;
 import com.economatom.inventory.dto.event.RecipeAuditEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -21,15 +22,19 @@ public class AuditEventProducer {
 
     private static final String INVENTORY_AUDIT_TOPIC = "inventory-audit-events";
     private static final String RECIPE_AUDIT_TOPIC = "recipe-audit-events";
+    private static final String ORDER_AUDIT_TOPIC = "order-audit-events";
 
     private final KafkaTemplate<String, InventoryAuditEvent> inventoryKafkaTemplate;
     private final KafkaTemplate<String, RecipeAuditEvent> recipeKafkaTemplate;
+    private final KafkaTemplate<String, OrderAuditEvent> orderKafkaTemplate;
 
     public AuditEventProducer(
             KafkaTemplate<String, InventoryAuditEvent> inventoryKafkaTemplate,
-            KafkaTemplate<String, RecipeAuditEvent> recipeKafkaTemplate) {
+            KafkaTemplate<String, RecipeAuditEvent> recipeKafkaTemplate,
+            KafkaTemplate<String, OrderAuditEvent> orderKafkaTemplate) {
         this.inventoryKafkaTemplate = inventoryKafkaTemplate;
         this.recipeKafkaTemplate = recipeKafkaTemplate;
+        this.orderKafkaTemplate = orderKafkaTemplate;
     }
 
     /**
@@ -83,6 +88,33 @@ public class AuditEventProducer {
             });
         } catch (Exception e) {
             log.error("Excepción al publicar evento de auditoría de receta: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Publica un evento de auditoría de orden en Kafka de forma asíncrona.
+     */
+    public void publishOrderAudit(OrderAuditEvent event) {
+        try {
+            String key = "order-" + event.getOrderId();
+            
+            CompletableFuture<SendResult<String, OrderAuditEvent>> future = 
+                orderKafkaTemplate.send(ORDER_AUDIT_TOPIC, key, event);
+            
+            future.whenComplete((result, ex) -> {
+                if (ex == null) {
+                    log.debug("Evento de auditoría de orden enviado: orden={}, acción={}, partition={}, offset={}", 
+                        event.getOrderId(), 
+                        event.getAction(),
+                        result.getRecordMetadata().partition(),
+                        result.getRecordMetadata().offset());
+                } else {
+                    log.error("Error al enviar evento de auditoría de orden: orden={}, error={}", 
+                        event.getOrderId(), ex.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            log.error("Excepción al publicar evento de auditoría de orden: {}", e.getMessage(), e);
         }
     }
 }

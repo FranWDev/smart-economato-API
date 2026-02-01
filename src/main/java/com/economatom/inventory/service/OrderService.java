@@ -1,5 +1,6 @@
 package com.economatom.inventory.service;
 
+import com.economatom.inventory.annotation.OrderAuditable;
 import com.economatom.inventory.dto.request.OrderDetailRequestDTO;
 import com.economatom.inventory.dto.request.OrderReceptionRequestDTO;
 import com.economatom.inventory.dto.request.OrderRequestDTO;
@@ -17,6 +18,8 @@ import com.economatom.inventory.repository.ProductRepository;
 import com.economatom.inventory.repository.UserRepository;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Pageable;
@@ -87,7 +90,17 @@ public class OrderService {
         return orderMapper.toResponseDTO(savedOrder);
     }
 
+    /**
+     * Actualiza una orden completa (usuario y detalles) con bloqueo optimista
+     * 
+     * Utiliza @Retryable para manejar conflictos de concurrencia con reintentos automáticos
+     */
     @CacheEvict(value = { "orders", "order" }, allEntries = true)
+    @Retryable(
+        retryFor = {org.springframework.orm.ObjectOptimisticLockingFailureException.class},
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 100, multiplier = 2)
+    )
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public Optional<OrderResponseDTO> update(Integer id, OrderRequestDTO requestDTO) {
@@ -150,6 +163,7 @@ public class OrderService {
      * 
      * Utiliza Pessimistic Locking para garantizar consistencia en el stock.
      */
+    @OrderAuditable(action = "RECEPCION_ORDEN")
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class,
             Exception.class }, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
@@ -202,9 +216,18 @@ public class OrderService {
     }
 
     /**
-     * Actualiza el estado de una orden
+     * Actualiza el estado de una orden con bloqueo optimista y reintentos
      * Estados permitidos: CREATED, PENDING, REVIEW, COMPLETED, INCOMPLETE
+     * 
+     * Utiliza @Retryable para manejar conflictos de concurrencia automáticamente
+     * con hasta 3 intentos y backoff exponencial de 100ms
      */
+    @OrderAuditable(action = "CAMBIO_ESTADO_ORDEN")
+    @Retryable(
+        retryFor = {org.springframework.orm.ObjectOptimisticLockingFailureException.class},
+        maxAttempts = 3,
+        backoff = @Backoff(delay = 100, multiplier = 2)
+    )
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public Optional<OrderResponseDTO> updateStatus(Integer orderId, String newStatus) {
         return repository.findById(orderId)
