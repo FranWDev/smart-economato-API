@@ -9,6 +9,7 @@ import com.economatom.inventory.dto.response.UserResponseDTO;
 import com.economatom.inventory.exception.InvalidOperationException;
 import com.economatom.inventory.exception.ResourceNotFoundException;
 import com.economatom.inventory.mapper.OrderMapper;
+import com.economatom.inventory.model.MovementType;
 import com.economatom.inventory.model.Order;
 import com.economatom.inventory.model.OrderDetail;
 import com.economatom.inventory.model.Product;
@@ -16,6 +17,7 @@ import com.economatom.inventory.model.User;
 import com.economatom.inventory.repository.OrderRepository;
 import com.economatom.inventory.repository.ProductRepository;
 import com.economatom.inventory.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.retry.annotation.Backoff;
@@ -29,6 +31,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
         Exception.class })
@@ -38,15 +41,18 @@ public class OrderService {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final OrderMapper orderMapper;
+    private final StockLedgerService stockLedgerService;
 
     public OrderService(OrderRepository repository,
             UserRepository userRepository,
             ProductRepository productRepository,
-            OrderMapper orderMapper) {
+            OrderMapper orderMapper,
+            StockLedgerService stockLedgerService) {
         this.repository = repository;
         this.userRepository = userRepository;
         this.productRepository = productRepository;
         this.orderMapper = orderMapper;
+        this.stockLedgerService = stockLedgerService;
     }
 
     @Transactional(readOnly = true)
@@ -192,13 +198,24 @@ public class OrderService {
         order.setStatus(receptionData.getStatus());
 
         if ("CONFIRMED".equals(receptionData.getStatus())) {
+            log.info("Confirmando orden {} - Registrando en ledger inmutable", order.getId());
+            
             for (OrderDetail detail : order.getDetails()) {
                 Product product = productRepository.findByIdForUpdate(detail.getProduct().getId())
                         .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado"));
 
-                product.setCurrentStock(product.getCurrentStock().add(detail.getQuantityReceived()));
-                productRepository.save(product);
+                stockLedgerService.recordStockMovement(
+                    product.getId(),
+                    detail.getQuantityReceived(),
+                    MovementType.ENTRADA,
+                    String.format("Recepción de pedido #%d - %s", order.getId(), product.getName()),
+                    order.getUsers(),
+                    order.getId()
+                );
             }
+            
+            log.info("Orden {} confirmada - {} movimientos registrados en ledger", 
+                    order.getId(), order.getDetails().size());
         }
 
         Order savedOrder = repository.save(order);

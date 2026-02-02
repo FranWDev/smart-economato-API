@@ -9,9 +9,11 @@ import com.economatom.inventory.dto.response.UserResponseDTO;
 import com.economatom.inventory.exception.InvalidOperationException;
 import com.economatom.inventory.exception.ResourceNotFoundException;
 import com.economatom.inventory.mapper.OrderMapper;
+import com.economatom.inventory.model.MovementType;
 import com.economatom.inventory.model.Order;
 import com.economatom.inventory.model.OrderDetail;
 import com.economatom.inventory.model.Product;
+import com.economatom.inventory.model.StockLedger;
 import com.economatom.inventory.model.User;
 import com.economatom.inventory.repository.OrderRepository;
 import com.economatom.inventory.repository.ProductRepository;
@@ -52,6 +54,9 @@ class OrderServiceTest {
 
     @Mock
     private OrderMapper orderMapper;
+
+    @Mock
+    private StockLedgerService stockLedgerService;
 
     @InjectMocks
     private OrderService orderService;
@@ -282,7 +287,9 @@ class OrderServiceTest {
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
         when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
-        when(productRepository.save(testProduct)).thenReturn(testProduct);
+        when(stockLedgerService.recordStockMovement(
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt()))
+            .thenReturn(null);
         when(repository.save(testOrder)).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
 
@@ -291,7 +298,8 @@ class OrderServiceTest {
         assertNotNull(result);
         verify(repository).findByIdWithDetails(1);
         verify(productRepository).findByIdForUpdate(1);
-        verify(productRepository).save(testProduct);
+        verify(stockLedgerService).recordStockMovement(
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt());
         verify(repository).save(testOrder);
     }
 
@@ -467,7 +475,9 @@ class OrderServiceTest {
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
         when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
-        when(productRepository.save(any(Product.class))).thenReturn(testProduct);
+        when(stockLedgerService.recordStockMovement(
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt()))
+            .thenReturn(null);
         when(repository.save(any(Order.class))).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(any(Order.class))).thenReturn(testOrderResponseDTO);
 
@@ -476,8 +486,9 @@ class OrderServiceTest {
         assertNotNull(result);
         verify(repository).findByIdWithDetails(1);
         verify(productRepository).findByIdForUpdate(1);
-        verify(productRepository).save(testProduct);
-        verify(repository).save(testOrder);
+        verify(stockLedgerService).recordStockMovement(
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt());
+        verify(repository).save(any(Order.class));
     }
 
     @Test
