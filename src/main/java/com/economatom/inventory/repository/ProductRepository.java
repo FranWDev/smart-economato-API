@@ -44,4 +44,6 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
     @Query("SELECT p FROM Product p WHERE p.id = :id")
     Optional<Product> findByIdForRead(@Param("id") Integer id);
 
+    boolean existsBySupplierId(Integer supplierId);
+
 }

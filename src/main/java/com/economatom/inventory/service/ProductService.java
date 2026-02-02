@@ -10,6 +10,7 @@ import com.economatom.inventory.model.Product;
 import com.economatom.inventory.repository.ProductRepository;
 import com.economatom.inventory.repository.InventoryAuditRepository;
 import com.economatom.inventory.repository.RecipeComponentRepository;
+import com.economatom.inventory.repository.SupplierRepository;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -34,16 +35,19 @@ public class ProductService {
     private final ProductRepository repository;
     private final InventoryAuditRepository movementRepository;
     private final RecipeComponentRepository recipeComponentRepository;
+    private final SupplierRepository supplierRepository;
     private final ProductMapper productMapper;
 
     public ProductService(
             ProductRepository repository,
             InventoryAuditRepository movementRepository,
             RecipeComponentRepository recipeComponentRepository,
+            SupplierRepository supplierRepository,
             ProductMapper productMapper) {
         this.repository = repository;
         this.movementRepository = movementRepository;
         this.recipeComponentRepository = recipeComponentRepository;
+        this.supplierRepository = supplierRepository;
         this.productMapper = productMapper;
     }
 
@@ -159,6 +163,14 @@ public class ProductService {
         if (!isValidUnit(requestDTO.getUnit())) {
             throw new InvalidOperationException(
                     "Unidad de medida inválida. Debe ser: KG, G, L, ML o UND");
+        }
+        
+        // Validar que el supplier existe si se proporciona
+        if (requestDTO.getSupplierId() != null) {
+            if (!supplierRepository.existsById(requestDTO.getSupplierId())) {
+                throw new InvalidOperationException(
+                        "El proveedor especificado no existe");
+            }
         }
     }
 

@@ -32,4 +32,7 @@ public class ProductResponseDTO {
 
     @Schema(description = "Stock actual del producto", example = "250.00")
     private BigDecimal currentStock;
+
+    @Schema(description = "Proveedor del producto")
+    private SupplierResponseDTO supplier;
 }

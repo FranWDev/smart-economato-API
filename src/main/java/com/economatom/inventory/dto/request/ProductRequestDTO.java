@@ -44,4 +44,7 @@ public class ProductRequestDTO {
     @Digits(integer = 10, fraction = 3, message = "El stock debe tener máximo 10 dígitos enteros y 3 decimales")
     @Schema(description = "Cantidad actual en inventario", example = "250.00")
     private BigDecimal currentStock;
+
+    @Schema(description = "ID del proveedor del producto", example = "1")
+    private Integer supplierId;
 }

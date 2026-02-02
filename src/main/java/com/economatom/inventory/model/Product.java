@@ -61,6 +61,10 @@ public class Product {
     @Column(name = "current_stock", nullable = false, precision = 10, scale = 3)
     private BigDecimal currentStock;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supplier_id", foreignKey = @ForeignKey(name = "fk_product_supplier"))
+    private Supplier supplier;
+
     @Version
     @Column(name = "version")
     private Long version;

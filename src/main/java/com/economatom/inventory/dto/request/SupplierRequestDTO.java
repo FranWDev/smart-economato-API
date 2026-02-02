@@ -1,0 +1,23 @@
+package com.economatom.inventory.dto.request;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(description = "DTO para crear o actualizar un proveedor.")
+public class SupplierRequestDTO {
+
+    @JsonProperty("name")
+    @NotBlank(message = "El nombre del proveedor no puede estar vacío")
+    @Size(min = 2, max = 100, message = "El nombre debe tener entre 2 y 100 caracteres")
+    @Schema(description = "Nombre del proveedor", example = "Mariscos Recio S. L.")
+    private String name;
+}
