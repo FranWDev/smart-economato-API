@@ -127,4 +127,27 @@ public class ProductController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    @Operation(summary = "Actualizar stock manualmente con auditoría en ledger",
+               description = "Modifica los datos de un producto y si el stock cambió, lo registra en el ledger " +
+                           "inmutable con el concepto 'Modificación manual'. La acción se audita automáticamente " +
+                           "con el usuario autenticado y la orden es nula (por ser modificación manual). " +
+                           "Utiliza **bloqueo optimista** con reintentos automáticos.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Producto actualizado correctamente y ledger registrado si el stock cambió",
+                     content = @Content(mediaType = "application/json",
+                     schema = @Schema(implementation = ProductResponseDTO.class))),
+        @ApiResponse(responseCode = "404", description = "Producto no encontrado"),
+        @ApiResponse(responseCode = "400", description = "Datos inválidos o producto con nombre duplicado"),
+        @ApiResponse(responseCode = "409", description = "Conflicto de concurrencia - El producto fue modificado por otro usuario")
+    })
+    @PutMapping("/{id}/stock-manual")
+    public ResponseEntity<ProductResponseDTO> updateStockManually(
+            @Parameter(description = "ID del producto a actualizar", example = "3", required = true)
+            @PathVariable Integer id,
+            @Valid @RequestBody ProductRequestDTO productRequest) {
+        return productService.updateStockManually(id, productRequest)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
 }

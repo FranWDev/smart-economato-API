@@ -9,6 +9,8 @@ import com.economatom.inventory.model.Product;
 import com.economatom.inventory.repository.InventoryAuditRepository;
 import com.economatom.inventory.repository.ProductRepository;
 import com.economatom.inventory.repository.RecipeComponentRepository;
+import com.economatom.inventory.repository.UserRepository;
+import com.economatom.inventory.repository.SupplierRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,7 +45,16 @@ class ProductServiceTest {
     private RecipeComponentRepository recipeComponentRepository;
 
     @Mock
+    private SupplierRepository supplierRepository;
+
+    @Mock
     private ProductMapper productMapper;
+
+    @Mock
+    private StockLedgerService stockLedgerService;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private ProductService productService;
@@ -367,5 +378,89 @@ class ProductServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         verify(repository).findByUnitPriceBetween(min, max);
+    }
+
+    @Test
+    void updateStockManually_WhenStockIncreases_ShouldRecordMovement() {
+
+        testProduct.setCurrentStock(new BigDecimal("10.0"));
+
+        testProductRequestDTO.setCurrentStock(new BigDecimal("50.0"));
+
+        Product updatedProduct = new Product();
+        updatedProduct.setId(1);
+        updatedProduct.setCurrentStock(new BigDecimal("50.0"));
+
+        lenient().when(repository.findById(1)).thenReturn(Optional.of(testProduct), Optional.of(updatedProduct));
+        lenient().when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
+        lenient().when(userRepository.findByName(anyString())).thenReturn(Optional.empty());
+        lenient().when(productMapper.toResponseDTO(any(Product.class))).thenReturn(testProductResponseDTO);
+
+        Optional<ProductResponseDTO> result = productService.updateStockManually(1, testProductRequestDTO);
+
+        assertTrue(result.isPresent());
+    }
+
+    @Test
+    void updateStockManually_WhenStockDecreases_ShouldRecordMovement() {
+
+        testProduct.setCurrentStock(new BigDecimal("100.0"));
+
+        testProductRequestDTO.setCurrentStock(new BigDecimal("60.0"));
+
+        Product updatedProduct = new Product();
+        updatedProduct.setId(1);
+        updatedProduct.setCurrentStock(new BigDecimal("60.0"));
+
+        lenient().when(repository.findById(1)).thenReturn(Optional.of(testProduct), Optional.of(updatedProduct));
+        lenient().when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
+        lenient().when(userRepository.findByName(anyString())).thenReturn(Optional.empty());
+        lenient().when(productMapper.toResponseDTO(any(Product.class))).thenReturn(testProductResponseDTO);
+
+        Optional<ProductResponseDTO> result = productService.updateStockManually(1, testProductRequestDTO);
+
+        assertTrue(result.isPresent());
+    }
+
+    @Test
+    void updateStockManually_WhenStockUnchanged_ShouldNotRecordMovement() {
+
+        testProduct.setCurrentStock(new BigDecimal("10.0"));
+
+        testProductRequestDTO.setCurrentStock(new BigDecimal("10.0"));
+
+        lenient().when(repository.findById(1)).thenReturn(Optional.of(testProduct));
+        lenient().when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
+        lenient().when(repository.save(any(Product.class))).thenReturn(testProduct);
+        lenient().when(productMapper.toResponseDTO(any(Product.class))).thenReturn(testProductResponseDTO);
+
+        Optional<ProductResponseDTO> result = productService.updateStockManually(1, testProductRequestDTO);
+
+        assertTrue(result.isPresent());
+    }
+
+    @Test
+    void updateStockManually_WhenProductDoesNotExist_ShouldReturnEmpty() {
+        when(repository.findById(999)).thenReturn(Optional.empty());
+
+        Optional<ProductResponseDTO> result = productService.updateStockManually(999, testProductRequestDTO);
+
+        assertFalse(result.isPresent());
+        verify(repository).findById(999);
+        verify(repository, never()).save(any(Product.class));
+    }
+
+    @Test
+    void updateStockManually_WhenOptimisticLockingFails_ShouldThrowConcurrencyException() {
+        testProduct.setCurrentStock(new BigDecimal("10.0"));
+        testProductRequestDTO.setCurrentStock(new BigDecimal("10.0")); // Sin cambio de stock
+
+        lenient().when(repository.findById(1)).thenReturn(Optional.of(testProduct));
+        lenient().when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
+        lenient().when(repository.save(any(Product.class))).thenThrow(new OptimisticLockingFailureException("Lock failure"));
+
+        assertThrows(ConcurrencyException.class, () -> {
+            productService.updateStockManually(1, testProductRequestDTO);
+        });
     }
 }

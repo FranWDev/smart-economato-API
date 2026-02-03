@@ -185,4 +185,121 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isNotFound());
         }
+
+        @Test
+        void whenUpdateStockManually_WithStockChange_thenRegistersInStockLedger() throws Exception {
+
+                ProductRequestDTO productRequest = TestDataUtil.createProductRequestDTO();
+                productRequest.setCurrentStock(new BigDecimal("100.0"));
+
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(productRequest)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer productId = objectMapper.readTree(response).get("id").asInt();
+
+                productRequest.setCurrentStock(new BigDecimal("150.0"));
+
+                mockMvc.perform(put(BASE_URL + "/{id}/stock-manual", productId)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(productRequest)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.currentStock", is(150.0)));
+
+                mockMvc.perform(get(BASE_URL + "/{id}", productId)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.currentStock", is(150.0)));
+        }
+
+        @Test
+        void whenUpdateStockManually_WithoutStockChange_thenDoesNotRegister() throws Exception {
+
+                ProductRequestDTO productRequest = TestDataUtil.createProductRequestDTO();
+                productRequest.setCurrentStock(new BigDecimal("100.0"));
+
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(productRequest)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer productId = objectMapper.readTree(response).get("id").asInt();
+
+                productRequest.setName(productRequest.getName() + " Actualizado");
+                productRequest.setUnitPrice(productRequest.getUnitPrice().add(new BigDecimal("0.50")));
+
+                mockMvc.perform(put(BASE_URL + "/{id}/stock-manual", productId)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(productRequest)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.name", is(productRequest.getName())))
+                                .andExpect(jsonPath("$.unitPrice", is(productRequest.getUnitPrice().doubleValue())))
+                                .andExpect(jsonPath("$.currentStock", is(100.0)));
+        }
+
+        @Test
+        void whenUpdateStockManually_DecreasesStock_thenRegistersInStockLedger() throws Exception {
+
+                ProductRequestDTO productRequest = TestDataUtil.createProductRequestDTO();
+                productRequest.setCurrentStock(new BigDecimal("200.0"));
+
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(productRequest)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer productId = objectMapper.readTree(response).get("id").asInt();
+
+                productRequest.setCurrentStock(new BigDecimal("150.0"));
+
+                mockMvc.perform(put(BASE_URL + "/{id}/stock-manual", productId)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(productRequest)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.currentStock", is(150.0)));
+
+                mockMvc.perform(get(BASE_URL + "/{id}", productId)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.currentStock", is(150.0)));
+        }
+
+        @Test
+        void whenUpdateStockManually_WithInvalidData_thenReturnsBadRequest() throws Exception {
+
+                ProductRequestDTO productRequest = TestDataUtil.createProductRequestDTO();
+
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(productRequest)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer productId = objectMapper.readTree(response).get("id").asInt();
+
+                ProductRequestDTO invalidRequest = new ProductRequestDTO();
+                invalidRequest.setName("");
+                invalidRequest.setType(productRequest.getType());
+                invalidRequest.setUnit(productRequest.getUnit());
+                invalidRequest.setUnitPrice(productRequest.getUnitPrice());
+                invalidRequest.setProductCode(productRequest.getProductCode());
+                invalidRequest.setCurrentStock(productRequest.getCurrentStock());
+
+                mockMvc.perform(put(BASE_URL + "/{id}/stock-manual", productId)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(invalidRequest)))
+                                .andExpect(status().isBadRequest());
+        }
 }

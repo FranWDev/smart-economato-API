@@ -6,11 +6,16 @@ import com.economatom.inventory.dto.response.ProductResponseDTO;
 import com.economatom.inventory.exception.ConcurrencyException;
 import com.economatom.inventory.exception.InvalidOperationException;
 import com.economatom.inventory.mapper.ProductMapper;
+import com.economatom.inventory.model.MovementType;
 import com.economatom.inventory.model.Product;
+import com.economatom.inventory.model.User;
 import com.economatom.inventory.repository.ProductRepository;
 import com.economatom.inventory.repository.InventoryAuditRepository;
 import com.economatom.inventory.repository.RecipeComponentRepository;
 import com.economatom.inventory.repository.SupplierRepository;
+import com.economatom.inventory.repository.UserRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -29,7 +34,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional(rollbackFor = {InvalidOperationException.class, RuntimeException.class, Exception.class})
+@Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
 public class ProductService {
 
     private final ProductRepository repository;
@@ -37,18 +42,24 @@ public class ProductService {
     private final RecipeComponentRepository recipeComponentRepository;
     private final SupplierRepository supplierRepository;
     private final ProductMapper productMapper;
+    private final StockLedgerService stockLedgerService;
+    private final UserRepository userRepository;
 
     public ProductService(
             ProductRepository repository,
             InventoryAuditRepository movementRepository,
             RecipeComponentRepository recipeComponentRepository,
             SupplierRepository supplierRepository,
-            ProductMapper productMapper) {
+            ProductMapper productMapper,
+            StockLedgerService stockLedgerService,
+            UserRepository userRepository) {
         this.repository = repository;
         this.movementRepository = movementRepository;
         this.recipeComponentRepository = recipeComponentRepository;
         this.supplierRepository = supplierRepository;
         this.productMapper = productMapper;
+        this.stockLedgerService = stockLedgerService;
+        this.userRepository = userRepository;
     }
 
     // CORREGIDO: Ahora devuelve Page<ProductResponseDTO> en lugar de List
@@ -73,9 +84,9 @@ public class ProductService {
                 .map(productMapper::toResponseDTO);
     }
 
-    @CacheEvict(value = {"products", "product"}, allEntries = true)
+    @CacheEvict(value = { "products", "product" }, allEntries = true)
     @ProductAuditable(action = "CREATE_PRODUCT")
-    @Transactional(rollbackFor = {InvalidOperationException.class, RuntimeException.class, Exception.class})
+    @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public ProductResponseDTO save(ProductRequestDTO requestDTO) {
         if (repository.existsByName(requestDTO.getName())) {
             throw new InvalidOperationException("Ya existe un producto con ese nombre");
@@ -86,17 +97,11 @@ public class ProductService {
         return productMapper.toResponseDTO(repository.save(product));
     }
 
-    @CacheEvict(value = {"products", "product"}, allEntries = true)
+    @CacheEvict(value = { "products", "product" }, allEntries = true)
     @ProductAuditable(action = "UPDATE_PRODUCT")
-    @Retryable(
-        retryFor = {OptimisticLockingFailureException.class},
-        maxAttempts = 3,
-        backoff = @Backoff(delay = 100)
-    )
-    @Transactional(
-        rollbackFor = {InvalidOperationException.class, RuntimeException.class, Exception.class},
-        isolation = Isolation.REPEATABLE_READ
-    )
+    @Retryable(retryFor = { OptimisticLockingFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
+            Exception.class }, isolation = Isolation.REPEATABLE_READ)
     public Optional<ProductResponseDTO> update(Integer id, ProductRequestDTO requestDTO) {
         return repository.findById(id)
                 .map(existing -> {
@@ -106,7 +111,7 @@ public class ProductService {
                     }
                     validateProductData(requestDTO);
                     productMapper.updateEntity(requestDTO, existing);
-                    
+
                     try {
                         return productMapper.toResponseDTO(repository.save(existing));
                     } catch (OptimisticLockingFailureException ex) {
@@ -115,8 +120,8 @@ public class ProductService {
                 });
     }
 
-    @CacheEvict(value = {"products", "product"}, allEntries = true)
-    @Transactional(rollbackFor = {InvalidOperationException.class, RuntimeException.class, Exception.class})
+    @CacheEvict(value = { "products", "product" }, allEntries = true)
+    @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
         repository.findById(id).ifPresent(product -> {
             if (movementRepository.existsByProductId(id)) {
@@ -164,7 +169,7 @@ public class ProductService {
             throw new InvalidOperationException(
                     "Unidad de medida inválida. Debe ser: KG, G, L, ML o UND");
         }
-        
+
         // Validar que el supplier existe si se proporciona
         if (requestDTO.getSupplierId() != null) {
             if (!supplierRepository.existsById(requestDTO.getSupplierId())) {
@@ -176,5 +181,67 @@ public class ProductService {
 
     private boolean isValidUnit(String unit) {
         return unit != null && List.of("KG", "G", "L", "ML", "UND").contains(unit.toUpperCase());
+    }
+
+    @CacheEvict(value = { "products", "product" }, allEntries = true)
+    @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
+            Exception.class }, isolation = Isolation.REPEATABLE_READ)
+    public Optional<ProductResponseDTO> updateStockManually(Integer id, ProductRequestDTO requestDTO) {
+        return repository.findById(id)
+                .map(existing -> {
+                    BigDecimal previousStock = existing.getCurrentStock();
+                    BigDecimal newStock = requestDTO.getCurrentStock();
+                    BigDecimal stockDelta = newStock.subtract(previousStock);
+
+                    if (!existing.getName().equals(requestDTO.getName()) &&
+                            repository.existsByName(requestDTO.getName())) {
+                        throw new InvalidOperationException("Ya existe un producto con ese nombre");
+                    }
+                    validateProductData(requestDTO);
+
+                    existing.setName(requestDTO.getName());
+                    existing.setType(requestDTO.getType());
+                    existing.setUnit(requestDTO.getUnit());
+                    existing.setUnitPrice(requestDTO.getUnitPrice());
+                    existing.setProductCode(requestDTO.getProductCode());
+                    if (requestDTO.getSupplierId() != null) {
+                        existing.setSupplier(supplierRepository.findById(requestDTO.getSupplierId()).orElse(null));
+                    }
+
+                    if (stockDelta.compareTo(BigDecimal.ZERO) != 0) {
+                        User currentUser = getCurrentUser();
+
+                        stockLedgerService.recordStockMovement(
+                                existing.getId(),
+                                stockDelta,
+                                MovementType.AJUSTE,
+                                String.format("Modificación manual del stock de %s", existing.getName()),
+                                currentUser,
+                                null);
+
+                        Product updated = repository.findById(id).orElseThrow();
+                        return productMapper.toResponseDTO(updated);
+                    } else {
+
+                        try {
+                            return productMapper.toResponseDTO(repository.save(existing));
+                        } catch (OptimisticLockingFailureException ex) {
+                            throw new ConcurrencyException("Product", id);
+                        }
+                    }
+                });
+    }
+
+    private User getCurrentUser() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
+                String username = auth.getName();
+                return userRepository.findByName(username).orElse(null);
+            }
+        } catch (Exception e) {
+            // Log silencioso - continuar sin usuario
+        }
+        return null;
     }
 }
