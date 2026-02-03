@@ -150,4 +150,5 @@ public class RecipeAllergenControllerIntegrationTest extends BaseIntegrationTest
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isNotFound());
         }
+
 }

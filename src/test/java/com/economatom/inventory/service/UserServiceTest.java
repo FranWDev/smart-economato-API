@@ -70,16 +70,14 @@ class UserServiceTest {
 
     @Test
     void findAll_ShouldReturnListOfUsers() {
-        // Arrange
+
         Pageable pageable = PageRequest.of(0, 10);
         Page<User> page = new PageImpl<>(Arrays.asList(testUser));
         when(repository.findAll(pageable)).thenReturn(page);
         when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponseDTO);
 
-        // Act
         List<UserResponseDTO> result = userService.findAll(pageable);
 
-        // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testUserResponseDTO.getName(), result.get(0).getName());
@@ -89,14 +87,12 @@ class UserServiceTest {
 
     @Test
     void findById_WhenUserExists_ShouldReturnUser() {
-        // Arrange
+
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
         when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponseDTO);
 
-        // Act
         Optional<UserResponseDTO> result = userService.findById(1);
 
-        // Assert
         assertTrue(result.isPresent());
         assertEquals(testUserResponseDTO.getName(), result.get().getName());
         verify(repository).findById(1);
@@ -104,26 +100,22 @@ class UserServiceTest {
 
     @Test
     void findById_WhenUserDoesNotExist_ShouldReturnEmpty() {
-        // Arrange
+
         when(repository.findById(999)).thenReturn(Optional.empty());
 
-        // Act
         Optional<UserResponseDTO> result = userService.findById(999);
 
-        // Assert
         assertFalse(result.isPresent());
         verify(repository).findById(999);
     }
 
     @Test
     void findByUsername_WhenUserExists_ShouldReturnUser() {
-        // Arrange
+
         when(repository.findByName("Test User")).thenReturn(Optional.of(testUser));
 
-        // Act
         User result = userService.findByUsername("Test User");
 
-        // Assert
         assertNotNull(result);
         assertEquals(testUser.getName(), result.getName());
         verify(repository).findByName("Test User");
@@ -131,10 +123,9 @@ class UserServiceTest {
 
     @Test
     void findByUsername_WhenUserDoesNotExist_ShouldThrowException() {
-        // Arrange
+
         when(repository.findByName("NonExistent")).thenReturn(Optional.empty());
 
-        // Act & Assert
         assertThrows(UsernameNotFoundException.class, () -> {
             userService.findByUsername("NonExistent");
         });
@@ -143,17 +134,15 @@ class UserServiceTest {
 
     @Test
     void save_WhenEmailDoesNotExist_ShouldCreateUser() {
-        // Arrange
+
         when(repository.existsByEmail(testUserRequestDTO.getEmail())).thenReturn(false);
         when(userMapper.toEntity(testUserRequestDTO)).thenReturn(testUser);
         when(passwordEncoder.encode(testUserRequestDTO.getPassword())).thenReturn("encodedPassword");
         when(repository.save(any(User.class))).thenReturn(testUser);
         when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponseDTO);
 
-        // Act
         UserResponseDTO result = userService.save(testUserRequestDTO);
 
-        // Assert
         assertNotNull(result);
         assertEquals(testUserResponseDTO.getName(), result.getName());
         verify(repository).existsByEmail(testUserRequestDTO.getEmail());
@@ -163,10 +152,9 @@ class UserServiceTest {
 
     @Test
     void save_WhenEmailExists_ShouldThrowException() {
-        // Arrange
+
         when(repository.existsByEmail(testUserRequestDTO.getEmail())).thenReturn(true);
 
-        // Act & Assert
         assertThrows(InvalidOperationException.class, () -> {
             userService.save(testUserRequestDTO);
         });
@@ -176,7 +164,7 @@ class UserServiceTest {
 
     @Test
     void save_WhenRoleIsNull_ShouldSetDefaultRole() {
-        // Arrange
+
         testUserRequestDTO.setRole(null);
         User userWithNullRole = new User();
         userWithNullRole.setName("Test User");
@@ -193,17 +181,15 @@ class UserServiceTest {
         });
         when(userMapper.toResponseDTO(any(User.class))).thenReturn(testUserResponseDTO);
 
-        // Act
         UserResponseDTO result = userService.save(testUserRequestDTO);
 
-        // Assert
         assertNotNull(result);
         verify(repository).save(argThat(user -> "USER".equals(user.getRole())));
     }
 
     @Test
     void save_WhenRoleIsEmpty_ShouldSetDefaultRole() {
-        // Arrange
+
         testUserRequestDTO.setRole("");
         User userWithEmptyRole = new User();
         userWithEmptyRole.setName("Test User");
@@ -220,27 +206,23 @@ class UserServiceTest {
         });
         when(userMapper.toResponseDTO(any(User.class))).thenReturn(testUserResponseDTO);
 
-        // Act
         UserResponseDTO result = userService.save(testUserRequestDTO);
 
-        // Assert
         assertNotNull(result);
         verify(repository).save(argThat(user -> "USER".equals(user.getRole())));
     }
 
     @Test
     void update_WhenUserExists_ShouldUpdateUser() {
-        // Arrange
+
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
         when(repository.save(any(User.class))).thenReturn(testUser);
         when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponseDTO);
         doNothing().when(userMapper).updateEntity(testUserRequestDTO, testUser);
         when(passwordEncoder.encode(testUserRequestDTO.getPassword())).thenReturn("newEncodedPassword");
 
-        // Act
         Optional<UserResponseDTO> result = userService.update(1, testUserRequestDTO);
 
-        // Assert
         assertTrue(result.isPresent());
         assertEquals(testUserResponseDTO.getName(), result.get().getName());
         verify(repository).findById(1);
@@ -250,47 +232,41 @@ class UserServiceTest {
 
     @Test
     void update_WhenPasswordIsNull_ShouldNotEncodePassword() {
-        // Arrange
+
         testUserRequestDTO.setPassword(null);
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
         when(repository.save(any(User.class))).thenReturn(testUser);
         when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponseDTO);
         doNothing().when(userMapper).updateEntity(testUserRequestDTO, testUser);
 
-        // Act
         Optional<UserResponseDTO> result = userService.update(1, testUserRequestDTO);
 
-        // Assert
         assertTrue(result.isPresent());
         verify(passwordEncoder, never()).encode(anyString());
     }
 
     @Test
     void update_WhenPasswordIsEmpty_ShouldNotEncodePassword() {
-        // Arrange
+
         testUserRequestDTO.setPassword("");
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
         when(repository.save(any(User.class))).thenReturn(testUser);
         when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponseDTO);
         doNothing().when(userMapper).updateEntity(testUserRequestDTO, testUser);
 
-        // Act
         Optional<UserResponseDTO> result = userService.update(1, testUserRequestDTO);
 
-        // Assert
         assertTrue(result.isPresent());
         verify(passwordEncoder, never()).encode(anyString());
     }
 
     @Test
     void update_WhenUserDoesNotExist_ShouldReturnEmpty() {
-        // Arrange
+
         when(repository.findById(999)).thenReturn(Optional.empty());
 
-        // Act
         Optional<UserResponseDTO> result = userService.update(999, testUserRequestDTO);
 
-        // Assert
         assertFalse(result.isPresent());
         verify(repository).findById(999);
         verify(repository, never()).save(any(User.class));
@@ -298,27 +274,23 @@ class UserServiceTest {
 
     @Test
     void deleteById_ShouldCallRepository() {
-        // Arrange
+
         doNothing().when(repository).deleteById(1);
 
-        // Act
         userService.deleteById(1);
 
-        // Assert
         verify(repository).deleteById(1);
     }
 
     @Test
     void findByRole_ShouldReturnUsersWithRole() {
-        // Arrange
+
         List<User> users = Arrays.asList(testUser);
         when(repository.findByRole("USER")).thenReturn(users);
         when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponseDTO);
 
-        // Act
         List<UserResponseDTO> result = userService.findByRole("USER");
 
-        // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testUserResponseDTO.getRole(), result.get(0).getRole());
@@ -327,13 +299,11 @@ class UserServiceTest {
 
     @Test
     void findByRole_WhenNoUsersFound_ShouldReturnEmptyList() {
-        // Arrange
+
         when(repository.findByRole("NONEXISTENT")).thenReturn(Arrays.asList());
 
-        // Act
         List<UserResponseDTO> result = userService.findByRole("NONEXISTENT");
 
-        // Assert
         assertNotNull(result);
         assertTrue(result.isEmpty());
         verify(repository).findByRole("NONEXISTENT");

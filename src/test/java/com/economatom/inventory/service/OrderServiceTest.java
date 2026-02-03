@@ -288,8 +288,8 @@ class OrderServiceTest {
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
         when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
         when(stockLedgerService.recordStockMovement(
-            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt()))
-            .thenReturn(null);
+                anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt()))
+                .thenReturn(null);
         when(repository.save(testOrder)).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
 
@@ -299,7 +299,7 @@ class OrderServiceTest {
         verify(repository).findByIdWithDetails(1);
         verify(productRepository).findByIdForUpdate(1);
         verify(stockLedgerService).recordStockMovement(
-            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt());
+                anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt());
         verify(repository).save(testOrder);
     }
 
@@ -476,8 +476,8 @@ class OrderServiceTest {
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
         when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
         when(stockLedgerService.recordStockMovement(
-            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt()))
-            .thenReturn(null);
+                anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt()))
+                .thenReturn(null);
         when(repository.save(any(Order.class))).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(any(Order.class))).thenReturn(testOrderResponseDTO);
 
@@ -487,7 +487,7 @@ class OrderServiceTest {
         verify(repository).findByIdWithDetails(1);
         verify(productRepository).findByIdForUpdate(1);
         verify(stockLedgerService).recordStockMovement(
-            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt());
+                anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt());
         verify(repository).save(any(Order.class));
     }
 

@@ -34,7 +34,7 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
                 entityManager.clear();
                 clearDatabase();
 
-                testUser = TestDataUtil.createAdminUser(); // Usando admin para gestionar alérgenos
+                testUser = TestDataUtil.createAdminUser();
 
                 userRepository.saveAndFlush(testUser);
 
@@ -65,7 +65,7 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
 
         @Test
         void whenCreateValidAllergen_thenReturnsCreatedAllergen() throws Exception {
-                // Usar un alérgeno de prueba
+
                 AllergenRequestDTO allergen = new AllergenRequestDTO();
                 allergen.setName(TestDataUtil.createNutsAllergen().getName());
 
@@ -80,7 +80,7 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
 
         @Test
         void whenGetAllergenById_thenReturnsAllergen() throws Exception {
-                // Usar un alérgeno de prueba
+
                 AllergenRequestDTO allergen = new AllergenRequestDTO();
                 allergen.setName(TestDataUtil.createEggAllergen().getName());
 
@@ -103,7 +103,7 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
 
         @Test
         void whenUpdateAllergen_thenReturnsUpdatedAllergen() throws Exception {
-                // Usar un alérgeno de prueba
+
                 AllergenRequestDTO allergen = new AllergenRequestDTO();
                 allergen.setName(TestDataUtil.createGlutenAllergen().getName());
 
@@ -130,7 +130,7 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
 
         @Test
         void whenDeleteAllergen_thenReturnsNoContent() throws Exception {
-                // Usar un alérgeno de prueba
+
                 AllergenRequestDTO allergen = new AllergenRequestDTO();
                 allergen.setName(TestDataUtil.createNutsAllergen().getName());
 
@@ -153,5 +153,23 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andDo(print())
                                 .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void whenSearchAllergenByName_thenReturnsAllergen() throws Exception {
+                AllergenRequestDTO allergen = new AllergenRequestDTO();
+                allergen.setName(TestDataUtil.createGlutenAllergen().getName());
+
+                mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(allergen)))
+                                .andExpect(status().isCreated());
+
+                mockMvc.perform(get(BASE_URL + "/search")
+                                .param("name", allergen.getName())
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.name", is(allergen.getName())));
         }
 }

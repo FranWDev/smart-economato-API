@@ -55,7 +55,8 @@ public class TestDataUtil {
         return user;
     }
 
-    public static Product createProduct(String name, String type, String unit, BigDecimal price, String code, BigDecimal stock) {
+    public static Product createProduct(String name, String type, String unit, BigDecimal price, String code,
+            BigDecimal stock) {
         Product product = new Product();
         product.setName(name);
         product.setType(type);
@@ -111,11 +112,10 @@ public class TestDataUtil {
 
     public static Recipe createBasicCakeRecipe() {
         Recipe recipe = createRecipe(
-            "Pastel básico",
-            "1. Mezclar ingredientes secos\n2. Agregar huevos\n3. Hornear a 180°C",
-            "Decorar con azúcar glas",
-            new BigDecimal("10.00")
-        );
+                "Pastel básico",
+                "1. Mezclar ingredientes secos\n2. Agregar huevos\n3. Hornear a 180°C",
+                "Decorar con azúcar glas",
+                new BigDecimal("10.00"));
         recipe.setAllergens(new HashSet<>(Arrays.asList(createGlutenAllergen(), createEggAllergen())));
         return recipe;
     }
@@ -146,7 +146,8 @@ public class TestDataUtil {
         return detail;
     }
 
-    public static InventoryAudit createInventoryAudit(User user, Product product, String movementType, BigDecimal quantity) {
+    public static InventoryAudit createInventoryAudit(User user, Product product, String movementType,
+            BigDecimal quantity) {
         InventoryAudit audit = new InventoryAudit();
         audit.setUsers(user);
         audit.setProduct(product);
@@ -172,9 +173,8 @@ public class TestDataUtil {
         Product sugar = createSugar();
 
         recipe.setComponents(Arrays.asList(
-            createRecipeComponent(recipe, flour, new BigDecimal("0.5")),
-            createRecipeComponent(recipe, sugar, new BigDecimal("0.3"))
-        ));
+                createRecipeComponent(recipe, flour, new BigDecimal("0.5")),
+                createRecipeComponent(recipe, sugar, new BigDecimal("0.3"))));
 
         return recipe;
     }
@@ -197,7 +197,7 @@ public class TestDataUtil {
         dto.setType("Ingrediente");
         dto.setUnit("KG");
         dto.setUnitPrice(new BigDecimal("2.50"));
-        dto.setProductCode("HAR002"); // Código diferente para evitar duplicados
+        dto.setProductCode("HAR002");
         dto.setCurrentStock(new BigDecimal("100.0"));
         return dto;
     }

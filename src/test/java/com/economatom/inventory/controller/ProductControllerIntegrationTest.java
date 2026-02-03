@@ -169,4 +169,20 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isNotFound());
         }
+
+        @Test
+        void whenGetProductByCodebar_thenReturnsProduct() throws Exception {
+                mockMvc.perform(get(BASE_URL + "/codebar/{codebar}", testProduct.getProductCode())
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.productCode", is(testProduct.getProductCode())))
+                                .andExpect(jsonPath("$.name", is(testProduct.getName())));
+        }
+
+        @Test
+        void whenGetProductByInvalidCodebar_thenReturnsNotFound() throws Exception {
+                mockMvc.perform(get(BASE_URL + "/codebar/{codebar}", "INVALID-CODE")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isNotFound());
+        }
 }

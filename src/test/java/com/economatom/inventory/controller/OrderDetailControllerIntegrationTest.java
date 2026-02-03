@@ -201,4 +201,45 @@ public class OrderDetailControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$", hasSize(0)));
         }
+
+        @Test
+        public void whenGetOrderDetailById_thenSuccess() throws Exception {
+                OrderDetailRequestDTO detailRequest = new OrderDetailRequestDTO();
+                detailRequest.setOrderId(testOrder.getId());
+                detailRequest.setProductId(testProduct.getId());
+                detailRequest.setQuantity(new BigDecimal("2.5"));
+
+                mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(detailRequest)))
+                                .andExpect(status().isCreated());
+
+                mockMvc.perform(get(BASE_URL + "/{orderId}/{productId}",
+                                testOrder.getId(), testProduct.getId())
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.productId").value(testProduct.getId()))
+                                .andExpect(jsonPath("$.quantity").value(2.5));
+        }
+
+        @Test
+        public void whenGetOrderDetailsByProduct_thenSuccess() throws Exception {
+                OrderDetailRequestDTO detailRequest = new OrderDetailRequestDTO();
+                detailRequest.setOrderId(testOrder.getId());
+                detailRequest.setProductId(testProduct.getId());
+                detailRequest.setQuantity(new BigDecimal("2.5"));
+
+                mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(detailRequest)))
+                                .andExpect(status().isCreated());
+
+                mockMvc.perform(get(BASE_URL + "/product/{productId}", testProduct.getId())
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$").isArray())
+                                .andExpect(jsonPath("$[0].productId").value(testProduct.getId()));
+        }
 }

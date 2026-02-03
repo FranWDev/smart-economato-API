@@ -185,4 +185,77 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(jsonPath("$", hasSize(2)))
                                 .andExpect(jsonPath("$[*].name", everyItem(containsString("Paella"))));
         }
+
+        @Test
+        void whenUpdateRecipe_thenReturnsUpdatedRecipe() throws Exception {
+                RecipeRequestDTO recipeRequest = new RecipeRequestDTO();
+                recipeRequest.setName("Paella Original");
+                recipeRequest.setElaboration("Elaboración original");
+                recipeRequest.setPresentation("Presentación original");
+
+                List<RecipeComponentRequestDTO> components = new ArrayList<>();
+                RecipeComponentRequestDTO component = new RecipeComponentRequestDTO();
+                component.setProductId(testProduct.getId());
+                component.setQuantity(new BigDecimal("0.5"));
+                components.add(component);
+                recipeRequest.setComponents(components);
+
+                String createResponse = mockMvc.perform(post(BASE_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(recipeRequest))
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer recipeId = objectMapper.readTree(createResponse).get("id").asInt();
+
+                recipeRequest.setName("Paella Actualizada");
+                mockMvc.perform(put(BASE_URL + "/{id}", recipeId)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(recipeRequest))
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.name", is("Paella Actualizada")));
+        }
+
+        @Test
+        void whenDeleteRecipe_thenReturnsNoContent() throws Exception {
+                RecipeRequestDTO recipeRequest = new RecipeRequestDTO();
+                recipeRequest.setName("Paella a Eliminar");
+                recipeRequest.setElaboration("Elaboración");
+                recipeRequest.setPresentation("Presentación");
+
+                List<RecipeComponentRequestDTO> components = new ArrayList<>();
+                RecipeComponentRequestDTO component = new RecipeComponentRequestDTO();
+                component.setProductId(testProduct.getId());
+                component.setQuantity(new BigDecimal("0.5"));
+                components.add(component);
+                recipeRequest.setComponents(components);
+
+                String createResponse = mockMvc.perform(post(BASE_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(recipeRequest))
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer recipeId = objectMapper.readTree(createResponse).get("id").asInt();
+
+                mockMvc.perform(delete(BASE_URL + "/{id}", recipeId)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isNoContent());
+
+                mockMvc.perform(get(BASE_URL + "/{id}", recipeId)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void whenSearchByMaxCost_thenReturnsMatchingRecipes() throws Exception {
+                mockMvc.perform(get(BASE_URL + "/maxcost")
+                                .param("maxCost", "100.00")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$").isArray());
+        }
 }

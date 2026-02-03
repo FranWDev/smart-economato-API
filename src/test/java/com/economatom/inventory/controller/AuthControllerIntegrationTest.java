@@ -128,4 +128,16 @@ public class AuthControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(get(BASE_URL + "/validate"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    public void whenRegisterNewUser_thenSuccess() throws Exception {
+        String registerRequest = "{\"name\":\"newuser\",\"password\":\"password123\",\"email\":\"newuser@test.com\",\"role\":\"USER\"}";
+
+        mockMvc.perform(post(BASE_URL + "/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(registerRequest))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("newuser"))
+                .andExpect(jsonPath("$.email").value("newuser@test.com"));
+    }
 }

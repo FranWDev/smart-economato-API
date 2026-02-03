@@ -41,10 +41,10 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
         loginRequest.setPassword("admin123");
 
         String response = mockMvc.perform(post(AUTH_URL)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(loginRequest)))
-                        .andExpect(status().isOk())
-                        .andReturn().getResponse().getContentAsString();
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(loginRequest)))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
 
         LoginResponseDTO loginResponse = objectMapper.readValue(response, LoginResponseDTO.class);
         jwtToken = loginResponse.getToken();
@@ -53,12 +53,12 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
     @Test
     void whenGetAllSuppliers_thenReturnsPaginatedSuppliers() throws Exception {
         mockMvc.perform(get(BASE_URL)
-                        .header("Authorization", "Bearer " + jwtToken)
-                        .param("page", "0")
-                        .param("size", "10"))
-                        .andDo(print())
-                        .andExpect(status().isOk())
-                        .andExpect(jsonPath("$.content", notNullValue()));
+                .header("Authorization", "Bearer " + jwtToken)
+                .param("page", "0")
+                .param("size", "10"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", notNullValue()));
     }
 
     @Test
@@ -67,12 +67,12 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
         supplier.setName("Distribuidora Nacional S.A.");
 
         mockMvc.perform(post(BASE_URL)
-                        .header("Authorization", "Bearer " + jwtToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(supplier)))
-                        .andDo(print())
-                        .andExpect(status().isCreated())
-                        .andExpect(jsonPath("$.name", is(supplier.getName())));
+                .header("Authorization", "Bearer " + jwtToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(supplier)))
+                .andDo(print())
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name", is(supplier.getName())));
     }
 
     @Test
@@ -80,20 +80,18 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
         SupplierRequestDTO supplier = new SupplierRequestDTO();
         supplier.setName("Proveedor Duplicado");
 
-        // Crear el primer proveedor
         mockMvc.perform(post(BASE_URL)
-                        .header("Authorization", "Bearer " + jwtToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(supplier)))
-                        .andExpect(status().isCreated());
+                .header("Authorization", "Bearer " + jwtToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(supplier)))
+                .andExpect(status().isCreated());
 
-        // Intentar crear el segundo con el mismo nombre
         mockMvc.perform(post(BASE_URL)
-                        .header("Authorization", "Bearer " + jwtToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(supplier)))
-                        .andDo(print())
-                        .andExpect(status().isBadRequest());
+                .header("Authorization", "Bearer " + jwtToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(supplier)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -102,20 +100,20 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
         supplier.setName("Proveedor Test");
 
         String response = mockMvc.perform(post(BASE_URL)
-                        .header("Authorization", "Bearer " + jwtToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(supplier)))
-                        .andDo(print())
-                        .andExpect(status().isCreated())
-                        .andReturn().getResponse().getContentAsString();
+                .header("Authorization", "Bearer " + jwtToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(supplier)))
+                .andDo(print())
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
 
         Integer supplierId = objectMapper.readTree(response).get("id").asInt();
 
         mockMvc.perform(get(BASE_URL + "/{id}", supplierId)
-                        .header("Authorization", "Bearer " + jwtToken))
-                        .andDo(print())
-                        .andExpect(status().isOk())
-                        .andExpect(jsonPath("$.name", is(supplier.getName())));
+                .header("Authorization", "Bearer " + jwtToken))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name", is(supplier.getName())));
     }
 
     @Test
@@ -124,24 +122,24 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
         supplier.setName("Proveedor Original");
 
         String response = mockMvc.perform(post(BASE_URL)
-                        .header("Authorization", "Bearer " + jwtToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(supplier)))
-                        .andDo(print())
-                        .andExpect(status().isCreated())
-                        .andReturn().getResponse().getContentAsString();
+                .header("Authorization", "Bearer " + jwtToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(supplier)))
+                .andDo(print())
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
 
         Integer supplierId = objectMapper.readTree(response).get("id").asInt();
 
         supplier.setName("Proveedor Actualizado");
 
         mockMvc.perform(put(BASE_URL + "/{id}", supplierId)
-                        .header("Authorization", "Bearer " + jwtToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(supplier)))
-                        .andDo(print())
-                        .andExpect(status().isOk())
-                        .andExpect(jsonPath("$.name", is(supplier.getName())));
+                .header("Authorization", "Bearer " + jwtToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(supplier)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name", is(supplier.getName())));
     }
 
     @Test
@@ -150,60 +148,60 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
         supplier.setName("Proveedor a Eliminar");
 
         String response = mockMvc.perform(post(BASE_URL)
-                        .header("Authorization", "Bearer " + jwtToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(supplier)))
-                        .andDo(print())
-                        .andExpect(status().isCreated())
-                        .andReturn().getResponse().getContentAsString();
+                .header("Authorization", "Bearer " + jwtToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(supplier)))
+                .andDo(print())
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
 
         Integer supplierId = objectMapper.readTree(response).get("id").asInt();
 
         mockMvc.perform(delete(BASE_URL + "/{id}", supplierId)
-                        .header("Authorization", "Bearer " + jwtToken))
-                        .andDo(print())
-                        .andExpect(status().isNoContent());
+                .header("Authorization", "Bearer " + jwtToken))
+                .andDo(print())
+                .andExpect(status().isNoContent());
 
         mockMvc.perform(get(BASE_URL + "/{id}", supplierId)
-                        .header("Authorization", "Bearer " + jwtToken))
-                        .andDo(print())
-                        .andExpect(status().isNotFound());
+                .header("Authorization", "Bearer " + jwtToken))
+                .andDo(print())
+                .andExpect(status().isNotFound());
     }
 
     @Test
     void whenSearchSuppliersByName_thenReturnsMatchingSuppliers() throws Exception {
         SupplierRequestDTO supplier1 = new SupplierRequestDTO();
         supplier1.setName("Distribuidora ABC");
-        
+
         SupplierRequestDTO supplier2 = new SupplierRequestDTO();
         supplier2.setName("Distribuidora XYZ");
 
         mockMvc.perform(post(BASE_URL)
-                        .header("Authorization", "Bearer " + jwtToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(supplier1)))
-                        .andExpect(status().isCreated());
+                .header("Authorization", "Bearer " + jwtToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(supplier1)))
+                .andExpect(status().isCreated());
 
         mockMvc.perform(post(BASE_URL)
-                        .header("Authorization", "Bearer " + jwtToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(supplier2)))
-                        .andExpect(status().isCreated());
+                .header("Authorization", "Bearer " + jwtToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(supplier2)))
+                .andExpect(status().isCreated());
 
         mockMvc.perform(get(BASE_URL + "/search")
-                        .header("Authorization", "Bearer " + jwtToken)
-                        .param("name", "Distribuidora"))
-                        .andDo(print())
-                        .andExpect(status().isOk())
-                        .andExpect(jsonPath("$", hasSize(2)));
+                .header("Authorization", "Bearer " + jwtToken)
+                .param("name", "Distribuidora"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)));
     }
 
     @Test
     void whenGetNonExistentSupplier_thenReturnsNotFound() throws Exception {
         mockMvc.perform(get(BASE_URL + "/{id}", 99999)
-                        .header("Authorization", "Bearer " + jwtToken))
-                        .andDo(print())
-                        .andExpect(status().isNotFound());
+                .header("Authorization", "Bearer " + jwtToken))
+                .andDo(print())
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -212,10 +210,10 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
         supplier.setName("Proveedor Inexistente");
 
         mockMvc.perform(put(BASE_URL + "/{id}", 99999)
-                        .header("Authorization", "Bearer " + jwtToken)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(supplier)))
-                        .andDo(print())
-                        .andExpect(status().isNotFound());
+                .header("Authorization", "Bearer " + jwtToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(supplier)))
+                .andDo(print())
+                .andExpect(status().isNotFound());
     }
 }

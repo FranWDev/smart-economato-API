@@ -83,17 +83,15 @@ class ProductServiceTest {
 
     @Test
     void findAll_ShouldReturnPageOfProducts() {
-        // Arrange
+
         Pageable pageable = PageRequest.of(0, 10);
         Page<Product> page = new PageImpl<>(Arrays.asList(testProduct));
-        
+
         when(repository.findAll(pageable)).thenReturn(page);
         when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
 
-        // Act
         Page<ProductResponseDTO> result = productService.findAll(pageable);
 
-        // Assert
         assertNotNull(result);
         assertEquals(1, result.getContent().size());
         assertEquals(testProductResponseDTO.getName(), result.getContent().get(0).getName());
@@ -102,14 +100,12 @@ class ProductServiceTest {
 
     @Test
     void findById_WhenProductExists_ShouldReturnProduct() {
-        // Arrange
+
         when(repository.findById(1)).thenReturn(Optional.of(testProduct));
         when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
 
-        // Act
         Optional<ProductResponseDTO> result = productService.findById(1);
 
-        // Assert
         assertTrue(result.isPresent());
         assertEquals(testProductResponseDTO.getName(), result.get().getName());
         verify(repository).findById(1);
@@ -117,27 +113,23 @@ class ProductServiceTest {
 
     @Test
     void findById_WhenProductDoesNotExist_ShouldReturnEmpty() {
-        // Arrange
+
         when(repository.findById(999)).thenReturn(Optional.empty());
 
-        // Act
         Optional<ProductResponseDTO> result = productService.findById(999);
 
-        // Assert
         assertFalse(result.isPresent());
         verify(repository).findById(999);
     }
 
     @Test
     void findByCodebar_WhenProductExists_ShouldReturnProduct() {
-        // Arrange
+
         when(repository.findByProductCode("TEST001")).thenReturn(Optional.of(testProduct));
         when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
 
-        // Act
         Optional<ProductResponseDTO> result = productService.findByCodebar("TEST001");
 
-        // Assert
         assertTrue(result.isPresent());
         assertEquals(testProductResponseDTO.getProductCode(), result.get().getProductCode());
         verify(repository).findByProductCode("TEST001");
@@ -145,16 +137,14 @@ class ProductServiceTest {
 
     @Test
     void save_WhenNameDoesNotExist_ShouldCreateProduct() {
-        // Arrange
+
         when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
         when(productMapper.toEntity(testProductRequestDTO)).thenReturn(testProduct);
         when(repository.save(testProduct)).thenReturn(testProduct);
         when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
 
-        // Act
         ProductResponseDTO result = productService.save(testProductRequestDTO);
 
-        // Assert
         assertNotNull(result);
         assertEquals(testProductResponseDTO.getName(), result.getName());
         verify(repository).existsByName(testProductRequestDTO.getName());
@@ -163,10 +153,9 @@ class ProductServiceTest {
 
     @Test
     void save_WhenNameExists_ShouldThrowException() {
-        // Arrange
+
         when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(true);
 
-        // Act & Assert
         assertThrows(InvalidOperationException.class, () -> {
             productService.save(testProductRequestDTO);
         });
@@ -176,11 +165,10 @@ class ProductServiceTest {
 
     @Test
     void save_WhenUnitIsInvalid_ShouldThrowException() {
-        // Arrange
+
         testProductRequestDTO.setUnit("INVALID");
         when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
 
-        // Act & Assert
         InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
             productService.save(testProductRequestDTO);
         });
@@ -190,9 +178,9 @@ class ProductServiceTest {
 
     @Test
     void save_WithValidUnits_ShouldSucceed() {
-        // Arrange
+
         List<String> validUnits = Arrays.asList("KG", "G", "L", "ML", "UND");
-        
+
         for (String unit : validUnits) {
             testProductRequestDTO.setUnit(unit);
             when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
@@ -200,26 +188,22 @@ class ProductServiceTest {
             when(repository.save(testProduct)).thenReturn(testProduct);
             when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
 
-            // Act
             ProductResponseDTO result = productService.save(testProductRequestDTO);
 
-            // Assert
             assertNotNull(result);
         }
     }
 
     @Test
     void update_WhenProductExists_ShouldUpdateProduct() {
-        // Arrange
+
         when(repository.findById(1)).thenReturn(Optional.of(testProduct));
         when(repository.save(testProduct)).thenReturn(testProduct);
         when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
         doNothing().when(productMapper).updateEntity(testProductRequestDTO, testProduct);
 
-        // Act
         Optional<ProductResponseDTO> result = productService.update(1, testProductRequestDTO);
 
-        // Assert
         assertTrue(result.isPresent());
         assertEquals(testProductResponseDTO.getName(), result.get().getName());
         verify(repository).findById(1);
@@ -229,13 +213,12 @@ class ProductServiceTest {
 
     @Test
     void update_WhenNameChangesAndNewNameExists_ShouldThrowException() {
-        // Arrange
+
         testProduct.setName("Old Name");
         testProductRequestDTO.setName("New Name");
         when(repository.findById(1)).thenReturn(Optional.of(testProduct));
         when(repository.existsByName("New Name")).thenReturn(true);
 
-        // Act & Assert
         assertThrows(InvalidOperationException.class, () -> {
             productService.update(1, testProductRequestDTO);
         });
@@ -246,12 +229,11 @@ class ProductServiceTest {
 
     @Test
     void update_WhenOptimisticLockingFails_ShouldThrowConcurrencyException() {
-        // Arrange
+
         when(repository.findById(1)).thenReturn(Optional.of(testProduct));
         doNothing().when(productMapper).updateEntity(testProductRequestDTO, testProduct);
         when(repository.save(testProduct)).thenThrow(new OptimisticLockingFailureException("Lock failure"));
 
-        // Act & Assert
         assertThrows(ConcurrencyException.class, () -> {
             productService.update(1, testProductRequestDTO);
         });
@@ -261,13 +243,11 @@ class ProductServiceTest {
 
     @Test
     void update_WhenProductDoesNotExist_ShouldReturnEmpty() {
-        // Arrange
+
         when(repository.findById(999)).thenReturn(Optional.empty());
 
-        // Act
         Optional<ProductResponseDTO> result = productService.update(999, testProductRequestDTO);
 
-        // Assert
         assertFalse(result.isPresent());
         verify(repository).findById(999);
         verify(repository, never()).save(any(Product.class));
@@ -275,16 +255,14 @@ class ProductServiceTest {
 
     @Test
     void deleteById_WhenProductHasNoReferences_ShouldDelete() {
-        // Arrange
+
         when(repository.findById(1)).thenReturn(Optional.of(testProduct));
         when(movementRepository.existsByProductId(1)).thenReturn(false);
         when(recipeComponentRepository.existsByProductId(1)).thenReturn(false);
         doNothing().when(repository).deleteById(1);
 
-        // Act
         productService.deleteById(1);
 
-        // Assert
         verify(repository).findById(1);
         verify(movementRepository).existsByProductId(1);
         verify(recipeComponentRepository).existsByProductId(1);
@@ -293,11 +271,10 @@ class ProductServiceTest {
 
     @Test
     void deleteById_WhenProductHasMovements_ShouldThrowException() {
-        // Arrange
+
         when(repository.findById(1)).thenReturn(Optional.of(testProduct));
         when(movementRepository.existsByProductId(1)).thenReturn(true);
 
-        // Act & Assert
         InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
             productService.deleteById(1);
         });
@@ -307,12 +284,11 @@ class ProductServiceTest {
 
     @Test
     void deleteById_WhenProductUsedInRecipes_ShouldThrowException() {
-        // Arrange
+
         when(repository.findById(1)).thenReturn(Optional.of(testProduct));
         when(movementRepository.existsByProductId(1)).thenReturn(false);
         when(recipeComponentRepository.existsByProductId(1)).thenReturn(true);
 
-        // Act & Assert
         InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
             productService.deleteById(1);
         });
@@ -322,28 +298,24 @@ class ProductServiceTest {
 
     @Test
     void deleteById_WhenProductDoesNotExist_ShouldDoNothing() {
-        // Arrange
+
         when(repository.findById(999)).thenReturn(Optional.empty());
 
-        // Act
         productService.deleteById(999);
 
-        // Assert
         verify(repository).findById(999);
         verify(repository, never()).deleteById(anyInt());
     }
 
     @Test
     void findByType_ShouldReturnProductsOfType() {
-        // Arrange
+
         List<Product> products = Arrays.asList(testProduct);
         when(repository.findByType("INGREDIENT")).thenReturn(products);
         when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
 
-        // Act
         List<ProductResponseDTO> result = productService.findByType("INGREDIENT");
 
-        // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testProductResponseDTO.getType(), result.get(0).getType());
@@ -352,15 +324,13 @@ class ProductServiceTest {
 
     @Test
     void findByNameContaining_ShouldReturnMatchingProducts() {
-        // Arrange
+
         List<Product> products = Arrays.asList(testProduct);
         when(repository.findByNameContainingIgnoreCase("Test")).thenReturn(products);
         when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
 
-        // Act
         List<ProductResponseDTO> result = productService.findByNameContaining("Test");
 
-        // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
         assertTrue(result.get(0).getName().contains("Test"));
@@ -369,16 +339,14 @@ class ProductServiceTest {
 
     @Test
     void findByStockLessThan_ShouldReturnLowStockProducts() {
-        // Arrange
+
         List<Product> products = Arrays.asList(testProduct);
         BigDecimal threshold = new BigDecimal("20.0");
         when(repository.findByCurrentStockLessThan(threshold)).thenReturn(products);
         when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
 
-        // Act
         List<ProductResponseDTO> result = productService.findByStockLessThan(threshold);
 
-        // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
         assertTrue(result.get(0).getCurrentStock().compareTo(threshold) < 0);
@@ -387,17 +355,15 @@ class ProductServiceTest {
 
     @Test
     void findByPriceRange_ShouldReturnProductsInRange() {
-        // Arrange
+
         BigDecimal min = new BigDecimal("1.0");
         BigDecimal max = new BigDecimal("10.0");
         List<Product> products = Arrays.asList(testProduct);
         when(repository.findByUnitPriceBetween(min, max)).thenReturn(products);
         when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
 
-        // Act
         List<ProductResponseDTO> result = productService.findByPriceRange(min, max);
 
-        // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
         verify(repository).findByUnitPriceBetween(min, max);

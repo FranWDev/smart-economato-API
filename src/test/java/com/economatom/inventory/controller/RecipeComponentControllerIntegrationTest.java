@@ -163,4 +163,78 @@ public class RecipeComponentControllerIntegrationTest extends BaseIntegrationTes
                                 .andExpect(jsonPath("$[0].productId").value(testProduct.getId()))
                                 .andExpect(jsonPath("$[0].quantity").value(2.5));
         }
+
+        @Test
+        void whenGetAllComponents_thenSuccess() throws Exception {
+                RecipeComponentRequestDTO componentRequest = new RecipeComponentRequestDTO();
+                componentRequest.setProductId(testProduct.getId());
+                componentRequest.setRecipeId(testRecipe.getId());
+                componentRequest.setQuantity(new BigDecimal("2.5"));
+
+                mockMvc.perform(post(BASE_URL + "/recipe/" + testRecipe.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(componentRequest)))
+                                .andExpect(status().isCreated());
+
+                mockMvc.perform(get(BASE_URL)
+                                .param("page", "0")
+                                .param("size", "10")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$").isArray());
+        }
+
+        @Test
+        void whenUpdateComponent_thenSuccess() throws Exception {
+                RecipeComponentRequestDTO componentRequest = new RecipeComponentRequestDTO();
+                componentRequest.setProductId(testProduct.getId());
+                componentRequest.setRecipeId(testRecipe.getId());
+                componentRequest.setQuantity(new BigDecimal("2.5"));
+
+                String createdComponentResponse = mockMvc.perform(post(BASE_URL + "/recipe/" + testRecipe.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(componentRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                RecipeComponentResponseDTO createdComponent = objectMapper.readValue(createdComponentResponse,
+                                RecipeComponentResponseDTO.class);
+
+                componentRequest.setQuantity(new BigDecimal("5.0"));
+
+                mockMvc.perform(put(BASE_URL + "/{id}", createdComponent.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(componentRequest)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.quantity").value(5.0));
+        }
+
+        @Test
+        void whenDeleteComponent_thenSuccess() throws Exception {
+                RecipeComponentRequestDTO componentRequest = new RecipeComponentRequestDTO();
+                componentRequest.setProductId(testProduct.getId());
+                componentRequest.setRecipeId(testRecipe.getId());
+                componentRequest.setQuantity(new BigDecimal("2.5"));
+
+                String createdComponentResponse = mockMvc.perform(post(BASE_URL + "/recipe/" + testRecipe.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(componentRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                RecipeComponentResponseDTO createdComponent = objectMapper.readValue(createdComponentResponse,
+                                RecipeComponentResponseDTO.class);
+
+                mockMvc.perform(delete(BASE_URL + "/{id}", createdComponent.getId())
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isNoContent());
+
+                mockMvc.perform(get(BASE_URL + "/{id}", createdComponent.getId())
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isNotFound());
+        }
 }

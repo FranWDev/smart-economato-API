@@ -34,13 +34,11 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleResourceNotFoundException_ShouldReturnNotFound() {
-        // Arrange
+
         ResourceNotFoundException exception = new ResourceNotFoundException("Resource not found");
 
-        // Act
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleResourceNotFoundException(exception);
 
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertEquals("Resource not found", response.getBody().getMessage());
@@ -49,13 +47,11 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleInsufficientStockException_ShouldReturnBadRequest() {
-        // Arrange
+
         InsufficientStockException exception = new InsufficientStockException("Insufficient stock");
 
-        // Act
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleInsufficientStockException(exception);
 
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("Insufficient stock", response.getBody().getMessage());
@@ -64,13 +60,11 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleInvalidOperationException_ShouldReturnBadRequest() {
-        // Arrange
+
         InvalidOperationException exception = new InvalidOperationException("Invalid operation");
 
-        // Act
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleInvalidOperationException(exception);
 
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertEquals("Invalid operation", response.getBody().getMessage());
@@ -79,17 +73,15 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleMethodArgumentNotValidException_ShouldReturnValidationErrors() {
-        // Arrange
+
         FieldError fieldError = new FieldError("object", "field", "Field error message");
         BindingResult bindingResult = mock(BindingResult.class);
         when(bindingResult.getAllErrors()).thenReturn(java.util.Arrays.asList(fieldError));
-        
+
         MethodArgumentNotValidException exception = new MethodArgumentNotValidException(null, bindingResult);
 
-        // Act
         ResponseEntity<Map<String, String>> response = exceptionHandler.handleValidationExceptions(exception);
 
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertTrue(response.getBody().containsKey("field"));
@@ -98,9 +90,9 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleConstraintViolationException_ShouldReturnConstraintErrors() {
-        // Arrange
+
         Set<ConstraintViolation<?>> violations = new HashSet<>();
-        
+
         @SuppressWarnings("unchecked")
         ConstraintViolation<Object> violation = mock(ConstraintViolation.class);
         Path path = mock(Path.class);
@@ -108,13 +100,11 @@ class GlobalExceptionHandlerTest {
         when(violation.getPropertyPath()).thenReturn(path);
         when(violation.getMessage()).thenReturn("Constraint violation message");
         violations.add(violation);
-        
+
         ConstraintViolationException exception = new ConstraintViolationException(violations);
 
-        // Act
         ResponseEntity<Map<String, String>> response = exceptionHandler.handleConstraintViolationException(exception);
 
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertTrue(response.getBody().containsKey("propertyName"));
@@ -123,13 +113,11 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleOptimisticLockException_ShouldReturnConflict() {
-        // Arrange
+
         OptimisticLockException exception = new OptimisticLockException("Optimistic lock");
 
-        // Act
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleOptimisticLockException(exception);
 
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
         assertEquals(409, response.getBody().getStatus());
@@ -138,13 +126,12 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleOptimisticLockingFailureException_ShouldReturnConflict() {
-        // Arrange
-        OptimisticLockingFailureException exception = new OptimisticLockingFailureException("Optimistic locking failure");
 
-        // Act
+        OptimisticLockingFailureException exception = new OptimisticLockingFailureException(
+                "Optimistic locking failure");
+
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleOptimisticLockingFailureException(exception);
 
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
         assertEquals(409, response.getBody().getStatus());
@@ -153,13 +140,12 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handlePessimisticLockingFailureException_ShouldReturnLocked() {
-        // Arrange
-        PessimisticLockingFailureException exception = new PessimisticLockingFailureException("Pessimistic locking failure");
 
-        // Act
+        PessimisticLockingFailureException exception = new PessimisticLockingFailureException(
+                "Pessimistic locking failure");
+
         ResponseEntity<ErrorResponse> response = exceptionHandler.handlePessimisticLockingFailureException(exception);
 
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.LOCKED, response.getStatusCode());
         assertEquals(423, response.getBody().getStatus());
@@ -168,13 +154,11 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleConcurrencyException_ShouldReturnConflict() {
-        // Arrange
+
         ConcurrencyException exception = new ConcurrencyException("Product", 1);
 
-        // Act
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleConcurrencyException(exception);
 
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
         assertEquals(409, response.getBody().getStatus());
@@ -183,13 +167,11 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleStockLockException_ShouldReturnLocked() {
-        // Arrange
+
         StockLockException exception = new StockLockException("Stock lock error");
 
-        // Act
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleStockLockException(exception);
 
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.LOCKED, response.getStatusCode());
         assertEquals(423, response.getBody().getStatus());
@@ -197,13 +179,11 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleBadCredentials_ShouldReturnUnauthorized() {
-        // Arrange
+
         BadCredentialsException exception = new BadCredentialsException("Bad credentials");
 
-        // Act
         ResponseEntity<Map<String, Object>> response = exceptionHandler.handleBadCredentials(exception);
 
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         assertEquals(401, response.getBody().get("status"));
@@ -212,13 +192,11 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleJwtException_ShouldReturnUnauthorized() {
-        // Arrange
+
         JwtException exception = new JwtException("JWT error");
 
-        // Act
         ResponseEntity<Map<String, Object>> response = exceptionHandler.handleJwtException(exception);
 
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         assertEquals(401, response.getBody().get("status"));
@@ -227,13 +205,11 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleGeneralException_ShouldReturnInternalServerError() {
-        // Arrange
+
         Exception exception = new Exception("Generic error");
 
-        // Act
         ResponseEntity<ErrorResponse> response = exceptionHandler.handleGeneralException(exception);
 
-        // Assert
         assertNotNull(response);
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         assertEquals(500, response.getBody().getStatus());

@@ -84,22 +84,19 @@ class OrderAuditServiceTest {
 
     @Test
     void testLogOrderAction_Success() {
-        // Arrange
+
         when(orderAuditRepository.save(any(OrderAudit.class))).thenReturn(testOrderAudit);
 
-        // Act
         orderAuditService.logOrderAction(
-            testOrder, 
-            "CAMBIO_ESTADO", 
-            "Estado cambiado de CREATED a PENDING",
-            "{\"status\":\"CREATED\"}",
-            "{\"status\":\"PENDING\"}"
-        );
+                testOrder,
+                "CAMBIO_ESTADO",
+                "Estado cambiado de CREATED a PENDING",
+                "{\"status\":\"CREATED\"}",
+                "{\"status\":\"PENDING\"}");
 
-        // Assert
         ArgumentCaptor<OrderAudit> auditCaptor = ArgumentCaptor.forClass(OrderAudit.class);
         verify(orderAuditRepository).save(auditCaptor.capture());
-        
+
         OrderAudit capturedAudit = auditCaptor.getValue();
         assertEquals(testOrder, capturedAudit.getOrder());
         assertEquals("CAMBIO_ESTADO", capturedAudit.getAction());
@@ -110,13 +107,11 @@ class OrderAuditServiceTest {
 
     @Test
     void testFindByOrderId_EmptyResult() {
-        // Arrange
+
         when(orderAuditRepository.findByOrderIdWithDetails(999)).thenReturn(Arrays.asList());
 
-        // Act
         List<OrderAuditResponseDTO> result = orderAuditService.findByOrderId(999);
 
-        // Assert
         assertNotNull(result);
         assertTrue(result.isEmpty());
         verify(orderAuditRepository).findByOrderIdWithDetails(999);
@@ -124,17 +119,15 @@ class OrderAuditServiceTest {
 
     @Test
     void testFindAll_Success() {
-        // Arrange
+
         Pageable pageable = PageRequest.of(0, 10);
         Page<OrderAudit> auditPage = new PageImpl<>(Arrays.asList(testOrderAudit));
-        
+
         when(orderAuditRepository.findAll(pageable)).thenReturn(auditPage);
         when(orderAuditMapper.toResponseDTO(any(OrderAudit.class))).thenReturn(testOrderAuditResponseDTO);
 
-        // Act
         List<OrderAuditResponseDTO> result = orderAuditService.findAll(pageable);
 
-        // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testOrderAuditResponseDTO, result.get(0));
@@ -143,14 +136,12 @@ class OrderAuditServiceTest {
 
     @Test
     void testFindById_Success() {
-        // Arrange
+
         when(orderAuditRepository.findById(1)).thenReturn(Optional.of(testOrderAudit));
         when(orderAuditMapper.toResponseDTO(testOrderAudit)).thenReturn(testOrderAuditResponseDTO);
 
-        // Act
         Optional<OrderAuditResponseDTO> result = orderAuditService.findById(1);
 
-        // Assert
         assertTrue(result.isPresent());
         assertEquals(testOrderAuditResponseDTO, result.get());
         verify(orderAuditRepository).findById(1);
@@ -158,27 +149,23 @@ class OrderAuditServiceTest {
 
     @Test
     void testFindById_NotFound() {
-        // Arrange
+
         when(orderAuditRepository.findById(999)).thenReturn(Optional.empty());
 
-        // Act
         Optional<OrderAuditResponseDTO> result = orderAuditService.findById(999);
 
-        // Assert
         assertFalse(result.isPresent());
         verify(orderAuditRepository).findById(999);
     }
 
     @Test
     void testFindByOrderId_Success() {
-        // Arrange
+
         when(orderAuditRepository.findByOrderIdWithDetails(1)).thenReturn(Arrays.asList(testOrderAudit));
         when(orderAuditMapper.toResponseDTO(any(OrderAudit.class))).thenReturn(testOrderAuditResponseDTO);
 
-        // Act
         List<OrderAuditResponseDTO> result = orderAuditService.findByOrderId(1);
 
-        // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testOrderAuditResponseDTO, result.get(0));
@@ -187,15 +174,13 @@ class OrderAuditServiceTest {
 
     @Test
     void testFindByUserId_Success() {
-        // Arrange
+
         when(userRepository.findById(1)).thenReturn(Optional.of(testUser));
         when(orderAuditRepository.findByUsersId(1)).thenReturn(Arrays.asList(testOrderAudit));
         when(orderAuditMapper.toResponseDTO(any(OrderAudit.class))).thenReturn(testOrderAuditResponseDTO);
 
-        // Act
         List<OrderAuditResponseDTO> result = orderAuditService.findByUserId(1);
 
-        // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testOrderAuditResponseDTO, result.get(0));
@@ -204,17 +189,16 @@ class OrderAuditServiceTest {
 
     @Test
     void testFindByAuditDateBetween_Success() {
-        // Arrange
+
         LocalDateTime start = LocalDateTime.now().minusDays(7);
         LocalDateTime end = LocalDateTime.now();
-        
-        when(orderAuditRepository.findByAuditDateBetweenWithDetails(start, end)).thenReturn(Arrays.asList(testOrderAudit));
+
+        when(orderAuditRepository.findByAuditDateBetweenWithDetails(start, end))
+                .thenReturn(Arrays.asList(testOrderAudit));
         when(orderAuditMapper.toResponseDTO(any(OrderAudit.class))).thenReturn(testOrderAuditResponseDTO);
 
-        // Act
         List<OrderAuditResponseDTO> result = orderAuditService.findByAuditDateBetween(start, end);
 
-        // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testOrderAuditResponseDTO, result.get(0));
@@ -223,16 +207,14 @@ class OrderAuditServiceTest {
 
     @Test
     void testFindByAuditDateBetween_EmptyResult() {
-        // Arrange
+
         LocalDateTime start = LocalDateTime.now().minusDays(7);
         LocalDateTime end = LocalDateTime.now();
-        
+
         when(orderAuditRepository.findByAuditDateBetweenWithDetails(start, end)).thenReturn(Arrays.asList());
 
-        // Act
         List<OrderAuditResponseDTO> result = orderAuditService.findByAuditDateBetween(start, end);
 
-        // Assert
         assertNotNull(result);
         assertTrue(result.isEmpty());
         verify(orderAuditRepository).findByAuditDateBetweenWithDetails(start, end);

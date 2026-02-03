@@ -57,12 +57,11 @@ class OrderAuditControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @WithMockUser(username = "admin", roles = { "ADMIN" })
     void getAllOrderAudits_ShouldReturnList() throws Exception {
-        // Arrange
+
         when(orderAuditService.findAll(any(Pageable.class))).thenReturn(testOrderAudits);
 
-        // Act & Assert
         mockMvc.perform(get("/api/order-audits")
                 .param("page", "0")
                 .param("size", "10")
@@ -75,12 +74,11 @@ class OrderAuditControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @WithMockUser(username = "admin", roles = { "ADMIN" })
     void getOrderAuditById_WhenExists_ShouldReturnAudit() throws Exception {
-        // Arrange
+
         when(orderAuditService.findById(1)).thenReturn(Optional.of(testOrderAudit));
 
-        // Act & Assert
         mockMvc.perform(get("/api/order-audits/1")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -90,24 +88,22 @@ class OrderAuditControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @WithMockUser(username = "admin", roles = { "ADMIN" })
     void getOrderAuditById_WhenNotExists_ShouldReturn404() throws Exception {
-        // Arrange
+
         when(orderAuditService.findById(anyInt())).thenReturn(Optional.empty());
 
-        // Act & Assert
         mockMvc.perform(get("/api/order-audits/999")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @WithMockUser(username = "admin", roles = { "ADMIN" })
     void getOrderAuditsByOrderId_ShouldReturnList() throws Exception {
-        // Arrange
+
         when(orderAuditService.findByOrderId(1)).thenReturn(testOrderAudits);
 
-        // Act & Assert
         mockMvc.perform(get("/api/order-audits/by-order/1")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -116,12 +112,11 @@ class OrderAuditControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @WithMockUser(username = "admin", roles = { "ADMIN" })
     void getOrderAuditsByUserId_ShouldReturnList() throws Exception {
-        // Arrange
+
         when(orderAuditService.findByUserId(1)).thenReturn(testOrderAudits);
 
-        // Act & Assert
         mockMvc.perform(get("/api/order-audits/by-user/1")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -130,15 +125,14 @@ class OrderAuditControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @WithMockUser(username = "admin", roles = { "ADMIN" })
     void getOrderAuditsByDateRange_ShouldReturnList() throws Exception {
-        // Arrange
+
         LocalDateTime start = LocalDateTime.now().minusDays(7);
         LocalDateTime end = LocalDateTime.now();
         when(orderAuditService.findByAuditDateBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
-            .thenReturn(testOrderAudits);
+                .thenReturn(testOrderAudits);
 
-        // Act & Assert
         mockMvc.perform(get("/api/order-audits/by-date-range")
                 .param("start", start.toString())
                 .param("end", end.toString())

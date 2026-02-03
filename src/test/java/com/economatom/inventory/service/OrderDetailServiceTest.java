@@ -76,14 +76,12 @@ class OrderDetailServiceTest {
 
     @Test
     void findByOrder_ShouldReturnOrderDetails() {
-        // Arrange
+
         when(repository.findByOrderId(1)).thenReturn(Arrays.asList(testOrderDetail));
         when(orderDetailMapper.toResponseDTO(testOrderDetail)).thenReturn(testOrderDetailResponseDTO);
 
-        // Act
         List<OrderDetailResponseDTO> result = orderDetailService.findByOrder(testOrder);
 
-        // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
         verify(repository).findByOrderId(1);
@@ -91,14 +89,12 @@ class OrderDetailServiceTest {
 
     @Test
     void findByOrder_WhenNoDetailsFound_ShouldReturnEmptyList() {
-        // Arrange
+
         testOrder.setId(999);
         when(repository.findByOrderId(999)).thenReturn(Arrays.asList());
 
-        // Act
         List<OrderDetailResponseDTO> result = orderDetailService.findByOrder(testOrder);
 
-        // Assert
         assertNotNull(result);
         assertTrue(result.isEmpty());
         verify(repository).findByOrderId(999);
@@ -106,14 +102,12 @@ class OrderDetailServiceTest {
 
     @Test
     void findByProduct_ShouldReturnOrderDetails() {
-        // Arrange
+
         when(repository.findByProductId(1)).thenReturn(Arrays.asList(testOrderDetail));
         when(orderDetailMapper.toResponseDTO(testOrderDetail)).thenReturn(testOrderDetailResponseDTO);
 
-        // Act
         List<OrderDetailResponseDTO> result = orderDetailService.findByProduct(testProduct);
 
-        // Assert
         assertNotNull(result);
         assertEquals(1, result.size());
         verify(repository).findByProductId(1);
