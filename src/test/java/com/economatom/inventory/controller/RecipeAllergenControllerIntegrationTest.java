@@ -108,7 +108,7 @@ public class RecipeAllergenControllerIntegrationTest extends BaseIntegrationTest
                 mockMvc.perform(delete(BASE_URL + "/recipe/{recipeId}/allergen/{allergenId}",
                                 testRecipe.getId(), testAllergen.getId())
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andExpect(status().isOk());
+                                .andExpect(status().isNoContent());
         }
 
         @Test
