@@ -26,14 +26,14 @@ services:
     restart: unless-stopped
 
   # ===================================
-  # Redis Cache
+  # Redis Cache (AISLADO PARA DOCKER)
   # ===================================
   redis:
     image: redis:7-alpine
     container_name: inventory-redis
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
-      - "6379:6379"
+      - "6381:6379"  # <--- CAMBIADO: Ahora puedes acceder a este redis desde fuera por el 6381
     volumes:
       - redis-data:/data
     healthcheck:
@@ -121,13 +121,15 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/inventory
       SPRING_DATASOURCE_USERNAME: inventory_user
       SPRING_DATASOURCE_PASSWORD: inventory_password
-      SPRING_REDIS_HOST: redis
-      SPRING_REDIS_PORT: 6379
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      # Redis
+      
+      # Redis (Usa el nombre del servicio interno, no choca con el externo)
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
       
+      # Kafka
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       
       # JPA
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
@@ -183,9 +185,6 @@ services:
       - inventory-network
     restart: unless-stopped
 
-# ===================================
-# Volumes
-# ===================================
 volumes:
   postgres-data:
     driver: local
@@ -198,9 +197,6 @@ volumes:
   zookeeper-logs:
     driver: local
 
-# ===================================
-# Network
-# ===================================
 networks:
   inventory-network:
     driver: bridge
