@@ -35,24 +35,15 @@ public class SecurityConfig {
         return http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                            response.setContentType("application/json");
-                            response.getWriter().write("{\"status\":401,\"message\":\"No autorizado\"}");
-                        })
-                )
                 .authorizeHttpRequests(auth -> auth
                         // Rutas públicas - Autenticación (excepto validate que requiere token)
                         .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
                         // Rutas públicas - Vistas (login, etc)
-                        .requestMatchers("/login").permitAll()
+                        .requestMatchers("/login", "/").permitAll()
                         // Rutas públicas - Recursos estáticos (todos los scripts y estilos)
-                        .requestMatchers("/styles/**").permitAll()
-                        .requestMatchers("/scripts/**").permitAll()
+                        .requestMatchers("/styles/**", "/scripts/**").permitAll()
+                        .requestMatchers("/robots.txt", "/sitemap.xml", "/manifest.json").permitAll()
                         // Swagger UI (documentación)
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         
@@ -68,6 +59,42 @@ public class SecurityConfig {
                         
                         // El resto requiere autenticación
                         .anyRequest().authenticated()
+                )
+                .headers(headers -> headers
+                        // HSTS - Force HTTPS
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31536000))
+                        // Content Security Policy
+                        .contentSecurityPolicy(csp -> csp
+                                .policyDirectives("default-src 'self'; " +
+                                        "script-src 'self'; " +
+                                        "style-src 'self' 'unsafe-inline'; " +
+                                        "img-src 'self' data: https:; " +
+                                        "font-src 'self' data:; " +
+                                        "connect-src 'self'; " +
+                                        "frame-ancestors 'none'; " +
+                                        "base-uri 'self'; " +
+                                        "form-action 'self'; " +
+                                        "upgrade-insecure-requests"))
+                        // X-Frame-Options
+                        .frameOptions(frame -> frame.deny())
+                        // X-Content-Type-Options
+                        .contentTypeOptions(contentType -> {})
+                        // X-XSS-Protection
+                        .xssProtection(xss -> {})
+                        // Referrer-Policy
+                        .referrerPolicy(referrer -> referrer.policy(
+                                org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
+                )
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"status\":401,\"message\":\"No autorizado\"}");
+                        })
                 )
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

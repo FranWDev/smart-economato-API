@@ -6,14 +6,14 @@
 .table-empty-message {
   text-align: center;
   padding: 20px;
-  color: #999;
+  color: #666;
   font-style: italic;
 }
 
 .table-error-message {
   text-align: center;
   padding: 20px;
-  color: #d32f2f;
+  color: #c62828;
   font-weight: 500;
   background-color: #ffebee;
 }
@@ -21,6 +21,6 @@
 .table-info-message {
   text-align: center;
   padding: 20px;
-  color: #1976d2;
+  color: #0d47a1;
   background-color: #e3f2fd;
 }

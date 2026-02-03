@@ -26,10 +26,10 @@ ALTER SEQUENCE inventory_audit_id_seq RESTART WITH 1;
 -- USUARIOS
 -- ============================================
 INSERT INTO users (name, email, password, role) VALUES
-('Admin Sistema', 'admin@economatom.com', '$2a$12$0qoUFZjOG52YNQ9aMH5xtuMIhXxe5IVXdkq5UvQKRunz5WIvy23s.', 'ADMIN'), -- password: admin123
-('Juan Chef', 'chef@economatom.com', '$2a$12$0qoUFZjOG52YNQ9aMH5xtuMIhXxe5IVXdkq5UvQKRunz5WIvy23s.', 'CHEF'), -- password: admin123
-('María Manager', 'manager@economatom.com', '$2a$12$0qoUFZjOG52YNQ9aMH5xtuMIhXxe5IVXdkq5UvQKRunz5WIvy23s.', 'MANAGER'), -- password: admin123
-('Pedro Usuario', 'user@economatom.com', '$2a$12$0qoUFZjOG52YNQ9aMH5xtuMIhXxe5IVXdkq5UvQKRunz5WIvy23s.', 'USER'); -- password: admin123
+('Admin', 'admin@economatom.com', '$2a$12$0qoUFZjOG52YNQ9aMH5xtuMIhXxe5IVXdkq5UvQKRunz5WIvy23s.', 'ADMIN'), -- password: admin123
+('Chef', 'chef@economatom.com', '$2a$12$0qoUFZjOG52YNQ9aMH5xtuMIhXxe5IVXdkq5UvQKRunz5WIvy23s.', 'CHEF'), -- password: admin123
+('Manager', 'manager@economatom.com', '$2a$12$0qoUFZjOG52YNQ9aMH5xtuMIhXxe5IVXdkq5UvQKRunz5WIvy23s.', 'MANAGER'), -- password: admin123
+('Usuario', 'user@economatom.com', '$2a$12$0qoUFZjOG52YNQ9aMH5xtuMIhXxe5IVXdkq5UvQKRunz5WIvy23s.', 'USER'); -- password: admin123
 
 -- ============================================
 -- PRODUCTOS

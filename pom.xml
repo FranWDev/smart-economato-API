@@ -249,6 +249,45 @@
 					</execution>
 				</executions>
 			</plugin>
+			<!-- Plugin de minificación para CSS y JS -->
+			<plugin>
+				<groupId>com.github.blutorange</groupId>
+				<artifactId>closure-compiler-maven-plugin</artifactId>
+				<version>2.29.0</version>
+				<executions>
+					<execution>
+						<id>minify-js</id>
+						<phase>generate-resources</phase>
+						<goals>
+							<goal>minify</goal>
+						</goals>
+						<configuration>
+							<sourceDir>src/main/resources/static/scripts</sourceDir>
+							<targetDir>${project.build.directory}/classes/static/scripts</targetDir>
+							<includes>
+								<include>**/*.js</include>
+							</includes>
+							<skipMinify>false</skipMinify>
+							<closureLanguageOut>ECMASCRIPT_2015</closureLanguageOut>
+						</configuration>
+					</execution>
+					<execution>
+						<id>minify-css</id>
+						<phase>generate-resources</phase>
+						<goals>
+							<goal>minify</goal>
+						</goals>
+						<configuration>
+							<sourceDir>src/main/resources/static/styles</sourceDir>
+							<targetDir>${project.build.directory}/classes/static/styles</targetDir>
+							<includes>
+								<include>**/*.css</include>
+							</includes>
+							<skipMinify>false</skipMinify>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 		</plugins>
 	</build>
 

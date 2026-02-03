@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Sistema de gestión de inventario para economatos - Control de stock, recetas, órdenes y recepción de productos" />
+    <meta name="theme-color" content="#667eea" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+    <link rel="manifest" href="/manifest.json">
     <title>Ejemplo de inventario Economato</title>
     <link rel="stylesheet" href="styles/var.css" />
     <link rel="stylesheet" href="styles/base.css" />
@@ -27,6 +31,11 @@
     <link rel="stylesheet" href="styles/history.css" />
   </head>
   <body>
+    <noscript>
+      <div style="padding: 20px; text-align: center; background: #fff3cd; color: #856404; border: 1px solid #ffeeba;">
+        <strong>JavaScript está deshabilitado.</strong> Esta aplicación requiere JavaScript para funcionar correctamente.
+      </div>
+    </noscript>
     <header>
       <button class="menu-toggle" id="menuToggle">☰</button>
       <h1>Inventario</h1>
@@ -94,10 +103,13 @@
           <h2>Tabla de Inventario</h2>
           <div class="inventory-controls">
             <div class="search-input-container">
+              <label for="inventory-search" class="visually-hidden">Buscar producto</label>
               <input
+                id="inventory-search"
                 class="inventory-search"
                 type="text"
                 placeholder="Buscar por nombre o código"
+                aria-label="Buscar por nombre o código de producto"
               />
               <button class="camera-btn" id="barcodeScannerBtn" title="Escanear código de barras">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -105,7 +117,8 @@
                 </svg>
               </button>
             </div>
-            <select class="mobile-sort-select" style="display: none;">
+            <label for="mobile-sort" class="visually-hidden">Ordenar productos</label>
+            <select id="mobile-sort" class="mobile-sort-select" style="display: none;" aria-label="Ordenar productos">
               <option value="">Ordenar por...</option>
               <option value="name|asc">Nombre (A-Z)</option>
               <option value="name|desc">Nombre (Z-A)</option>
@@ -141,12 +154,16 @@
         <div class="reception-header">
           <h2>Gestión de Recepción</h2>
           <div class="reception-controls">
+            <label for="reception-search" class="visually-hidden">Buscar recepción</label>
             <input
+              id="reception-search"
               class="reception-search"
               type="text"
               placeholder="Buscar por orden o usuario"
+              aria-label="Buscar por orden o usuario"
             />
-            <select class="reception-filter">
+            <label for="reception-filter" class="visually-hidden">Filtrar recepciones</label>
+            <select id="reception-filter" class="reception-filter" aria-label="Filtrar recepciones">
               <option value="all">Todas</option>
             </select>
             <button class="action-btn primary" id="createOrderBtn">
@@ -162,17 +179,21 @@
         <div class="history-header">
           <h2>Historial de Cambios</h2>
           <div class="history-controls">
-            <div class="tab-selector">
-              <button class="tab-btn active" data-tab="inventory">Inventario</button>
-              <button class="tab-btn" data-tab="recipes">Recetas</button>
-              <button class="tab-btn" data-tab="orders">Órdenes</button>
+            <div class="tab-selector" role="tablist" aria-label="Seleccionar tipo de historial">
+              <button class="tab-btn active" data-tab="inventory" role="tab" aria-selected="true" aria-controls="inventoryHistoryTab">Inventario</button>
+              <button class="tab-btn" data-tab="recipes" role="tab" aria-selected="false" aria-controls="recipesHistoryTab">Recetas</button>
+              <button class="tab-btn" data-tab="orders" role="tab" aria-selected="false" aria-controls="ordersHistoryTab">Órdenes</button>
             </div>
+            <label for="history-search" class="visually-hidden">Buscar en historial</label>
             <input
+              id="history-search"
               class="history-search"
               type="text"
               placeholder="Buscar por producto o usuario"
+              aria-label="Buscar por producto o usuario"
             />
-            <select class="history-filter">
+            <label for="history-filter" class="visually-hidden">Filtrar historial</label>
+            <select id="history-filter" class="history-filter" aria-label="Filtrar por tipo de movimiento">
               <option value="all">Todos</option>
               <option value="ENTRADA">Entradas</option>
               <option value="SALIDA">Salidas</option>
@@ -180,9 +201,11 @@
               <option value="DEVOLUCION">Devoluciones</option>
             </select>
             <div class="date-range-picker">
-              <input type="date" class="date-input" id="dateFrom" />
-              <span>-</span>
-              <input type="date" class="date-input" id="dateTo" />
+              <label for="dateFrom" class="visually-hidden">Fecha desde</label>
+              <input type="date" class="date-input" id="dateFrom" aria-label="Fecha desde" />
+              <span aria-hidden="true">-</span>
+              <label for="dateTo" class="visually-hidden">Fecha hasta</label>
+              <input type="date" class="date-input" id="dateTo" aria-label="Fecha hasta" />
             </div>
           </div>
         </div>
@@ -270,12 +293,16 @@
         <div class="recipes-header">
           <h2>Recetas</h2>
           <div class="recipes-controls">
+            <label for="recipes-search" class="visually-hidden">Buscar receta</label>
             <input
+              id="recipes-search"
               class="recipes-search"
               type="text"
               placeholder="Buscar receta"
+              aria-label="Buscar receta"
             />
-            <select class="recipes-filter">
+            <label for="recipes-filter" class="visually-hidden">Filtrar recetas</label>
+            <select id="recipes-filter" class="recipes-filter" aria-label="Filtrar recetas por costo">
               <option value="">Todas</option>
               <option value="cost-asc">Menor costo</option>
               <option value="cost-desc">Mayor costo</option>
@@ -294,16 +321,16 @@
       <p>&copy; 2025 Ejemplo de Inventario Economato - Made By Fran</p>
     </footer>
 
-    <script  type="module" src="scripts/api/products.api.js"></script>
-    <script  type="module" src="scripts/api/recipes.api.js"></script>
-    <script  type="module" src="scripts/api/orders.api.js"></script>
-    <script  type="module" src="scripts/api/reception.api.js"></script>
-    <script  type="module" src="scripts/api/audit.api.js"></script>
+    <script type="module" src="scripts/api/products.api.js" defer></script>
+    <script type="module" src="scripts/api/recipes.api.js" defer></script>
+    <script type="module" src="scripts/api/orders.api.js" defer></script>
+    <script type="module" src="scripts/api/reception.api.js" defer></script>
+    <script type="module" src="scripts/api/audit.api.js" defer></script>
 
-    <script type="module" src="scripts/components/auth.component.js"></script>
-    <script type="module" src="scripts/components/orders.component.js"></script>
-    <script type="module" src="scripts/components/history.component.js"></script>
+    <script type="module" src="scripts/components/auth.component.js" defer></script>
+    <script type="module" src="scripts/components/orders.component.js" defer></script>
+    <script type="module" src="scripts/components/history.component.js" defer></script>
 
-    <script type="module" src="scripts/script.js"></script>
+    <script type="module" src="scripts/script.js" defer></script>
   </body>
 </html>

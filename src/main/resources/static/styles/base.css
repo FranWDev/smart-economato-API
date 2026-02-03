@@ -18,6 +18,19 @@ body {
     linear-gradient(135deg, #b4b4b4 0%, #ffffff 50%, #ffffff 100%);
 }
 
+/* Accessibility: visually hidden labels */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
 @keyframes fadeUp {
   from {
     opacity: 0;
@@ -49,9 +62,9 @@ body {
       }
     }
     .action-btn.primary {
-      background: #4caf50;
+      background: #2e7d32;
       color: white;
     }
     .action-btn.primary:hover {
-      background: #45a049;
+      background: #1b5e20;
     }

@@ -100,7 +100,7 @@
 
 .btn-add-product {
   padding: 10px 16px;
-  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -314,7 +314,7 @@
 }
 
 .order-actions .action-btn.primary {
-  background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+  background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
   color: white;
   box-shadow: 0 2px 8px rgba(76, 175, 80, 0.2);
 }

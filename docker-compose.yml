@@ -121,13 +121,13 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/inventory
       SPRING_DATASOURCE_USERNAME: inventory_user
       SPRING_DATASOURCE_PASSWORD: inventory_password
-      
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       # Redis
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       
-      # Kafka
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       
       # JPA
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
