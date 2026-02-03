@@ -19,7 +19,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/inventory-audits")
-@CrossOrigin(origins = "*")
 @Tag(name = "Auditoria de inventario", description = "Operaciones relacionadas con auditorías de inventario, incluyendo movimientos de entrada y salida.")
 public class InventoryAuditController {
 

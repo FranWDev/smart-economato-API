@@ -19,7 +19,6 @@ import java.net.URI;
 
 @RestController
 @RequestMapping("/api/allergens")
-@CrossOrigin(origins = "*")
 @Tag(name = "Alérgenos", description = "Gestión de alérgenos en el sistema, CRUD completo y búsqueda por nombre")
 public class AllergenController {
 

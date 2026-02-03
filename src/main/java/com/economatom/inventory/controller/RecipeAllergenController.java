@@ -18,7 +18,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/recipe-allergens")
-@CrossOrigin(origins = "*")
 @Tag(name = "Alérgenos de Recetas", description = "Operaciones relacionadas con los alérgenos de las recetas")
 public class RecipeAllergenController {
 
@@ -64,8 +63,12 @@ public class RecipeAllergenController {
     public ResponseEntity<Void> delete(
             @Parameter(description = "ID de la relación receta-alérgeno", example = "3", required = true)
             @PathVariable Integer id) {
-        recipeAllergenService.deleteById(id);
-        return ResponseEntity.noContent().build();
+        return recipeAllergenService.findById(id)
+                .map(existing -> {
+                    recipeAllergenService.deleteById(id);
+                    return ResponseEntity.noContent().<Void>build();
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/recipe/{recipeId}")
@@ -123,7 +126,7 @@ public class RecipeAllergenController {
     @Operation(summary = "Eliminar asociación entre receta y alérgeno",
                description = "Elimina la asociación entre una receta específica y un alérgeno.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Asociación eliminada correctamente"),
+        @ApiResponse(responseCode = "204", description = "Asociación eliminada correctamente"),
         @ApiResponse(responseCode = "404", description = "Receta o alérgeno no encontrado")
     })
     public ResponseEntity<Void> removeAllergenFromRecipe(
@@ -133,7 +136,7 @@ public class RecipeAllergenController {
             @PathVariable Integer allergenId) {
         
         boolean success = recipeAllergenService.removeAllergenFromRecipe(recipeId, allergenId);
-        return success ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
+        return success ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 
     @GetMapping("/recipe/{recipeId}/allergens")

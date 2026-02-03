@@ -24,7 +24,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/stock-ledger")
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 @Tag(name = "Stock Ledger", description = "Sistema de ledger inmutable con encadenamiento criptográfico")
 public class StockLedgerController {

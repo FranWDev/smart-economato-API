@@ -19,7 +19,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/order-audits")
-@CrossOrigin(origins = "*")
 @Tag(name = "Auditoría de Órdenes", description = "Operaciones relacionadas con las auditorías de órdenes")
 public class OrderAuditController {
 

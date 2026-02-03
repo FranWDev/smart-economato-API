@@ -19,7 +19,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/recipe-audits")
-@CrossOrigin(origins = "*")
 @Tag(name = "Auditoría de Recetas", description = "Operaciones relacionadas con las auditorías de recetas")
 public class RecipeAuditController {
 

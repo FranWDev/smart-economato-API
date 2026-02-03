@@ -50,6 +50,11 @@ public class RecipeAllergenService {
         return repository.save(entity);
     }
 
+    @Transactional(readOnly = true)
+    public Optional<RecipeAllergen> findById(Integer id) {
+        return repository.findById(id);
+    }
+
     @Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
     public void deleteById(Integer id) {
         repository.deleteById(id);

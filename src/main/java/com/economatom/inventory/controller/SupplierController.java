@@ -20,7 +20,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/suppliers")
-@CrossOrigin(origins = "*")
 @Tag(name = "Proveedores", description = "Gestión de proveedores en el sistema, CRUD completo y búsqueda por nombre")
 public class SupplierController {
 
@@ -118,8 +117,12 @@ public class SupplierController {
     )
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Integer id) {
-        supplierService.deleteById(id);
-        return ResponseEntity.noContent().build();
+        return supplierService.findById(id)
+                .map(existing -> {
+                    supplierService.deleteById(id);
+                    return ResponseEntity.noContent().<Void>build();
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @Operation(

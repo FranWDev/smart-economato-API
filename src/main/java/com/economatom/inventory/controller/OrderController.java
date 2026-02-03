@@ -22,7 +22,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/orders")
-@CrossOrigin(origins = "*")
 @Tag(name = "Ordenes", description = "Gestión de pedidos, incluyendo creación, actualización, búsqueda y filtrado por usuario, estado o rango de fechas.")
 public class OrderController {
 

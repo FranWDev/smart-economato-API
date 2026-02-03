@@ -20,7 +20,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/recipe-components")
-@CrossOrigin(origins = "*")
 @Tag(name = "Componentes de Recetas", description = "Operaciones relacionadas con los componentes de recetas")
 public class RecipeComponentController {
 
@@ -101,7 +100,7 @@ public class RecipeComponentController {
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar componente", description = "Elimina un componente de receta por su ID")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Componente eliminado"),
+        @ApiResponse(responseCode = "204", description = "Componente eliminado"),
         @ApiResponse(responseCode = "404", description = "Componente no encontrado")
     })
     public ResponseEntity<Object> delete(
@@ -109,7 +108,7 @@ public class RecipeComponentController {
         return componentService.findById(id)
                 .map(existing -> {
                     componentService.deleteById(id);
-                    return ResponseEntity.status(200).build();
+                    return ResponseEntity.noContent().build();
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

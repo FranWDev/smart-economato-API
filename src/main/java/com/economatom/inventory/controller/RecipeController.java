@@ -20,7 +20,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/recipes")
-@CrossOrigin(origins = "*")
 @Tag(name = "Recetas", description = "Operaciones relacionadas con las recetas")
 public class RecipeController {
 
