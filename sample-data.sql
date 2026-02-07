@@ -28,7 +28,6 @@ ALTER SEQUENCE inventory_audit_id_seq RESTART WITH 1;
 INSERT INTO users (name, email, password, role) VALUES
 ('Admin', 'admin@economatom.com', '$2a$12$0qoUFZjOG52YNQ9aMH5xtuMIhXxe5IVXdkq5UvQKRunz5WIvy23s.', 'ADMIN'), -- password: admin123
 ('Chef', 'chef@economatom.com', '$2a$12$0qoUFZjOG52YNQ9aMH5xtuMIhXxe5IVXdkq5UvQKRunz5WIvy23s.', 'CHEF'), -- password: admin123
-('Manager', 'manager@economatom.com', '$2a$12$0qoUFZjOG52YNQ9aMH5xtuMIhXxe5IVXdkq5UvQKRunz5WIvy23s.', 'MANAGER'), -- password: admin123
 ('Usuario', 'user@economatom.com', '$2a$12$0qoUFZjOG52YNQ9aMH5xtuMIhXxe5IVXdkq5UvQKRunz5WIvy23s.', 'USER'); -- password: admin123
 
 -- ============================================
