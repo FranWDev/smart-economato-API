@@ -104,12 +104,15 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Permitir Angular (puerto 4200) y el mismo servidor
+        // Permitir Angular (puerto 4200), servidor (8080, 8081) y dominio de producción
         configuration.setAllowedOrigins(Arrays.asList(
             "http://localhost:4200",
             "http://localhost:8080",
+            "http://localhost:8081",
             "http://127.0.0.1:4200",
-            "http://127.0.0.1:8080"
+            "http://127.0.0.1:8080",
+            "http://127.0.0.1:8081",
+            "https://economato.servehttp.com"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Origin"));
