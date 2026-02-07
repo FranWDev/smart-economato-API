@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.economato.inventory.dto.request.SupplierRequestDTO;
@@ -32,13 +33,14 @@ public class SupplierController {
 
     @Operation(
         summary = "Obtener todos los proveedores",
-        description = "Devuelve una lista paginada de todos los proveedores registrados en el sistema.",
+        description = "Devuelve una lista paginada de todos los proveedores registrados en el sistema. [Rol requerido: CHEF]",
         responses = {
             @ApiResponse(responseCode = "200", description = "Lista de proveedores obtenida correctamente",
                 content = @Content(mediaType = "application/json",
                     schema = @Schema(implementation = SupplierResponseDTO.class)))
         }
     )
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @GetMapping
     public ResponseEntity<Page<SupplierResponseDTO>> getAll(Pageable pageable) {
         return ResponseEntity.ok(supplierService.findAll(pageable));
@@ -46,7 +48,7 @@ public class SupplierController {
 
     @Operation(
         summary = "Obtener proveedor por ID",
-        description = "Devuelve un proveedor específico según su ID.",
+        description = "Devuelve un proveedor específico según su ID. [Rol requerido: CHEF]",
         responses = {
             @ApiResponse(responseCode = "200", description = "Proveedor encontrado",
                 content = @Content(mediaType = "application/json",
@@ -54,6 +56,7 @@ public class SupplierController {
             @ApiResponse(responseCode = "404", description = "Proveedor no encontrado")
         }
     )
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<SupplierResponseDTO> getById(@PathVariable Integer id) {
         return supplierService.findById(id)
@@ -63,7 +66,7 @@ public class SupplierController {
 
     @Operation(
         summary = "Crear nuevo proveedor",
-        description = "Crea un proveedor y devuelve la entidad creada con su ID asignado.",
+        description = "Crea un proveedor y devuelve la entidad creada con su ID asignado. [Rol requerido: ADMIN]",
         requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Datos del proveedor a crear",
             required = true,
@@ -75,6 +78,7 @@ public class SupplierController {
                     schema = @Schema(implementation = SupplierResponseDTO.class)))
         }
     )
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<SupplierResponseDTO> create(
             @Valid @org.springframework.web.bind.annotation.RequestBody SupplierRequestDTO supplierRequest) {
@@ -85,7 +89,7 @@ public class SupplierController {
 
     @Operation(
         summary = "Actualizar proveedor",
-        description = "Actualiza un proveedor existente según su ID.",
+        description = "Actualiza un proveedor existente según su ID. [Rol requerido: ADMIN]",
         requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Datos del proveedor a actualizar",
             required = true,
@@ -98,6 +102,7 @@ public class SupplierController {
             @ApiResponse(responseCode = "404", description = "Proveedor no encontrado")
         }
     )
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<SupplierResponseDTO> update(
             @PathVariable Integer id,
@@ -109,13 +114,14 @@ public class SupplierController {
 
     @Operation(
         summary = "Eliminar proveedor",
-        description = "Elimina un proveedor por su ID.",
+        description = "Elimina un proveedor por su ID. [Rol requerido: ADMIN]",
         responses = {
             @ApiResponse(responseCode = "204", description = "Proveedor eliminado correctamente"),
             @ApiResponse(responseCode = "404", description = "Proveedor no encontrado"),
             @ApiResponse(responseCode = "400", description = "No se puede eliminar el proveedor porque tiene productos asociados")
         }
     )
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Integer id) {
         return supplierService.findById(id)
@@ -128,13 +134,14 @@ public class SupplierController {
 
     @Operation(
         summary = "Buscar proveedores por nombre",
-        description = "Busca proveedores cuyo nombre contenga el texto especificado (no sensible a mayúsculas).",
+        description = "Busca proveedores cuyo nombre contenga el texto especificado (no sensible a mayúsculas). [Rol requerido: CHEF]",
         responses = {
             @ApiResponse(responseCode = "200", description = "Lista de proveedores que coinciden con la búsqueda",
                 content = @Content(mediaType = "application/json",
                     schema = @Schema(implementation = SupplierResponseDTO.class)))
         }
     )
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @GetMapping("/search")
     public ResponseEntity<List<SupplierResponseDTO>> searchByName(@RequestParam String name) {
         return ResponseEntity.ok(supplierService.findByNameContaining(name));

@@ -43,7 +43,7 @@ public class StockLedgerController {
     @Operation(
         summary = "Obtener historial de transacciones de un producto",
         description = "Devuelve todas las transacciones del ledger para un producto específico, " +
-                     "ordenadas cronológicamente. Similar a 'git log' para ver el historial completo."
+                     "ordenadas cronológicamente. Similar a 'git log' para ver el historial completo. [Rol requerido: ADMIN]"
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Historial obtenido correctamente",
@@ -51,7 +51,7 @@ public class StockLedgerController {
         @ApiResponse(responseCode = "404", description = "Producto no encontrado")
     })
     @GetMapping("/history/{productId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<StockLedgerResponseDTO>> getProductHistory(@PathVariable Integer productId) {
         List<StockLedger> history = stockLedgerService.getProductHistory(productId);
         
@@ -66,7 +66,7 @@ public class StockLedgerController {
         summary = "Verificar integridad de la cadena de un producto",
         description = "Recalcula todos los hashes de las transacciones de un producto y verifica que coincidan. " +
                      "Si alguien modificó la base de datos directamente, esta verificación lo detectará. " +
-                     "Similar a 'git fsck' para verificar la integridad del repositorio."
+                     "Similar a 'git fsck' para verificar la integridad del repositorio. [Rol requerido: ADMIN]"
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Verificación completada",
@@ -75,7 +75,7 @@ public class StockLedgerController {
         @ApiResponse(responseCode = "404", description = "Producto no encontrado")
     })
     @GetMapping("/verify/{productId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<IntegrityCheckResponseDTO> verifyProductIntegrity(@PathVariable Integer productId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
@@ -100,7 +100,7 @@ public class StockLedgerController {
     @Operation(
         summary = "Verificar integridad de TODAS las cadenas",
         description = "Verifica la integridad de todos los productos del sistema. " +
-                     "Esta operación puede tardar varios segundos en sistemas grandes."
+                     "Esta operación puede tardar varios segundos en sistemas grandes. [Rol requerido: ADMIN]"
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Verificación global completada",
@@ -128,7 +128,7 @@ public class StockLedgerController {
     @Operation(
         summary = "Obtener snapshot de stock actual",
         description = "Devuelve el estado actual del stock de un producto desde el snapshot optimizado. " +
-                     "Esta consulta es O(1) y no requiere recorrer el ledger completo."
+                     "Esta consulta es O(1) y no requiere recorrer el ledger completo. [Rol requerido: ADMIN]"
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Snapshot obtenido correctamente",
@@ -137,7 +137,7 @@ public class StockLedgerController {
         @ApiResponse(responseCode = "404", description = "Snapshot no encontrado")
     })
     @GetMapping("/snapshot/{productId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<StockSnapshotResponseDTO> getCurrentStock(@PathVariable Integer productId) {
         StockSnapshot snapshot = stockLedgerService.getCurrentStock(productId)
                 .orElseThrow(() -> new RuntimeException("Snapshot no encontrado para el producto " + productId));
@@ -159,14 +159,14 @@ public class StockLedgerController {
     @Operation(
         summary = "Listar todos los snapshots",
         description = "Devuelve el estado actual de stock de todos los productos. " +
-                     "Útil para auditorías y para detectar productos con integridad corrupta."
+                     "Útil para auditorías y para detectar productos con integridad corrupta. [Rol requerido: ADMIN]"
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Snapshots obtenidos correctamente",
                     content = @Content(mediaType = "application/json"))
     })
     @GetMapping("/snapshots")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<StockSnapshotResponseDTO>> getAllSnapshots() {
         return ResponseEntity.ok(List.of());
     }
@@ -176,7 +176,7 @@ public class StockLedgerController {
         description = "Elimina PERMANENTEMENTE todo el historial del ledger de un producto. " +
                      "Solo debe usarse cuando se detecta corrupción y se desea empezar desde cero. " +
                      "Esta operación NO modifica el stock actual del producto, solo borra el historial de transacciones. " +
-                     "Requiere permisos de ADMIN."
+                     "Requiere permisos de ADMIN. [Rol requerido: ADMIN]"
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Historial restablecido correctamente"),
@@ -196,7 +196,7 @@ public class StockLedgerController {
                      "Si algún movimiento falla, se revierten TODOS los cambios (atomicidad). " +
                      "Ideal para rollbacks de recetas u órdenes erróneas. " +
                      "Ejemplo: Si necesitas revertir una receta que usó 3 ingredientes, puedes " +
-                     "devolver el stock de los 3 en una sola operación. Si falla uno, ninguno se aplica."
+                     "devolver el stock de los 3 en una sola operación. Si falla uno, ninguno se aplica. [Rol requerido: ADMIN]"
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Operación batch completada exitosamente",
@@ -207,7 +207,7 @@ public class StockLedgerController {
         @ApiResponse(responseCode = "500", description = "Error en la operación - cambios revertidos")
     })
     @PostMapping("/batch")
-    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<BatchStockMovementResponseDTO> processBatchMovements(
             @Valid @RequestBody BatchStockMovementRequestDTO request) {
         

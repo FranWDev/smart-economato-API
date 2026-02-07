@@ -95,8 +95,8 @@ class StockLedgerControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "user", roles = { "USER" })
-    void getProductHistory_WithUserRole_ShouldReturnList() throws Exception {
+    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    void getProductHistory_WithAdminRole_ShouldReturnList() throws Exception {
 
         when(stockLedgerService.getProductHistory(anyInt())).thenReturn(testLedgers);
 
@@ -143,8 +143,8 @@ class StockLedgerControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "user", roles = { "USER" })
-    void getCurrentStock_WithUserRole_ShouldReturnSnapshot() throws Exception {
+    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    void getCurrentStock_WithAdminRole_ShouldReturnSnapshot() throws Exception {
 
         when(stockLedgerService.getCurrentStock(anyInt())).thenReturn(Optional.of(testSnapshot));
 
@@ -175,8 +175,8 @@ class StockLedgerControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "user", roles = { "USER" })
-    void resetChain_WithUserRole_ShouldReturnForbidden() throws Exception {
+    @WithMockUser(username = "chef", roles = { "CHEF" })
+    void resetChain_WithChefRole_ShouldReturnForbidden() throws Exception {
 
         mockMvc.perform(delete("/api/stock-ledger/reset/1")
                 .contentType(MediaType.APPLICATION_JSON))

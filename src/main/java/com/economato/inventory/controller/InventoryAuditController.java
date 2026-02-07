@@ -31,7 +31,7 @@ public class InventoryAuditController {
 
     @Operation(
         summary = "Obtener todos los movimientos de inventario",
-        description = "Devuelve una lista paginada de todos los registros de auditoría de inventario. Solo disponible para usuarios con rol ADMIN o CHEF.",
+        description = "Devuelve una lista paginada de todos los registros de auditoría de inventario. Solo disponible para usuarios con rol ADMIN o CHEF. [Rol requerido: ADMIN]",
         responses = {
             @ApiResponse(responseCode = "200", description = "Lista de movimientos obtenida correctamente",
                 content = @Content(mediaType = "application/json",
@@ -40,7 +40,7 @@ public class InventoryAuditController {
         }
     )
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<InventoryMovementResponseDTO>> getAll(
             @Parameter(description = "Información de paginación") Pageable pageable) {
         return ResponseEntity.ok(movementService.findAll(pageable));
@@ -48,7 +48,7 @@ public class InventoryAuditController {
 
     @Operation(
         summary = "Obtener movimiento por ID",
-        description = "Devuelve los detalles de un movimiento de inventario específico a partir de su identificador.",
+        description = "Devuelve los detalles de un movimiento de inventario específico a partir de su identificador. [Rol requerido: ADMIN]",
         responses = {
             @ApiResponse(responseCode = "200", description = "Movimiento encontrado correctamente"),
             @ApiResponse(responseCode = "404", description = "No se encontró el movimiento con el ID especificado"),
@@ -56,7 +56,7 @@ public class InventoryAuditController {
         }
     )
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<InventoryMovementResponseDTO> getById(
             @Parameter(description = "ID del movimiento de inventario", example = "45") @PathVariable Integer id) {
         return movementService.findById(id)
@@ -66,14 +66,14 @@ public class InventoryAuditController {
 
     @Operation(
         summary = "Obtener movimientos por tipo",
-        description = "Devuelve todos los movimientos de inventario filtrados por tipo: ENTRADA o SALIDA.",
+        description = "Devuelve todos los movimientos de inventario filtrados por tipo: ENTRADA o SALIDA. [Rol requerido: ADMIN]",
         responses = {
             @ApiResponse(responseCode = "200", description = "Lista filtrada correctamente"),
             @ApiResponse(responseCode = "403", description = "Acceso denegado: el usuario no tiene permisos suficientes")
         }
     )
     @GetMapping("/type/{type}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<InventoryMovementResponseDTO>> getByType(
             @Parameter(description = "Tipo de movimiento (ENTRADA o SALIDA)", example = "ENTRADA") @PathVariable String type) {
         return ResponseEntity.ok(movementService.findByMovementType(type));
@@ -81,7 +81,7 @@ public class InventoryAuditController {
 
     @Operation(
         summary = "Obtener movimientos por rango de fechas",
-        description = "Filtra los movimientos de inventario ocurridos entre dos fechas específicas (formato ISO-8601).",
+        description = "Filtra los movimientos de inventario ocurridos entre dos fechas específicas (formato ISO-8601). [Rol requerido: ADMIN]",
         parameters = {
             @Parameter(name = "start", description = "Fecha de inicio (formato: 2025-03-01T00:00:00)", required = true),
             @Parameter(name = "end", description = "Fecha de fin (formato: 2025-03-31T23:59:59)", required = true)
@@ -92,7 +92,7 @@ public class InventoryAuditController {
         }
     )
     @GetMapping("/by-date-range")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<InventoryMovementResponseDTO>> getByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {

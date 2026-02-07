@@ -34,7 +34,7 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Obtener todos los usuarios", description = "Devuelve una lista paginada de todos los usuarios. Solo accesible para administradores.")
+    @Operation(summary = "Obtener todos los usuarios", description = "Devuelve una lista paginada de todos los usuarios. Solo accesible para administradores. [Rol requerido: ADMIN]")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Lista de usuarios", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "Acceso denegado")
@@ -46,7 +46,7 @@ public class UserController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
-    @Operation(summary = "Obtener usuario por ID", description = "Devuelve los datos de un usuario específico. Accesible para administradores o para el propio usuario.")
+    @Operation(summary = "Obtener usuario por ID", description = "Devuelve los datos de un usuario específico. Accesible para administradores o para el propio usuario. [Rol requerido: USER]")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Usuario encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "Acceso denegado"),
@@ -61,7 +61,7 @@ public class UserController {
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Crear usuario", description = "Crea un nuevo usuario. Solo accesible para administradores.")
+    @Operation(summary = "Crear usuario", description = "Crea un nuevo usuario. Solo accesible para administradores. [Rol requerido: ADMIN]")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Usuario creado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "Acceso denegado")
@@ -74,7 +74,7 @@ public class UserController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Actualizar usuario", description = "Actualiza los datos de un usuario. Solo accesible para administradores.")
+    @Operation(summary = "Actualizar usuario", description = "Actualiza los datos de un usuario. Solo accesible para administradores. [Rol requerido: ADMIN]")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Usuario actualizado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "Acceso denegado"),
@@ -90,7 +90,7 @@ public class UserController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Eliminar usuario", description = "Elimina un usuario por ID. Solo accesible para administradores.")
+    @Operation(summary = "Eliminar usuario", description = "Elimina un usuario por ID. Solo accesible para administradores. [Rol requerido: ADMIN]")
     @ApiResponses({
             @ApiResponse(responseCode = "204", description = "Usuario eliminado exitosamente"),
             @ApiResponse(responseCode = "403", description = "Acceso denegado"),
@@ -108,7 +108,7 @@ public class UserController {
 
     @GetMapping("/by-role/{role}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Obtener usuarios por rol", description = "Devuelve una lista de usuarios filtrados por rol. Solo accesible para administradores.")
+    @Operation(summary = "Obtener usuarios por rol", description = "Devuelve una lista de usuarios filtrados por rol. Solo accesible para administradores. [Rol requerido: ADMIN]")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Lista de usuarios con el rol especificado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "Acceso denegado")

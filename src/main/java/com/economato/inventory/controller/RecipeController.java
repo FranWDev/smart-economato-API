@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.economato.inventory.dto.request.RecipeCookingRequestDTO;
@@ -31,8 +32,9 @@ public class RecipeController {
         this.recipeService = recipeService;
     }
 
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
     @GetMapping
-    @Operation(summary = "Obtener todas las recetas", description = "Devuelve una lista paginada de todas las recetas")
+    @Operation(summary = "Obtener todas las recetas", description = "Devuelve una lista paginada de todas las recetas. [Rol requerido: USER]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Lista de recetas",
             content = @Content(mediaType = "application/json",
@@ -42,8 +44,9 @@ public class RecipeController {
         return ResponseEntity.ok(recipeService.findAll(pageable));
     }
 
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
     @GetMapping("/{id}")
-    @Operation(summary = "Obtener receta por ID", description = "Devuelve los datos de una receta específica")
+    @Operation(summary = "Obtener receta por ID", description = "Devuelve los datos de una receta específica. [Rol requerido: USER]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Receta encontrada",
             content = @Content(mediaType = "application/json",
@@ -57,8 +60,9 @@ public class RecipeController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @PostMapping
-    @Operation(summary = "Crear receta", description = "Crea una nueva receta")
+    @Operation(summary = "Crear receta", description = "Crea una nueva receta. [Rol requerido: CHEF]")
     @ApiResponses({
         @ApiResponse(responseCode = "201", description = "Receta creada",
             content = @Content(mediaType = "application/json",
@@ -75,12 +79,13 @@ public class RecipeController {
         return ResponseEntity.status(201).body(created);
     }
 
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @PutMapping("/{id}")
     @Operation(summary = "Actualizar receta", 
                description = "Actualiza los datos de una receta existente. " +
                            "Este endpoint utiliza **bloqueo optimista** mediante control de versión para detectar " +
                            "actualizaciones concurrentes. Si otro usuario modifica la receta simultáneamente, " +
-                           "se generará un error de concurrencia.")
+                           "se generará un error de concurrencia. [Rol requerido: CHEF]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Receta actualizada",
             content = @Content(mediaType = "application/json",
@@ -101,8 +106,9 @@ public class RecipeController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
-    @Operation(summary = "Eliminar receta", description = "Elimina una receta por su ID")
+    @Operation(summary = "Eliminar receta", description = "Elimina una receta. [Rol requerido: ADMIN]")
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "Receta eliminada"),
         @ApiResponse(responseCode = "404", description = "Receta no encontrada")
@@ -117,24 +123,27 @@ public class RecipeController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
     @GetMapping("/search")
-    @Operation(summary = "Buscar recetas por nombre", description = "Devuelve todas las recetas cuyo nombre contenga la cadena indicada")
+    @Operation(summary = "Buscar recetas por nombre", description = "Devuelve todas las recetas cuyo nombre contenga la cadena indicada. [Rol requerido: USER]")
     public List<RecipeResponseDTO> searchByName(
             @Parameter(description = "Nombre a buscar", required = true) @RequestParam String name) {
         return recipeService.findByNameContaining(name);
     }
 
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
     @GetMapping("/maxcost")
-    @Operation(summary = "Buscar recetas por costo máximo", description = "Devuelve todas las recetas cuyo costo total sea menor al indicado")
+    @Operation(summary = "Buscar recetas por costo máximo", description = "Devuelve todas las recetas cuyo costo total sea menor al indicado. [Rol requerido: USER]")
     public List<RecipeResponseDTO> findByCostLessThan(
             @Parameter(description = "Costo máximo", required = true) @RequestParam BigDecimal maxCost) {
         return recipeService.findByCostLessThan(maxCost);
     }
 
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @PostMapping("/cook")
     @Operation(summary = "Cocinar receta", 
                description = "Registra el cocinado de una receta, descontando automáticamente los ingredientes del inventario mediante el ledger inmutable. " +
-                           "Se registra una auditoría completa que incluye quién cocinó la receta, cuándo y qué cantidad.")
+                           "Se registra una auditoría completa que incluye quién cocinó la receta, cuándo y qué cantidad. [Rol requerido: CHEF]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Receta cocinada exitosamente",
             content = @Content(mediaType = "application/json",

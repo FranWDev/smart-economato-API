@@ -46,8 +46,8 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
         public void setUp() throws Exception {
                 clearDatabase();
 
-                testUser = TestDataUtil.createChefUser();
-                testUser.setPassword(passwordEncoder.encode("chef123"));
+                testUser = TestDataUtil.createAdminUser();
+                testUser.setPassword(passwordEncoder.encode("admin123"));
                 testUser = userRepository.saveAndFlush(testUser);
 
                 testProduct1 = TestDataUtil.createFlour();
@@ -58,7 +58,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
                 LoginRequestDTO loginRequest = new LoginRequestDTO();
                 loginRequest.setName(testUser.getName());
-                loginRequest.setPassword("chef123");
+                loginRequest.setPassword("admin123");
 
                 String response = mockMvc.perform(post(AUTH_URL)
                                 .contentType(MediaType.APPLICATION_JSON)

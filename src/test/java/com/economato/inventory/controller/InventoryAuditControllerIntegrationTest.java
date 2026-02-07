@@ -71,8 +71,8 @@ class InventoryAuditControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "chef", roles = { "CHEF" })
-    void getAllMovements_WithChefRole_ShouldReturnList() throws Exception {
+    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    void getAllMovements_WithAdminRole_ShouldReturnList() throws Exception {
 
         when(inventoryAuditService.findAll(any(Pageable.class))).thenReturn(testMovements);
 
@@ -131,8 +131,8 @@ class InventoryAuditControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "chef", roles = { "CHEF" })
-    void getMovementsByType_WithChefRole_ShouldReturnList() throws Exception {
+    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    void getMovementsByType_WithAdminRole_ShouldReturnList() throws Exception {
 
         when(inventoryAuditService.findByMovementType(anyString())).thenReturn(testMovements);
 

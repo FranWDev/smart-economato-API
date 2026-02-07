@@ -3,6 +3,7 @@ package com.economato.inventory.controller;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.economato.inventory.dto.response.OrderAuditResponseDTO;
@@ -30,9 +31,10 @@ public class OrderAuditController {
         this.orderAuditService = orderAuditService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     @Operation(summary = "Obtener todas las auditorías de órdenes",
-               description = "Devuelve una lista paginada de todas las auditorías registradas.")
+               description = "Devuelve una lista paginada de todas las auditorías registradas. [Rol requerido: ADMIN]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Lista de auditorías obtenida correctamente",
             content = @Content(mediaType = "application/json",
@@ -42,9 +44,10 @@ public class OrderAuditController {
         return ResponseEntity.ok(orderAuditService.findAll(pageable));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     @Operation(summary = "Obtener auditoría por ID",
-               description = "Devuelve una auditoría específica según su identificador.")
+               description = "Devuelve una auditoría específica según su identificador. [Rol requerido: ADMIN]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Auditoría encontrada",
             content = @Content(mediaType = "application/json",
@@ -59,9 +62,10 @@ public class OrderAuditController {
             .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/by-order/{id}")
     @Operation(summary = "Obtener auditorías por orden",
-               description = "Devuelve todas las auditorías asociadas a una orden específica.")
+               description = "Devuelve todas las auditorías asociadas a una orden específica. [Rol requerido: ADMIN]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Lista de auditorías por orden",
             content = @Content(mediaType = "application/json",
@@ -74,9 +78,10 @@ public class OrderAuditController {
         return ResponseEntity.ok(orderAuditService.findByOrderId(id));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/by-user/{id}")
     @Operation(summary = "Obtener auditorías por usuario",
-               description = "Devuelve todas las auditorías registradas por un usuario específico.")
+               description = "Devuelve todas las auditorías registradas por un usuario específico. [Rol requerido: ADMIN]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Lista de auditorías por usuario",
             content = @Content(mediaType = "application/json",
@@ -89,9 +94,10 @@ public class OrderAuditController {
         return ResponseEntity.ok(orderAuditService.findByUserId(id));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/by-date-range")
     @Operation(summary = "Obtener auditorías por rango de fechas",
-               description = "Devuelve todas las auditorías realizadas dentro del rango de fechas indicado.")
+               description = "Devuelve todas las auditorías realizadas dentro del rango de fechas indicado. [Rol requerido: ADMIN]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Lista de auditorías encontradas en el rango",
             content = @Content(mediaType = "application/json",

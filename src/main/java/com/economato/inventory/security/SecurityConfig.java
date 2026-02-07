@@ -36,28 +36,24 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // Rutas públicas - Autenticación (excepto validate que requiere token)
+                        // ===== RUTAS PÚBLICAS =====
+                        // Autenticación
                         .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
-                        // Rutas públicas - Vistas (login, etc)
+                        
+                        // Vistas públicas
                         .requestMatchers("/login", "/").permitAll()
-                        // Rutas públicas - Recursos estáticos (todos los scripts y estilos)
+                        
+                        // Recursos estáticos
                         .requestMatchers("/styles/**", "/scripts/**").permitAll()
                         .requestMatchers("/robots.txt", "/sitemap.xml", "/manifest.json").permitAll()
-                        // Swagger UI (documentación)
+                        
+                        // Documentación Swagger
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         
-                        // ===== CONTROL DE ACCESO POR ROL =====
-                        // ADMIN - acceso total a todo
-                        .requestMatchers("/api/products/**").hasAnyRole("ADMIN", "CHEF")
-                        .requestMatchers("/api/inventory-movements/**").hasAnyRole("ADMIN", "CHEF")
-                        .requestMatchers("/api/recipes/**").hasAnyRole("ADMIN", "CHEF")
-                        .requestMatchers("/api/orders/**").hasAnyRole("ADMIN", "CHEF", "USER")
-                        
-                        // DELETE solo para ADMIN
-                        .requestMatchers(HttpMethod.DELETE).hasRole("ADMIN")
-                        
-                        // El resto requiere autenticación
+                        // ===== RUTAS PROTEGIDAS =====
+                        // El control de acceso específico se maneja con @PreAuthorize en los controladores
+                        // Todas las demás rutas requieren autenticación
                         .anyRequest().authenticated()
                 )
                 .headers(headers -> headers
@@ -108,10 +104,15 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // TODO: Configurar dominios específicos en producción
-        configuration.setAllowedOriginPatterns(List.of("*")); // Permite todos los orígenes temporalmente
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        // Permitir Angular (puerto 4200) y el mismo servidor
+        configuration.setAllowedOrigins(Arrays.asList(
+            "http://localhost:4200",
+            "http://localhost:8080",
+            "http://127.0.0.1:4200",
+            "http://127.0.0.1:8080"
+        ));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Origin"));
         configuration.setExposedHeaders(List.of("Authorization"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);

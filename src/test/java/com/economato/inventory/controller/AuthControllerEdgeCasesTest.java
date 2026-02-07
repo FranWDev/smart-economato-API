@@ -43,7 +43,9 @@ class AuthControllerEdgeCasesTest extends BaseIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(loginRequest)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.token", notNullValue()));
+                .andExpect(jsonPath("$.token", notNullValue()))
+                .andExpect(jsonPath("$.role", notNullValue()))
+                .andExpect(jsonPath("$.role").value("ADMIN"));
     }
 
     @Test

@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.economato.inventory.dto.request.AllergenRequestDTO;
@@ -31,13 +32,14 @@ public class AllergenController {
 
     @Operation(
         summary = "Obtener todos los alérgenos",
-        description = "Devuelve una lista paginada de todos los alérgenos registrados en el sistema.",
+        description = "Devuelve una lista paginada de todos los alérgenos registrados en el sistema. [Rol requerido: USER]",
         responses = {
             @ApiResponse(responseCode = "200", description = "Lista de alérgenos obtenida correctamente",
                 content = @Content(mediaType = "application/json",
                     schema = @Schema(implementation = AllergenResponseDTO.class)))
         }
     )
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
     @GetMapping
     public ResponseEntity<Page<AllergenResponseDTO>> getAll(Pageable pageable) {
         return ResponseEntity.ok(allergenService.findAll(pageable));
@@ -45,7 +47,7 @@ public class AllergenController {
 
     @Operation(
         summary = "Obtener alérgeno por ID",
-        description = "Devuelve un alérgeno específico según su ID.",
+        description = "Devuelve un alérgeno específico según su ID. [Rol requerido: USER]",
         responses = {
             @ApiResponse(responseCode = "200", description = "Alérgeno encontrado",
                 content = @Content(mediaType = "application/json",
@@ -53,6 +55,7 @@ public class AllergenController {
             @ApiResponse(responseCode = "404", description = "Alérgeno no encontrado")
         }
     )
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<AllergenResponseDTO> getById(@PathVariable Integer id) {
         return allergenService.findById(id)
@@ -62,7 +65,7 @@ public class AllergenController {
 
     @Operation(
         summary = "Crear nuevo alérgeno",
-        description = "Crea un alérgeno y devuelve la entidad creada con su ID asignado.",
+        description = "Crea un alérgeno y devuelve la entidad creada con su ID asignado. [Rol requerido: CHEF]",
         requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Datos del alérgeno a crear",
             required = true,
@@ -74,6 +77,7 @@ public class AllergenController {
                     schema = @Schema(implementation = AllergenResponseDTO.class)))
         }
     )
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @PostMapping
     public ResponseEntity<AllergenResponseDTO> create(
             @Valid @org.springframework.web.bind.annotation.RequestBody AllergenRequestDTO allergenRequest) {
@@ -84,7 +88,7 @@ public class AllergenController {
 
     @Operation(
         summary = "Actualizar alérgeno",
-        description = "Actualiza un alérgeno existente según su ID.",
+        description = "Actualiza un alérgeno existente según su ID. [Rol requerido: CHEF]",
         requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Datos del alérgeno a actualizar",
             required = true,
@@ -97,6 +101,7 @@ public class AllergenController {
             @ApiResponse(responseCode = "404", description = "Alérgeno no encontrado")
         }
     )
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<AllergenResponseDTO> update(
             @PathVariable Integer id,
@@ -108,12 +113,13 @@ public class AllergenController {
 
     @Operation(
         summary = "Eliminar alérgeno",
-        description = "Elimina un alérgeno existente según su ID.",
+        description = "Elimina un alérgeno existente según su ID. [Rol requerido: ADMIN]",
         responses = {
             @ApiResponse(responseCode = "204", description = "Alérgeno eliminado correctamente"),
             @ApiResponse(responseCode = "404", description = "Alérgeno no encontrado")
         }
     )
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Object> delete(@PathVariable Integer id) {
         return allergenService.findById(id)
@@ -126,7 +132,7 @@ public class AllergenController {
 
     @Operation(
         summary = "Buscar alérgeno por nombre",
-        description = "Devuelve un alérgeno que coincida exactamente con el nombre proporcionado.",
+        description = "Devuelve un alérgeno que coincida exactamente con el nombre proporcionado. [Rol requerido: USER]",
         responses = {
             @ApiResponse(responseCode = "200", description = "Alérgeno encontrado",
                 content = @Content(mediaType = "application/json",
@@ -134,6 +140,7 @@ public class AllergenController {
             @ApiResponse(responseCode = "404", description = "Alérgeno no encontrado")
         }
     )
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
     @GetMapping("/search")
     public ResponseEntity<AllergenResponseDTO> searchByName(@RequestParam String name) {
         return allergenService.findByName(name)

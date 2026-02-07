@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.economato.inventory.dto.response.RecipeCookingAuditResponseDTO;
@@ -32,9 +33,10 @@ public class RecipeCookingAuditController {
         this.service = service;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     @Operation(summary = "Obtener todas las auditorías de cocinado", 
-               description = "Devuelve una lista paginada de todas las auditorías de cocinado de recetas")
+               description = "Devuelve una lista paginada de todas las auditorías de cocinado de recetas. [Rol requerido: ADMIN]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Lista de auditorías",
             content = @Content(mediaType = "application/json",
@@ -44,9 +46,10 @@ public class RecipeCookingAuditController {
         return ResponseEntity.ok(service.findAll(pageable));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/recipe/{recipeId}")
     @Operation(summary = "Obtener auditorías por receta", 
-               description = "Devuelve todas las auditorías de cocinado de una receta específica")
+               description = "Devuelve todas las auditorías de cocinado de una receta específica. [Rol requerido: ADMIN]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Lista de auditorías de la receta",
             content = @Content(mediaType = "application/json",
@@ -58,9 +61,10 @@ public class RecipeCookingAuditController {
         return ResponseEntity.ok(service.findByRecipeId(recipeId));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/user/{userId}")
     @Operation(summary = "Obtener auditorías por usuario", 
-               description = "Devuelve todas las auditorías de cocinado realizadas por un usuario específico")
+               description = "Devuelve todas las auditorías de cocinado realizadas por un usuario específico. [Rol requerido: ADMIN]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Lista de auditorías del usuario",
             content = @Content(mediaType = "application/json",
@@ -72,9 +76,10 @@ public class RecipeCookingAuditController {
         return ResponseEntity.ok(service.findByUserId(userId));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/date-range")
     @Operation(summary = "Obtener auditorías por rango de fechas", 
-               description = "Devuelve todas las auditorías de cocinado en un rango de fechas específico")
+               description = "Devuelve todas las auditorías de cocinado en un rango de fechas específico. [Rol requerido: ADMIN]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Lista de auditorías en el rango",
             content = @Content(mediaType = "application/json",

@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.economato.inventory.dto.request.ProductRequestDTO;
@@ -29,8 +30,9 @@ public class ProductController {
         this.productService = productService;
     }
 
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
     @Operation(summary = "Obtener todos los productos",
-               description = "Devuelve una lista paginada de todos los productos registrados en el sistema.")
+               description = "Devuelve una lista paginada de todos los productos registrados en el sistema. [Rol requerido: USER]")
     @ApiResponse(responseCode = "200", description = "Lista de productos obtenida correctamente",
                  content = @Content(mediaType = "application/json",
                  schema = @Schema(implementation = ProductResponseDTO.class)))
@@ -39,8 +41,9 @@ public class ProductController {
         return ResponseEntity.ok(productService.findAll(pageable));
     }
 
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
     @Operation(summary = "Obtener un producto por código de barras",
-               description = "Devuelve la información de un producto específico según su código de barras.")
+               description = "Devuelve la información de un producto específico según su código de barras. [Rol requerido: USER]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Producto encontrado correctamente",
                      content = @Content(mediaType = "application/json",
@@ -56,8 +59,9 @@ public class ProductController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
     @Operation(summary = "Obtener un producto por ID",
-               description = "Devuelve la información de un producto específico según su ID.")
+               description = "Devuelve la información de un producto específico según su ID. [Rol requerido: USER]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Producto encontrado correctamente",
                      content = @Content(mediaType = "application/json",
@@ -73,8 +77,9 @@ public class ProductController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @Operation(summary = "Crear un nuevo producto",
-               description = "Registra un nuevo producto en el inventario.")
+               description = "Registra un nuevo producto en el inventario. [Rol requerido: CHEF]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Producto creado correctamente",
                      content = @Content(mediaType = "application/json",
@@ -92,7 +97,7 @@ public class ProductController {
                            "Este endpoint utiliza **bloqueo optimista** con reintentos automáticos " +
                            "para prevenir conflictos de concurrencia. Si múltiples usuarios intentan " +
                            "actualizar el mismo producto simultáneamente, el sistema reintentará hasta 3 veces " +
-                           "con un retraso de 100ms entre intentos.")
+                           "con un retraso de 100ms entre intentos. [Rol requerido: CHEF]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Producto actualizado correctamente",
                      content = @Content(mediaType = "application/json",
@@ -102,6 +107,7 @@ public class ProductController {
         @ApiResponse(responseCode = "409", description = "Conflicto de concurrencia - El producto fue modificado por otro usuario. " +
                      "Por favor, recargue los datos e intente nuevamente.")
     })
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<ProductResponseDTO> updateProduct(
             @Parameter(description = "ID del producto a actualizar", example = "3", required = true)
@@ -112,8 +118,9 @@ public class ProductController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Eliminar un producto",
-               description = "Elimina un producto del inventario según su ID.")
+               description = "Elimina un producto del inventario según su ID. [Rol requerido: ADMIN]")
     @ApiResponses({
         @ApiResponse(responseCode = "204", description = "Producto eliminado correctamente"),
         @ApiResponse(responseCode = "404", description = "Producto no encontrado")
@@ -134,7 +141,7 @@ public class ProductController {
                description = "Modifica los datos de un producto y si el stock cambió, lo registra en el ledger " +
                            "inmutable con el concepto 'Modificación manual'. La acción se audita automáticamente " +
                            "con el usuario autenticado y la orden es nula (por ser modificación manual). " +
-                           "Utiliza **bloqueo optimista** con reintentos automáticos.")
+                           "Utiliza **bloqueo optimista** con reintentos automáticos. [Rol requerido: CHEF]")
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Producto actualizado correctamente y ledger registrado si el stock cambió",
                      content = @Content(mediaType = "application/json",
@@ -143,6 +150,7 @@ public class ProductController {
         @ApiResponse(responseCode = "400", description = "Datos inválidos o producto con nombre duplicado"),
         @ApiResponse(responseCode = "409", description = "Conflicto de concurrencia - El producto fue modificado por otro usuario")
     })
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @PutMapping("/{id}/stock-manual")
     public ResponseEntity<ProductResponseDTO> updateStockManually(
             @Parameter(description = "ID del producto a actualizar", example = "3", required = true)
