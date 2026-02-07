@@ -1,0 +1,71 @@
+package com.economato.inventory.service;
+
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.economato.inventory.dto.request.LoginRequestDTO;
+import com.economato.inventory.dto.request.UserRequestDTO;
+import com.economato.inventory.dto.response.LoginResponseDTO;
+import com.economato.inventory.dto.response.UserResponseDTO;
+import com.economato.inventory.exception.InvalidOperationException;
+import com.economato.inventory.model.User;
+import com.economato.inventory.repository.UserRepository;
+import com.economato.inventory.security.JwtUtils;
+
+@Service
+@Transactional(rollbackFor = {InvalidOperationException.class, RuntimeException.class, Exception.class})
+public class AuthService {
+
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final AuthenticationManager authenticationManager;
+    private final JwtUtils jwtUtils;
+
+    public AuthService(UserRepository userRepository, 
+                      PasswordEncoder passwordEncoder,
+                      AuthenticationManager authenticationManager, 
+                      JwtUtils jwtUtils) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.authenticationManager = authenticationManager;
+        this.jwtUtils = jwtUtils;
+    }
+
+    @Transactional(readOnly = true)
+    public LoginResponseDTO login(LoginRequestDTO loginRequest) {
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        loginRequest.getName(),
+                        loginRequest.getPassword()
+                )
+        );
+
+        return jwtUtils.generateJwtToken(authentication);
+    }
+
+    @Transactional(rollbackFor = {InvalidOperationException.class, RuntimeException.class, Exception.class})
+    public UserResponseDTO register(UserRequestDTO requestDTO) {
+        if (userRepository.existsByEmail(requestDTO.getEmail())) {
+            throw new InvalidOperationException("Email already exists");
+        }
+
+        User user = new User();
+        user.setName(requestDTO.getName());
+        user.setEmail(requestDTO.getEmail());
+        user.setRole(requestDTO.getRole());
+        user.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
+        
+        User savedUser = userRepository.save(user);
+        
+        return new UserResponseDTO(
+                savedUser.getId(),
+                savedUser.getName(),
+                savedUser.getEmail(),
+                savedUser.getRole()
+        );
+    }
+}

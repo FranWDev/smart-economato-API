@@ -8,11 +8,11 @@
 		<version>3.5.6</version>
 		<relativePath/>
 	</parent>
-	<groupId>com.economatom</groupId>
+	<groupId>com.economato</groupId>
 	<artifactId>inventory</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>inventory</name>
-	<description>Spring boot proyect</description>
+	<description>Proyecto Smart Economato</description>
 	<url/>
 	<licenses>
 		<license/>
