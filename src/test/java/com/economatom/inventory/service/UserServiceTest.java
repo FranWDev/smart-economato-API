@@ -3,6 +3,7 @@ package com.economatom.inventory.service;
 import com.economatom.inventory.dto.request.UserRequestDTO;
 import com.economatom.inventory.dto.response.UserResponseDTO;
 import com.economatom.inventory.exception.InvalidOperationException;
+import com.economatom.inventory.exception.ResourceNotFoundException;
 import com.economatom.inventory.mapper.UserMapper;
 import com.economatom.inventory.model.User;
 import com.economatom.inventory.repository.UserRepository;
@@ -274,11 +275,14 @@ class UserServiceTest {
 
     @Test
     void deleteById_ShouldCallRepository() {
-
+        // Mock que el usuario existe y no es el último admin
+        testUser.setRole("USER");
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
         doNothing().when(repository).deleteById(1);
 
         userService.deleteById(1);
 
+        verify(repository).findById(1);
         verify(repository).deleteById(1);
     }
 
@@ -307,5 +311,81 @@ class UserServiceTest {
         assertNotNull(result);
         assertTrue(result.isEmpty());
         verify(repository).findByRole("NONEXISTENT");
+    }
+
+    @Test
+    void save_WhenDuplicateName_ShouldThrowException() {
+        when(repository.existsByEmail(testUserRequestDTO.getEmail())).thenReturn(false);
+        when(repository.findByName(testUserRequestDTO.getName())).thenReturn(Optional.of(testUser));
+
+        assertThrows(InvalidOperationException.class, () -> userService.save(testUserRequestDTO));
+    }
+
+    @Test
+    void update_WhenDuplicateEmail_ShouldThrowException() {
+        User existingUser = new User();
+        existingUser.setId(1);
+        existingUser.setEmail("old@test.com");
+        existingUser.setName("Old Name");
+
+        UserRequestDTO updateRequest = new UserRequestDTO();
+        updateRequest.setEmail("another@test.com");
+        updateRequest.setName("New Name");
+        updateRequest.setPassword("password");
+        updateRequest.setRole("USER");
+
+        when(repository.findById(1)).thenReturn(Optional.of(existingUser));
+        when(repository.existsByEmail("another@test.com")).thenReturn(true);
+
+        assertThrows(InvalidOperationException.class, () -> userService.update(1, updateRequest));
+    }
+
+    @Test
+    void update_WhenDuplicateName_ShouldThrowException() {
+        User existingUser = new User();
+        existingUser.setId(1);
+        existingUser.setEmail("test@test.com");
+        existingUser.setName("Old Name");
+
+        UserRequestDTO updateRequest = new UserRequestDTO();
+        updateRequest.setEmail("test@test.com");
+        updateRequest.setName("Another Name");
+        updateRequest.setPassword("password");
+        updateRequest.setRole("USER");
+
+        when(repository.findById(1)).thenReturn(Optional.of(existingUser));
+        when(repository.findByName("Another Name")).thenReturn(Optional.of(new User()));
+
+        assertThrows(InvalidOperationException.class, () -> userService.update(1, updateRequest));
+    }
+
+    @Test
+    void deleteById_WhenLastAdmin_ShouldThrowException() {
+        testUser.setRole("ADMIN");
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(repository.countByRole("ADMIN")).thenReturn(1L);
+
+        assertThrows(InvalidOperationException.class, () -> userService.deleteById(1));
+        verify(repository, never()).deleteById(1);
+    }
+
+    @Test
+    void deleteById_WhenNotLastAdmin_ShouldSucceed() {
+        testUser.setRole("ADMIN");
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(repository.countByRole("ADMIN")).thenReturn(2L);
+        doNothing().when(repository).deleteById(1);
+
+        userService.deleteById(1);
+
+        verify(repository).deleteById(1);
+    }
+
+    @Test
+    void deleteById_WhenUserNotFound_ShouldThrowException() {
+        when(repository.findById(999)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.deleteById(999));
+        verify(repository, never()).deleteById(999);
     }
 }

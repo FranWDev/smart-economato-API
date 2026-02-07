@@ -20,7 +20,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional(rollbackFor = {RuntimeException.class, Exception.class})
+@Transactional(rollbackFor = { RuntimeException.class, Exception.class })
 public class UserService {
 
     private final UserRepository repository;
@@ -33,7 +33,6 @@ public class UserService {
         this.userMapper = userMapper;
     }
 
-    // NO cachear listas paginadas (mejor cachear solo findById)
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findAll(Pageable pageable) {
         return repository.findAll(pageable).stream()
@@ -55,40 +54,72 @@ public class UserService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
 
-    @CacheEvict(value = {"users", "user", "userByEmail"}, allEntries = true)
-    @Transactional(rollbackFor = {InvalidOperationException.class, RuntimeException.class, Exception.class})
+    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+    @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public UserResponseDTO save(UserRequestDTO requestDTO) {
+
         if (repository.existsByEmail(requestDTO.getEmail())) {
-            throw new InvalidOperationException("Email already exists");
+            throw new InvalidOperationException("Ya existe un usuario con el email: " + requestDTO.getEmail());
+        }
+
+        if (repository.findByName(requestDTO.getName()).isPresent()) {
+            throw new InvalidOperationException("Ya existe un usuario con el nombre: " + requestDTO.getName());
         }
 
         User user = userMapper.toEntity(requestDTO);
         user.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
-        
-        // Establecer rol por defecto si no se proporciona
+
         if (user.getRole() == null || user.getRole().isEmpty()) {
             user.setRole("USER");
         }
-        
+
         return userMapper.toResponseDTO(repository.save(user));
     }
 
-    @CacheEvict(value = {"users", "user", "userByEmail"}, allEntries = true)
-    @Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
+    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+    @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
+            RuntimeException.class, Exception.class })
     public Optional<UserResponseDTO> update(Integer id, UserRequestDTO requestDTO) {
         return repository.findById(id)
                 .map(existing -> {
+
+                    if (!existing.getEmail().equals(requestDTO.getEmail()) &&
+                            repository.existsByEmail(requestDTO.getEmail())) {
+                        throw new InvalidOperationException(
+                                "Ya existe un usuario con el email: " + requestDTO.getEmail());
+                    }
+
+                    if (!existing.getName().equals(requestDTO.getName()) &&
+                            repository.findByName(requestDTO.getName()).isPresent()) {
+                        throw new InvalidOperationException(
+                                "Ya existe un usuario con el nombre: " + requestDTO.getName());
+                    }
+
                     userMapper.updateEntity(requestDTO, existing);
+
                     if (requestDTO.getPassword() != null && !requestDTO.getPassword().isEmpty()) {
                         existing.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
                     }
+
                     return userMapper.toResponseDTO(repository.save(existing));
                 });
     }
 
-    @CacheEvict(value = {"users", "user", "userByEmail"}, allEntries = true)
-    @Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
+    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+    @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
+            RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
+
+        User user = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
+
+        if ("ADMIN".equals(user.getRole())) {
+            long adminCount = repository.countByRole("ADMIN");
+            if (adminCount <= 1) {
+                throw new InvalidOperationException("No se puede eliminar el último administrador del sistema");
+            }
+        }
+
         repository.deleteById(id);
     }
 

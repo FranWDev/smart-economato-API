@@ -34,10 +34,8 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Obtener todos los usuarios", description = "Devuelve una lista paginada de todos los usuarios. Solo accesible para administradores.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Lista de usuarios",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = UserResponseDTO.class))),
-        @ApiResponse(responseCode = "403", description = "Acceso denegado")
+            @ApiResponse(responseCode = "200", description = "Lista de usuarios", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
     public ResponseEntity<List<UserResponseDTO>> getAll(Pageable pageable) {
         List<UserResponseDTO> users = service.findAll(pageable);
@@ -48,11 +46,9 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
     @Operation(summary = "Obtener usuario por ID", description = "Devuelve los datos de un usuario específico. Accesible para administradores o para el propio usuario.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Usuario encontrado",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = UserResponseDTO.class))),
-        @ApiResponse(responseCode = "403", description = "Acceso denegado"),
-        @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
+            @ApiResponse(responseCode = "200", description = "Usuario encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado"),
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
     public ResponseEntity<UserResponseDTO> getById(
             @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id) {
@@ -65,52 +61,38 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Crear usuario", description = "Crea un nuevo usuario. Solo accesible para administradores.")
     @ApiResponses({
-        @ApiResponse(responseCode = "201", description = "Usuario creado",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = UserResponseDTO.class))),
-        @ApiResponse(responseCode = "403", description = "Acceso denegado")
+            @ApiResponse(responseCode = "201", description = "Usuario creado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
     public ResponseEntity<UserResponseDTO> create(
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                description = "Datos del usuario a crear",
-                required = true,
-                content = @Content(schema = @Schema(implementation = UserRequestDTO.class))
-            )
-            @Valid @RequestBody UserRequestDTO userRequest) {
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos del usuario a crear", required = true, content = @Content(schema = @Schema(implementation = UserRequestDTO.class))) @Valid @RequestBody UserRequestDTO userRequest) {
         UserResponseDTO createdUser = service.save(userRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
-    @Operation(summary = "Actualizar usuario", description = "Actualiza los datos de un usuario. Accesible para administradores o para el propio usuario.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Actualizar usuario", description = "Actualiza los datos de un usuario. Solo accesible para administradores.")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Usuario actualizado",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = UserResponseDTO.class))),
-        @ApiResponse(responseCode = "403", description = "Acceso denegado"),
-        @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
+            @ApiResponse(responseCode = "200", description = "Usuario actualizado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado"),
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
     public ResponseEntity<UserResponseDTO> update(
             @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id,
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(
-                description = "Datos del usuario a actualizar",
-                required = true,
-                content = @Content(schema = @Schema(implementation = UserRequestDTO.class))
-            )
-            @Valid @RequestBody UserRequestDTO userRequest) {
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos del usuario a actualizar", required = true, content = @Content(schema = @Schema(implementation = UserRequestDTO.class))) @Valid @RequestBody UserRequestDTO userRequest) {
         return service.update(id, userRequest)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
-    @Operation(summary = "Eliminar usuario", description = "Elimina un usuario por ID. Accesible para administradores o para el propio usuario.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Eliminar usuario", description = "Elimina un usuario por ID. Solo accesible para administradores.")
     @ApiResponses({
-        @ApiResponse(responseCode = "204", description = "Usuario eliminado exitosamente"),
-        @ApiResponse(responseCode = "403", description = "Acceso denegado"),
-        @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
+            @ApiResponse(responseCode = "204", description = "Usuario eliminado exitosamente"),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado"),
+            @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
     public ResponseEntity<Object> delete(
             @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id) {
@@ -120,5 +102,18 @@ public class UserController {
                     return ResponseEntity.noContent().build();
                 })
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/by-role/{role}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Obtener usuarios por rol", description = "Devuelve una lista de usuarios filtrados por rol. Solo accesible para administradores.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Lista de usuarios con el rol especificado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
+    })
+    public ResponseEntity<List<UserResponseDTO>> getByRole(
+            @Parameter(description = "Rol a filtrar", required = true) @PathVariable String role) {
+        List<UserResponseDTO> users = service.findByRole(role);
+        return ResponseEntity.ok(users);
     }
 }

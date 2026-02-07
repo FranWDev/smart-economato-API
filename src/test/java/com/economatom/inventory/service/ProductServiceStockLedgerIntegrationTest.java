@@ -98,10 +98,10 @@ class ProductServiceStockLedgerIntegrationTest {
                 testProduct.getId(), requestDTO);
 
         assertTrue(result.isPresent());
-        assertEquals(newStock, result.get().getCurrentStock());
+        assertEquals(0, newStock.compareTo(result.get().getCurrentStock()));
 
         Product updatedProduct = productRepository.findById(testProduct.getId()).orElseThrow();
-        assertEquals(newStock, updatedProduct.getCurrentStock());
+        assertEquals(0, newStock.compareTo(updatedProduct.getCurrentStock()));
 
         List<StockLedger> ledgerEntries = stockLedgerRepository
                 .findByProductIdOrderBySequenceNumber(testProduct.getId());
@@ -109,8 +109,8 @@ class ProductServiceStockLedgerIntegrationTest {
         assertFalse(ledgerEntries.isEmpty(), "Debe haber al menos una entrada en el ledger");
 
         StockLedger latestEntry = ledgerEntries.get(ledgerEntries.size() - 1);
-        assertEquals(new BigDecimal("50.0"), latestEntry.getQuantityDelta());
-        assertEquals(newStock, latestEntry.getResultingStock());
+        assertEquals(0, new BigDecimal("50.0").compareTo(latestEntry.getQuantityDelta()));
+        assertEquals(0, newStock.compareTo(latestEntry.getResultingStock()));
         assertTrue(latestEntry.getDescription().contains("Modificación manual"));
         assertNull(latestEntry.getOrderId(), "orderId debe ser null para modificación manual");
     }
@@ -134,7 +134,7 @@ class ProductServiceStockLedgerIntegrationTest {
                 testProduct.getId(), requestDTO);
 
         assertTrue(result.isPresent());
-        assertEquals(newStock, result.get().getCurrentStock());
+        assertEquals(0, newStock.compareTo(result.get().getCurrentStock()));
 
         List<StockLedger> ledgerEntries = stockLedgerRepository
                 .findByProductIdOrderBySequenceNumber(testProduct.getId());
@@ -142,8 +142,8 @@ class ProductServiceStockLedgerIntegrationTest {
         assertFalse(ledgerEntries.isEmpty());
 
         StockLedger latestEntry = ledgerEntries.get(ledgerEntries.size() - 1);
-        assertEquals(new BigDecimal("-30.0"), latestEntry.getQuantityDelta());
-        assertEquals(newStock, latestEntry.getResultingStock());
+        assertEquals(0, new BigDecimal("-30.0").compareTo(latestEntry.getQuantityDelta()));
+        assertEquals(0, newStock.compareTo(latestEntry.getResultingStock()));
     }
 
     @Test
