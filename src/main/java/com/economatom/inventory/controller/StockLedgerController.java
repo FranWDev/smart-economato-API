@@ -1,12 +1,16 @@
 package com.economatom.inventory.controller;
 
+import com.economatom.inventory.dto.request.BatchStockMovementRequestDTO;
+import com.economatom.inventory.dto.response.BatchStockMovementResponseDTO;
 import com.economatom.inventory.dto.response.IntegrityCheckResponseDTO;
 import com.economatom.inventory.dto.response.StockLedgerResponseDTO;
 import com.economatom.inventory.dto.response.StockSnapshotResponseDTO;
 import com.economatom.inventory.model.Product;
 import com.economatom.inventory.model.StockLedger;
 import com.economatom.inventory.model.StockSnapshot;
+import com.economatom.inventory.model.User;
 import com.economatom.inventory.repository.ProductRepository;
+import com.economatom.inventory.repository.UserRepository;
 import com.economatom.inventory.service.StockLedgerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -14,9 +18,12 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,6 +37,7 @@ public class StockLedgerController {
 
     private final StockLedgerService stockLedgerService;
     private final ProductRepository productRepository;
+    private final UserRepository userRepository;
 
     @Operation(
         summary = "Obtener historial de transacciones de un producto",
@@ -179,6 +187,90 @@ public class StockLedgerController {
     public ResponseEntity<String> resetProductLedger(@PathVariable Integer productId) {
         String message = stockLedgerService.resetProductLedger(productId);
         return ResponseEntity.ok(message);
+    }
+
+    @Operation(
+        summary = "Procesar movimientos de stock en batch (transacción atómica)",
+        description = "Permite actualizar el stock de múltiples productos en una sola transacción. " +
+                     "Si algún movimiento falla, se revierten TODOS los cambios (atomicidad). " +
+                     "Ideal para rollbacks de recetas u órdenes erróneas. " +
+                     "Ejemplo: Si necesitas revertir una receta que usó 3 ingredientes, puedes " +
+                     "devolver el stock de los 3 en una sola operación. Si falla uno, ninguno se aplica."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Operación batch completada exitosamente",
+                    content = @Content(mediaType = "application/json",
+                                     schema = @Schema(implementation = BatchStockMovementResponseDTO.class))),
+        @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos o stock insuficiente"),
+        @ApiResponse(responseCode = "403", description = "Sin permisos para realizar la operación"),
+        @ApiResponse(responseCode = "500", description = "Error en la operación - cambios revertidos")
+    })
+    @PostMapping("/batch")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<BatchStockMovementResponseDTO> processBatchMovements(
+            @Valid @RequestBody BatchStockMovementRequestDTO request) {
+        
+        try {
+            // Obtener usuario actual
+            User currentUser = getCurrentUser();
+            
+            // Convertir DTOs a objetos internos
+            List<StockLedgerService.BatchMovementItem> movements = request.getMovements().stream()
+                .map(item -> new StockLedgerService.BatchMovementItem(
+                    item.getProductId(),
+                    item.getQuantityDelta(),
+                    item.getMovementType(),
+                    item.getDescription() != null ? item.getDescription() : request.getReason()
+                ))
+                .collect(Collectors.toList());
+            
+            // Procesar en transacción atómica
+            List<StockLedger> transactions = stockLedgerService.recordBatchStockMovements(
+                movements,
+                currentUser,
+                request.getOrderId()
+            );
+            
+            // Construir respuesta exitosa
+            BatchStockMovementResponseDTO response = BatchStockMovementResponseDTO.builder()
+                .success(true)
+                .processedCount(transactions.size())
+                .totalCount(request.getMovements().size())
+                .message(String.format("Operación batch completada: %d movimientos procesados exitosamente", 
+                                      transactions.size()))
+                .transactions(transactions.stream()
+                    .map(this::toDTO)
+                    .collect(Collectors.toList()))
+                .build();
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            // Error - la transacción se ha revertido automáticamente
+            BatchStockMovementResponseDTO errorResponse = BatchStockMovementResponseDTO.builder()
+                .success(false)
+                .processedCount(0)
+                .totalCount(request.getMovements().size())
+                .message("Error en operación batch - todos los cambios han sido revertidos")
+                .errorDetail(e.getMessage())
+                .build();
+            
+            return ResponseEntity.badRequest().body(errorResponse);
+        }
+    }
+
+    private User getCurrentUser() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated() 
+                    && !"anonymousUser".equals(authentication.getPrincipal())) {
+                String username = authentication.getName();
+                return userRepository.findByName(username).orElse(null);
+            }
+        } catch (Exception e) {
+            // Silently fail
+        }
+        return null;
     }
 
     private StockLedgerResponseDTO toDTO(StockLedger ledger) {

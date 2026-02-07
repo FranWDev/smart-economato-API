@@ -63,7 +63,8 @@ public class TestDataUtil {
         product.setUnit(unit);
         product.setUnitPrice(price);
         product.setProductCode(code);
-        product.setCurrentStock(stock);
+        // Ajustar escala del stock para compatibilidad con la base de datos (precision=10, scale=3)
+        product.setCurrentStock(stock.setScale(3, java.math.RoundingMode.HALF_UP));
         product.setOrderDetails(new ArrayList<>());
         return product;
     }

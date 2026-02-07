@@ -89,8 +89,8 @@ class StockLedgerServiceIntegrationTest {
 
                 assertNotNull(transaction);
                 assertEquals(testProduct.getId(), transaction.getProduct().getId());
-                assertEquals(delta, transaction.getQuantityDelta());
-                assertEquals(new BigDecimal("150.0"), transaction.getResultingStock());
+                assertEquals(0, delta.compareTo(transaction.getQuantityDelta()));
+                assertEquals(0, new BigDecimal("150.0").compareTo(transaction.getResultingStock()));
                 assertEquals(movementType, transaction.getMovementType());
                 assertEquals(description, transaction.getDescription());
                 assertEquals(Long.valueOf(1), transaction.getSequenceNumber());
@@ -116,7 +116,7 @@ class StockLedgerServiceIntegrationTest {
 
                 Optional<StockSnapshot> snapshot = snapshotRepository.findById(testProduct.getId());
                 assertTrue(snapshot.isPresent());
-                assertEquals(new BigDecimal("125.0"), snapshot.get().getCurrentStock());
+                assertEquals(0, new BigDecimal("125.0").compareTo(snapshot.get().getCurrentStock()));
                 assertEquals("VALID", snapshot.get().getIntegrityStatus());
                 assertEquals(Long.valueOf(1), snapshot.get().getLastSequenceNumber());
         }
@@ -147,7 +147,7 @@ class StockLedgerServiceIntegrationTest {
                 assertEquals(Long.valueOf(3), tx3.getSequenceNumber());
                 assertEquals(tx2.getCurrentHash(), tx3.getPreviousHash());
 
-                assertEquals(new BigDecimal("120.0"), tx3.getResultingStock());
+                assertEquals(0, new BigDecimal("120.0").compareTo(tx3.getResultingStock()));
         }
 
         @Test
@@ -352,7 +352,7 @@ class StockLedgerServiceIntegrationTest {
                 Optional<StockSnapshot> snapshot = stockLedgerService.getCurrentStock(testProduct.getId());
 
                 assertTrue(snapshot.isPresent());
-                assertEquals(new BigDecimal("175.0"), snapshot.get().getCurrentStock());
+                assertEquals(0, new BigDecimal("175.0").compareTo(snapshot.get().getCurrentStock()));
                 assertEquals("VALID", snapshot.get().getIntegrityStatus());
                 assertNotNull(snapshot.get().getLastTransactionHash());
         }
@@ -369,7 +369,7 @@ class StockLedgerServiceIntegrationTest {
                                 testProduct.getId(), delta, MovementType.AJUSTE, "Test", testUser, null);
 
                 Product updatedProduct = productRepository.findById(testProduct.getId()).orElseThrow();
-                assertEquals(initialStock.add(delta), updatedProduct.getCurrentStock());
+                assertEquals(0, initialStock.add(delta).compareTo(updatedProduct.getCurrentStock()));
         }
 
         @Test

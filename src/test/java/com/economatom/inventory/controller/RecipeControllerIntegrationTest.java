@@ -3,6 +3,7 @@ package com.economatom.inventory.controller;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -17,9 +18,13 @@ import com.economatom.inventory.dto.request.LoginRequestDTO;
 import com.economatom.inventory.dto.response.LoginResponseDTO;
 import com.economatom.inventory.dto.request.RecipeRequestDTO;
 import com.economatom.inventory.dto.request.RecipeComponentRequestDTO;
+import com.economatom.inventory.dto.request.RecipeCookingRequestDTO;
 import com.economatom.inventory.model.Product;
+import com.economatom.inventory.model.StockLedger;
 import com.economatom.inventory.model.User;
+import com.economatom.inventory.model.MovementType;
 import com.economatom.inventory.repository.ProductRepository;
+import com.economatom.inventory.repository.StockLedgerRepository;
 import com.economatom.inventory.repository.UserRepository;
 import com.economatom.inventory.util.TestDataUtil;
 
@@ -33,6 +38,9 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
 
         @Autowired
         private UserRepository userRepository;
+
+        @Autowired
+        private StockLedgerRepository stockLedgerRepository;
 
         private Product testProduct;
         private User testUser;
@@ -257,5 +265,180 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$").isArray());
+        }
+
+        @Test
+        void whenCookRecipe_WithValidData_thenSuccessfullyDeductsStock() throws Exception {
+
+                RecipeRequestDTO recipeRequest = new RecipeRequestDTO();
+                recipeRequest.setName("Pizza Margherita");
+                recipeRequest.setElaboration("1. Masa\n2. Salsa\n3. Queso");
+                recipeRequest.setPresentation("En bandeja");
+
+                List<RecipeComponentRequestDTO> components = new ArrayList<>();
+                RecipeComponentRequestDTO component = new RecipeComponentRequestDTO();
+                component.setProductId(testProduct.getId());
+                component.setQuantity(new BigDecimal("0.3"));
+                components.add(component);
+                recipeRequest.setComponents(components);
+
+                String createResponse = mockMvc.perform(post(BASE_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .accept(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(recipeRequest))
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer recipeId = objectMapper.readTree(createResponse).get("id").asInt();
+
+                RecipeCookingRequestDTO cookingRequest = new RecipeCookingRequestDTO();
+                cookingRequest.setRecipeId(recipeId);
+                cookingRequest.setQuantity(new BigDecimal("2.0"));
+                cookingRequest.setDetails("Pedido mesa 5");
+
+                mockMvc.perform(post(BASE_URL + "/cook")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .accept(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(cookingRequest))
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.name", is(recipeRequest.getName())))
+                                .andExpect(jsonPath("$.id", is(recipeId)));
+
+                List<StockLedger> ledgerEntries = stockLedgerRepository
+                                .findByProductIdOrderBySequenceNumber(testProduct.getId());
+                assertTrue(ledgerEntries.stream().anyMatch(entry -> entry.getMovementType() == MovementType.SALIDA &&
+                                entry.getQuantityDelta().compareTo(new BigDecimal("-0.6")) == 0));
+        }
+
+        @Test
+        void whenCookRecipe_WithInsufficientStock_thenReturnsBadRequest() throws Exception {
+
+                RecipeRequestDTO recipeRequest = new RecipeRequestDTO();
+                recipeRequest.setName("Mega Pizza");
+                recipeRequest.setElaboration("Elaboración");
+                recipeRequest.setPresentation("Presentación");
+
+                List<RecipeComponentRequestDTO> components = new ArrayList<>();
+                RecipeComponentRequestDTO component = new RecipeComponentRequestDTO();
+                component.setProductId(testProduct.getId());
+                component.setQuantity(new BigDecimal("50.0"));
+                components.add(component);
+                recipeRequest.setComponents(components);
+
+                String createResponse = mockMvc.perform(post(BASE_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .accept(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(recipeRequest))
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer recipeId = objectMapper.readTree(createResponse).get("id").asInt();
+
+                RecipeCookingRequestDTO cookingRequest = new RecipeCookingRequestDTO();
+                cookingRequest.setRecipeId(recipeId);
+                cookingRequest.setQuantity(new BigDecimal("100.0"));
+
+                mockMvc.perform(post(BASE_URL + "/cook")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .accept(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(cookingRequest))
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.message", containsString("Stock insuficiente")));
+        }
+
+        @Test
+        void whenCookRecipe_WithNonExistentRecipe_thenReturnsNotFound() throws Exception {
+                RecipeCookingRequestDTO cookingRequest = new RecipeCookingRequestDTO();
+                cookingRequest.setRecipeId(9999);
+                cookingRequest.setQuantity(new BigDecimal("1.0"));
+
+                mockMvc.perform(post(BASE_URL + "/cook")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(cookingRequest))
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void whenCookRecipe_WithInvalidQuantity_thenReturnsBadRequest() throws Exception {
+                RecipeRequestDTO recipeRequest = new RecipeRequestDTO();
+                recipeRequest.setName("Simple Recipe");
+                recipeRequest.setElaboration("Elaboración");
+                recipeRequest.setPresentation("Presentación");
+
+                List<RecipeComponentRequestDTO> components = new ArrayList<>();
+                RecipeComponentRequestDTO component = new RecipeComponentRequestDTO();
+                component.setProductId(testProduct.getId());
+                component.setQuantity(new BigDecimal("0.1"));
+                components.add(component);
+                recipeRequest.setComponents(components);
+
+                String createResponse = mockMvc.perform(post(BASE_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(recipeRequest))
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer recipeId = objectMapper.readTree(createResponse).get("id").asInt();
+
+                String invalidRequest = String.format(
+                                "{\"recipeId\": %d, \"quantity\": -1.0}",
+                                recipeId);
+
+                mockMvc.perform(post(BASE_URL + "/cook")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(invalidRequest)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void whenCookRecipe_WithFractionalQuantity_thenSuccessfullyDeductsCorrectAmount() throws Exception {
+
+                RecipeRequestDTO recipeRequest = new RecipeRequestDTO();
+                recipeRequest.setName("Tarta");
+                recipeRequest.setElaboration("Elaboración");
+                recipeRequest.setPresentation("Presentación");
+
+                List<RecipeComponentRequestDTO> components = new ArrayList<>();
+                RecipeComponentRequestDTO component = new RecipeComponentRequestDTO();
+                component.setProductId(testProduct.getId());
+                component.setQuantity(new BigDecimal("2.5"));
+                components.add(component);
+                recipeRequest.setComponents(components);
+
+                String createResponse = mockMvc.perform(post(BASE_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .accept(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(recipeRequest))
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer recipeId = objectMapper.readTree(createResponse).get("id").asInt();
+
+                BigDecimal initialStock = testProduct.getCurrentStock();
+
+                RecipeCookingRequestDTO cookingRequest = new RecipeCookingRequestDTO();
+                cookingRequest.setRecipeId(recipeId);
+                cookingRequest.setQuantity(new BigDecimal("1.5"));
+                cookingRequest.setDetails("Media tarta extra");
+
+                mockMvc.perform(post(BASE_URL + "/cook")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .accept(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(cookingRequest))
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk());
+
+                Product updatedProduct = productRepository.findById(testProduct.getId()).orElse(null);
+                assertNotNull(updatedProduct);
+                BigDecimal expectedStock = initialStock.subtract(new BigDecimal("3.75"));
+                assertEquals(0, expectedStock.compareTo(updatedProduct.getCurrentStock()));
         }
 }

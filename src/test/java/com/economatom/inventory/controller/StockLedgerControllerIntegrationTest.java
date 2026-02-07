@@ -51,7 +51,7 @@ class StockLedgerControllerIntegrationTest {
         Product testProduct = new Product();
         testProduct.setId(1);
         testProduct.setName("Test Product");
-        
+
         testLedger = new StockLedger();
         testLedger.setId(1L);
         testLedger.setProduct(testProduct);
@@ -62,9 +62,9 @@ class StockLedgerControllerIntegrationTest {
         testLedger.setTransactionTimestamp(LocalDateTime.now());
         testLedger.setPreviousHash("genesis");
         testLedger.setCurrentHash("abc123");
-        
+
         testLedgers = Arrays.asList(testLedger);
-        
+
         testSnapshot = new StockSnapshot();
         testSnapshot.setProductId(1);
         testSnapshot.setProduct(testProduct);
@@ -74,21 +74,19 @@ class StockLedgerControllerIntegrationTest {
         testSnapshot.setIntegrityStatus("VALID");
         testSnapshot.setLastUpdated(LocalDateTime.now());
         testSnapshot.setLastVerified(LocalDateTime.now());
-        
+
         testIntegrityResult = new StockLedgerService.IntegrityCheckResult(
-            true,
-            "Cadena válida",
-            Arrays.asList()
-        );
+                true,
+                "Cadena válida",
+                Arrays.asList());
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @WithMockUser(username = "admin", roles = { "ADMIN" })
     void getProductHistory_ShouldReturnList() throws Exception {
-        // Arrange
+
         when(stockLedgerService.getProductHistory(1)).thenReturn(testLedgers);
 
-        // Act & Assert
         mockMvc.perform(get("/api/stock-ledger/history/1")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -96,27 +94,22 @@ class StockLedgerControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "user", roles = {"USER"})
+    @WithMockUser(username = "user", roles = { "USER" })
     void getProductHistory_WithUserRole_ShouldReturnList() throws Exception {
-        // Arrange
+
         when(stockLedgerService.getProductHistory(anyInt())).thenReturn(testLedgers);
 
-        // Act & Assert
         mockMvc.perform(get("/api/stock-ledger/history/1")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
 
-    // Test comentado - requiere ProductRepository real no mockeado
-    // El endpoint básico ya está cubierto por otros tests de integración
-
     @Test
-    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @WithMockUser(username = "admin", roles = { "ADMIN" })
     void verifyAllChains_ShouldReturnList() throws Exception {
-        // Arrange
+
         when(stockLedgerService.verifyAllChains()).thenReturn(Arrays.asList(testIntegrityResult));
 
-        // Act & Assert
         mockMvc.perform(get("/api/stock-ledger/verify-all")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -126,21 +119,20 @@ class StockLedgerControllerIntegrationTest {
 
     @Test
     @Disabled("BUG: @MockBean causa 500 en lugar de 403. Spring Security falla antes de verificar autorización cuando el servicio está mockeado")
-    @WithMockUser(username = "user", roles = {"USER"})
+    @WithMockUser(username = "user", roles = { "USER" })
     void verifyAllChains_WithUserRole_ShouldReturnForbidden() throws Exception {
-        // Este test debería retornar 403 pero retorna 500 debido a interacción entre @MockBean y Spring Security
+
         mockMvc.perform(get("/api/stock-ledger/verify-all")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @WithMockUser(username = "admin", roles = { "ADMIN" })
     void getCurrentStock_WhenExists_ShouldReturnSnapshot() throws Exception {
-        // Arrange
+
         when(stockLedgerService.getCurrentStock(1)).thenReturn(Optional.of(testSnapshot));
 
-        // Act & Assert
         mockMvc.perform(get("/api/stock-ledger/snapshot/1")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -150,21 +142,20 @@ class StockLedgerControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "user", roles = {"USER"})
+    @WithMockUser(username = "user", roles = { "USER" })
     void getCurrentStock_WithUserRole_ShouldReturnSnapshot() throws Exception {
-        // Arrange
+
         when(stockLedgerService.getCurrentStock(anyInt())).thenReturn(Optional.of(testSnapshot));
 
-        // Act & Assert
         mockMvc.perform(get("/api/stock-ledger/snapshot/1")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @WithMockUser(username = "admin", roles = { "ADMIN" })
     void getAllSnapshots_ShouldReturnList() throws Exception {
-        // Act & Assert
+
         mockMvc.perform(get("/api/stock-ledger/snapshots")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -172,21 +163,20 @@ class StockLedgerControllerIntegrationTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = {"ADMIN"})
+    @WithMockUser(username = "admin", roles = { "ADMIN" })
     void resetChain_ShouldReturnOk() throws Exception {
-        // Arrange
+
         when(stockLedgerService.resetProductLedger(1)).thenReturn("Historial restablecido");
-        
-        // Act & Assert
+
         mockMvc.perform(delete("/api/stock-ledger/reset/1")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @WithMockUser(username = "user", roles = {"USER"})
+    @WithMockUser(username = "user", roles = { "USER" })
     void resetChain_WithUserRole_ShouldReturnForbidden() throws Exception {
-        // Act & Assert
+
         mockMvc.perform(delete("/api/stock-ledger/reset/1")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isForbidden());

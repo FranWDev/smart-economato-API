@@ -88,18 +88,21 @@ public class StockLedgerService {
 
         LocalDateTime now = LocalDateTime.now();
 
+        BigDecimal normalizedDelta = quantityDelta.setScale(3, java.math.RoundingMode.HALF_UP);
+        BigDecimal normalizedStock = newStock.setScale(3, java.math.RoundingMode.HALF_UP);
+
         String currentHash = calculateTransactionHash(
                 productId,
-                quantityDelta,
-                newStock,
+                normalizedDelta,
+                normalizedStock,
                 now,
                 previousHash,
                 nextSequence);
 
         StockLedger transaction = StockLedger.builder()
                 .product(product)
-                .quantityDelta(quantityDelta)
-                .resultingStock(newStock)
+                .quantityDelta(normalizedDelta)
+                .resultingStock(normalizedStock)
                 .movementType(movementType)
                 .description(description)
                 .previousHash(previousHash)
@@ -113,14 +116,14 @@ public class StockLedgerService {
 
         transaction = ledgerRepository.save(transaction);
 
-        snapshot.setCurrentStock(newStock);
+        snapshot.setCurrentStock(normalizedStock);
         snapshot.setLastTransactionHash(currentHash);
         snapshot.setLastSequenceNumber(nextSequence);
         snapshot.setLastUpdated(now);
         snapshot.setIntegrityStatus("VALID");
         snapshotRepository.save(snapshot);
 
-        product.setCurrentStock(newStock);
+        product.setCurrentStock(normalizedStock);
         productRepository.save(product);
 
         log.info("Movimiento registrado: TX#{} Hash={}", nextSequence, currentHash.substring(0, 8));
@@ -321,6 +324,72 @@ public class StockLedgerService {
 
         public List<String> getErrors() {
             return errors;
+        }
+    }
+
+    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
+    public List<StockLedger> recordBatchStockMovements(
+            List<BatchMovementItem> movements,
+            User user,
+            Integer orderId) {
+
+        log.info("Iniciando operación batch: {} movimientos", movements.size());
+
+        List<StockLedger> transactions = new ArrayList<>();
+
+        try {
+            for (BatchMovementItem item : movements) {
+                StockLedger transaction = recordStockMovement(
+                        item.getProductId(),
+                        item.getQuantityDelta(),
+                        item.getMovementType(),
+                        item.getDescription(),
+                        user,
+                        orderId);
+                transactions.add(transaction);
+            }
+
+            log.info("Operación batch completada exitosamente: {} transacciones registradas",
+                    transactions.size());
+
+            return transactions;
+
+        } catch (Exception e) {
+            log.error("Error en operación batch. Revertiendo {} transacciones", transactions.size(), e);
+            throw new InvalidOperationException(
+                    "Error en operación batch: " + e.getMessage() +
+                            ". Se han revertido todos los cambios.");
+        }
+    }
+
+    public static class BatchMovementItem {
+        private final Integer productId;
+        private final BigDecimal quantityDelta;
+        private final MovementType movementType;
+        private final String description;
+
+        public BatchMovementItem(Integer productId, BigDecimal quantityDelta,
+                MovementType movementType, String description) {
+            this.productId = productId;
+            this.quantityDelta = quantityDelta;
+            this.movementType = movementType;
+            this.description = description;
+        }
+
+        public Integer getProductId() {
+            return productId;
+        }
+
+        public BigDecimal getQuantityDelta() {
+            return quantityDelta;
+        }
+
+        public MovementType getMovementType() {
+            return movementType;
+        }
+
+        public String getDescription() {
+            return description;
         }
     }
 }

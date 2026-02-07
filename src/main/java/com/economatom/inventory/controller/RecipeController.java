@@ -1,5 +1,6 @@
 package com.economatom.inventory.controller;
 
+import com.economatom.inventory.dto.request.RecipeCookingRequestDTO;
 import com.economatom.inventory.dto.request.RecipeRequestDTO;
 import com.economatom.inventory.dto.response.RecipeResponseDTO;
 import com.economatom.inventory.service.RecipeService;
@@ -127,5 +128,27 @@ public class RecipeController {
     public List<RecipeResponseDTO> findByCostLessThan(
             @Parameter(description = "Costo máximo", required = true) @RequestParam BigDecimal maxCost) {
         return recipeService.findByCostLessThan(maxCost);
+    }
+
+    @PostMapping("/cook")
+    @Operation(summary = "Cocinar receta", 
+               description = "Registra el cocinado de una receta, descontando automáticamente los ingredientes del inventario mediante el ledger inmutable. " +
+                           "Se registra una auditoría completa que incluye quién cocinó la receta, cuándo y qué cantidad.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Receta cocinada exitosamente",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = RecipeResponseDTO.class))),
+        @ApiResponse(responseCode = "400", description = "Stock insuficiente o datos inválidos"),
+        @ApiResponse(responseCode = "404", description = "Receta no encontrada")
+    })
+    public ResponseEntity<RecipeResponseDTO> cookRecipe(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "Datos del cocinado de la receta",
+                required = true,
+                content = @Content(schema = @Schema(implementation = RecipeCookingRequestDTO.class))
+            )
+            @Valid @RequestBody RecipeCookingRequestDTO cookingRequest) {
+        RecipeResponseDTO result = recipeService.cookRecipe(cookingRequest);
+        return ResponseEntity.ok(result);
     }
 }

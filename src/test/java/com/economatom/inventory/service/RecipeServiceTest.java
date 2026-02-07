@@ -1,17 +1,22 @@
 package com.economatom.inventory.service;
 
 import com.economatom.inventory.dto.request.RecipeComponentRequestDTO;
+import com.economatom.inventory.dto.request.RecipeCookingRequestDTO;
 import com.economatom.inventory.dto.request.RecipeRequestDTO;
 import com.economatom.inventory.dto.response.RecipeResponseDTO;
+import com.economatom.inventory.exception.InvalidOperationException;
 import com.economatom.inventory.exception.ResourceNotFoundException;
 import com.economatom.inventory.mapper.RecipeMapper;
 import com.economatom.inventory.model.Allergen;
+import com.economatom.inventory.model.MovementType;
 import com.economatom.inventory.model.Product;
 import com.economatom.inventory.model.Recipe;
 import com.economatom.inventory.model.RecipeComponent;
+import com.economatom.inventory.model.User;
 import com.economatom.inventory.repository.AllergenRepository;
 import com.economatom.inventory.repository.ProductRepository;
 import com.economatom.inventory.repository.RecipeRepository;
+import com.economatom.inventory.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,6 +39,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+import org.mockito.ArgumentMatcher;
+
 @ExtendWith(MockitoExtension.class)
 class RecipeServiceTest {
 
@@ -48,6 +55,12 @@ class RecipeServiceTest {
 
     @Mock
     private RecipeMapper recipeMapper;
+
+    @Mock
+    private StockLedgerService stockLedgerService;
+
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private RecipeService recipeService;
@@ -360,5 +373,175 @@ class RecipeServiceTest {
 
         assertNotNull(result);
         verify(repository).save(any(Recipe.class));
+    }
+
+    @Test
+    void cookRecipe_WhenValidRequest_ShouldDeductStockAndReturnRecipe() {
+
+        RecipeCookingRequestDTO cookingRequest = new RecipeCookingRequestDTO();
+        cookingRequest.setRecipeId(1);
+        cookingRequest.setQuantity(new BigDecimal("2.0"));
+        cookingRequest.setDetails("Test cooking");
+
+        testProduct.setCurrentStock(new BigDecimal("100.0"));
+
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testRecipe));
+        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(recipeMapper.toResponseDTO(testRecipe)).thenReturn(testRecipeResponseDTO);
+
+        RecipeResponseDTO result = recipeService.cookRecipe(cookingRequest);
+
+        assertNotNull(result);
+        verify(repository).findByIdWithDetails(1);
+        verify(productRepository).findById(1);
+        verify(stockLedgerService).recordStockMovement(
+                eq(1),
+                argThat(amount -> amount.compareTo(new BigDecimal("4.0").negate()) == 0),
+                eq(MovementType.SALIDA),
+                anyString(),
+                any(),
+                isNull());
+    }
+
+    @Test
+    void cookRecipe_WhenRecipeNotFound_ShouldThrowException() {
+
+        RecipeCookingRequestDTO cookingRequest = new RecipeCookingRequestDTO();
+        cookingRequest.setRecipeId(999);
+        cookingRequest.setQuantity(new BigDecimal("1.0"));
+
+        when(repository.findByIdWithDetails(999)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> {
+            recipeService.cookRecipe(cookingRequest);
+        });
+
+        verify(repository).findByIdWithDetails(999);
+        verify(stockLedgerService, never()).recordStockMovement(anyInt(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void cookRecipe_WhenRecipeHasNoComponents_ShouldThrowException() {
+
+        RecipeCookingRequestDTO cookingRequest = new RecipeCookingRequestDTO();
+        cookingRequest.setRecipeId(1);
+        cookingRequest.setQuantity(new BigDecimal("1.0"));
+
+        Recipe emptyRecipe = new Recipe();
+        emptyRecipe.setId(1);
+        emptyRecipe.setName("Empty Recipe");
+        emptyRecipe.setComponents(new ArrayList<>());
+
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(emptyRecipe));
+
+        InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
+            recipeService.cookRecipe(cookingRequest);
+        });
+
+        assertTrue(exception.getMessage().contains("no tiene componentes"));
+        verify(stockLedgerService, never()).recordStockMovement(anyInt(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void cookRecipe_WhenInsufficientStock_ShouldThrowException() {
+
+        RecipeCookingRequestDTO cookingRequest = new RecipeCookingRequestDTO();
+        cookingRequest.setRecipeId(1);
+        cookingRequest.setQuantity(new BigDecimal("10.0"));
+
+        testProduct.setCurrentStock(new BigDecimal("5.0"));
+
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testRecipe));
+        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+
+        InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
+            recipeService.cookRecipe(cookingRequest);
+        });
+
+        assertTrue(exception.getMessage().contains("Stock insuficiente"));
+        assertTrue(exception.getMessage().contains(testProduct.getName()));
+        verify(stockLedgerService, never()).recordStockMovement(anyInt(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void cookRecipe_WhenProductNotFound_ShouldThrowException() {
+
+        RecipeCookingRequestDTO cookingRequest = new RecipeCookingRequestDTO();
+        cookingRequest.setRecipeId(1);
+        cookingRequest.setQuantity(new BigDecimal("1.0"));
+
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testRecipe));
+        when(productRepository.findById(1)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> {
+            recipeService.cookRecipe(cookingRequest);
+        });
+
+        verify(productRepository).findById(1);
+        verify(stockLedgerService, never()).recordStockMovement(anyInt(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void cookRecipe_WithMultipleComponents_ShouldDeductAllStocks() {
+
+        RecipeCookingRequestDTO cookingRequest = new RecipeCookingRequestDTO();
+        cookingRequest.setRecipeId(1);
+        cookingRequest.setQuantity(new BigDecimal("1.0"));
+
+        Product product2 = new Product();
+        product2.setId(2);
+        product2.setName("Test Product 2");
+        product2.setUnitPrice(new BigDecimal("3.00"));
+        product2.setCurrentStock(new BigDecimal("50.0"));
+
+        RecipeComponent component2 = new RecipeComponent();
+        component2.setProduct(product2);
+        component2.setQuantity(new BigDecimal("3.0"));
+        testRecipe.addComponent(component2);
+
+        testProduct.setCurrentStock(new BigDecimal("100.0"));
+
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testRecipe));
+        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findById(2)).thenReturn(Optional.of(product2));
+        when(recipeMapper.toResponseDTO(testRecipe)).thenReturn(testRecipeResponseDTO);
+
+        RecipeResponseDTO result = recipeService.cookRecipe(cookingRequest);
+
+        assertNotNull(result);
+        verify(stockLedgerService, times(2)).recordStockMovement(
+                anyInt(),
+                any(BigDecimal.class),
+                eq(MovementType.SALIDA),
+                anyString(),
+                any(),
+                isNull());
+    }
+
+    @Test
+    void cookRecipe_WithFractionalQuantity_ShouldCalculateCorrectly() {
+
+        RecipeCookingRequestDTO cookingRequest = new RecipeCookingRequestDTO();
+        cookingRequest.setRecipeId(1);
+        cookingRequest.setQuantity(new BigDecimal("1.5"));
+        cookingRequest.setDetails("Half and half");
+
+        testProduct.setCurrentStock(new BigDecimal("100.0"));
+
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testRecipe));
+        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(recipeMapper.toResponseDTO(testRecipe)).thenReturn(testRecipeResponseDTO);
+
+        RecipeResponseDTO result = recipeService.cookRecipe(cookingRequest);
+
+        assertNotNull(result);
+
+        verify(stockLedgerService).recordStockMovement(
+                eq(1),
+                argThat(amount -> amount.compareTo(new BigDecimal("3.0").negate()) == 0),
+                eq(MovementType.SALIDA),
+                anyString(),
+                any(),
+                isNull());
     }
 }
