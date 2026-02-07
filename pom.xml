@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>com.economato</groupId>
 	<artifactId>inventory</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.0-RELEASE</version>
 	<name>inventory</name>
 	<description>Proyecto Smart Economato</description>
 	<url/>
