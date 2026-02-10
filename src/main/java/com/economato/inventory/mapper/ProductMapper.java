@@ -29,6 +29,7 @@ public interface ProductMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "orderDetails", ignore = true)
+    @Mapping(target = "currentStock", ignore = true)
     @Mapping(target = "supplier", source = "supplierId", qualifiedByName = "supplierIdToSupplier")
     void updateEntity(ProductRequestDTO requestDTO, @MappingTarget Product product);
 
