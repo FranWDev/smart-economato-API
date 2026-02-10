@@ -112,7 +112,8 @@ public class SecurityConfig {
             "http://127.0.0.1:4200",
             "http://127.0.0.1:8080",
             "http://127.0.0.1:8081",
-            "https://economato.servehttp.com"
+            "https://economato.servehttp.com",
+            "https://pfl3wk99-4200.uks1.devtunnels.ms/"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Origin"));
