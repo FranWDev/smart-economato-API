@@ -1,5 +1,31 @@
 package com.economato.inventory.controller;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.economato.inventory.dto.request.OrderReceptionRequestDTO;
+import com.economato.inventory.dto.request.OrderRequestDTO;
+import com.economato.inventory.dto.response.OrderResponseDTO;
+import com.economato.inventory.service.OrderPdfService;
+import com.economato.inventory.service.OrderService;
+import com.economato.inventory.service.UserService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -8,19 +34,6 @@ import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
-import com.economato.inventory.dto.request.OrderReceptionRequestDTO;
-import com.economato.inventory.dto.request.OrderRequestDTO;
-import com.economato.inventory.dto.response.OrderResponseDTO;
-import com.economato.inventory.service.OrderService;
-import com.economato.inventory.service.UserService;
-
-import java.time.LocalDateTime;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -29,10 +42,12 @@ public class OrderController {
 
     private final OrderService orderService;
     private final UserService userService;
+    private final OrderPdfService orderPdfService;
 
-    public OrderController(OrderService orderService, UserService userService) {
+    public OrderController(OrderService orderService, UserService userService, OrderPdfService orderPdfService) {
         this.orderService = orderService;
         this.userService = userService;
+        this.orderPdfService = orderPdfService;
     }
 
     @Operation(
@@ -65,6 +80,42 @@ public class OrderController {
         return orderService.findById(id)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @Operation(
+        summary = "Descargar pedido en PDF",
+        description = "Genera y descarga un PDF con los detalles del pedido (usuario, fecha, estado, productos y total). [Rol requerido: USER]",
+        responses = {
+            @ApiResponse(responseCode = "200", description = "PDF generado correctamente",
+                    content = @Content(mediaType = "application/pdf")),
+            @ApiResponse(responseCode = "404", description = "Pedido no encontrado"),
+            @ApiResponse(responseCode = "500", description = "Error al generar el PDF")
+        }
+    )
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+    @GetMapping("/{id}/pdf")
+    public ResponseEntity<byte[]> downloadOrderPdf(
+            @Parameter(description = "ID del pedido", example = "10") @PathVariable Integer id) {
+        return orderService.findById(id)
+                .<ResponseEntity<byte[]>>map(order -> {
+                    try {
+                        byte[] pdfBytes = orderPdfService.generateOrderPdf(order);
+
+                        HttpHeaders headers = new HttpHeaders();
+                        headers.setContentType(MediaType.APPLICATION_PDF);
+                        headers.setContentDisposition(ContentDisposition.attachment()
+                                .filename("pedido_" + order.getId() + ".pdf")
+                                .build());
+                        headers.setContentLength(pdfBytes.length);
+
+                        return ResponseEntity.ok()
+                                .headers(headers)
+                                .body(pdfBytes);
+                    } catch (Exception e) {
+                        return ResponseEntity.<byte[]>internalServerError().build();
+                    }
+                })
+                .orElse(ResponseEntity.<byte[]>notFound().build());
     }
 
     @Operation(

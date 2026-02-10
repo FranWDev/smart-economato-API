@@ -1,15 +1,20 @@
 package com.economato.inventory.service;
 
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,11 +33,6 @@ import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.RecipeComponentRepository;
 import com.economato.inventory.repository.SupplierRepository;
 import com.economato.inventory.repository.UserRepository;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
@@ -93,7 +93,7 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> findAllForExport() {
-        return repository.findAll().stream()
+        return repository.findAll(Sort.by(Sort.Direction.ASC, "id")).stream()
                 .map(productMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }

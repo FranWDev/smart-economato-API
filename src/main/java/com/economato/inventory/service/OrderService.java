@@ -1,8 +1,13 @@
 package com.economato.inventory.service;
 
-import lombok.extern.slf4j.Slf4j;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Pageable;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
@@ -26,12 +31,7 @@ import com.economato.inventory.repository.OrderRepository;
 import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.UserRepository;
 
-import org.springframework.data.domain.Pageable;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -236,7 +236,7 @@ public class OrderService {
 
     /**
      * Actualiza el estado de una orden con bloqueo optimista y reintentos
-     * Estados permitidos: CREATED, PENDING, REVIEW, COMPLETED, INCOMPLETE
+    * Estados permitidos: CREATED, PENDING, REVIEW, CONFIRMED, INCOMPLETE, CANCELLED
      * 
      * Utiliza @Retryable para manejar conflictos de concurrencia automáticamente
      * con hasta 3 intentos y backoff exponencial de 100ms
@@ -251,8 +251,8 @@ public class OrderService {
     public Optional<OrderResponseDTO> updateStatus(Integer orderId, String newStatus) {
         return repository.findById(orderId)
                 .map(order -> {
-                    validateStatus(newStatus);
-                    order.setStatus(newStatus);
+                    String normalizedStatus = validateStatus(newStatus);
+                    order.setStatus(normalizedStatus);
                     Order updatedOrder = repository.save(order);
                     return orderMapper.toResponseDTO(updatedOrder);
                 });
@@ -261,10 +261,15 @@ public class OrderService {
     /**
      * Valida que el estado sea uno de los permitidos
      */
-    private void validateStatus(String status) {
+    private String validateStatus(String status) {
+        if (status == null) {
+            throw new InvalidOperationException("Estado de orden inválido: null");
+        }
+        String normalized = status.trim().toUpperCase();
         List<String> validStatuses = List.of("CREATED", "PENDING", "REVIEW", "CONFIRMED", "INCOMPLETE", "CANCELLED");
-        if (!validStatuses.contains(status)) {
+        if (!validStatuses.contains(normalized)) {
             throw new InvalidOperationException("Estado de orden inválido: " + status);
         }
+        return normalized;
     }
 }

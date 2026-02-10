@@ -3,6 +3,8 @@ package com.economato.inventory.controller;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -300,5 +302,129 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.status").value("IN_REVIEW"))
                                 .andExpect(jsonPath("$.id").value(orderId));
+        }
+
+        @Test
+        void whenDownloadOrderPdf_WithValidOrder_thenReturnsPdf() throws Exception {
+
+                OrderRequestDTO orderRequest = new OrderRequestDTO();
+                orderRequest.setUserId(testUser.getId());
+
+                List<OrderDetailRequestDTO> details = new ArrayList<>();
+                OrderDetailRequestDTO detail = new OrderDetailRequestDTO();
+                detail.setProductId(testProduct1.getId());
+                detail.setQuantity(new BigDecimal("2.0"));
+                details.add(detail);
+                orderRequest.setDetails(details);
+
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(orderRequest)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer orderId = objectMapper.readTree(response).get("id").asInt();
+
+                byte[] pdfBytes = mockMvc.perform(get(BASE_URL + "/{id}/pdf", orderId)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(header().string("Content-Type", "application/pdf"))
+                                .andExpect(header().string("Content-Disposition",
+                                        "attachment; filename=\"pedido_" + orderId + ".pdf\""))
+                                .andReturn().getResponse().getContentAsByteArray();
+
+                assertNotNull(pdfBytes);
+                assertTrue(pdfBytes.length > 0);
+
+                String pdfHeader = new String(java.util.Arrays.copyOfRange(pdfBytes, 0, 4));
+                assertTrue(pdfHeader.startsWith("%PDF"));
+        }
+
+        @Test
+        void whenDownloadOrderPdf_WithMultipleDetails_thenReturnsPdf() throws Exception {
+
+                OrderRequestDTO orderRequest = new OrderRequestDTO();
+                orderRequest.setUserId(testUser.getId());
+
+                List<OrderDetailRequestDTO> details = new ArrayList<>();
+                OrderDetailRequestDTO detail1 = new OrderDetailRequestDTO();
+                detail1.setProductId(testProduct1.getId());
+                detail1.setQuantity(new BigDecimal("1.5"));
+                details.add(detail1);
+
+                OrderDetailRequestDTO detail2 = new OrderDetailRequestDTO();
+                detail2.setProductId(testProduct2.getId());
+                detail2.setQuantity(new BigDecimal("2.0"));
+                details.add(detail2);
+
+                orderRequest.setDetails(details);
+
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(orderRequest)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer orderId = objectMapper.readTree(response).get("id").asInt();
+
+                byte[] pdfBytes = mockMvc.perform(get(BASE_URL + "/{id}/pdf", orderId)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(header().string("Content-Type", "application/pdf"))
+                                .andExpect(header().string("Content-Disposition",
+                                        "attachment; filename=\"pedido_" + orderId + ".pdf\""))
+                                .andReturn().getResponse().getContentAsByteArray();
+
+                assertNotNull(pdfBytes);
+                assertTrue(pdfBytes.length > 0);
+        }
+
+        @Test
+        void whenDownloadOrderPdf_WithLongUserName_thenReturnsPdf() throws Exception {
+
+                User longNameUser = TestDataUtil.createAdminUser();
+                longNameUser.setName("Usuario con un nombre extremadamente largo para el PDF de orden");
+                longNameUser.setEmail("admin.longname+" + System.currentTimeMillis() + "@economatom.com");
+                longNameUser.setPassword(passwordEncoder.encode("admin123"));
+                longNameUser = userRepository.saveAndFlush(longNameUser);
+
+                OrderRequestDTO orderRequest = new OrderRequestDTO();
+                orderRequest.setUserId(longNameUser.getId());
+
+                List<OrderDetailRequestDTO> details = new ArrayList<>();
+                OrderDetailRequestDTO detail = new OrderDetailRequestDTO();
+                detail.setProductId(testProduct1.getId());
+                detail.setQuantity(new BigDecimal("1.0"));
+                details.add(detail);
+                orderRequest.setDetails(details);
+
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(orderRequest)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer orderId = objectMapper.readTree(response).get("id").asInt();
+
+                byte[] pdfBytes = mockMvc.perform(get(BASE_URL + "/{id}/pdf", orderId)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(header().string("Content-Type", "application/pdf"))
+                                .andExpect(header().string("Content-Disposition",
+                                        "attachment; filename=\"pedido_" + orderId + ".pdf\""))
+                                .andReturn().getResponse().getContentAsByteArray();
+
+                assertNotNull(pdfBytes);
+                assertTrue(pdfBytes.length > 0);
+        }
+
+        @Test
+        void whenDownloadOrderPdf_WithNonExistentOrder_thenReturnsNotFound() throws Exception {
+                mockMvc.perform(get(BASE_URL + "/{id}/pdf", 99999)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isNotFound());
         }
 }

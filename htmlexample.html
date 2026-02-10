@@ -1,123 +1,548 @@
-<div class="modal-overlay" (click)="onOverlayClick($event)">
-  <div class="modal-container">
-    <div class="modal-content">
+<div class="reception-page">
+  <!-- Header -->
+  <header class="reception-header">
+    <h1>RECEPCIÓN DE ÓRDENES</h1>
+  </header>
+
+  <!-- Contenido Principal -->
+  <div class="reception-content">
+    @if (loading) {
+      <div class="loading-message">
+        <p>Cargando órdenes...</p>
+      </div>
+    } @else {
+      <!-- PENDING Section -->
+      <section class="status-section">
+        <h2 class="section-title" [style.border-color]="getStatusColor('PENDING')">
+          {{ getStatusLabel('PENDING') }} ({{ ordersByStatus.PENDING?.length || 0 }})
+        </h2>
+        @if ((ordersByStatus.PENDING?.length || 0) === 0) {
+          <div class="empty-section">
+            No hay órdenes pendientes
+          </div>
+        } @else {
+          <div class="orders-container">
+            @for (order of ordersByStatus.PENDING; track order.id) {
+              <div class="order-card" [style.border-left-color]="getStatusColor('PENDING')">
+                <div class="order-header" [style.background]="getStatusColor('PENDING')">
+                  <div class="order-title">
+                    <div class="order-user">
+                      <div class="user-avatar">{{ getUserInitials({name: order.userName}) }}</div>
+                      <div>
+                        <h3>Orden #{{ order.id }}</h3>
+                        <p>{{ order.userName }}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <span class="order-status">{{ getStatusLabel(order.status) }}</span>
+                </div>
+
+                <div class="order-body">
+                  <div class="order-detail">
+                    <span class="detail-label">Fecha:</span>
+                    <span class="detail-value">{{ formatDate(order.orderDate) }}</span>
+                  </div>
+                  <div class="order-detail">
+                    <span class="detail-label">Productos:</span>
+                    <span class="detail-value">{{ order.details?.length || 0 }}</span>
+                  </div>
+                  <div class="order-detail">
+                    <span class="detail-label">Total:</span>
+                    <span class="detail-value total">{{ getOrderTotal(order) | number:'1.2-2' }} €</span>
+                  </div>
+
+                  <div class="order-items-preview">
+                    @for (detail of (order.details || []).slice(0, 2); track $index) {
+                      <div class="item-preview">
+                        <span>{{ detail.productName }}</span>
+                        <span>{{ detail.quantity }} uds</span>
+                      </div>
+                    }
+                    @if ((order.details?.length || 0) > 2) {
+                      <div class="items-more">+{{ (order.details?.length || 0) - 2 }} más</div>
+                    }
+                  </div>
+                </div>
+
+                <div class="order-actions">
+                  <button class="btn-action btn-details" (click)="viewOrderDetails(order)">
+                    Ver Detalles
+                  </button>
+                  <button class="btn-action btn-primary" (click)="reviewOrder(order)">
+                    Revisar Orden
+                  </button>
+                  <button class="btn-action btn-secondary" (click)="cancelOrder(order)">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </section>
+
+      <!-- IN_REVIEW Section -->
+      <section class="status-section">
+        <h2 class="section-title" [style.border-color]="getStatusColor('REVIEW')">
+          {{ getStatusLabel('REVIEW') }} ({{ ordersByStatus.REVIEW?.length || 0 }})
+        </h2>
+        @if ((ordersByStatus.REVIEW?.length || 0) === 0) {
+          <div class="empty-section">
+            No hay órdenes en revisión
+          </div>
+        } @else {
+          <div class="orders-container">
+            @for (order of ordersByStatus.REVIEW; track order.id) {
+              <div class="order-card" [style.border-left-color]="getStatusColor('REVIEW')">
+                <div class="order-header" [style.background]="getStatusColor('REVIEW')">
+                  <div class="order-title">
+                    <div class="order-user">
+                      <div class="user-avatar">{{ getUserInitials({name: order.userName}) }}</div>
+                      <div>
+                        <h3>Orden #{{ order.id }}</h3>
+                        <p>{{ order.userName }}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <span class="order-status">{{ getStatusLabel(order.status) }}</span>
+                </div>
+
+                <div class="order-body">
+                  <div class="order-detail">
+                    <span class="detail-label">Fecha:</span>
+                    <span class="detail-value">{{ formatDate(order.orderDate) }}</span>
+                  </div>
+                  <div class="order-detail">
+                    <span class="detail-label">Productos:</span>
+                    <span class="detail-value">{{ order.details?.length || 0 }}</span>
+                  </div>
+                  <div class="order-detail">
+                    <span class="detail-label">Total:</span>
+                    <span class="detail-value total">{{ getOrderTotal(order) | number:'1.2-2' }} €</span>
+                  </div>
+
+                  <div class="order-items-preview">
+                    @for (detail of (order.details || []).slice(0, 2); track $index) {
+                      <div class="item-preview">
+                        <span>{{ detail.productName }}</span>
+                        <span>{{ detail.quantity }} uds</span>
+                      </div>
+                    }
+                    @if ((order.details?.length || 0) > 2) {
+                      <div class="items-more">+{{ (order.details?.length || 0) - 2 }} más</div>
+                    }
+                  </div>
+                </div>
+
+                <div class="order-actions">
+                  <button class="btn-action btn-details" (click)="viewOrderDetails(order)">
+                    Ver Detalles
+                  </button>
+                  <button class="btn-action btn-success" (click)="confirmOrder(order)">
+                    Confirmar Completa
+                  </button>
+                  <button class="btn-action btn-danger" (click)="markIncomplete(order)">
+                    Marcar Incompleta
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </section>
+
+      <!-- CONFIRMED Section -->
+      <section class="status-section">
+        <h2 class="section-title" [style.border-color]="getStatusColor('CONFIRMED')">
+          {{ getStatusLabel('CONFIRMED') }} ({{ ordersByStatus.CONFIRMED?.length || 0 }})
+        </h2>
+        @if ((ordersByStatus.CONFIRMED?.length || 0) === 0) {
+          <div class="empty-section">
+            No hay órdenes confirmadas
+          </div>
+        } @else {
+          <div class="orders-container">
+            @for (order of ordersByStatus.CONFIRMED; track order.id) {
+              <div class="order-card completed" [style.border-left-color]="getStatusColor('CONFIRMED')">
+                <div class="order-header" [style.background]="getStatusColor('CONFIRMED')">
+                  <div class="order-title">
+                    <div class="order-user">
+                      <div class="user-avatar">{{ getUserInitials({name: order.userName}) }}</div>
+                      <div>
+                        <h3>Orden #{{ order.id }}</h3>
+                        <p>{{ order.userName }}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <span class="order-status">{{ getStatusLabel(order.status) }}</span>
+                </div>
+
+                <div class="order-body">
+                  <div class="order-detail">
+                    <span class="detail-label">Fecha:</span>
+                    <span class="detail-value">{{ formatDate(order.orderDate) }}</span>
+                  </div>
+                  <div class="order-detail">
+                    <span class="detail-label">Productos:</span>
+                    <span class="detail-value">{{ order.details?.length || 0 }}</span>
+                  </div>
+                  <div class="order-detail">
+                    <span class="detail-label">Total:</span>
+                    <span class="detail-value total">{{ getOrderTotal(order) | number:'1.2-2' }} €</span>
+                  </div>
+
+                  <div class="order-items-preview">
+                    @for (detail of (order.details || []).slice(0, 2); track $index) {
+                      <div class="item-preview">
+                        <span>{{ detail.productName }}</span>
+                        <span>{{ detail.quantity }} uds</span>
+                      </div>
+                    }
+                    @if ((order.details?.length || 0) > 2) {
+                      <div class="items-more">+{{ (order.details?.length || 0) - 2 }} más</div>
+                    }
+                  </div>
+                </div>
+
+                <div class="order-actions">
+                  <button class="btn-action btn-details" (click)="viewOrderDetails(order)">
+                    Ver Detalles
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </section>
+
+      <!-- INCOMPLETE Section -->
+      <section class="status-section">
+        <h2 class="section-title" [style.border-color]="getStatusColor('INCOMPLETE')">
+          {{ getStatusLabel('INCOMPLETE') }} ({{ ordersByStatus.INCOMPLETE?.length || 0 }})
+        </h2>
+        @if ((ordersByStatus.INCOMPLETE?.length || 0) === 0) {
+          <div class="empty-section">
+            No hay órdenes incompletas
+          </div>
+        } @else {
+          <div class="orders-container">
+            @for (order of ordersByStatus.INCOMPLETE; track order.id) {
+              <div class="order-card incomplete" [style.border-left-color]="getStatusColor('INCOMPLETE')">
+                <div class="order-header" [style.background]="getStatusColor('INCOMPLETE')">
+                  <div class="order-title">
+                    <div class="order-user">
+                      <div class="user-avatar">{{ getUserInitials({name: order.userName}) }}</div>
+                      <div>
+                        <h3>Orden #{{ order.id }}</h3>
+                        <p>{{ order.userName }}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <span class="order-status">{{ getStatusLabel(order.status) }}</span>
+                </div>
+
+                <div class="order-body">
+                  <div class="order-detail">
+                    <span class="detail-label">Fecha:</span>
+                    <span class="detail-value">{{ formatDate(order.orderDate) }}</span>
+                  </div>
+                  <div class="order-detail">
+                    <span class="detail-label">Productos:</span>
+                    <span class="detail-value">{{ order.details?.length || 0 }}</span>
+                  </div>
+                  <div class="order-detail">
+                    <span class="detail-label">Total:</span>
+                    <span class="detail-value total">{{ getOrderTotal(order) | number:'1.2-2' }} €</span>
+                  </div>
+
+                  <div class="order-items-preview">
+                    @for (detail of (order.details || []).slice(0, 2); track $index) {
+                      <div class="item-preview">
+                        <span>{{ detail.productName }}</span>
+                        <span>{{ detail.quantity }} uds</span>
+                      </div>
+                    }
+                    @if ((order.details?.length || 0) > 2) {
+                      <div class="items-more">+{{ (order.details?.length || 0) - 2 }} más</div>
+                    }
+                  </div>
+                </div>
+
+                <div class="order-actions">
+                  <button class="btn-action btn-details" (click)="viewOrderDetails(order)">
+                    Ver Detalles
+                  </button>
+                  <button class="btn-action btn-delete" (click)="deleteOrder(order)">
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </section>
+
+      <!-- CANCELLED Section -->
+      <section class="status-section">
+        <h2 class="section-title" [style.border-color]="getStatusColor('CANCELLED')">
+          {{ getStatusLabel('CANCELLED') }} ({{ ordersByStatus.CANCELLED?.length || 0 }})
+        </h2>
+        @if ((ordersByStatus.CANCELLED?.length || 0) === 0) {
+          <div class="empty-section">
+            No hay órdenes canceladas
+          </div>
+        } @else {
+          <div class="orders-container">
+            @for (order of ordersByStatus.CANCELLED; track order.id) {
+              <div class="order-card cancelled" [style.border-left-color]="getStatusColor('CANCELLED')">
+                <div class="order-header" [style.background]="getStatusColor('CANCELLED')">
+                  <div class="order-title">
+                    <div class="order-user">
+                      <div class="user-avatar">{{ getUserInitials({name: order.userName}) }}</div>
+                      <div>
+                        <h3>Orden #{{ order.id }}</h3>
+                        <p>{{ order.userName }}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <span class="order-status">{{ getStatusLabel(order.status) }}</span>
+                </div>
+
+                <div class="order-body">
+                  <div class="order-detail">
+                    <span class="detail-label">Fecha:</span>
+                    <span class="detail-value">{{ formatDate(order.orderDate) }}</span>
+                  </div>
+                  <div class="order-detail">
+                    <span class="detail-label">Productos:</span>
+                    <span class="detail-value">{{ order.details?.length || 0 }}</span>
+                  </div>
+                  <div class="order-detail">
+                    <span class="detail-label">Total:</span>
+                    <span class="detail-value total">{{ getOrderTotal(order) | number:'1.2-2' }} €</span>
+                  </div>
+
+                  <div class="order-items-preview">
+                    @for (detail of (order.details || []).slice(0, 2); track $index) {
+                      <div class="item-preview">
+                        <span>{{ detail.productName }}</span>
+                        <span>{{ detail.quantity }} uds</span>
+                      </div>
+                    }
+                    @if ((order.details?.length || 0) > 2) {
+                      <div class="items-more">+{{ (order.details?.length || 0) - 2 }} más</div>
+                    }
+                  </div>
+                </div>
+
+                <div class="order-actions">
+                  <button class="btn-action btn-details" (click)="viewOrderDetails(order)">
+                    Ver Detalles
+                  </button>
+                  <button class="btn-action btn-delete" (click)="deleteOrder(order)">
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </section>
+    }
+  </div>
+</div>
+
+<!-- Details Modal -->
+@if (showDetailsModal && selectedOrder) {
+  <app-order-details-modal
+    [order]="selectedOrder"
+    (closeModal)="closeDetailsModal()"
+  ></app-order-details-modal>
+}<!-- Header -->
+<div class="header-pedidos">
+  <h1>PEDIDOS</h1>
+</div>
+
+<!-- Contenido -->
+<div class="contenedor-principal">
+  <!-- Action Button -->
+  <div class="top-actions">
+    <button class="btn-create-order" (click)="openCreateOrderModal()">
+      + CREAR PEDIDO
+    </button>
+  </div>
+
+  <!-- Orders Grid -->
+  @if (loading) {
+    <div class="loading-message">
+      <p>Cargando pedidos...</p>
+    </div>
+  } @else if (orders.length === 0) {
+    <div class="empty-state">
+      <h3>No hay pedidos pendientes</h3>
+      <p>Crea un nuevo pedido para comenzar</p>
+    </div>
+  } @else {
+    <div class="orders-grid">
+      @for (order of orders; track order.id) {
+        <div class="order-card">
+          <div class="order-card-header">
+            <div class="order-card-user">
+              <div class="user-avatar">{{ getUserInitials({name: order.userName}) }}</div>
+              <div class="user-info">
+                <h4>Pedido #{{ order.id }}</h4>
+                <p>{{ order.userName || 'Usuario desconocido' }}</p>
+              </div>
+            </div>
+            <span class="order-status created">CREADO</span>
+          </div>
+
+          <div class="order-card-body">
+            <div class="order-detail">
+              <span class="detail-label">Fecha:</span>
+              <span class="detail-value">{{ formatDate(order.orderDate) }}</span>
+            </div>
+            <div class="order-detail">
+              <span class="detail-label">Productos:</span>
+              <span class="detail-value">{{ order.details?.length || 0 }}</span>
+            </div>
+            <div class="order-detail total">
+              <span class="detail-label">Total:</span>
+              <span class="detail-value">{{ getOrderTotal(order) | number:'1.2-2' }} €</span>
+            </div>
+          </div>
+
+          <div class="order-items-preview">
+            @for (detail of (order.details || []).slice(0, 3); track $index) {
+              @if (detail.productName) {
+                <div class="item-preview">
+                  <span class="item-name">{{ detail.productName }}</span>
+                  <span class="item-qty">{{ detail.quantity }}</span>
+                </div>
+              }
+            }
+            @if ((order.details?.length || 0) > 3) {
+              <div class="items-more">+{{ (order.details?.length || 0) - 3 }} más</div>
+            }
+          </div>
+
+          <div class="order-card-actions">
+            <button class="btn-action btn-details" (click)="viewOrderDetails(order)">
+              Ver Detalles
+            </button>
+            <button class="btn-action btn-confirm" (click)="confirmOrder(order)">
+              Confirmar Pedido
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- Modal -->
+@if (showModal) {
+  <app-order-modal
+    (closeModal)="closeModal()"
+    (orderCreated)="onOrderCreated()"
+  ></app-order-modal>
+}
+
+<!-- Details Modal -->
+@if (showDetailsModal && selectedOrder) {
+  <app-order-details-modal
+    [order]="selectedOrder"
+    (closeModal)="closeDetailsModal()"
+  ></app-order-details-modal>
+}<div class="modal-overlay" (click)="close()">
+  <div class="modal-dialog" (click)="$event.stopPropagation()">
+    @if (order) {
       <div class="modal-header">
-        <h2>{{ recipe.name }}</h2>
-        <button class="modal-close" (click)="closeModal()">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
+        <div>
+          <h2>Detalles del Pedido #{{ order.id }}</h2>
+          <span class="order-status-badge" [style.background]="getStatusColor(order.status)">
+            {{ getStatusLabel(order.status) }}
+          </span>
+        </div>
+        <button type="button" class="btn-close" (click)="close()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- User Information -->
+        <div class="info-section">
+          <h3>Información del Usuario</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Nombre:</span>
+              <span class="info-value">{{ order.userName }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">ID:</span>
+              <span class="info-value">#{{ order.userId }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Order Information -->
+        <div class="info-section">
+          <h3>Información del Pedido</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <span class="info-label">Fecha de Creación:</span>
+              <span class="info-value">{{ formatDate(order.orderDate) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="info-label">Estado:</span>
+              <span class="info-value">{{ getStatusLabel(order.status) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Products List -->
+        <div class="info-section">
+          <h3>Productos ({{ order.details?.length || 0 }})</h3>
+          <div class="products-table">
+            <div class="table-header">
+              <div class="col-product">Producto</div>
+              <div class="col-quantity">Cantidad</div>
+              <div class="col-price">Precio Unit.</div>
+              <div class="col-total">Subtotal</div>
+            </div>
+            @for (detail of (order.details || []); track $index) {
+              @if (detail.productName) {
+                <div class="table-row">
+                  <div class="col-product">
+                    <div class="product-name">{{ detail.productName }}</div>
+                  </div>
+                  <div class="col-quantity">
+                    {{ detail.quantity }} uds
+                  </div>
+                  <div class="col-price">
+                    {{ detail.unitPrice | number:'1.2-2' }} €
+                  </div>
+                  <div class="col-total">
+                    {{ (detail.quantity * detail.unitPrice) | number:'1.2-2' }} €
+                  </div>
+                </div>
+              }
+            }
+          </div>
+
+          <!-- Total -->
+          <div class="order-total">
+            <div class="total-row">
+              <span class="total-label">Total del Pedido:</span>
+              <span class="total-value">{{ getOrderTotal() | number:'1.2-2' }} €</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-close-modal" (click)="close()">
+          Cerrar
         </button>
       </div>
-
-      <!-- Cuerpo del modal -->
-      <div class="modal-body">
-
-        <!-- Presentación -->
-        @if (recipe.presentation) {
-          <div class="modal-section">
-            <h4>Presentación</h4>
-            <p>{{ recipe.presentation }}</p>
-          </div>
-        }
-
-        <!-- Elaboración -->
-        @if (recipe.elaboration) {
-          <div class="modal-section">
-            <h4>Elaboración</h4>
-            <ol class="elaboration-steps">
-              @for (step of getElaborationSteps(recipe.elaboration); track $index) {
-                <li>{{ step.replace(/^\d+\.\s*/, '') }}</li>
-              }
-            </ol>
-          </div>
-        }
-
-        <!-- Ingredientes -->
-        @if (recipe.components.length > 0) {
-          <div class="modal-section">
-            <h4>Ingredientes</h4>
-            <table class="ingredients-table">
-              <thead>
-                <tr>
-                  <th>Producto</th>
-                  <th>Cantidad</th>
-                  <th>Subtotal</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (comp of recipe.components; track comp.id) {
-                  <tr>
-                    <td>{{ comp.productName }}</td>
-                    <td>{{ comp.quantity }}</td>
-                    <td>{{ comp.subtotal | number:'1.2-2' }} €</td>
-                  </tr>
-                }
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td colspan="2">Coste total</td>
-                  <td>{{ recipe.totalCost | number:'1.2-2' }} €</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        }
-
-        <!-- Alérgenos -->
-        <div class="modal-section">
-          <h4>Alérgenos</h4>
-          @if (hasAllergens()) {
-            <div class="allergens-list">
-              @for (allergen of recipe.allergens; track allergen.id) {
-                <span class="allergen-tag">{{ allergen.name }}</span>
-              }
-            </div>
-          } @else {
-            <p class="no-allergens">Esta receta no contiene alérgenos conocidos.</p>
-          }
-        </div>
-      </div>
-
-      <!-- Pie del modal -->
-      <div class="modal-footer">
-        <div class="cook-form">
-          <div class="cook-field">
-            <label>Cantidad</label>
-            <input
-              type="number"
-              [(ngModel)]="cookQuantity"
-              min="1"
-              step="1"
-            />
-          </div>
-          <div class="cook-field cook-field-detail">
-            <label>Detalle</label>
-            <input
-              type="text"
-              [(ngModel)]="cookDetails"
-              placeholder="Ej: Pedido mesa 5"
-            />
-          </div>
-        </div>
-        <div class="modal-actions">
-          <button class="btn-imprimir" (click)="printRecipe()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-            Imprimir
-          </button>
-          @if (canEdit) {
-            <button class="btn-editar" (click)="editRecipe()">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-              Editar
-            </button>
-          }
-          <button class="btn-cocinar" (click)="cookRecipe()">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6 2 10c0 1.5.5 3 1.5 4.2L2 22l4-2 4 2 4-2 4 2-1.5-7.8C17.5 13 18 11.5 18 10c0-4-4.48-8-6-8z"/></svg>
-            Cocinar
-          </button>
-        </div>
-      </div>
-    </div>
+    }
   </div>
 </div>
