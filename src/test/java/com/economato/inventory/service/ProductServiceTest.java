@@ -150,6 +150,65 @@ class ProductServiceTest {
     }
 
     @Test
+    void findByName_ShouldReturnPageOfMatchingProducts() {
+        // Arrange
+        Product product1 = new Product();
+        product1.setId(1);
+        product1.setName("Leche Desnatada");
+        product1.setProductCode("CODE001");
+
+        Product product2 = new Product();
+        product2.setId(2);
+        product2.setName("Leche Entera");
+        product2.setProductCode("CODE002");
+
+        ProductResponseDTO responseDTO1 = new ProductResponseDTO();
+        responseDTO1.setId(1);
+        responseDTO1.setName("Leche Desnatada");
+        responseDTO1.setProductCode("CODE001");
+
+        ProductResponseDTO responseDTO2 = new ProductResponseDTO();
+        responseDTO2.setId(2);
+        responseDTO2.setName("Leche Entera");
+        responseDTO2.setProductCode("CODE002");
+
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Product> page = new PageImpl<>(Arrays.asList(product1, product2));
+
+        when(repository.findByNameContainingIgnoreCase("leche", pageable)).thenReturn(page);
+        when(productMapper.toResponseDTO(product1)).thenReturn(responseDTO1);
+        when(productMapper.toResponseDTO(product2)).thenReturn(responseDTO2);
+
+        // Act
+        Page<ProductResponseDTO> result = productService.findByName("leche", pageable);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(2, result.getContent().size());
+        assertEquals("Leche Desnatada", result.getContent().get(0).getName());
+        assertEquals("Leche Entera", result.getContent().get(1).getName());
+        verify(repository).findByNameContainingIgnoreCase("leche", pageable);
+    }
+
+    @Test
+    void findByName_WhenNoMatches_ShouldReturnEmptyPage() {
+        // Arrange
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Product> emptyPage = new PageImpl<>(Arrays.asList());
+
+        when(repository.findByNameContainingIgnoreCase("inexistente", pageable)).thenReturn(emptyPage);
+
+        // Act
+        Page<ProductResponseDTO> result = productService.findByName("inexistente", pageable);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(0, result.getContent().size());
+        verify(repository).findByNameContainingIgnoreCase("inexistente", pageable);
+    }
+
+
+    @Test
     void save_WhenNameDoesNotExist_ShouldCreateProduct() {
 
         when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);

@@ -1,25 +1,38 @@
 package com.economato.inventory.controller;
 
-import jakarta.validation.Valid;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal;
+import java.util.List;
+
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.economato.inventory.dto.request.RecipeCookingRequestDTO;
 import com.economato.inventory.dto.request.RecipeRequestDTO;
 import com.economato.inventory.dto.response.RecipeResponseDTO;
+import com.economato.inventory.service.RecipePdfService;
 import com.economato.inventory.service.RecipeService;
 
-import java.math.BigDecimal;
-import java.util.List;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/recipes")
@@ -27,9 +40,11 @@ import java.util.List;
 public class RecipeController {
 
     private final RecipeService recipeService;
+    private final RecipePdfService recipePdfService;
 
-    public RecipeController(RecipeService recipeService) {
+    public RecipeController(RecipeService recipeService, RecipePdfService recipePdfService) {
         this.recipeService = recipeService;
+        this.recipePdfService = recipePdfService;
     }
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
@@ -160,5 +175,52 @@ public class RecipeController {
             @Valid @RequestBody RecipeCookingRequestDTO cookingRequest) {
         RecipeResponseDTO result = recipeService.cookRecipe(cookingRequest);
         return ResponseEntity.ok(result);
+    }
+
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+    @GetMapping("/{id}/pdf")
+    @Operation(summary = "Descargar receta en PDF", 
+               description = "Genera y descarga la receta en formato PDF con un diseño estético que incluye ingredientes, elaboración, alérgenos y coste total. [Rol requerido: USER]")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "PDF generado correctamente",
+            content = @Content(mediaType = "application/pdf")),
+        @ApiResponse(responseCode = "404", description = "Receta no encontrada"),
+        @ApiResponse(responseCode = "500", description = "Error al generar el PDF")
+    })
+    public ResponseEntity<byte[]> downloadRecipePdf(
+            @Parameter(description = "ID de la receta", required = true) @PathVariable Integer id) {
+        return recipeService.findById(id)
+                .<ResponseEntity<byte[]>>map(recipe -> {
+                    try {
+                        byte[] pdfBytes = recipePdfService.generateRecipePdf(recipe);
+                        
+                        HttpHeaders headers = new HttpHeaders();
+                        headers.setContentType(MediaType.APPLICATION_PDF);
+                        headers.setContentDisposition(ContentDisposition.attachment()
+                            .filename(sanitizeFilename(recipe.getName()) + ".pdf")
+                            .build());
+                        headers.setContentLength(pdfBytes.length);
+                        
+                        return ResponseEntity.ok()
+                                .headers(headers)
+                                .body(pdfBytes);
+                    } catch (Exception e) {
+                        return ResponseEntity.<byte[]>internalServerError().build();
+                    }
+                })
+                .orElse(ResponseEntity.<byte[]>notFound().build());
+    }
+
+    private String sanitizeFilename(String filename) {
+        if (filename == null || filename.isBlank()) {
+            return "receta";
+        }
+        // Eliminar caracteres no válidos para nombres de archivo
+        String cleaned = filename.replaceAll("[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\\s-]", "_")
+            .replaceAll("\\s", "_");
+        if (cleaned.isBlank()) {
+            return "receta";
+        }
+        return cleaned.substring(0, Math.min(cleaned.length(), 50));
     }
 }

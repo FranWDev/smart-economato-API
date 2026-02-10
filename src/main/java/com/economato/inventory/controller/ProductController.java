@@ -3,12 +3,16 @@ package com.economato.inventory.controller;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.economato.inventory.dto.request.ProductRequestDTO;
 import com.economato.inventory.dto.response.ProductResponseDTO;
+import com.economato.inventory.service.ProductExcelService;
 import com.economato.inventory.service.ProductService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,9 +29,11 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 public class ProductController {
 
     private final ProductService productService;
+    private final ProductExcelService productExcelService;
 
-    public ProductController(ProductService productService) {
+    public ProductController(ProductService productService, ProductExcelService productExcelService) {
         this.productService = productService;
+        this.productExcelService = productExcelService;
     }
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
@@ -39,6 +45,35 @@ public class ProductController {
     @GetMapping
     public ResponseEntity<Page<ProductResponseDTO>> getAllProducts(Pageable pageable) {
         return ResponseEntity.ok(productService.findAll(pageable));
+    }
+
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+    @Operation(summary = "Descargar productos en Excel",
+               description = "Genera y descarga un archivo Excel con todos los productos registrados. [Rol requerido: USER]")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Excel generado correctamente",
+                     content = @Content(mediaType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")),
+        @ApiResponse(responseCode = "500", description = "Error al generar el Excel")
+    })
+    @GetMapping("/export/excel")
+    public ResponseEntity<byte[]> downloadProductsExcel() {
+        try {
+            byte[] excelBytes = productExcelService.generateProductsExcel(productService.findAllForExport());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType(
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+            headers.setContentDisposition(ContentDisposition.attachment()
+                    .filename("productos.xlsx")
+                    .build());
+            headers.setContentLength(excelBytes.length);
+
+            return ResponseEntity.ok()
+                    .headers(headers)
+                    .body(excelBytes);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
@@ -57,6 +92,20 @@ public class ProductController {
         return productService.findByCodebar(codebar)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+    @Operation(summary = "Buscar productos por nombre",
+               description = "Devuelve una lista paginada de productos que coincidan con el nombre especificado (búsqueda parcial sin distinción de mayúsculas). [Rol requerido: USER]")
+    @ApiResponse(responseCode = "200", description = "Lista de productos encontrados",
+                 content = @Content(mediaType = "application/json",
+                 schema = @Schema(implementation = ProductResponseDTO.class)))
+    @GetMapping("/search")
+    public ResponseEntity<Page<ProductResponseDTO>> searchProductsByName(
+            @Parameter(description = "Nombre o parte del nombre del producto a buscar", example = "leche")
+            @RequestParam String name,
+            Pageable pageable) {
+        return ResponseEntity.ok(productService.findByName(name, pageable));
     }
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")

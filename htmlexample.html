@@ -1,0 +1,123 @@
+<div class="modal-overlay" (click)="onOverlayClick($event)">
+  <div class="modal-container">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>{{ recipe.name }}</h2>
+        <button class="modal-close" (click)="closeModal()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Cuerpo del modal -->
+      <div class="modal-body">
+
+        <!-- Presentación -->
+        @if (recipe.presentation) {
+          <div class="modal-section">
+            <h4>Presentación</h4>
+            <p>{{ recipe.presentation }}</p>
+          </div>
+        }
+
+        <!-- Elaboración -->
+        @if (recipe.elaboration) {
+          <div class="modal-section">
+            <h4>Elaboración</h4>
+            <ol class="elaboration-steps">
+              @for (step of getElaborationSteps(recipe.elaboration); track $index) {
+                <li>{{ step.replace(/^\d+\.\s*/, '') }}</li>
+              }
+            </ol>
+          </div>
+        }
+
+        <!-- Ingredientes -->
+        @if (recipe.components.length > 0) {
+          <div class="modal-section">
+            <h4>Ingredientes</h4>
+            <table class="ingredients-table">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th>Cantidad</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (comp of recipe.components; track comp.id) {
+                  <tr>
+                    <td>{{ comp.productName }}</td>
+                    <td>{{ comp.quantity }}</td>
+                    <td>{{ comp.subtotal | number:'1.2-2' }} €</td>
+                  </tr>
+                }
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2">Coste total</td>
+                  <td>{{ recipe.totalCost | number:'1.2-2' }} €</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        }
+
+        <!-- Alérgenos -->
+        <div class="modal-section">
+          <h4>Alérgenos</h4>
+          @if (hasAllergens()) {
+            <div class="allergens-list">
+              @for (allergen of recipe.allergens; track allergen.id) {
+                <span class="allergen-tag">{{ allergen.name }}</span>
+              }
+            </div>
+          } @else {
+            <p class="no-allergens">Esta receta no contiene alérgenos conocidos.</p>
+          }
+        </div>
+      </div>
+
+      <!-- Pie del modal -->
+      <div class="modal-footer">
+        <div class="cook-form">
+          <div class="cook-field">
+            <label>Cantidad</label>
+            <input
+              type="number"
+              [(ngModel)]="cookQuantity"
+              min="1"
+              step="1"
+            />
+          </div>
+          <div class="cook-field cook-field-detail">
+            <label>Detalle</label>
+            <input
+              type="text"
+              [(ngModel)]="cookDetails"
+              placeholder="Ej: Pedido mesa 5"
+            />
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn-imprimir" (click)="printRecipe()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Imprimir
+          </button>
+          @if (canEdit) {
+            <button class="btn-editar" (click)="editRecipe()">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Editar
+            </button>
+          }
+          <button class="btn-cocinar" (click)="cookRecipe()">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C6.48 2 2 6 2 10c0 1.5.5 3 1.5 4.2L2 22l4-2 4 2 4-2 4 2-1.5-7.8C17.5 13 18 11.5 18 10c0-4-4.48-8-6-8z"/></svg>
+            Cocinar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

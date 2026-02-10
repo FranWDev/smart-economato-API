@@ -1,5 +1,7 @@
 package com.economato.inventory.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -20,6 +22,8 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
     List<Product> findByType(String type);
 
     List<Product> findByNameContainingIgnoreCase(String namePart);
+
+    Page<Product> findByNameContainingIgnoreCase(String namePart, Pageable pageable);
 
     List<Product> findByCurrentStockLessThan(BigDecimal stock);
 

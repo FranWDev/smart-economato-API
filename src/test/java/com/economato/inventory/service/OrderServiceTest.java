@@ -381,7 +381,7 @@ class OrderServiceTest {
         when(repository.save(testOrder)).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
 
-        Optional<OrderResponseDTO> result = orderService.updateStatus(1, "COMPLETED");
+        Optional<OrderResponseDTO> result = orderService.updateStatus(1, "CONFIRMED");
 
         assertTrue(result.isPresent());
         verify(repository).findById(1);
@@ -403,7 +403,7 @@ class OrderServiceTest {
     @Test
     void updateStatus_WithAllValidStatuses_ShouldSucceed() {
 
-        List<String> validStatuses = Arrays.asList("CREATED", "PENDING", "REVIEW", "COMPLETED", "INCOMPLETE");
+        List<String> validStatuses = Arrays.asList("CREATED", "PENDING", "REVIEW", "CONFIRMED", "INCOMPLETE");
 
         for (String status : validStatuses) {
             when(repository.findById(1)).thenReturn(Optional.of(testOrder));
@@ -438,7 +438,7 @@ class OrderServiceTest {
         when(repository.save(testOrder)).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
 
-        Optional<OrderResponseDTO> result = orderService.updateStatus(1, "COMPLETED");
+        Optional<OrderResponseDTO> result = orderService.updateStatus(1, "CONFIRMED");
 
         assertTrue(result.isPresent());
         assertNotNull(testOrder.getVersion());
