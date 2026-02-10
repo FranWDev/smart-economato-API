@@ -262,7 +262,7 @@ public class OrderService {
      * Valida que el estado sea uno de los permitidos
      */
     private void validateStatus(String status) {
-        List<String> validStatuses = List.of("CREATED", "PENDING", "REVIEW", "COMPLETED", "INCOMPLETE");
+        List<String> validStatuses = List.of("CREATED", "PENDING", "REVIEW", "COMPLETED", "INCOMPLETE", "CANCELLED");
         if (!validStatuses.contains(status)) {
             throw new InvalidOperationException("Estado de orden inválido: " + status);
         }

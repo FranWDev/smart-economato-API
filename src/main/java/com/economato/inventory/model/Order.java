@@ -38,8 +38,6 @@ public class Order {
     private LocalDateTime orderDate;
 
     @NotBlank(message = "El estado no puede estar vacío")
-    @Pattern(regexp = "CREATED|PENDING|CONFIRMED|IN_REVIEW|CANCELLED", 
-             message = "Estado inválido. Debe ser CREATED, PENDING, CONFIRMED, IN_REVIEW o CANCELLED")
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 
