@@ -179,7 +179,7 @@ public class OrderService {
         Order order = repository.findByIdWithDetails(receptionData.getOrderId())
                 .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada"));
 
-        order.setStatus("IN_REVIEW");
+        order.setStatus("REVIEW");
 
         for (var receptionItem : receptionData.getItems()) {
             OrderDetail detail = order.getDetails().stream()
