@@ -16,12 +16,9 @@ import lombok.*;
 @AllArgsConstructor
 @Entity
 @Builder
-@Table(
-    name = "recipe",
-    indexes = {
+@Table(name = "recipe", indexes = {
         @Index(name = "idx_recipe_name", columnList = "recipe_name")
-    }
-)
+})
 public class Recipe {
 
     @Id
@@ -65,12 +62,8 @@ public class Recipe {
         component.setParentRecipe(null);
     }
 
-    @ManyToMany
-    @JoinTable(
-        name = "recipe_allergen",
-        joinColumns = @JoinColumn(name = "recipe_id"),
-        inverseJoinColumns = @JoinColumn(name = "allergen_id")
-    )
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "recipe_allergen", joinColumns = @JoinColumn(name = "recipe_id"), inverseJoinColumns = @JoinColumn(name = "allergen_id"))
     @JsonManagedReference
     @Builder.Default
     private Set<Allergen> allergens = new HashSet<>();

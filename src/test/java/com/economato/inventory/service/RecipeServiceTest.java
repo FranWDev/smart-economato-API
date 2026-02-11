@@ -547,4 +547,37 @@ class RecipeServiceTest {
                 any(),
                 isNull());
     }
+
+    @Test
+    void save_WithDuplicateProductIds_ShouldMergeQuantities() {
+
+        RecipeComponentRequestDTO comp1 = new RecipeComponentRequestDTO();
+        comp1.setProductId(1);
+        comp1.setQuantity(new BigDecimal("2.0"));
+
+        RecipeComponentRequestDTO comp2 = new RecipeComponentRequestDTO();
+        comp2.setProductId(1);
+        comp2.setQuantity(new BigDecimal("3.0"));
+
+        testRecipeRequestDTO.setComponents(Arrays.asList(comp1, comp2));
+
+        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(allergenRepository.findAllById(anyList())).thenReturn(Arrays.asList(testAllergen));
+        when(repository.save(any(Recipe.class))).thenAnswer(invocation -> {
+            Recipe savedRecipe = invocation.getArgument(0);
+
+            assertEquals(1, savedRecipe.getComponents().size());
+            assertEquals(0, new BigDecimal("5.0").compareTo(savedRecipe.getComponents().get(0).getQuantity()));
+
+            assertEquals(new BigDecimal("25.00"), savedRecipe.getTotalCost());
+            return savedRecipe;
+        });
+        when(recipeMapper.toResponseDTO(any(Recipe.class))).thenReturn(testRecipeResponseDTO);
+
+        RecipeResponseDTO result = recipeService.save(testRecipeRequestDTO);
+
+        assertNotNull(result);
+        verify(productRepository, times(1)).findById(1);
+        verify(repository).save(any(Recipe.class));
+    }
 }

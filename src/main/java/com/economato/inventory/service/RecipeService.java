@@ -132,13 +132,27 @@ public class RecipeService {
 
         if (requestDTO.getComponents() != null && !requestDTO.getComponents().isEmpty()) {
 
-            var requestedProductIds = requestDTO.getComponents().stream()
+            List<RecipeComponentRequestDTO> mergedComponents = requestDTO.getComponents().stream()
+                    .collect(Collectors.groupingBy(RecipeComponentRequestDTO::getProductId))
+                    .values().stream()
+                    .map(group -> {
+                        RecipeComponentRequestDTO merged = new RecipeComponentRequestDTO();
+                        merged.setProductId(group.get(0).getProductId());
+                        merged.setRecipeId(group.get(0).getRecipeId());
+                        merged.setQuantity(group.stream()
+                                .map(RecipeComponentRequestDTO::getQuantity)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add));
+                        return merged;
+                    })
+                    .collect(Collectors.toList());
+
+            var requestedProductIds = mergedComponents.stream()
                     .map(RecipeComponentRequestDTO::getProductId)
-                    .collect(java.util.stream.Collectors.toSet());
+                    .collect(Collectors.toSet());
 
             recipe.getComponents().removeIf(existing -> !requestedProductIds.contains(existing.getProduct().getId()));
 
-            for (RecipeComponentRequestDTO componentDTO : requestDTO.getComponents()) {
+            for (RecipeComponentRequestDTO componentDTO : mergedComponents) {
                 Product product = productRepository.findById(componentDTO.getProductId())
                         .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
 
