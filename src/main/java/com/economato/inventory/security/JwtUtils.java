@@ -5,12 +5,12 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import com.economato.inventory.config.JwtProperties;
 import com.economato.inventory.dto.response.LoginResponseDTO;
 import com.economato.inventory.model.Role;
 
@@ -21,37 +21,35 @@ import java.util.Date;
 public class JwtUtils {
     private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
 
-    @Value("${jwt.secret}")
-    private String jwtSecret;
+    private final JwtProperties jwtProperties;
 
-    @Value("${jwt.expiration}")
-    private int jwtExpirationMs;
+    public JwtUtils(JwtProperties jwtProperties) {
+        this.jwtProperties = jwtProperties;
+    }
 
     public LoginResponseDTO generateJwtToken(Authentication authentication) {
         UserDetails userPrincipal = (UserDetails) authentication.getPrincipal();
-        
-        // Extraer el rol del usuario
+
         String role = authentication.getAuthorities().stream()
                 .findFirst()
                 .map(GrantedAuthority::getAuthority)
                 .orElse("ROLE_USER");
-        
-        // Remover prefijo "ROLE_" si existe para obtener el rol limpio
+
         String cleanRole = role.replace("ROLE_", "");
 
         String token = Jwts.builder()
                 .setSubject(userPrincipal.getUsername())
                 .claim("role", cleanRole)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date((new Date()).getTime() + 800000))
+                .setExpiration(new Date(System.currentTimeMillis() + jwtProperties.getExpiration()))
                 .signWith(key(), SignatureAlgorithm.HS256)
                 .compact();
-        
+
         return new LoginResponseDTO(token, Role.valueOf(cleanRole));
     }
 
     private Key key() {
-        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
+        return Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtProperties.getSecret()));
     }
 
     public String getUserNameFromJwtToken(String token) {
@@ -62,7 +60,7 @@ public class JwtUtils {
                 .getBody()
                 .getSubject();
     }
-    
+
     public String getRoleFromJwtToken(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key())

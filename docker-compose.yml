@@ -140,12 +140,6 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       # Java Options
       JAVA_OPTS: "-Xms256m -Xmx512m -XX:+UseG1GC"
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
     networks:
       - inventory-network
     restart: unless-stopped
