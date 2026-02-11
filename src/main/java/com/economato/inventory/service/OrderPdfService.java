@@ -113,11 +113,11 @@ public class OrderPdfService {
                 .setWidth(UnitValue.createPercentValue(100))
                 .setMarginBottom(24);
 
-        addInfoPair(infoTable, "USUARIO", sanitizePdfText(order.getUserName()), boldFont, regularFont);
-        addInfoPair(infoTable, "ESTADO", translateStatusToEs(order.getStatus()), boldFont, regularFont);
-        addInfoPair(infoTable, "FECHA", order.getOrderDate() == null ? "" : order.getOrderDate().format(DATE_FORMAT),
+        addInfoPair(infoTable, "USUARIO:", sanitizePdfText(order.getUserName()), boldFont, regularFont);
+        addInfoPair(infoTable, "ESTADO:", translateStatusToEs(order.getStatus()), boldFont, regularFont);
+        addInfoPair(infoTable, "FECHA:", order.getOrderDate() == null ? "" : order.getOrderDate().format(DATE_FORMAT),
                 boldFont, regularFont);
-        addInfoPair(infoTable, "PRODUCTOS", String.valueOf(order.getDetails() == null ? 0 : order.getDetails().size()),
+        addInfoPair(infoTable, "PRODUCTOS:", String.valueOf(order.getDetails() == null ? 0 : order.getDetails().size()),
                 boldFont, regularFont);
 
         document.add(infoTable);
