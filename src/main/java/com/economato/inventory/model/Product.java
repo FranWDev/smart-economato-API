@@ -11,17 +11,13 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(
-    name = "product",
-    indexes = {
+@Table(name = "product", indexes = {
         @Index(name = "idx_product_code", columnList = "product_code", unique = true),
         @Index(name = "idx_product_name", columnList = "name"),
         @Index(name = "idx_product_type", columnList = "type")
-    },
-    uniqueConstraints = {
+}, uniqueConstraints = {
         @UniqueConstraint(name = "uk_product_code", columnNames = "product_code")
-    }
-)
+})
 public class Product {
 
     @Id
@@ -34,7 +30,6 @@ public class Product {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @NotBlank(message = "El tipo de producto no puede estar vacío")
     @Size(max = 50)
     @Column(name = "type", nullable = false, length = 50)
     private String type;
