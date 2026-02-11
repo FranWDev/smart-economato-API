@@ -195,7 +195,8 @@ public class ProductService {
 
     private boolean isValidUnit(String unit) {
         return unit != null
-                && List.of("KG", "G", "L", "ML", "UNIDAD", "MANOJO", "BOTE", "PAQUETE", "SOBRE", "HOJA", "TUBO", "UND")
+                && List.of("KG", "G", "L", "ML", "UNIDAD", "MANOJO", "BOTE", "PAQUETE", "SOBRE", "HOJA", "TUBO", "UDS",
+                        "UND")
                         .contains(unit.toUpperCase());
     }
 
