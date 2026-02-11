@@ -117,17 +117,16 @@ class RecipeServiceTest {
     }
 
     @Test
-    void findAll_ShouldReturnListOfRecipes() {
-
+    void findAll_ShouldReturnPageOfRecipes() {
         Pageable pageable = PageRequest.of(0, 10);
         Page<Recipe> page = new PageImpl<>(Arrays.asList(testRecipe));
         when(repository.findAll(pageable)).thenReturn(page);
         when(recipeMapper.toResponseDTO(testRecipe)).thenReturn(testRecipeResponseDTO);
 
-        List<RecipeResponseDTO> result = recipeService.findAll(pageable);
+        Page<RecipeResponseDTO> result = recipeService.findAll(pageable);
 
         assertNotNull(result);
-        assertEquals(1, result.size());
+        assertEquals(1, result.getTotalElements());
         verify(repository).findAll(pageable);
     }
 

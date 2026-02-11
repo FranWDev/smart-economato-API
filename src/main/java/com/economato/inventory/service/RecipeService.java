@@ -62,10 +62,9 @@ public class RecipeService {
     }
 
     @Transactional(readOnly = true)
-    public List<RecipeResponseDTO> findAll(Pageable pageable) {
-        return repository.findAll(pageable).stream()
-                .map(recipeMapper::toResponseDTO)
-                .collect(Collectors.toList());
+    public org.springframework.data.domain.Page<RecipeResponseDTO> findAll(Pageable pageable) {
+        return repository.findAll(pageable)
+                .map(recipeMapper::toResponseDTO);
     }
 
     @Cacheable(value = "recipe", key = "#id")

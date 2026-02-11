@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
@@ -70,7 +71,7 @@ public class CacheWarmupService implements CommandLineRunner {
             log.info("Pre-cargando recetas...");
 
             Pageable page1 = PageRequest.of(0, 10);
-            List<RecipeResponseDTO> recipes1 = recipeService.findAll(page1);
+            Page<RecipeResponseDTO> recipes1 = recipeService.findAll(page1);
 
             Pageable page2 = PageRequest.of(1, 10);
             recipeService.findAll(page2);
