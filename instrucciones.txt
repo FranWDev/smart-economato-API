@@ -1,0 +1,142 @@
+ Gemini said
+
+Para implementar Read/Write Splitting en Spring Boot con PostgreSQL, el enfoque más limpio es usar un AbstractRoutingDataSource. Esto permite que tu aplicación decida dinámicamente qué base de datos usar basándose en si la transacción es de solo lectura o no.
+
+Aquí tienes los pasos para configurarlo:
+1. Definir los DataSources en application.yml
+
+Primero, configura las credenciales para tu base de datos principal (escritura) y la réplica (lectura).
+YAML
+
+spring:
+  datasource:
+    writer:
+      jdbc-url: jdbc:postgresql://primary-db-host:5432/mydb
+      username: admin
+      password: password
+      driver-class-name: org.postgresql.Driver
+    reader:
+      jdbc-url: jdbc:postgresql://replica-db-host:5432/mydb
+      username: read_user
+      password: password
+      driver-class-name: org.postgresql.Driver
+
+2. Crear un Enumerador y un Holder de Contexto
+
+Necesitamos una forma de saber qué tipo de conexión requiere el hilo (thread) actual.
+Java
+
+public enum DataSourceType {
+    WRITER, READER
+}
+
+public class DbContextHolder {
+    private static final ThreadLocal<DataSourceType> CONTEXT = new ThreadLocal<>();
+
+    public static void set(DataSourceType type) { CONTEXT.set(type); }
+    public static DataSourceType get() { return CONTEXT.get(); }
+    public static void clear() { CONTEXT.remove(); }
+}
+
+3. Configurar el RoutingDataSource
+
+Esta clase es el "cerebro" que elige la conexión en tiempo de ejecución.
+Java
+
+public class RoutingDataSource extends AbstractRoutingDataSource {
+    @Override
+    protected Object determineCurrentLookupKey() {
+        return DbContextHolder.get();
+    }
+}
+
+4. Configuración de Beans (DataSource Config)
+
+Aquí registras ambos DataSources y los envuelves en el RoutingDataSource.
+Java
+
+@Configuration
+public class DataSourceConfig {
+
+    @Bean
+    @ConfigurationProperties("spring.datasource.writer")
+    public DataSource writerDataSource() {
+        return DataSourceBuilder.create().build();
+    }
+
+    @Bean
+    @ConfigurationProperties("spring.datasource.reader")
+    public DataSource readerDataSource() {
+        return DataSourceBuilder.create().build();
+    }
+
+    @Bean
+    public DataSource dataSource() {
+        RoutingDataSource routingDataSource = new RoutingDataSource();
+        
+        Map<Object, Object> targetDataSources = new HashMap<>();
+        targetDataSources.put(DataSourceType.WRITER, writerDataSource());
+        targetDataSources.put(DataSourceType.READER, readerDataSource());
+
+        routingDataSource.setTargetDataSources(targetDataSources);
+        // Por defecto usa la de escritura por seguridad
+        routingDataSource.setDefaultTargetDataSource(writerDataSource());
+        
+        return routingDataSource;
+    }
+}
+
+5. Sincronizar con @Transactional
+
+Para que esto funcione automáticamente, debemos interceptar cuando usas @Transactional(readOnly = true). La forma más fácil es crear un Aspecto (AOP).
+Java
+
+@Aspect
+@Component
+@Order(0) // Debe ejecutarse antes de que empiece la transacción
+public class DataSourceAspect {
+
+    @Around("@annotation(transactional)")
+    public Object proceed(ProceedingJoinPoint pjp, Transactional transactional) throws Throwable {
+        try {
+            if (transactional.readOnly()) {
+                DbContextHolder.set(DataSourceType.READER);
+            } else {
+                DbContextHolder.set(DataSourceType.WRITER);
+            }
+            return pjp.proceed();
+        } finally {
+            DbContextHolder.clear();
+        }
+    }
+}
+
+¿Cómo lo usas en tu código?
+
+Ahora no tienes que hacer nada especial en tus servicios, solo usar las anotaciones correctamente:
+
+    Para Escritura:
+    Java
+
+@Transactional // Por defecto readOnly es false
+public void createOrder(Order order) {
+    repository.save(order); // Va a la DB Primary
+}
+
+Para Lectura:
+Java
+
+    @Transactional(readOnly = true)
+    public List<OrderDTO> getOrderHistory() {
+        return repository.findAllDTOs(); // Va a la Réplica
+    }
+
+Ventajas de este inicio:
+
+    Transparencia: El resto de tu lógica de negocio no sabe que hay dos bases de datos.
+
+    Escalabilidad: Si tu réplica de lectura se satura, puedes añadir un Balanceador de Carga (como HAProxy o PgBouncer) frente a varias réplicas y solo cambiar la URL en Spring.
+
+    Seguridad: Evitas accidentalmente ejecutar escrituras en la réplica (ya que fallarían).
+
+Dato importante: Recuerda que la replicación de PostgreSQL suele ser asíncrona. Esto significa que después de guardar algo en la base de datos de escritura, puede tardar unos milisegundos en aparecer en la de lectura (Consistencia Eventual).

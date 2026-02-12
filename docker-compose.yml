@@ -2,23 +2,34 @@ version: '3.8'
 
 services:
   # ===================================
-  # PostgreSQL Database
+  # PostgreSQL Database (ESCRITURA - PRIMARY)
   # ===================================
   postgres:
     image: postgres:16-alpine
     container_name: inventory-postgres
+    # COMANDO FUSIONADO: Incluye configuración de WAL y escucha en todas las interfaces
+    command: |
+      postgres 
+      -c wal_level=replica 
+      -c hot_standby=on 
+      -c max_wal_senders=10 
+      -c max_replication_slots=10 
+      -c hot_standby_feedback=on
+      -c listen_addresses='*'
     environment:
       POSTGRES_DB: inventory
       POSTGRES_USER: inventory_user
       POSTGRES_PASSWORD: inventory_password
       PGDATA: /var/lib/postgresql/data/pgdata
+      # Permite conexiones de replicación sin contraseña dentro de la red Docker
+      POSTGRES_HOST_AUTH_METHOD: trust 
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U inventory_user -d inventory"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
     networks:
@@ -26,14 +37,66 @@ services:
     restart: unless-stopped
 
   # ===================================
-  # Redis Cache (AISLADO PARA DOCKER)
+  # PostgreSQL Replica (LECTURA - SECONDARY)
+  # ===================================
+  postgres-replica:
+    image: postgres:16-alpine
+    container_name: inventory-postgres-replica
+    # SIN 'user: postgres', corremos como root para arreglar permisos
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5433:5432"
+    environment:
+      PGUSER: inventory_user
+      PGPASSWORD: inventory_password
+      # Definimos explícitamente PGDATA por seguridad
+      PGDATA: /var/lib/postgresql/data
+    entrypoint: |
+      /bin/sh -c "
+      set -e
+      
+      echo '1. Asegurando permisos 0700 en data directory...'
+      chown -R postgres:postgres /var/lib/postgresql/data
+      chmod 0700 /var/lib/postgresql/data
+
+      echo '2. Esperando al primario...'
+      until pg_isready -h postgres -p 5432 -U inventory_user -d inventory; do
+        sleep 2
+      done
+      
+      # Verificamos si existe PG_VERSION para saber si es una DB válida
+      if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
+        echo '3. Carpeta vacía o corrupta. Clonando base de datos...'
+        
+        # Limpiamos todo por seguridad
+        rm -rf /var/lib/postgresql/data/*
+        
+        # Clonamos usando el usuario postgres
+        su-exec postgres pg_basebackup -h postgres -D /var/lib/postgresql/data -U inventory_user -vP -R --wal-method=stream
+      else
+        echo '3. Datos detectados. Omitiendo clonado.'
+      fi
+      
+      echo '4. Iniciando PostgreSQL en modo Réplica...'
+      # AQUÍ ESTABA EL ERROR: Añadimos explícitamente '-D'
+      exec su-exec postgres postgres -D /var/lib/postgresql/data
+      "
+    volumes:
+      - postgres-replica-data:/var/lib/postgresql/data
+    networks:
+      - inventory-network
+    restart: unless-stopped
+  # ===================================
+  # Redis Cache
   # ===================================
   redis:
     image: redis:7-alpine
     container_name: inventory-redis
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     ports:
-      - "6381:6379"  # <--- CAMBIADO: Ahora puedes acceder a este redis desde fuera por el 6381
+      - "6381:6379"
     volumes:
       - redis-data:/data
     healthcheck:
@@ -46,7 +109,7 @@ services:
     restart: unless-stopped
 
   # ===================================
-  # Zookeeper (para Kafka)
+  # Zookeeper
   # ===================================
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
@@ -110,6 +173,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      postgres-replica: 
+        condition: service_started
       redis:
         condition: service_healthy
       kafka:
@@ -117,17 +182,20 @@ services:
     ports:
       - "8081:8081"
     environment:
-      # Database
+      # Database Principal
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/inventory
       SPRING_DATASOURCE_USERNAME: inventory_user
       SPRING_DATASOURCE_PASSWORD: inventory_password
       
-      # Redis (Usa el nombre del servicio interno, no choca con el externo)
+      # URLs para CQRS
+      DB_WRITER_URL: jdbc:postgresql://postgres:5432/inventory
+      DB_READER_URL: jdbc:postgresql://postgres-replica:5432/inventory
+
+      # Redis
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
-      
       
       # JPA
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
@@ -136,8 +204,10 @@ services:
       # JWT
       JWT_SECRET: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
       JWT_EXPIRATION: 86400000
+      
       # Kafka
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      
       # Java Options
       JAVA_OPTS: "-Xms256m -Xmx512m -XX:+UseG1GC"
     networks:
@@ -145,7 +215,7 @@ services:
     restart: unless-stopped
 
   # ===================================
-  # Redis Commander (GUI para Redis)
+  # Redis Commander
   # ===================================
   redis-commander:
     image: rediscommander/redis-commander:latest
@@ -161,7 +231,7 @@ services:
     restart: unless-stopped
 
   # ===================================
-  # Kafka UI (GUI para Kafka)
+  # Kafka UI
   # ===================================
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
@@ -180,6 +250,8 @@ services:
 
 volumes:
   postgres-data:
+    driver: local
+  postgres-replica-data:
     driver: local
   redis-data:
     driver: local
