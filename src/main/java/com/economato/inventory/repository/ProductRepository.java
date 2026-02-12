@@ -2,11 +2,13 @@ package com.economato.inventory.repository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.economato.inventory.dto.projection.ProductProjection;
 import com.economato.inventory.dto.response.ProductResponseDTO;
 import com.economato.inventory.model.Product;
 
@@ -44,11 +46,29 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
     @Query("SELECT p FROM Product p WHERE p.id IN :ids")
     List<Product> findByIdsForUpdate(@Param("ids") List<Integer> ids);
 
-
     @Lock(LockModeType.PESSIMISTIC_READ)
     @Query("SELECT p FROM Product p WHERE p.id = :id")
     Optional<Product> findByIdForRead(@Param("id") Integer id);
 
     boolean existsBySupplierId(Integer supplierId);
 
+    // --- Proyecciones ---
+
+    Page<ProductProjection> findAllProjectedBy(Pageable pageable);
+
+    List<ProductProjection> findAllProjectedBy(Sort sort);
+
+    Optional<ProductProjection> findProjectedById(Integer id);
+
+    Optional<ProductProjection> findProjectedByProductCode(String productCode);
+
+    Page<ProductProjection> findProjectedByNameContainingIgnoreCase(String namePart, Pageable pageable);
+
+    List<ProductProjection> findProjectedByNameContainingIgnoreCase(String namePart);
+
+    List<ProductProjection> findProjectedByType(String type);
+
+    List<ProductProjection> findProjectedByCurrentStockLessThan(BigDecimal stock);
+
+    List<ProductProjection> findProjectedByUnitPriceBetween(BigDecimal min, BigDecimal max);
 }

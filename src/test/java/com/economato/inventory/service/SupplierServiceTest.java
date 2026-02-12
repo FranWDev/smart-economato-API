@@ -11,6 +11,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import com.economato.inventory.dto.projection.SupplierProjection;
 import com.economato.inventory.dto.request.SupplierRequestDTO;
 import com.economato.inventory.dto.response.SupplierResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
@@ -18,7 +19,6 @@ import com.economato.inventory.mapper.SupplierMapper;
 import com.economato.inventory.model.Supplier;
 import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.SupplierRepository;
-import com.economato.inventory.service.SupplierService;
 
 import java.util.Arrays;
 import java.util.List;
@@ -46,6 +46,7 @@ class SupplierServiceTest {
     private Supplier testSupplier;
     private SupplierRequestDTO testSupplierRequestDTO;
     private SupplierResponseDTO testSupplierResponseDTO;
+    private SupplierProjection testProjection;
 
     @BeforeEach
     void setUp() {
@@ -59,43 +60,45 @@ class SupplierServiceTest {
         testSupplierResponseDTO = new SupplierResponseDTO();
         testSupplierResponseDTO.setId(1);
         testSupplierResponseDTO.setName("Test Supplier");
+
+        testProjection = mock(SupplierProjection.class);
+        lenient().when(testProjection.getId()).thenReturn(1);
+        lenient().when(testProjection.getName()).thenReturn("Test Supplier");
     }
 
     @Test
     void findAll_ShouldReturnPageOfSuppliers() {
         Pageable pageable = PageRequest.of(0, 10);
-        Page<Supplier> page = new PageImpl<>(Arrays.asList(testSupplier));
+        Page<SupplierProjection> page = new PageImpl<>(Arrays.asList(testProjection));
 
-        when(repository.findAll(pageable)).thenReturn(page);
-        when(supplierMapper.toResponseDTO(testSupplier)).thenReturn(testSupplierResponseDTO);
+        when(repository.findAllProjectedBy(pageable)).thenReturn(page);
 
         Page<SupplierResponseDTO> result = supplierService.findAll(pageable);
 
         assertNotNull(result);
         assertEquals(1, result.getContent().size());
-        verify(repository).findAll(pageable);
+        verify(repository).findAllProjectedBy(pageable);
     }
 
     @Test
     void findById_WhenSupplierExists_ShouldReturnSupplier() {
-        when(repository.findById(1)).thenReturn(Optional.of(testSupplier));
-        when(supplierMapper.toResponseDTO(testSupplier)).thenReturn(testSupplierResponseDTO);
+        when(repository.findProjectedById(1)).thenReturn(Optional.of(testProjection));
 
         Optional<SupplierResponseDTO> result = supplierService.findById(1);
 
         assertTrue(result.isPresent());
         assertEquals(testSupplierResponseDTO.getName(), result.get().getName());
-        verify(repository).findById(1);
+        verify(repository).findProjectedById(1);
     }
 
     @Test
     void findById_WhenSupplierDoesNotExist_ShouldReturnEmpty() {
-        when(repository.findById(999)).thenReturn(Optional.empty());
+        when(repository.findProjectedById(999)).thenReturn(Optional.empty());
 
         Optional<SupplierResponseDTO> result = supplierService.findById(999);
 
         assertFalse(result.isPresent());
-        verify(repository).findById(999);
+        verify(repository).findProjectedById(999);
     }
 
     @Test
@@ -201,26 +204,25 @@ class SupplierServiceTest {
 
     @Test
     void findByNameContaining_WhenSuppliersExist_ShouldReturnList() {
-        List<Supplier> suppliers = Arrays.asList(testSupplier);
-        when(repository.findByNameContainingIgnoreCase("Test")).thenReturn(suppliers);
-        when(supplierMapper.toResponseDTO(testSupplier)).thenReturn(testSupplierResponseDTO);
+        List<SupplierProjection> suppliers = Arrays.asList(testProjection);
+        when(repository.findProjectedByNameContainingIgnoreCase("Test")).thenReturn(suppliers);
 
         List<SupplierResponseDTO> result = supplierService.findByNameContaining("Test");
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testSupplierResponseDTO.getName(), result.get(0).getName());
-        verify(repository).findByNameContainingIgnoreCase("Test");
+        verify(repository).findProjectedByNameContainingIgnoreCase("Test");
     }
 
     @Test
     void findByNameContaining_WhenNoSuppliersFound_ShouldReturnEmptyList() {
-        when(repository.findByNameContainingIgnoreCase("NonExistent")).thenReturn(Arrays.asList());
+        when(repository.findProjectedByNameContainingIgnoreCase("NonExistent")).thenReturn(Arrays.asList());
 
         List<SupplierResponseDTO> result = supplierService.findByNameContaining("NonExistent");
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
-        verify(repository).findByNameContainingIgnoreCase("NonExistent");
+        verify(repository).findProjectedByNameContainingIgnoreCase("NonExistent");
     }
 }

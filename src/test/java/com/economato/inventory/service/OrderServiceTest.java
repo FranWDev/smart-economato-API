@@ -11,6 +11,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import com.economato.inventory.dto.projection.OrderProjection;
 import com.economato.inventory.dto.request.OrderDetailRequestDTO;
 import com.economato.inventory.dto.request.OrderReceptionDetailRequestDTO;
 import com.economato.inventory.dto.request.OrderReceptionRequestDTO;
@@ -24,7 +25,6 @@ import com.economato.inventory.model.MovementType;
 import com.economato.inventory.model.Order;
 import com.economato.inventory.model.OrderDetail;
 import com.economato.inventory.model.Product;
-import com.economato.inventory.model.StockLedger;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.OrderRepository;
 import com.economato.inventory.repository.ProductRepository;
@@ -70,6 +70,7 @@ class OrderServiceTest {
     private User testUser;
     private Product testProduct;
     private UserResponseDTO testUserResponseDTO;
+    private OrderProjection testProjection;
 
     @BeforeEach
     void setUp() {
@@ -112,45 +113,65 @@ class OrderServiceTest {
         testUserResponseDTO = new UserResponseDTO();
         testUserResponseDTO.setId(1);
         testUserResponseDTO.setName("Test User");
+
+        testProjection = mock(OrderProjection.class);
+        lenient().when(testProjection.getId()).thenReturn(1);
+        lenient().when(testProjection.getOrderDate()).thenReturn(LocalDateTime.now());
+        lenient().when(testProjection.getStatus()).thenReturn("CREATED");
+
+        OrderProjection.UserInfo userInfo = mock(OrderProjection.UserInfo.class);
+        lenient().when(userInfo.getId()).thenReturn(1);
+        lenient().when(userInfo.getName()).thenReturn("Test User");
+        lenient().when(testProjection.getUsers()).thenReturn(userInfo);
+
+        OrderProjection.OrderDetailSummary detailSummary = mock(OrderProjection.OrderDetailSummary.class);
+        lenient().when(detailSummary.getQuantity()).thenReturn(new BigDecimal("5.0"));
+
+        OrderProjection.OrderDetailSummary.ProductInfo productInfo = mock(
+                OrderProjection.OrderDetailSummary.ProductInfo.class);
+        lenient().when(productInfo.getId()).thenReturn(1);
+        lenient().when(productInfo.getName()).thenReturn("Test Product");
+        lenient().when(productInfo.getUnitPrice()).thenReturn(new BigDecimal("5.0"));
+        lenient().when(detailSummary.getProduct()).thenReturn(productInfo);
+
+        lenient().when(testProjection.getDetails()).thenReturn(Arrays.asList(detailSummary));
     }
 
     @Test
     void findAll_ShouldReturnListOfOrders() {
 
         Pageable pageable = PageRequest.of(0, 10);
-        Page<Order> page = new PageImpl<>(Arrays.asList(testOrder));
-        when(repository.findAll(pageable)).thenReturn(page);
-        when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
+        Page<OrderProjection> page = new PageImpl<>(Arrays.asList(testProjection));
+        when(repository.findAllProjectedBy(pageable)).thenReturn(page);
 
         List<OrderResponseDTO> result = orderService.findAll(pageable);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(repository).findAll(pageable);
+        verify(repository).findAllProjectedBy(pageable);
     }
 
     @Test
     void findById_WhenOrderExists_ShouldReturnOrder() {
 
-        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
-        when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
+        when(repository.findProjectedById(1)).thenReturn(Optional.of(testProjection));
 
         Optional<OrderResponseDTO> result = orderService.findById(1);
 
         assertTrue(result.isPresent());
         assertEquals(testOrderResponseDTO.getId(), result.get().getId());
-        verify(repository).findByIdWithDetails(1);
+        verify(repository).findProjectedById(1);
     }
 
     @Test
     void findById_WhenOrderDoesNotExist_ShouldReturnEmpty() {
 
-        when(repository.findByIdWithDetails(999)).thenReturn(Optional.empty());
+        when(repository.findProjectedById(999)).thenReturn(Optional.empty());
 
         Optional<OrderResponseDTO> result = orderService.findById(999);
 
         assertFalse(result.isPresent());
-        verify(repository).findByIdWithDetails(999);
+        verify(repository).findProjectedById(999);
     }
 
     @Test
@@ -236,27 +257,26 @@ class OrderServiceTest {
     @Test
     void findByUser_ShouldReturnUserOrders() {
 
-        when(repository.findByUserIdWithDetails(1)).thenReturn(Arrays.asList(testOrder));
-        when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
+        when(repository.findProjectedByUsersId(1)).thenReturn(Arrays.asList(testProjection));
 
         List<OrderResponseDTO> result = orderService.findByUser(testUserResponseDTO);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(repository).findByUserIdWithDetails(1);
+        verify(repository).findProjectedByUsersId(1);
     }
 
     @Test
     void findByStatus_ShouldReturnOrdersWithStatus() {
 
-        when(repository.findByStatusWithDetails("CREATED")).thenReturn(Arrays.asList(testOrder));
-        when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
+        Page<OrderProjection> page = new PageImpl<>(Arrays.asList(testProjection));
+        when(repository.findProjectedByStatus(eq("CREATED"), any(Pageable.class))).thenReturn(page);
 
         List<OrderResponseDTO> result = orderService.findByStatus("CREATED");
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(repository).findByStatusWithDetails("CREATED");
+        verify(repository).findProjectedByStatus(eq("CREATED"), any(Pageable.class));
     }
 
     @Test
@@ -264,14 +284,13 @@ class OrderServiceTest {
 
         LocalDateTime start = LocalDateTime.now().minusDays(7);
         LocalDateTime end = LocalDateTime.now();
-        when(repository.findByOrderDateBetweenWithDetails(start, end)).thenReturn(Arrays.asList(testOrder));
-        when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
+        when(repository.findProjectedByOrderDateBetween(start, end)).thenReturn(Arrays.asList(testProjection));
 
         List<OrderResponseDTO> result = orderService.findByDateRange(start, end);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(repository).findByOrderDateBetweenWithDetails(start, end);
+        verify(repository).findProjectedByOrderDateBetween(start, end);
     }
 
     @Test
@@ -364,14 +383,14 @@ class OrderServiceTest {
     @Test
     void findPendingReception_ShouldReturnPendingOrders() {
 
-        when(repository.findByStatusWithDetails("PENDING")).thenReturn(Arrays.asList(testOrder));
-        when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
+        Page<OrderProjection> page = new PageImpl<>(Arrays.asList(testProjection));
+        when(repository.findProjectedByStatus(eq("PENDING"), any(Pageable.class))).thenReturn(page);
 
         List<OrderResponseDTO> result = orderService.findPendingReception();
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(repository).findByStatusWithDetails("PENDING");
+        verify(repository).findProjectedByStatus(eq("PENDING"), any(Pageable.class));
     }
 
     @Test

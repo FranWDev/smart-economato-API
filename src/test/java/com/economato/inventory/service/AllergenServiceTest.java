@@ -11,12 +11,12 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import com.economato.inventory.dto.projection.AllergenProjection;
 import com.economato.inventory.dto.request.AllergenRequestDTO;
 import com.economato.inventory.dto.response.AllergenResponseDTO;
 import com.economato.inventory.mapper.AllergenMapper;
 import com.economato.inventory.model.Allergen;
 import com.economato.inventory.repository.AllergenRepository;
-import com.economato.inventory.service.AllergenService;
 
 import java.util.Arrays;
 import java.util.List;
@@ -41,6 +41,7 @@ class AllergenServiceTest {
     private Allergen testAllergen;
     private AllergenRequestDTO testAllergenRequestDTO;
     private AllergenResponseDTO testAllergenResponseDTO;
+    private AllergenProjection testProjection;
 
     @BeforeEach
     void setUp() {
@@ -54,46 +55,48 @@ class AllergenServiceTest {
         testAllergenResponseDTO = new AllergenResponseDTO();
         testAllergenResponseDTO.setId(1);
         testAllergenResponseDTO.setName("Test Allergen");
+
+        testProjection = mock(AllergenProjection.class);
+        lenient().when(testProjection.getId()).thenReturn(1);
+        lenient().when(testProjection.getName()).thenReturn("Test Allergen");
     }
 
     @Test
     void findAll_ShouldReturnPageOfAllergens() {
 
         Pageable pageable = PageRequest.of(0, 10);
-        Page<Allergen> page = new PageImpl<>(Arrays.asList(testAllergen));
+        Page<AllergenProjection> page = new PageImpl<>(Arrays.asList(testProjection));
 
-        when(repository.findAll(pageable)).thenReturn(page);
-        when(allergenMapper.toResponseDTO(testAllergen)).thenReturn(testAllergenResponseDTO);
+        when(repository.findAllProjectedBy(pageable)).thenReturn(page);
 
         Page<AllergenResponseDTO> result = allergenService.findAll(pageable);
 
         assertNotNull(result);
         assertEquals(1, result.getContent().size());
-        verify(repository).findAll(pageable);
+        verify(repository).findAllProjectedBy(pageable);
     }
 
     @Test
     void findById_WhenAllergenExists_ShouldReturnAllergen() {
 
-        when(repository.findById(1)).thenReturn(Optional.of(testAllergen));
-        when(allergenMapper.toResponseDTO(testAllergen)).thenReturn(testAllergenResponseDTO);
+        when(repository.findProjectedById(1)).thenReturn(Optional.of(testProjection));
 
         Optional<AllergenResponseDTO> result = allergenService.findById(1);
 
         assertTrue(result.isPresent());
         assertEquals(testAllergenResponseDTO.getName(), result.get().getName());
-        verify(repository).findById(1);
+        verify(repository).findProjectedById(1);
     }
 
     @Test
     void findById_WhenAllergenDoesNotExist_ShouldReturnEmpty() {
 
-        when(repository.findById(999)).thenReturn(Optional.empty());
+        when(repository.findProjectedById(999)).thenReturn(Optional.empty());
 
         Optional<AllergenResponseDTO> result = allergenService.findById(999);
 
         assertFalse(result.isPresent());
-        verify(repository).findById(999);
+        verify(repository).findProjectedById(999);
     }
 
     @Test
@@ -141,6 +144,7 @@ class AllergenServiceTest {
     @Test
     void deleteById_ShouldCallRepository() {
 
+        when(repository.existsById(1)).thenReturn(true);
         doNothing().when(repository).deleteById(1);
 
         allergenService.deleteById(1);
@@ -151,25 +155,24 @@ class AllergenServiceTest {
     @Test
     void findByName_WhenAllergenExists_ShouldReturnFirst() {
 
-        List<Allergen> allergens = Arrays.asList(testAllergen);
-        when(repository.findByNameContainingIgnoreCase("Test")).thenReturn(allergens);
-        when(allergenMapper.toResponseDTO(testAllergen)).thenReturn(testAllergenResponseDTO);
+        List<AllergenProjection> allergens = Arrays.asList(testProjection);
+        when(repository.findProjectedByNameContainingIgnoreCase("Test")).thenReturn(allergens);
 
         Optional<AllergenResponseDTO> result = allergenService.findByName("Test");
 
         assertTrue(result.isPresent());
         assertEquals(testAllergenResponseDTO.getName(), result.get().getName());
-        verify(repository).findByNameContainingIgnoreCase("Test");
+        verify(repository).findProjectedByNameContainingIgnoreCase("Test");
     }
 
     @Test
     void findByName_WhenNoAllergenFound_ShouldReturnEmpty() {
 
-        when(repository.findByNameContainingIgnoreCase("NonExistent")).thenReturn(Arrays.asList());
+        when(repository.findProjectedByNameContainingIgnoreCase("NonExistent")).thenReturn(Arrays.asList());
 
         Optional<AllergenResponseDTO> result = allergenService.findByName("NonExistent");
 
         assertFalse(result.isPresent());
-        verify(repository).findByNameContainingIgnoreCase("NonExistent");
+        verify(repository).findProjectedByNameContainingIgnoreCase("NonExistent");
     }
 }

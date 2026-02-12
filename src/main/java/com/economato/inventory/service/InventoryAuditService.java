@@ -17,7 +17,8 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
+@Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
+        Exception.class })
 public class InventoryAuditService {
 
     private final InventoryAuditRepository repository;
@@ -32,34 +33,59 @@ public class InventoryAuditService {
 
     @Transactional(readOnly = true)
     public List<InventoryMovementResponseDTO> findAll(Pageable pageable) {
-        return repository.findAll(pageable).stream()
-                .map(inventoryMovementMapper::toResponseDTO)
+        return repository.findAllProjectedBy(pageable).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public Optional<InventoryMovementResponseDTO> findById(Integer id) {
-        return repository.findById(id)
-                .map(inventoryMovementMapper::toResponseDTO);
+        return repository.findProjectedById(id)
+                .map(this::toResponseDTO);
     }
 
     @Async
-    @Transactional(rollbackFor = {InvalidOperationException.class, RuntimeException.class, Exception.class})
+    @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public void saveAuditLog(InventoryAudit movement) {
         repository.save(movement);
     }
 
     @Transactional(readOnly = true)
     public List<InventoryMovementResponseDTO> findByMovementType(String type) {
-        return repository.findByMovementTypeWithDetails(type).stream()
-                .map(inventoryMovementMapper::toResponseDTO)
+        return repository.findProjectedByMovementType(type).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public List<InventoryMovementResponseDTO> findByMovementDateBetween(java.time.LocalDateTime start, java.time.LocalDateTime end) {
-        return repository.findByMovementDateBetweenWithDetails(start, end).stream()
-                .map(inventoryMovementMapper::toResponseDTO)
+    public List<InventoryMovementResponseDTO> findByMovementDateBetween(java.time.LocalDateTime start,
+            java.time.LocalDateTime end) {
+        return repository.findProjectedByMovementDateBetween(start, end).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    private InventoryMovementResponseDTO toResponseDTO(
+            com.economato.inventory.dto.projection.InventoryAuditProjection projection) {
+        InventoryMovementResponseDTO dto = new InventoryMovementResponseDTO();
+        dto.setId(projection.getId());
+        dto.setQuantity(projection.getQuantity());
+        dto.setMovementType(projection.getMovementType());
+        dto.setMovementDate(projection.getMovementDate());
+
+        if (projection.getProduct() != null) {
+            dto.setProductId(projection.getProduct().getId());
+            dto.setProductName(projection.getProduct().getName());
+            dto.setCurrentStock(projection.getProduct().getCurrentStock());
+            // Replicating existing mapper logic for previousStock (uses current stock)
+            dto.setPreviousStock(projection.getProduct().getCurrentStock());
+        }
+
+        if (projection.getUsers() != null) {
+            dto.setUserId(projection.getUsers().getId());
+            dto.setUserName(projection.getUsers().getName());
+        }
+
+        return dto;
     }
 }

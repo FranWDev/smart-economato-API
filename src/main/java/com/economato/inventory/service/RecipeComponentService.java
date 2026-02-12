@@ -17,12 +17,14 @@ import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.RecipeComponentRepository;
 import com.economato.inventory.repository.RecipeRepository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
+@Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
+        Exception.class })
 public class RecipeComponentService {
 
     private final RecipeComponentRepository repository;
@@ -43,55 +45,84 @@ public class RecipeComponentService {
 
     @Transactional(readOnly = true)
     public List<RecipeComponentResponseDTO> findAll(Pageable pageable) {
-        return repository.findAll(pageable).stream()
-                .map(recipeComponentMapper::toResponseDTO)
+        return repository.findAllProjectedBy(pageable).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public Optional<RecipeComponentResponseDTO> findById(Integer id) {
-        return repository.findWithRecipeAndProductById(id)
-                .map(recipeComponentMapper::toResponseDTO);
+        return repository.findProjectedById(id)
+                .map(this::toResponseDTO);
     }
 
-    @Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
+    @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
+            RuntimeException.class, Exception.class })
     public RecipeComponentResponseDTO save(RecipeComponentRequestDTO requestDTO) {
         RecipeComponent component = toEntity(requestDTO);
         repository.save(component);
 
-        // recargar con relaciones para evitar parentRecipeId null
-        RecipeComponent loaded = repository.findWithRecipeAndProductById(component.getId())
+        // recargar con proyección
+        return repository.findProjectedById(component.getId())
+                .map(this::toResponseDTO)
                 .orElseThrow(() -> new RuntimeException("Saved component not found"));
-
-        return recipeComponentMapper.toResponseDTO(loaded);
     }
 
-    @Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
+    @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
+            RuntimeException.class, Exception.class })
     public Optional<RecipeComponentResponseDTO> update(Integer id, RecipeComponentRequestDTO requestDTO) {
         return repository.findById(id)
                 .map(existing -> {
                     updateEntity(existing, requestDTO);
                     repository.save(existing);
 
-                    RecipeComponent reloaded = repository.findWithRecipeAndProductById(existing.getId())
+                    return repository.findProjectedById(existing.getId())
+                            .map(this::toResponseDTO)
                             .orElseThrow(() -> new RuntimeException("Updated component not found"));
-                    return recipeComponentMapper.toResponseDTO(reloaded);
                 });
     }
 
-    @Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
+    @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
+            RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
         repository.deleteById(id);
     }
 
     @Transactional(readOnly = true)
     public List<RecipeComponentResponseDTO> findByParentRecipe(RecipeResponseDTO recipeDTO) {
-        Recipe recipe = recipeRepository.findById(recipeDTO.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Recipe not found"));
-
-        return repository.findAllByRecipeIdWithRelations(recipe.getId()).stream()
-                .map(recipeComponentMapper::toResponseDTO)
+        if (recipeDTO.getId() == null) {
+            throw new ResourceNotFoundException("Recipe ID not provided");
+        }
+        return repository.findProjectedByParentRecipeId(recipeDTO.getId()).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Convierte una proyección de RecipeComponent a RecipeComponentResponseDTO.
+     */
+    private RecipeComponentResponseDTO toResponseDTO(
+            com.economato.inventory.dto.projection.RecipeComponentProjection projection) {
+        com.economato.inventory.dto.response.RecipeComponentResponseDTO dto = new com.economato.inventory.dto.response.RecipeComponentResponseDTO();
+        dto.setId(projection.getId());
+        dto.setQuantity(projection.getQuantity());
+
+        if (projection.getParentRecipe() != null) {
+            dto.setParentRecipeId(projection.getParentRecipe().getId());
+        }
+
+        if (projection.getProduct() != null) {
+            dto.setProductId(projection.getProduct().getId());
+            dto.setProductName(projection.getProduct().getName());
+
+            // Calcular subtotal
+            BigDecimal price = projection.getProduct().getUnitPrice();
+            if (price != null && projection.getQuantity() != null) {
+                dto.setSubtotal(price.multiply(projection.getQuantity()));
+            }
+        }
+
+        return dto;
     }
 
     private RecipeComponent toEntity(RecipeComponentRequestDTO requestDTO) {

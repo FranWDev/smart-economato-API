@@ -19,23 +19,25 @@ import com.economato.inventory.repository.RecipeAuditRepository;
 import com.economato.inventory.repository.UserRepository;
 
 @Service
-@Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
+@Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
+        Exception.class })
 public class RecipeAuditService {
 
     private final RecipeAuditRepository repository;
     private final UserRepository userRepository;
     private final RecipeAuditMapper recipeAuditMapper;
 
-    public RecipeAuditService(RecipeAuditRepository repository, UserRepository userRepository, RecipeAuditMapper recipeAuditMapper) {
-            this.repository = repository;
-            this.userRepository = userRepository;
-            this.recipeAuditMapper = recipeAuditMapper;
+    public RecipeAuditService(RecipeAuditRepository repository, UserRepository userRepository,
+            RecipeAuditMapper recipeAuditMapper) {
+        this.repository = repository;
+        this.userRepository = userRepository;
+        this.recipeAuditMapper = recipeAuditMapper;
     }
 
     @Transactional(readOnly = true)
     public List<RecipeAuditResponseDTO> findAll(Pageable pageable) {
-        return repository.findAll(pageable).stream()
-                .map(recipeAuditMapper::toResponseDTO)
+        return repository.findAllProjectedBy(pageable).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
@@ -46,7 +48,7 @@ public class RecipeAuditService {
     }
 
     @Async
-    @Transactional(rollbackFor = {InvalidOperationException.class, RuntimeException.class, Exception.class})
+    @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public void logRecipeAction(Recipe recipe, String action, String details) {
         RecipeAudit audit = new RecipeAudit();
         audit.setRecipe(recipe);
@@ -57,23 +59,35 @@ public class RecipeAuditService {
 
     @Transactional(readOnly = true)
     public List<RecipeAuditResponseDTO> findByRecipeId(Integer id) {
-        return repository.findByRecipeIdWithDetails(id).stream()
-                .map(recipeAuditMapper::toResponseDTO)
+        return repository.findProjectedByRecipeId(id).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<RecipeAuditResponseDTO> findByUserId(Integer id) {
-        return repository.findByUsersId(userRepository.findById(id).get().getId()).stream()
-                .map(recipeAuditMapper::toResponseDTO)
+        return repository.findProjectedByUsersId(id).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public List<RecipeAuditResponseDTO> findByMovementDateBetween(java.time.LocalDateTime start, java.time.LocalDateTime end) {
-        return repository.findByAuditDateBetweenWithDetails(start, end).stream()
-                .map(recipeAuditMapper::toResponseDTO)
+    public List<RecipeAuditResponseDTO> findByMovementDateBetween(java.time.LocalDateTime start,
+            java.time.LocalDateTime end) {
+        return repository.findProjectedByAuditDateBetween(start, end).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    private RecipeAuditResponseDTO toResponseDTO(
+            com.economato.inventory.dto.projection.RecipeAuditProjection projection) {
+        RecipeAuditResponseDTO dto = new RecipeAuditResponseDTO();
+        dto.setId_recipe(projection.getRecipe() != null ? projection.getRecipe().getId() : null);
+        dto.setId_user(projection.getUsers() != null ? projection.getUsers().getId() : null);
+        dto.setAction(projection.getAction());
+        dto.setDetails(projection.getDetails());
+        dto.setAuditDate(projection.getAuditDate());
+        return dto;
     }
 
 }

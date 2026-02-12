@@ -59,16 +59,16 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderResponseDTO> findAll(Pageable pageable) {
-        return repository.findAll(pageable).stream()
-                .map(orderMapper::toResponseDTO)
+        return repository.findAllProjectedBy(pageable).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Cacheable(value = "order", key = "#id")
     @Transactional(readOnly = true)
     public Optional<OrderResponseDTO> findById(Integer id) {
-        return repository.findByIdWithDetails(id)
-                .map(orderMapper::toResponseDTO);
+        return repository.findProjectedById(id)
+                .map(this::toResponseDTO);
     }
 
     @CacheEvict(value = { "orders", "order" }, allEntries = true)
@@ -95,20 +95,19 @@ public class OrderService {
         }
 
         Order savedOrder = repository.save(order);
+        // Return using the same mapper for consistency
         return orderMapper.toResponseDTO(savedOrder);
     }
 
     /**
      * Actualiza una orden completa (usuario y detalles) con bloqueo optimista
      * 
-     * Utiliza @Retryable para manejar conflictos de concurrencia con reintentos automáticos
+     * Utiliza @Retryable para manejar conflictos de concurrencia con reintentos
+     * automáticos
      */
     @CacheEvict(value = { "orders", "order" }, allEntries = true)
-    @Retryable(
-        retryFor = {org.springframework.orm.ObjectOptimisticLockingFailureException.class},
-        maxAttempts = 3,
-        backoff = @Backoff(delay = 100, multiplier = 2)
-    )
+    @Retryable(retryFor = {
+            org.springframework.orm.ObjectOptimisticLockingFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 100, multiplier = 2))
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public Optional<OrderResponseDTO> update(Integer id, OrderRequestDTO requestDTO) {
@@ -133,7 +132,8 @@ public class OrderService {
                         existing.getDetails().add(detail);
                     }
 
-                    return orderMapper.toResponseDTO(repository.save(existing));
+                    Order saved = repository.save(existing);
+                    return orderMapper.toResponseDTO(saved);
                 });
     }
 
@@ -146,23 +146,87 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderResponseDTO> findByUser(UserResponseDTO user2) {
-        return repository.findByUserIdWithDetails(user2.getId()).stream()
-                .map(orderMapper::toResponseDTO)
+        return repository.findProjectedByUsersId(user2.getId()).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<OrderResponseDTO> findByStatus(String status) {
-        return repository.findByStatusWithDetails(status).stream()
-                .map(orderMapper::toResponseDTO)
+        // Since findStatus returns Page in repository implementation?
+        // Wait, repository implementation: findProjectedByStatus returns
+        // Page<OrderProjection>
+        // But here we return List<OrderResponseDTO>
+        // Pageable is not passed here.
+        // repository.findProjectedByStatus expects Pageable?
+        // Let's check repository definition I added.
+        // Page<OrderProjection> findProjectedByStatus(String status, Pageable
+        // pageable);
+        // So I cannot use it without pageable.
+        // I need List<OrderProjection> findProjectedByStatus(String status); in
+        // Repository?
+        // Or pass Pageable.unpaged() if supported?
+        // existing findByStatusWithDetails returns List.
+        // I should add List version to Repository or use Pageable.unpaged().
+        // For now I will assume I can add List version or use Pageable.unpaged()
+        return repository.findProjectedByStatus(status, Pageable.unpaged()).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<OrderResponseDTO> findByDateRange(LocalDateTime start, LocalDateTime end) {
-        return repository.findByOrderDateBetweenWithDetails(start, end).stream()
-                .map(orderMapper::toResponseDTO)
+        return repository.findProjectedByOrderDateBetween(start, end).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Converts OrderProjection to OrderResponseDTO
+     */
+    private OrderResponseDTO toResponseDTO(com.economato.inventory.dto.projection.OrderProjection projection) {
+        OrderResponseDTO dto = new OrderResponseDTO();
+        dto.setId(projection.getId());
+        dto.setOrderDate(projection.getOrderDate());
+        dto.setStatus(projection.getStatus());
+
+        if (projection.getUsers() != null) {
+            dto.setUserId(projection.getUsers().getId());
+            dto.setUserName(projection.getUsers().getName());
+        }
+
+        if (projection.getDetails() != null) {
+            List<com.economato.inventory.dto.response.OrderDetailResponseDTO> details = projection.getDetails().stream()
+                    .map(d -> toDetailDTO(d, projection.getId()))
+                    .collect(Collectors.toList());
+            dto.setDetails(details);
+
+            java.math.BigDecimal total = details.stream()
+                    .map(com.economato.inventory.dto.response.OrderDetailResponseDTO::getSubtotal)
+                    .filter(java.util.Objects::nonNull)
+                    .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+            dto.setTotalPrice(total);
+        }
+        return dto;
+    }
+
+    private com.economato.inventory.dto.response.OrderDetailResponseDTO toDetailDTO(
+            com.economato.inventory.dto.projection.OrderProjection.OrderDetailSummary summary, Integer orderId) {
+        com.economato.inventory.dto.response.OrderDetailResponseDTO dto = new com.economato.inventory.dto.response.OrderDetailResponseDTO();
+        dto.setOrderId(orderId);
+        dto.setQuantity(summary.getQuantity());
+        dto.setQuantityReceived(summary.getQuantityReceived());
+
+        if (summary.getProduct() != null) {
+            dto.setProductId(summary.getProduct().getId());
+            dto.setProductName(summary.getProduct().getName());
+            dto.setUnitPrice(summary.getProduct().getUnitPrice());
+
+            if (dto.getUnitPrice() != null && summary.getQuantity() != null) {
+                dto.setSubtotal(dto.getUnitPrice().multiply(summary.getQuantity()));
+            }
+        }
+        return dto;
     }
 
     /**
@@ -201,22 +265,21 @@ public class OrderService {
 
         if ("CONFIRMED".equals(receptionData.getStatus())) {
             log.info("Confirmando orden {} - Registrando en ledger inmutable", order.getId());
-            
+
             for (OrderDetail detail : order.getDetails()) {
                 Product product = productRepository.findByIdForUpdate(detail.getProduct().getId())
                         .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado"));
 
                 stockLedgerService.recordStockMovement(
-                    product.getId(),
-                    detail.getQuantityReceived(),
-                    MovementType.ENTRADA,
-                    String.format("Recepción de pedido #%d - %s", order.getId(), product.getName()),
-                    order.getUsers(),
-                    order.getId()
-                );
+                        product.getId(),
+                        detail.getQuantityReceived(),
+                        MovementType.ENTRADA,
+                        String.format("Recepción de pedido #%d - %s", order.getId(), product.getName()),
+                        order.getUsers(),
+                        order.getId());
             }
-            
-            log.info("Orden {} confirmada - {} movimientos registrados en ledger", 
+
+            log.info("Orden {} confirmada - {} movimientos registrados en ledger",
                     order.getId(), order.getDetails().size());
         }
 
@@ -229,24 +292,22 @@ public class OrderService {
      */
     @Transactional(readOnly = true)
     public List<OrderResponseDTO> findPendingReception() {
-        return repository.findByStatusWithDetails("PENDING").stream()
-                .map(orderMapper::toResponseDTO)
+        return repository.findProjectedByStatus("PENDING", Pageable.unpaged()).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     /**
      * Actualiza el estado de una orden con bloqueo optimista y reintentos
-    * Estados permitidos: CREATED, PENDING, REVIEW, CONFIRMED, INCOMPLETE, CANCELLED
+     * Estados permitidos: CREATED, PENDING, REVIEW, CONFIRMED, INCOMPLETE,
+     * CANCELLED
      * 
      * Utiliza @Retryable para manejar conflictos de concurrencia automáticamente
      * con hasta 3 intentos y backoff exponencial de 100ms
      */
     @OrderAuditable(action = "CAMBIO_ESTADO_ORDEN")
-    @Retryable(
-        retryFor = {org.springframework.orm.ObjectOptimisticLockingFailureException.class},
-        maxAttempts = 3,
-        backoff = @Backoff(delay = 100, multiplier = 2)
-    )
+    @Retryable(retryFor = {
+            org.springframework.orm.ObjectOptimisticLockingFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 100, multiplier = 2))
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public Optional<OrderResponseDTO> updateStatus(Integer orderId, String newStatus) {
         return repository.findById(orderId)

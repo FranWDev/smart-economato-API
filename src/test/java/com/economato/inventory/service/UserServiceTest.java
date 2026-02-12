@@ -13,6 +13,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.economato.inventory.dto.projection.UserProjection;
 import com.economato.inventory.dto.request.UserRequestDTO;
 import com.economato.inventory.dto.response.UserResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
@@ -21,7 +22,6 @@ import com.economato.inventory.mapper.UserMapper;
 import com.economato.inventory.model.Role;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.UserRepository;
-import com.economato.inventory.service.UserService;
 
 import java.util.Arrays;
 import java.util.List;
@@ -49,6 +49,7 @@ class UserServiceTest {
     private User testUser;
     private UserRequestDTO testUserRequestDTO;
     private UserResponseDTO testUserResponseDTO;
+    private UserProjection testProjection;
 
     @BeforeEach
     void setUp() {
@@ -70,47 +71,50 @@ class UserServiceTest {
         testUserResponseDTO.setName("Test User");
         testUserResponseDTO.setEmail("test@test.com");
         testUserResponseDTO.setRole(Role.USER);
+
+        testProjection = mock(UserProjection.class);
+        lenient().when(testProjection.getId()).thenReturn(1);
+        lenient().when(testProjection.getName()).thenReturn("Test User");
+        lenient().when(testProjection.getEmail()).thenReturn("test@test.com");
+        lenient().when(testProjection.getRole()).thenReturn(Role.USER);
     }
 
     @Test
     void findAll_ShouldReturnListOfUsers() {
 
         Pageable pageable = PageRequest.of(0, 10);
-        Page<User> page = new PageImpl<>(Arrays.asList(testUser));
-        when(repository.findAll(pageable)).thenReturn(page);
-        when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponseDTO);
+        Page<UserProjection> page = new PageImpl<>(Arrays.asList(testProjection));
+        when(repository.findAllProjectedBy(pageable)).thenReturn(page);
 
         List<UserResponseDTO> result = userService.findAll(pageable);
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testUserResponseDTO.getName(), result.get(0).getName());
-        verify(repository).findAll(pageable);
-        verify(userMapper).toResponseDTO(testUser);
+        verify(repository).findAllProjectedBy(pageable);
     }
 
     @Test
     void findById_WhenUserExists_ShouldReturnUser() {
 
-        when(repository.findById(1)).thenReturn(Optional.of(testUser));
-        when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponseDTO);
+        when(repository.findProjectedById(1)).thenReturn(Optional.of(testProjection));
 
         Optional<UserResponseDTO> result = userService.findById(1);
 
         assertTrue(result.isPresent());
         assertEquals(testUserResponseDTO.getName(), result.get().getName());
-        verify(repository).findById(1);
+        verify(repository).findProjectedById(1);
     }
 
     @Test
     void findById_WhenUserDoesNotExist_ShouldReturnEmpty() {
 
-        when(repository.findById(999)).thenReturn(Optional.empty());
+        when(repository.findProjectedById(999)).thenReturn(Optional.empty());
 
         Optional<UserResponseDTO> result = userService.findById(999);
 
         assertFalse(result.isPresent());
-        verify(repository).findById(999);
+        verify(repository).findProjectedById(999);
     }
 
     @Test
@@ -267,28 +271,27 @@ class UserServiceTest {
     @Test
     void findByRole_ShouldReturnUsersWithRole() {
 
-        List<User> users = Arrays.asList(testUser);
-        when(repository.findByRole(Role.USER)).thenReturn(users);
-        when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponseDTO);
+        List<UserProjection> users = Arrays.asList(testProjection);
+        when(repository.findProjectedByRole(Role.USER)).thenReturn(users);
 
         List<UserResponseDTO> result = userService.findByRole(Role.USER);
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testUserResponseDTO.getRole(), result.get(0).getRole());
-        verify(repository).findByRole(Role.USER);
+        verify(repository).findProjectedByRole(Role.USER);
     }
 
     @Test
     void findByRole_WhenNoUsersFound_ShouldReturnEmptyList() {
 
-        when(repository.findByRole(Role.ADMIN)).thenReturn(Arrays.asList());
+        when(repository.findProjectedByRole(Role.ADMIN)).thenReturn(Arrays.asList());
 
         List<UserResponseDTO> result = userService.findByRole(Role.ADMIN);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
-        verify(repository).findByRole(Role.ADMIN);
+        verify(repository).findProjectedByRole(Role.ADMIN);
     }
 
     @Test

@@ -19,65 +19,83 @@ import java.util.List;
 import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Integer> {
-    
-    List<Order> findByUsers(User users);
-    
-    List<Order> findByStatus(String status);
-    
-    List<Order> findByOrderDateBetween(LocalDateTime start, LocalDateTime end);
 
-    Optional<OrderDetailResponseDTO> findById(OrderResponseDTO order2);
-    
- 
-    @Query("SELECT DISTINCT o FROM Order o " +
-           "LEFT JOIN FETCH o.details d " +
-           "LEFT JOIN FETCH d.product " +
-           "LEFT JOIN FETCH o.users " +
-           "WHERE o.id = :id")
-    Optional<Order> findByIdWithDetails(@Param("id") Integer id);
+       List<Order> findByUsers(User users);
 
-    /**
-     * Busca una orden por ID con bloqueo pesimista para actualizaciones concurrentes
-     * Utiliza PESSIMISTIC_WRITE para prevenir conflictos de escritura
-     */
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT o FROM Order o WHERE o.id = :id")
-    Optional<Order> findByIdForUpdate(@Param("id") Integer id);
+       List<Order> findByStatus(String status);
 
-    @Query("SELECT DISTINCT o FROM Order o " +
-           "LEFT JOIN FETCH o.details d " +
-           "LEFT JOIN FETCH d.product " +
-           "LEFT JOIN FETCH o.users")
-    List<Order> findAllWithDetails();
+       List<Order> findByOrderDateBetween(LocalDateTime start, LocalDateTime end);
 
-    @Query("SELECT DISTINCT o FROM Order o " +
-           "LEFT JOIN FETCH o.details d " +
-           "LEFT JOIN FETCH d.product " +
-           "LEFT JOIN FETCH o.users " +
-           "WHERE o.status = :status")
-    List<Order> findByStatusWithDetails(@Param("status") String status);
-    
-    @Query("SELECT DISTINCT o FROM Order o " +
-           "LEFT JOIN FETCH o.details d " +
-           "LEFT JOIN FETCH d.product " +
-           "LEFT JOIN FETCH o.users u " +
-           "WHERE u.id = :userId")
-    List<Order> findByUserIdWithDetails(@Param("userId") Integer userId);
- 
-    @Query("SELECT DISTINCT o FROM Order o " +
-           "LEFT JOIN FETCH o.details d " +
-           "LEFT JOIN FETCH d.product " +
-           "LEFT JOIN FETCH o.users " +
-           "WHERE o.orderDate BETWEEN :start AND :end")
-    List<Order> findByOrderDateBetweenWithDetails(
-        @Param("start") LocalDateTime start, 
-        @Param("end") LocalDateTime end);
-    
- 
-    @EntityGraph(attributePaths = {"details", "details.product", "users"})
-    @Query("SELECT o FROM Order o WHERE o.status = :status")
-    Page<Order> findByStatusWithDetailsPageable(@Param("status") String status, Pageable pageable);
+       Optional<OrderDetailResponseDTO> findById(OrderResponseDTO order2);
 
-    @EntityGraph(attributePaths = {"details", "details.product", "users"})
-    Page<Order> findAll(Pageable pageable);
+       @Query("SELECT DISTINCT o FROM Order o " +
+                     "LEFT JOIN FETCH o.details d " +
+                     "LEFT JOIN FETCH d.product " +
+                     "LEFT JOIN FETCH o.users " +
+                     "WHERE o.id = :id")
+       Optional<Order> findByIdWithDetails(@Param("id") Integer id);
+
+       /**
+        * Busca una orden por ID con bloqueo pesimista para actualizaciones
+        * concurrentes
+        * Utiliza PESSIMISTIC_WRITE para prevenir conflictos de escritura
+        */
+       @Lock(LockModeType.PESSIMISTIC_WRITE)
+       @Query("SELECT o FROM Order o WHERE o.id = :id")
+       Optional<Order> findByIdForUpdate(@Param("id") Integer id);
+
+       @Query("SELECT DISTINCT o FROM Order o " +
+                     "LEFT JOIN FETCH o.details d " +
+                     "LEFT JOIN FETCH d.product " +
+                     "LEFT JOIN FETCH o.users")
+       List<Order> findAllWithDetails();
+
+       @Query("SELECT DISTINCT o FROM Order o " +
+                     "LEFT JOIN FETCH o.details d " +
+                     "LEFT JOIN FETCH d.product " +
+                     "LEFT JOIN FETCH o.users " +
+                     "WHERE o.status = :status")
+       List<Order> findByStatusWithDetails(@Param("status") String status);
+
+       @Query("SELECT DISTINCT o FROM Order o " +
+                     "LEFT JOIN FETCH o.details d " +
+                     "LEFT JOIN FETCH d.product " +
+                     "LEFT JOIN FETCH o.users u " +
+                     "WHERE u.id = :userId")
+       List<Order> findByUserIdWithDetails(@Param("userId") Integer userId);
+
+       @Query("SELECT DISTINCT o FROM Order o " +
+                     "LEFT JOIN FETCH o.details d " +
+                     "LEFT JOIN FETCH d.product " +
+                     "LEFT JOIN FETCH o.users " +
+                     "WHERE o.orderDate BETWEEN :start AND :end")
+       List<Order> findByOrderDateBetweenWithDetails(
+                     @Param("start") LocalDateTime start,
+                     @Param("end") LocalDateTime end);
+
+       @EntityGraph(attributePaths = { "details", "details.product", "users" })
+       @Query("SELECT o FROM Order o WHERE o.status = :status")
+       Page<Order> findByStatusWithDetailsPageable(@Param("status") String status, Pageable pageable);
+
+       @EntityGraph(attributePaths = { "details", "details.product", "users" })
+       Page<Order> findAll(Pageable pageable);
+
+       // --- Proyecciones ---
+
+       @EntityGraph(attributePaths = { "details", "details.product", "users" })
+       Page<com.economato.inventory.dto.projection.OrderProjection> findAllProjectedBy(Pageable pageable);
+
+       @EntityGraph(attributePaths = { "details", "details.product", "users" })
+       Optional<com.economato.inventory.dto.projection.OrderProjection> findProjectedById(Integer id);
+
+       @EntityGraph(attributePaths = { "details", "details.product", "users" })
+       Page<com.economato.inventory.dto.projection.OrderProjection> findProjectedByStatus(String status,
+                     Pageable pageable);
+
+       @EntityGraph(attributePaths = { "details", "details.product", "users" })
+       List<com.economato.inventory.dto.projection.OrderProjection> findProjectedByUsersId(Integer userId);
+
+       @EntityGraph(attributePaths = { "details", "details.product", "users" })
+       List<com.economato.inventory.dto.projection.OrderProjection> findProjectedByOrderDateBetween(LocalDateTime start,
+                     LocalDateTime end);
 }

@@ -19,23 +19,25 @@ import com.economato.inventory.repository.OrderAuditRepository;
 import com.economato.inventory.repository.UserRepository;
 
 @Service
-@Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
+@Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
+        Exception.class })
 public class OrderAuditService {
 
     private final OrderAuditRepository repository;
     private final UserRepository userRepository;
     private final OrderAuditMapper orderAuditMapper;
 
-    public OrderAuditService(OrderAuditRepository repository, UserRepository userRepository, OrderAuditMapper orderAuditMapper) {
-            this.repository = repository;
-            this.userRepository = userRepository;
-            this.orderAuditMapper = orderAuditMapper;
+    public OrderAuditService(OrderAuditRepository repository, UserRepository userRepository,
+            OrderAuditMapper orderAuditMapper) {
+        this.repository = repository;
+        this.userRepository = userRepository;
+        this.orderAuditMapper = orderAuditMapper;
     }
 
     @Transactional(readOnly = true)
     public List<OrderAuditResponseDTO> findAll(Pageable pageable) {
-        return repository.findAll(pageable).stream()
-                .map(orderAuditMapper::toResponseDTO)
+        return repository.findAllProjectedBy(pageable).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
@@ -46,7 +48,7 @@ public class OrderAuditService {
     }
 
     @Async
-    @Transactional(rollbackFor = {InvalidOperationException.class, RuntimeException.class, Exception.class})
+    @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public void logOrderAction(Order order, String action, String details, String previousState, String newState) {
         OrderAudit audit = new OrderAudit();
         audit.setOrder(order);
@@ -59,23 +61,45 @@ public class OrderAuditService {
 
     @Transactional(readOnly = true)
     public List<OrderAuditResponseDTO> findByOrderId(Integer id) {
-        return repository.findByOrderIdWithDetails(id).stream()
-                .map(orderAuditMapper::toResponseDTO)
+        return repository.findProjectedByOrderId(id).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<OrderAuditResponseDTO> findByUserId(Integer id) {
-        return repository.findByUsersId(userRepository.findById(id).get().getId()).stream()
-                .map(orderAuditMapper::toResponseDTO)
+        return repository.findProjectedByUsersId(id).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
-    public List<OrderAuditResponseDTO> findByAuditDateBetween(java.time.LocalDateTime start, java.time.LocalDateTime end) {
-        return repository.findByAuditDateBetweenWithDetails(start, end).stream()
-                .map(orderAuditMapper::toResponseDTO)
+    public List<OrderAuditResponseDTO> findByAuditDateBetween(java.time.LocalDateTime start,
+            java.time.LocalDateTime end) {
+        return repository.findProjectedByAuditDateBetween(start, end).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    private OrderAuditResponseDTO toResponseDTO(
+            com.economato.inventory.dto.projection.OrderAuditProjection projection) {
+        OrderAuditResponseDTO dto = new OrderAuditResponseDTO();
+        dto.setId(projection.getId());
+        dto.setAction(projection.getAction());
+        dto.setDetails(projection.getDetails());
+        dto.setPreviousState(projection.getPreviousState());
+        dto.setNewState(projection.getNewState());
+        dto.setAuditDate(projection.getAuditDate());
+
+        if (projection.getOrder() != null) {
+            dto.setOrderId(projection.getOrder().getId());
+        }
+
+        if (projection.getUsers() != null) {
+            dto.setUserId(projection.getUsers().getId());
+            dto.setUserName(projection.getUsers().getName());
+        }
+        return dto;
     }
 
 }

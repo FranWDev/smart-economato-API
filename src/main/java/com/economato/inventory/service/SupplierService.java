@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.economato.inventory.dto.projection.SupplierProjection;
 import com.economato.inventory.dto.request.SupplierRequestDTO;
 import com.economato.inventory.dto.response.SupplierResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
@@ -19,14 +20,16 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
+@Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
+        Exception.class })
 public class SupplierService {
 
     private final SupplierRepository repository;
     private final ProductRepository productRepository;
     private final SupplierMapper supplierMapper;
 
-    public SupplierService(SupplierRepository repository, ProductRepository productRepository, SupplierMapper supplierMapper) {
+    public SupplierService(SupplierRepository repository, ProductRepository productRepository,
+            SupplierMapper supplierMapper) {
         this.repository = repository;
         this.productRepository = productRepository;
         this.supplierMapper = supplierMapper;
@@ -34,16 +37,17 @@ public class SupplierService {
 
     @Transactional(readOnly = true)
     public Page<SupplierResponseDTO> findAll(Pageable pageable) {
-        return repository.findAll(pageable).map(supplierMapper::toResponseDTO);
+        return repository.findAllProjectedBy(pageable)
+                .map(this::toResponseDTO);
     }
 
     @Transactional(readOnly = true)
     public Optional<SupplierResponseDTO> findById(Integer id) {
-        return repository.findById(id)
-                .map(supplierMapper::toResponseDTO);
+        return repository.findProjectedById(id)
+                .map(this::toResponseDTO);
     }
 
-    @Transactional(rollbackFor = {InvalidOperationException.class, RuntimeException.class, Exception.class})
+    @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public SupplierResponseDTO save(SupplierRequestDTO requestDTO) {
         if (repository.existsByName(requestDTO.getName())) {
             throw new InvalidOperationException("Ya existe un proveedor con ese nombre");
@@ -52,7 +56,8 @@ public class SupplierService {
         return supplierMapper.toResponseDTO(repository.save(supplier));
     }
 
-    @Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
+    @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
+            RuntimeException.class, Exception.class })
     public Optional<SupplierResponseDTO> update(Integer id, SupplierRequestDTO requestDTO) {
         return repository.findById(id)
                 .map(existing -> {
@@ -65,7 +70,8 @@ public class SupplierService {
                 });
     }
 
-    @Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
+    @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
+            RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
         repository.findById(id).ifPresent(supplier -> {
             if (productRepository.existsBySupplierId(id)) {
@@ -78,8 +84,15 @@ public class SupplierService {
 
     @Transactional(readOnly = true)
     public List<SupplierResponseDTO> findByNameContaining(String namePart) {
-        return repository.findByNameContainingIgnoreCase(namePart).stream()
-                .map(supplierMapper::toResponseDTO)
+        return repository.findProjectedByNameContainingIgnoreCase(namePart).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Convierte una proyección de Supplier a SupplierResponseDTO.
+     */
+    private SupplierResponseDTO toResponseDTO(SupplierProjection projection) {
+        return new SupplierResponseDTO(projection.getId(), projection.getName());
     }
 }

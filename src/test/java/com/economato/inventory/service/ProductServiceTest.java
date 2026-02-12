@@ -12,6 +12,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import com.economato.inventory.dto.projection.ProductProjection;
 import com.economato.inventory.dto.request.ProductRequestDTO;
 import com.economato.inventory.dto.response.ProductResponseDTO;
 import com.economato.inventory.exception.ConcurrencyException;
@@ -65,6 +66,7 @@ class ProductServiceTest {
     private Product testProduct;
     private ProductRequestDTO testProductRequestDTO;
     private ProductResponseDTO testProductResponseDTO;
+    private ProductProjection testProjection;
 
     @BeforeEach
     void setUp() {
@@ -93,91 +95,85 @@ class ProductServiceTest {
         testProductResponseDTO.setCurrentStock(new BigDecimal("10.0"));
         testProductResponseDTO.setUnitPrice(new BigDecimal("5.0"));
         testProductResponseDTO.setProductCode("TEST001");
+
+        testProjection = mock(ProductProjection.class);
+        lenient().when(testProjection.getId()).thenReturn(1);
+        lenient().when(testProjection.getName()).thenReturn("Test Product");
+        lenient().when(testProjection.getUnit()).thenReturn("KG");
+        lenient().when(testProjection.getType()).thenReturn("INGREDIENT");
+        lenient().when(testProjection.getCurrentStock()).thenReturn(new BigDecimal("10.0"));
+        lenient().when(testProjection.getUnitPrice()).thenReturn(new BigDecimal("5.0"));
+        lenient().when(testProjection.getProductCode()).thenReturn("TEST001");
     }
 
     @Test
     void findAll_ShouldReturnPageOfProducts() {
 
         Pageable pageable = PageRequest.of(0, 10);
-        Page<Product> page = new PageImpl<>(Arrays.asList(testProduct));
+        Page<ProductProjection> page = new PageImpl<>(Arrays.asList(testProjection));
 
-        when(repository.findAll(pageable)).thenReturn(page);
-        when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
+        when(repository.findAllProjectedBy(pageable)).thenReturn(page);
 
         Page<ProductResponseDTO> result = productService.findAll(pageable);
 
         assertNotNull(result);
         assertEquals(1, result.getContent().size());
         assertEquals(testProductResponseDTO.getName(), result.getContent().get(0).getName());
-        verify(repository).findAll(pageable);
+        verify(repository).findAllProjectedBy(pageable);
     }
 
     @Test
     void findById_WhenProductExists_ShouldReturnProduct() {
 
-        when(repository.findById(1)).thenReturn(Optional.of(testProduct));
-        when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
+        when(repository.findProjectedById(1)).thenReturn(Optional.of(testProjection));
 
         Optional<ProductResponseDTO> result = productService.findById(1);
 
         assertTrue(result.isPresent());
         assertEquals(testProductResponseDTO.getName(), result.get().getName());
-        verify(repository).findById(1);
+        verify(repository).findProjectedById(1);
     }
 
     @Test
     void findById_WhenProductDoesNotExist_ShouldReturnEmpty() {
 
-        when(repository.findById(999)).thenReturn(Optional.empty());
+        when(repository.findProjectedById(999)).thenReturn(Optional.empty());
 
         Optional<ProductResponseDTO> result = productService.findById(999);
 
         assertFalse(result.isPresent());
-        verify(repository).findById(999);
+        verify(repository).findProjectedById(999);
     }
 
     @Test
     void findByCodebar_WhenProductExists_ShouldReturnProduct() {
 
-        when(repository.findByProductCode("TEST001")).thenReturn(Optional.of(testProduct));
-        when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
+        when(repository.findProjectedByProductCode("TEST001")).thenReturn(Optional.of(testProjection));
 
         Optional<ProductResponseDTO> result = productService.findByCodebar("TEST001");
 
         assertTrue(result.isPresent());
         assertEquals(testProductResponseDTO.getProductCode(), result.get().getProductCode());
-        verify(repository).findByProductCode("TEST001");
+        verify(repository).findProjectedByProductCode("TEST001");
     }
 
     @Test
     void findByName_ShouldReturnPageOfMatchingProducts() {
         // Arrange
-        Product product1 = new Product();
-        product1.setId(1);
-        product1.setName("Leche Desnatada");
-        product1.setProductCode("CODE001");
+        ProductProjection proj1 = mock(ProductProjection.class);
+        lenient().when(proj1.getId()).thenReturn(1);
+        lenient().when(proj1.getName()).thenReturn("Leche Desnatada");
+        lenient().when(proj1.getProductCode()).thenReturn("CODE001");
 
-        Product product2 = new Product();
-        product2.setId(2);
-        product2.setName("Leche Entera");
-        product2.setProductCode("CODE002");
-
-        ProductResponseDTO responseDTO1 = new ProductResponseDTO();
-        responseDTO1.setId(1);
-        responseDTO1.setName("Leche Desnatada");
-        responseDTO1.setProductCode("CODE001");
-
-        ProductResponseDTO responseDTO2 = new ProductResponseDTO();
-        responseDTO2.setId(2);
-        responseDTO2.setName("Leche Entera");
-        responseDTO2.setProductCode("CODE002");
+        ProductProjection proj2 = mock(ProductProjection.class);
+        lenient().when(proj2.getId()).thenReturn(2);
+        lenient().when(proj2.getName()).thenReturn("Leche Entera");
+        lenient().when(proj2.getProductCode()).thenReturn("CODE002");
 
         Pageable pageable = PageRequest.of(0, 10);
-        Page<Product> page = new PageImpl<>(Arrays.asList(product1, product2));
+        Page<ProductProjection> page = new PageImpl<>(Arrays.asList(proj1, proj2));
 
-        when(repository.findByNameContainingIgnoreCase("leche", pageable)).thenReturn(page);
-        when(productMapper.toResponseDTO(product1)).thenReturn(responseDTO1);
-        when(productMapper.toResponseDTO(product2)).thenReturn(responseDTO2);
+        when(repository.findProjectedByNameContainingIgnoreCase("leche", pageable)).thenReturn(page);
 
         // Act
         Page<ProductResponseDTO> result = productService.findByName("leche", pageable);
@@ -187,16 +183,16 @@ class ProductServiceTest {
         assertEquals(2, result.getContent().size());
         assertEquals("Leche Desnatada", result.getContent().get(0).getName());
         assertEquals("Leche Entera", result.getContent().get(1).getName());
-        verify(repository).findByNameContainingIgnoreCase("leche", pageable);
+        verify(repository).findProjectedByNameContainingIgnoreCase("leche", pageable);
     }
 
     @Test
     void findByName_WhenNoMatches_ShouldReturnEmptyPage() {
         // Arrange
         Pageable pageable = PageRequest.of(0, 10);
-        Page<Product> emptyPage = new PageImpl<>(Arrays.asList());
+        Page<ProductProjection> emptyPage = new PageImpl<>(Arrays.asList());
 
-        when(repository.findByNameContainingIgnoreCase("inexistente", pageable)).thenReturn(emptyPage);
+        when(repository.findProjectedByNameContainingIgnoreCase("inexistente", pageable)).thenReturn(emptyPage);
 
         // Act
         Page<ProductResponseDTO> result = productService.findByName("inexistente", pageable);
@@ -204,9 +200,8 @@ class ProductServiceTest {
         // Assert
         assertNotNull(result);
         assertEquals(0, result.getContent().size());
-        verify(repository).findByNameContainingIgnoreCase("inexistente", pageable);
+        verify(repository).findProjectedByNameContainingIgnoreCase("inexistente", pageable);
     }
-
 
     @Test
     void save_WhenNameDoesNotExist_ShouldCreateProduct() {
@@ -383,47 +378,44 @@ class ProductServiceTest {
     @Test
     void findByType_ShouldReturnProductsOfType() {
 
-        List<Product> products = Arrays.asList(testProduct);
-        when(repository.findByType("INGREDIENT")).thenReturn(products);
-        when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
+        List<ProductProjection> products = Arrays.asList(testProjection);
+        when(repository.findProjectedByType("INGREDIENT")).thenReturn(products);
 
         List<ProductResponseDTO> result = productService.findByType("INGREDIENT");
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testProductResponseDTO.getType(), result.get(0).getType());
-        verify(repository).findByType("INGREDIENT");
+        verify(repository).findProjectedByType("INGREDIENT");
     }
 
     @Test
     void findByNameContaining_ShouldReturnMatchingProducts() {
 
-        List<Product> products = Arrays.asList(testProduct);
-        when(repository.findByNameContainingIgnoreCase("Test")).thenReturn(products);
-        when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
+        List<ProductProjection> products = Arrays.asList(testProjection);
+        when(repository.findProjectedByNameContainingIgnoreCase("Test")).thenReturn(products);
 
         List<ProductResponseDTO> result = productService.findByNameContaining("Test");
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertTrue(result.get(0).getName().contains("Test"));
-        verify(repository).findByNameContainingIgnoreCase("Test");
+        verify(repository).findProjectedByNameContainingIgnoreCase("Test");
     }
 
     @Test
     void findByStockLessThan_ShouldReturnLowStockProducts() {
 
-        List<Product> products = Arrays.asList(testProduct);
+        List<ProductProjection> products = Arrays.asList(testProjection);
         BigDecimal threshold = new BigDecimal("20.0");
-        when(repository.findByCurrentStockLessThan(threshold)).thenReturn(products);
-        when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
+        when(repository.findProjectedByCurrentStockLessThan(threshold)).thenReturn(products);
 
         List<ProductResponseDTO> result = productService.findByStockLessThan(threshold);
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertTrue(result.get(0).getCurrentStock().compareTo(threshold) < 0);
-        verify(repository).findByCurrentStockLessThan(threshold);
+        verify(repository).findProjectedByCurrentStockLessThan(threshold);
     }
 
     @Test
@@ -431,15 +423,14 @@ class ProductServiceTest {
 
         BigDecimal min = new BigDecimal("1.0");
         BigDecimal max = new BigDecimal("10.0");
-        List<Product> products = Arrays.asList(testProduct);
-        when(repository.findByUnitPriceBetween(min, max)).thenReturn(products);
-        when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
+        List<ProductProjection> products = Arrays.asList(testProjection);
+        when(repository.findProjectedByUnitPriceBetween(min, max)).thenReturn(products);
 
         List<ProductResponseDTO> result = productService.findByPriceRange(min, max);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(repository).findByUnitPriceBetween(min, max);
+        verify(repository).findProjectedByUnitPriceBetween(min, max);
     }
 
     @Test
@@ -519,7 +510,8 @@ class ProductServiceTest {
 
         lenient().when(repository.findById(1)).thenReturn(Optional.of(testProduct));
         lenient().when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
-        lenient().when(repository.save(any(Product.class))).thenThrow(new OptimisticLockingFailureException("Lock failure"));
+        lenient().when(repository.save(any(Product.class)))
+                .thenThrow(new OptimisticLockingFailureException("Lock failure"));
 
         assertThrows(ConcurrencyException.class, () -> {
             productService.updateStockManually(1, testProductRequestDTO);

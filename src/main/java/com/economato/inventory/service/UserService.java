@@ -37,16 +37,16 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findAll(Pageable pageable) {
-        return repository.findAll(pageable).stream()
-                .map(userMapper::toResponseDTO)
+        return repository.findAllProjectedBy(pageable).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Cacheable(value = "user", key = "#id")
     @Transactional(readOnly = true)
     public Optional<UserResponseDTO> findById(Integer id) {
-        return repository.findById(id)
-                .map(userMapper::toResponseDTO);
+        return repository.findProjectedById(id)
+                .map(this::toResponseDTO);
     }
 
     @Cacheable(value = "userByEmail", key = "#username")
@@ -127,8 +127,20 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findByRole(Role role) {
-        return repository.findByRole(role).stream()
-                .map(userMapper::toResponseDTO)
+        return repository.findProjectedByRole(role).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Convierte una proyección de User a UserResponseDTO.
+     */
+    private UserResponseDTO toResponseDTO(com.economato.inventory.dto.projection.UserProjection projection) {
+        com.economato.inventory.dto.response.UserResponseDTO dto = new com.economato.inventory.dto.response.UserResponseDTO();
+        dto.setId(projection.getId());
+        dto.setName(projection.getName());
+        dto.setEmail(projection.getEmail());
+        dto.setRole(projection.getRole());
+        return dto;
     }
 }

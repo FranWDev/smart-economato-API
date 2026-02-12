@@ -63,14 +63,14 @@ public class RecipeService {
 
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<RecipeResponseDTO> findAll(Pageable pageable) {
-        return repository.findAll(pageable)
-                .map(recipeMapper::toResponseDTO);
+        return repository.findAllProjectedBy(pageable)
+                .map(this::toResponseDTO);
     }
 
     @Cacheable(value = "recipe", key = "#id")
     @Transactional(readOnly = true)
     public Optional<RecipeResponseDTO> findById(Integer id) {
-        return repository.findByIdWithDetails(id).map(recipeMapper::toResponseDTO);
+        return repository.findProjectedById(id).map(this::toResponseDTO);
     }
 
     @CacheEvict(value = { "recipes", "recipe" }, allEntries = true)
@@ -80,7 +80,10 @@ public class RecipeService {
     public RecipeResponseDTO save(RecipeRequestDTO requestDTO) {
         Recipe recipe = toEntity(requestDTO);
         calculateTotalCost(recipe);
-        return recipeMapper.toResponseDTO(repository.save(recipe));
+        recipe = repository.save(recipe);
+
+        // Return using mapper for consistency with entity state
+        return recipeMapper.toResponseDTO(recipe);
     }
 
     @CacheEvict(value = { "recipes", "recipe" }, allEntries = true)
@@ -92,7 +95,8 @@ public class RecipeService {
                 .map(existing -> {
                     updateEntity(existing, requestDTO);
                     calculateTotalCost(existing);
-                    return recipeMapper.toResponseDTO(repository.save(existing));
+                    Recipe saved = repository.save(existing);
+                    return recipeMapper.toResponseDTO(saved);
                 });
     }
 
@@ -105,16 +109,65 @@ public class RecipeService {
 
     @Transactional(readOnly = true)
     public List<RecipeResponseDTO> findByNameContaining(String namePart) {
-        return repository.findByNameContainingIgnoreCaseWithDetails(namePart).stream()
-                .map(recipeMapper::toResponseDTO)
+        return repository.findProjectedByNameContainingIgnoreCase(namePart).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<RecipeResponseDTO> findByCostLessThan(BigDecimal maxCost) {
-        return repository.findByTotalCostLessThanWithDetails(maxCost).stream()
-                .map(recipeMapper::toResponseDTO)
+        return repository.findProjectedByTotalCostLessThan(maxCost).stream()
+                .map(this::toResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Converts RecipeProjection to RecipeResponseDTO
+     */
+    private RecipeResponseDTO toResponseDTO(com.economato.inventory.dto.projection.RecipeProjection projection) {
+        RecipeResponseDTO dto = new RecipeResponseDTO();
+        dto.setId(projection.getId());
+        dto.setName(projection.getName());
+        dto.setElaboration(projection.getElaboration());
+        dto.setPresentation(projection.getPresentation());
+        dto.setTotalCost(projection.getTotalCost());
+
+        if (projection.getComponents() != null) {
+            dto.setComponents(projection.getComponents().stream()
+                    .map(c -> toComponentDTO(c, projection.getId()))
+                    .collect(Collectors.toList()));
+        }
+
+        if (projection.getAllergens() != null) {
+            dto.setAllergens(projection.getAllergens().stream()
+                    .map(this::toAllergenDTO)
+                    .collect(Collectors.toList()));
+        }
+        return dto;
+    }
+
+    private com.economato.inventory.dto.response.RecipeComponentResponseDTO toComponentDTO(
+            com.economato.inventory.dto.projection.RecipeProjection.RecipeComponentSummary summary, Integer recipeId) {
+        com.economato.inventory.dto.response.RecipeComponentResponseDTO dto = new com.economato.inventory.dto.response.RecipeComponentResponseDTO();
+        dto.setId(summary.getId());
+        dto.setQuantity(summary.getQuantity());
+        dto.setParentRecipeId(recipeId);
+
+        if (summary.getProduct() != null) {
+            dto.setProductId(summary.getProduct().getId());
+            dto.setProductName(summary.getProduct().getName());
+
+            BigDecimal price = summary.getProduct().getUnitPrice();
+            if (price != null && summary.getQuantity() != null) {
+                dto.setSubtotal(price.multiply(summary.getQuantity()));
+            }
+        }
+        return dto;
+    }
+
+    private com.economato.inventory.dto.response.AllergenResponseDTO toAllergenDTO(
+            com.economato.inventory.dto.projection.RecipeProjection.AllergenInfo info) {
+        return new com.economato.inventory.dto.response.AllergenResponseDTO(info.getId(), info.getName());
     }
 
     private Recipe toEntity(RecipeRequestDTO requestDTO) {

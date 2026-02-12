@@ -5,18 +5,19 @@ import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.economato.inventory.dto.projection.AllergenProjection;
 import com.economato.inventory.dto.request.AllergenRequestDTO;
 import com.economato.inventory.dto.response.AllergenResponseDTO;
-import com.economato.inventory.exception.InvalidOperationException;
-import com.economato.inventory.exception.ResourceNotFoundException;
 import com.economato.inventory.mapper.AllergenMapper;
 import com.economato.inventory.model.Allergen;
 import com.economato.inventory.repository.AllergenRepository;
 
 import java.util.Optional;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
-@Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
+@Transactional
 public class AllergenService {
 
     private final AllergenRepository repository;
@@ -29,22 +30,21 @@ public class AllergenService {
 
     @Transactional(readOnly = true)
     public Page<AllergenResponseDTO> findAll(Pageable pageable) {
-        return repository.findAll(pageable).map(allergenMapper::toResponseDTO);
+        return repository.findAllProjectedBy(pageable)
+                .map(this::toResponseDTO);
     }
 
     @Transactional(readOnly = true)
     public Optional<AllergenResponseDTO> findById(Integer id) {
-        return repository.findById(id)
-                .map(allergenMapper::toResponseDTO);
+        return repository.findProjectedById(id)
+                .map(this::toResponseDTO);
     }
 
-    @Transactional(rollbackFor = {InvalidOperationException.class, RuntimeException.class, Exception.class})
     public AllergenResponseDTO save(AllergenRequestDTO requestDTO) {
         Allergen allergen = allergenMapper.toEntity(requestDTO);
         return allergenMapper.toResponseDTO(repository.save(allergen));
     }
 
-    @Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
     public Optional<AllergenResponseDTO> update(Integer id, AllergenRequestDTO requestDTO) {
         return repository.findById(id)
                 .map(existing -> {
@@ -53,15 +53,30 @@ public class AllergenService {
                 });
     }
 
-    @Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
     public void deleteById(Integer id) {
-        repository.deleteById(id);
+        if (repository.existsById(id)) {
+            repository.deleteById(id);
+        }
     }
 
     @Transactional(readOnly = true)
     public Optional<AllergenResponseDTO> findByName(String namePart) {
-        return repository.findByNameContainingIgnoreCase(namePart).stream()
+        return repository.findProjectedByNameContainingIgnoreCase(namePart).stream()
                 .findFirst()
-                .map(allergenMapper::toResponseDTO);
+                .map(this::toResponseDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AllergenResponseDTO> findByNameContaining(String namePart) {
+        return repository.findProjectedByNameContainingIgnoreCase(namePart).stream()
+                .map(this::toResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Convierte una proyección de Allergen a AllergenResponseDTO.
+     */
+    private AllergenResponseDTO toResponseDTO(AllergenProjection projection) {
+        return new AllergenResponseDTO(projection.getId(), projection.getName());
     }
 }

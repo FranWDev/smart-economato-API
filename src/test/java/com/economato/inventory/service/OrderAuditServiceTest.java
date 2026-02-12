@@ -12,15 +12,14 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import com.economato.inventory.dto.projection.OrderAuditProjection;
 import com.economato.inventory.dto.response.OrderAuditResponseDTO;
-import com.economato.inventory.exception.ResourceNotFoundException;
 import com.economato.inventory.mapper.OrderAuditMapper;
 import com.economato.inventory.model.Order;
 import com.economato.inventory.model.OrderAudit;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.OrderAuditRepository;
 import com.economato.inventory.repository.UserRepository;
-import com.economato.inventory.service.OrderAuditService;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -50,6 +49,7 @@ class OrderAuditServiceTest {
     private User testUser;
     private OrderAudit testOrderAudit;
     private OrderAuditResponseDTO testOrderAuditResponseDTO;
+    private OrderAuditProjection testProjection;
 
     @BeforeEach
     void setUp() {
@@ -82,6 +82,24 @@ class OrderAuditServiceTest {
         testOrderAuditResponseDTO.setPreviousState("{\"status\":\"CREATED\"}");
         testOrderAuditResponseDTO.setNewState("{\"status\":\"PENDING\"}");
         testOrderAuditResponseDTO.setAuditDate(LocalDateTime.now());
+
+        // Setup Projection Mock
+        testProjection = mock(OrderAuditProjection.class);
+        lenient().when(testProjection.getId()).thenReturn(1);
+        lenient().when(testProjection.getAction()).thenReturn("CAMBIO_ESTADO");
+        lenient().when(testProjection.getDetails()).thenReturn("Estado cambiado de CREATED a PENDING");
+        lenient().when(testProjection.getPreviousState()).thenReturn("{\"status\":\"CREATED\"}");
+        lenient().when(testProjection.getNewState()).thenReturn("{\"status\":\"PENDING\"}");
+        lenient().when(testProjection.getAuditDate()).thenReturn(LocalDateTime.now());
+
+        OrderAuditProjection.OrderInfo orderInfo = mock(OrderAuditProjection.OrderInfo.class);
+        lenient().when(orderInfo.getId()).thenReturn(1);
+        lenient().when(testProjection.getOrder()).thenReturn(orderInfo);
+
+        OrderAuditProjection.UserInfo userInfo = mock(OrderAuditProjection.UserInfo.class);
+        lenient().when(userInfo.getId()).thenReturn(1);
+        lenient().when(userInfo.getName()).thenReturn("Test User");
+        lenient().when(testProjection.getUsers()).thenReturn(userInfo);
     }
 
     @Test
@@ -110,30 +128,30 @@ class OrderAuditServiceTest {
     @Test
     void testFindByOrderId_EmptyResult() {
 
-        when(orderAuditRepository.findByOrderIdWithDetails(999)).thenReturn(Arrays.asList());
+        when(orderAuditRepository.findProjectedByOrderId(999)).thenReturn(Arrays.asList());
 
         List<OrderAuditResponseDTO> result = orderAuditService.findByOrderId(999);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
-        verify(orderAuditRepository).findByOrderIdWithDetails(999);
+        verify(orderAuditRepository).findProjectedByOrderId(999);
     }
 
     @Test
     void testFindAll_Success() {
 
         Pageable pageable = PageRequest.of(0, 10);
-        Page<OrderAudit> auditPage = new PageImpl<>(Arrays.asList(testOrderAudit));
+        Page<OrderAuditProjection> auditPage = new PageImpl<>(Arrays.asList(testProjection));
 
-        when(orderAuditRepository.findAll(pageable)).thenReturn(auditPage);
-        when(orderAuditMapper.toResponseDTO(any(OrderAudit.class))).thenReturn(testOrderAuditResponseDTO);
+        when(orderAuditRepository.findAllProjectedBy(pageable)).thenReturn(auditPage);
 
         List<OrderAuditResponseDTO> result = orderAuditService.findAll(pageable);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals(testOrderAuditResponseDTO, result.get(0));
-        verify(orderAuditRepository).findAll(pageable);
+        assertEquals(testOrderAuditResponseDTO.getId(), result.get(0).getId());
+        assertEquals(testOrderAuditResponseDTO.getOrderId(), result.get(0).getOrderId());
+        verify(orderAuditRepository).findAllProjectedBy(pageable);
     }
 
     @Test
@@ -163,30 +181,27 @@ class OrderAuditServiceTest {
     @Test
     void testFindByOrderId_Success() {
 
-        when(orderAuditRepository.findByOrderIdWithDetails(1)).thenReturn(Arrays.asList(testOrderAudit));
-        when(orderAuditMapper.toResponseDTO(any(OrderAudit.class))).thenReturn(testOrderAuditResponseDTO);
+        when(orderAuditRepository.findProjectedByOrderId(1)).thenReturn(Arrays.asList(testProjection));
 
         List<OrderAuditResponseDTO> result = orderAuditService.findByOrderId(1);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals(testOrderAuditResponseDTO, result.get(0));
-        verify(orderAuditRepository).findByOrderIdWithDetails(1);
+        assertEquals(testOrderAuditResponseDTO.getId(), result.get(0).getId());
+        verify(orderAuditRepository).findProjectedByOrderId(1);
     }
 
     @Test
     void testFindByUserId_Success() {
 
-        when(userRepository.findById(1)).thenReturn(Optional.of(testUser));
-        when(orderAuditRepository.findByUsersId(1)).thenReturn(Arrays.asList(testOrderAudit));
-        when(orderAuditMapper.toResponseDTO(any(OrderAudit.class))).thenReturn(testOrderAuditResponseDTO);
+        when(orderAuditRepository.findProjectedByUsersId(1)).thenReturn(Arrays.asList(testProjection));
 
         List<OrderAuditResponseDTO> result = orderAuditService.findByUserId(1);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals(testOrderAuditResponseDTO, result.get(0));
-        verify(orderAuditRepository).findByUsersId(1);
+        assertEquals(testOrderAuditResponseDTO.getId(), result.get(0).getId());
+        verify(orderAuditRepository).findProjectedByUsersId(1);
     }
 
     @Test
@@ -195,16 +210,15 @@ class OrderAuditServiceTest {
         LocalDateTime start = LocalDateTime.now().minusDays(7);
         LocalDateTime end = LocalDateTime.now();
 
-        when(orderAuditRepository.findByAuditDateBetweenWithDetails(start, end))
-                .thenReturn(Arrays.asList(testOrderAudit));
-        when(orderAuditMapper.toResponseDTO(any(OrderAudit.class))).thenReturn(testOrderAuditResponseDTO);
+        when(orderAuditRepository.findProjectedByAuditDateBetween(start, end))
+                .thenReturn(Arrays.asList(testProjection));
 
         List<OrderAuditResponseDTO> result = orderAuditService.findByAuditDateBetween(start, end);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals(testOrderAuditResponseDTO, result.get(0));
-        verify(orderAuditRepository).findByAuditDateBetweenWithDetails(start, end);
+        assertEquals(testOrderAuditResponseDTO.getId(), result.get(0).getId());
+        verify(orderAuditRepository).findProjectedByAuditDateBetween(start, end);
     }
 
     @Test
@@ -213,12 +227,12 @@ class OrderAuditServiceTest {
         LocalDateTime start = LocalDateTime.now().minusDays(7);
         LocalDateTime end = LocalDateTime.now();
 
-        when(orderAuditRepository.findByAuditDateBetweenWithDetails(start, end)).thenReturn(Arrays.asList());
+        when(orderAuditRepository.findProjectedByAuditDateBetween(start, end)).thenReturn(Arrays.asList());
 
         List<OrderAuditResponseDTO> result = orderAuditService.findByAuditDateBetween(start, end);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
-        verify(orderAuditRepository).findByAuditDateBetweenWithDetails(start, end);
+        verify(orderAuditRepository).findProjectedByAuditDateBetween(start, end);
     }
 }

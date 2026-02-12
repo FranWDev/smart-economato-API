@@ -11,6 +11,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
+import com.economato.inventory.dto.projection.RecipeProjection;
 import com.economato.inventory.dto.request.RecipeComponentRequestDTO;
 import com.economato.inventory.dto.request.RecipeCookingRequestDTO;
 import com.economato.inventory.dto.request.RecipeRequestDTO;
@@ -23,17 +24,15 @@ import com.economato.inventory.model.MovementType;
 import com.economato.inventory.model.Product;
 import com.economato.inventory.model.Recipe;
 import com.economato.inventory.model.RecipeComponent;
-import com.economato.inventory.model.User;
 import com.economato.inventory.repository.AllergenRepository;
 import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.RecipeRepository;
 import com.economato.inventory.repository.UserRepository;
-import com.economato.inventory.service.RecipeService;
-import com.economato.inventory.service.StockLedgerService;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -41,8 +40,6 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
-
-import org.mockito.ArgumentMatcher;
 
 @ExtendWith(MockitoExtension.class)
 class RecipeServiceTest {
@@ -73,6 +70,7 @@ class RecipeServiceTest {
     private RecipeResponseDTO testRecipeResponseDTO;
     private Product testProduct;
     private Allergen testAllergen;
+    private RecipeProjection testProjection;
 
     @BeforeEach
     void setUp() {
@@ -114,44 +112,68 @@ class RecipeServiceTest {
         testRecipeResponseDTO.setId(1);
         testRecipeResponseDTO.setName("Test Recipe");
         testRecipeResponseDTO.setTotalCost(new BigDecimal("10.00"));
+
+        testProjection = mock(RecipeProjection.class);
+        lenient().when(testProjection.getId()).thenReturn(1);
+        lenient().when(testProjection.getName()).thenReturn("Test Recipe");
+        lenient().when(testProjection.getTotalCost()).thenReturn(new BigDecimal("10.00"));
+        lenient().when(testProjection.getElaboration()).thenReturn("Test elaboration");
+        lenient().when(testProjection.getPresentation()).thenReturn("Test presentation");
+
+        RecipeProjection.RecipeComponentSummary compSummary = mock(RecipeProjection.RecipeComponentSummary.class);
+        lenient().when(compSummary.getId()).thenReturn(1);
+        lenient().when(compSummary.getQuantity()).thenReturn(new BigDecimal("2.0"));
+
+        RecipeProjection.RecipeComponentSummary.ProductInfo prodInfo = mock(
+                RecipeProjection.RecipeComponentSummary.ProductInfo.class);
+        lenient().when(prodInfo.getId()).thenReturn(1);
+        lenient().when(prodInfo.getName()).thenReturn("Test Product");
+        lenient().when(prodInfo.getUnitPrice()).thenReturn(new BigDecimal("5.00"));
+        lenient().when(compSummary.getProduct()).thenReturn(prodInfo);
+
+        lenient().when(testProjection.getComponents()).thenReturn(Arrays.asList(compSummary));
+
+        RecipeProjection.AllergenInfo allergenInfo = mock(RecipeProjection.AllergenInfo.class);
+        lenient().when(allergenInfo.getId()).thenReturn(1);
+        lenient().when(allergenInfo.getName()).thenReturn("Test Allergen");
+
+        lenient().when(testProjection.getAllergens()).thenReturn(Collections.singleton(allergenInfo));
     }
 
     @Test
     void findAll_ShouldReturnPageOfRecipes() {
         Pageable pageable = PageRequest.of(0, 10);
-        Page<Recipe> page = new PageImpl<>(Arrays.asList(testRecipe));
-        when(repository.findAll(pageable)).thenReturn(page);
-        when(recipeMapper.toResponseDTO(testRecipe)).thenReturn(testRecipeResponseDTO);
+        Page<RecipeProjection> page = new PageImpl<>(Arrays.asList(testProjection));
+        when(repository.findAllProjectedBy(any(Pageable.class))).thenReturn(page);
 
         Page<RecipeResponseDTO> result = recipeService.findAll(pageable);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
-        verify(repository).findAll(pageable);
+        verify(repository).findAllProjectedBy(any(Pageable.class));
     }
 
     @Test
     void findById_WhenRecipeExists_ShouldReturnRecipe() {
 
-        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testRecipe));
-        when(recipeMapper.toResponseDTO(testRecipe)).thenReturn(testRecipeResponseDTO);
+        when(repository.findProjectedById(1)).thenReturn(Optional.of(testProjection));
 
         Optional<RecipeResponseDTO> result = recipeService.findById(1);
 
         assertTrue(result.isPresent());
         assertEquals(testRecipeResponseDTO.getName(), result.get().getName());
-        verify(repository).findByIdWithDetails(1);
+        verify(repository).findProjectedById(1);
     }
 
     @Test
     void findById_WhenRecipeDoesNotExist_ShouldReturnEmpty() {
 
-        when(repository.findByIdWithDetails(999)).thenReturn(Optional.empty());
+        when(repository.findProjectedById(999)).thenReturn(Optional.empty());
 
         Optional<RecipeResponseDTO> result = recipeService.findById(999);
 
         assertFalse(result.isPresent());
-        verify(repository).findByIdWithDetails(999);
+        verify(repository).findProjectedById(999);
     }
 
     @Test
@@ -302,28 +324,26 @@ class RecipeServiceTest {
     @Test
     void findByNameContaining_ShouldReturnMatchingRecipes() {
 
-        when(repository.findByNameContainingIgnoreCaseWithDetails("Test")).thenReturn(Arrays.asList(testRecipe));
-        when(recipeMapper.toResponseDTO(testRecipe)).thenReturn(testRecipeResponseDTO);
+        when(repository.findProjectedByNameContainingIgnoreCase("Test")).thenReturn(Arrays.asList(testProjection));
 
         List<RecipeResponseDTO> result = recipeService.findByNameContaining("Test");
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(repository).findByNameContainingIgnoreCaseWithDetails("Test");
+        verify(repository).findProjectedByNameContainingIgnoreCase("Test");
     }
 
     @Test
     void findByCostLessThan_ShouldReturnRecipesBelowCost() {
 
         BigDecimal maxCost = new BigDecimal("20.00");
-        when(repository.findByTotalCostLessThanWithDetails(maxCost)).thenReturn(Arrays.asList(testRecipe));
-        when(recipeMapper.toResponseDTO(testRecipe)).thenReturn(testRecipeResponseDTO);
+        when(repository.findProjectedByTotalCostLessThan(maxCost)).thenReturn(Arrays.asList(testProjection));
 
         List<RecipeResponseDTO> result = recipeService.findByCostLessThan(maxCost);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(repository).findByTotalCostLessThanWithDetails(maxCost);
+        verify(repository).findProjectedByTotalCostLessThan(maxCost);
     }
 
     @Test
