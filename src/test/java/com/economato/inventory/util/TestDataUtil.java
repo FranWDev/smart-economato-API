@@ -63,8 +63,10 @@ public class TestDataUtil {
         product.setUnit(unit);
         product.setUnitPrice(price);
         product.setProductCode(code);
-        // Ajustar escala del stock para compatibilidad con la base de datos (precision=10, scale=3)
+        // Ajustar escala del stock para compatibilidad con la base de datos
+        // (precision=10, scale=3)
         product.setCurrentStock(stock.setScale(3, java.math.RoundingMode.HALF_UP));
+        product.setMinimumStock(BigDecimal.ZERO); // Default to 0 for tests
         product.setOrderDetails(new ArrayList<>());
         return product;
     }
@@ -200,6 +202,7 @@ public class TestDataUtil {
         dto.setUnitPrice(new BigDecimal("2.50"));
         dto.setProductCode("HAR002");
         dto.setCurrentStock(new BigDecimal("100.0"));
+        dto.setMinimumStock(BigDecimal.ZERO); // Default for tests
         return dto;
     }
 

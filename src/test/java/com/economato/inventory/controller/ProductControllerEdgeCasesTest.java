@@ -132,6 +132,7 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
                 productRequest.setCurrentStock(new BigDecimal("5.0"));
                 productRequest.setUnitPrice(new BigDecimal("10.0"));
                 productRequest.setProductCode("TEST001");
+                productRequest.setMinimumStock(BigDecimal.ZERO);
 
                 mockMvc.perform(post(BASE_URL)
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -165,6 +166,7 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
                 productRequest.setCurrentStock(new BigDecimal("5.0"));
                 productRequest.setUnitPrice(new BigDecimal("10.0"));
                 productRequest.setProductCode("TEST001");
+                productRequest.setMinimumStock(BigDecimal.ZERO);
 
                 mockMvc.perform(put(BASE_URL + "/99999")
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -192,6 +194,7 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
                         productRequest.setCurrentStock(new BigDecimal("5.0"));
                         productRequest.setUnitPrice(new BigDecimal("10.0"));
                         productRequest.setProductCode("CODE" + i);
+                        productRequest.setMinimumStock(BigDecimal.ZERO);
 
                         mockMvc.perform(post(BASE_URL)
                                         .header("Authorization", "Bearer " + jwtToken)
@@ -223,6 +226,7 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
                 ingredientProduct.setCurrentStock(new BigDecimal("10.0"));
                 ingredientProduct.setUnitPrice(new BigDecimal("5.0"));
                 ingredientProduct.setProductCode("FLOUR001");
+                ingredientProduct.setMinimumStock(BigDecimal.ZERO);
 
                 mockMvc.perform(post(BASE_URL)
                                 .header("Authorization", "Bearer " + jwtToken)

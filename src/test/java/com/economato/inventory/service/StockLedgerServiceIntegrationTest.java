@@ -67,6 +67,7 @@ class StockLedgerServiceIntegrationTest {
                 testProduct.setUnitPrice(new BigDecimal("10.50"));
                 testProduct.setProductCode("LEDGER-TEST-001");
                 testProduct.setCurrentStock(new BigDecimal("100.0"));
+                testProduct.setMinimumStock(BigDecimal.ZERO); // Required field
                 testProduct = productRepository.saveAndFlush(testProduct);
 
                 testUser = null;
@@ -386,6 +387,7 @@ class StockLedgerServiceIntegrationTest {
                 product2.setUnitPrice(new BigDecimal("5.0"));
                 product2.setProductCode("LEDGER-TEST-002");
                 product2.setCurrentStock(new BigDecimal("50.0"));
+                product2.setMinimumStock(BigDecimal.ZERO); // Required field
                 product2 = productRepository.save(product2);
 
                 stockLedgerService.recordStockMovement(

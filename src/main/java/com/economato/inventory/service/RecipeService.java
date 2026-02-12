@@ -215,12 +215,27 @@ public class RecipeService {
 
             BigDecimal requiredQuantity = component.getQuantity().multiply(cookingRequest.getQuantity());
 
-            if (product.getCurrentStock().compareTo(requiredQuantity) < 0) {
-                throw new InvalidOperationException(
-                        String.format("Stock insuficiente del producto '%s'. Disponible: %s, Requerido: %s",
-                                product.getName(),
-                                product.getCurrentStock(),
-                                requiredQuantity));
+            // Calcular stock utilizable considerando el porcentaje de disponibilidad
+            BigDecimal availabilityPercent = product.getAvailabilityPercentage() != null
+                    ? product.getAvailabilityPercentage()
+                    : BigDecimal.valueOf(100.00);
+
+            BigDecimal usableStock = product.getCurrentStock()
+                    .multiply(availabilityPercent)
+                    .divide(BigDecimal.valueOf(100), 3, java.math.RoundingMode.DOWN);
+
+            if (usableStock.compareTo(requiredQuantity) < 0) {
+                String errorMessage = String.format(
+                        "Stock insuficiente del producto '%s'. Stock total: %s %s, Stock utilizable (%s%%): %s %s, Requerido: %s %s",
+                        product.getName(),
+                        product.getCurrentStock(),
+                        product.getUnit(),
+                        availabilityPercent,
+                        usableStock,
+                        product.getUnit(),
+                        requiredQuantity,
+                        product.getUnit());
+                throw new InvalidOperationException(errorMessage);
             }
 
             stockLedgerService.recordStockMovement(

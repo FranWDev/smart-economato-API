@@ -33,43 +33,43 @@ INSERT INTO users (name, email, password, role) VALUES
 -- ============================================
 -- PRODUCTOS
 -- ============================================
-INSERT INTO product (name, type, unit_of_measure, unit_price, product_code, current_stock, version) VALUES
+INSERT INTO product (name, type, unit_of_measure, unit_price, product_code, current_stock, availability_percentage, minimum_stock, version) VALUES
 -- Carnes y Proteínas
-('Pollo entero', 'CARNE', 'kg', 5.99, 'CARN-001', 50.000, 0),
-('Carne de res', 'CARNE', 'kg', 12.50, 'CARN-002', 30.500, 0),
-('Pescado fresco', 'PESCADO', 'kg', 8.75, 'PESC-001', 25.000, 0),
-('Camarones', 'MARISCO', 'kg', 15.00, 'MARI-001', 20.000, 0),
+('Pollo entero', 'CARNE', 'kg', 5.99, 'CARN-001', 50.000, 95.00, 10.000, 0),
+('Carne de res', 'CARNE', 'kg', 12.50, 'CARN-002', 30.500, 90.00, 5.000, 0),
+('Pescado fresco', 'PESCADO', 'kg', 8.75, 'PESC-001', 25.000, 85.00, 5.000, 0),
+('Camarones', 'MARISCO', 'kg', 15.00, 'MARI-001', 20.000, 80.00, 3.000, 0),
 
 -- Vegetales
-('Tomate', 'VEGETAL', 'kg', 2.50, 'VEG-001', 100.000, 0),
-('Cebolla', 'VEGETAL', 'kg', 1.80, 'VEG-002', 80.000, 0),
-('Zanahoria', 'VEGETAL', 'kg', 1.50, 'VEG-003', 60.000, 0),
-('Lechuga', 'VEGETAL', 'unidad', 1.20, 'VEG-004', 50.000, 0),
-('Pimiento rojo', 'VEGETAL', 'kg', 3.20, 'VEG-005', 40.000, 0),
+('Tomate', 'VEGETAL', 'kg', 2.50, 'VEG-001', 100.000, 90.00, 20.000, 0),
+('Cebolla', 'VEGETAL', 'kg', 1.80, 'VEG-002', 80.000, 95.00, 15.000, 0),
+('Zanahoria', 'VEGETAL', 'kg', 1.50, 'VEG-003', 60.000, 92.00, 10.000, 0),
+('Lechuga', 'VEGETAL', 'unidad', 1.20, 'VEG-004', 50.000, 75.00, 10.000, 0),
+('Pimiento rojo', 'VEGETAL', 'kg', 3.20, 'VEG-005', 40.000, 88.00, 8.000, 0),
 
 -- Lácteos
-('Leche entera', 'LACTEO', 'litro', 1.50, 'LACT-001', 150.000, 0),
-('Queso mozzarella', 'LACTEO', 'kg', 7.50, 'LACT-002', 30.000, 0),
-('Mantequilla', 'LACTEO', 'kg', 8.00, 'LACT-003', 25.000, 0),
-('Crema de leche', 'LACTEO', 'litro', 3.50, 'LACT-004', 40.000, 0),
+('Leche entera', 'LACTEO', 'litro', 1.50, 'LACT-001', 150.000, 100.00, 30.000, 0),
+('Queso mozzarella', 'LACTEO', 'kg', 7.50, 'LACT-002', 30.000, 98.00, 5.000, 0),
+('Mantequilla', 'LACTEO', 'kg', 8.00, 'LACT-003', 25.000, 100.00, 5.000, 0),
+('Crema de leche', 'LACTEO', 'litro', 3.50, 'LACT-004', 40.000, 100.00, 10.000, 0),
 
 -- Granos y Cereales
-('Arroz blanco', 'GRANO', 'kg', 2.20, 'GRAN-001', 200.000, 0),
-('Pasta', 'GRANO', 'kg', 1.80, 'GRAN-002', 150.000, 0),
-('Harina de trigo', 'GRANO', 'kg', 1.50, 'GRAN-003', 100.000, 0),
-('Frijoles negros', 'GRANO', 'kg', 2.50, 'GRAN-004', 80.000, 0),
+('Arroz blanco', 'GRANO', 'kg', 2.20, 'GRAN-001', 200.000, 100.00, 40.000, 0),
+('Pasta', 'GRANO', 'kg', 1.80, 'GRAN-002', 150.000, 100.00, 30.000, 0),
+('Harina de trigo', 'GRANO', 'kg', 1.50, 'GRAN-003', 100.000, 100.00, 20.000, 0),
+('Frijoles negros', 'GRANO', 'kg', 2.50, 'GRAN-004', 80.000, 95.00, 15.000, 0),
 
 -- Especias y Condimentos
-('Sal', 'CONDIMENTO', 'kg', 0.80, 'COND-001', 50.000, 0),
-('Pimienta negra', 'ESPECIA', 'kg', 12.00, 'ESP-001', 10.000, 0),
-('Aceite de oliva', 'ACEITE', 'litro', 8.50, 'ACEI-001', 60.000, 0),
-('Vinagre', 'CONDIMENTO', 'litro', 2.00, 'COND-002', 40.000, 0),
-('Ajo', 'CONDIMENTO', 'kg', 4.50, 'COND-003', 30.000, 0),
+('Sal', 'CONDIMENTO', 'kg', 0.80, 'COND-001', 50.000, 100.00, 10.000, 0),
+('Pimienta negra', 'ESPECIA', 'kg', 12.00, 'ESP-001', 10.000, 100.00, 2.000, 0),
+('Aceite de oliva', 'ACEITE', 'litro', 8.50, 'ACEI-001', 60.000, 100.00, 15.000, 0),
+('Vinagre', 'CONDIMENTO', 'litro', 2.00, 'COND-002', 40.000, 100.00, 10.000, 0),
+('Ajo', 'CONDIMENTO', 'kg', 4.50, 'COND-003', 30.000, 85.00, 5.000, 0),
 
 -- Frutas
-('Limón', 'FRUTA', 'kg', 2.00, 'FRUT-001', 50.000, 0),
-('Manzana', 'FRUTA', 'kg', 3.50, 'FRUT-002', 60.000, 0),
-('Plátano', 'FRUTA', 'kg', 1.50, 'FRUT-003', 80.000, 0);
+('Limón', 'FRUTA', 'kg', 2.00, 'FRUT-001', 50.000, 90.00, 10.000, 0),
+('Manzana', 'FRUTA', 'kg', 3.50, 'FRUT-002', 60.000, 93.00, 12.000, 0),
+('Plátano', 'FRUTA', 'kg', 1.50, 'FRUT-003', 80.000, 88.00, 15.000, 0);
 
 -- ============================================
 -- ALERGENOS

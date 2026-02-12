@@ -40,6 +40,7 @@ public class ConcurrencyTest {
         product.setUnitPrice(BigDecimal.valueOf(10.00));
         product.setProductCode("TEST-CONCURRENCY-001");
         product.setCurrentStock(BigDecimal.valueOf(100));
+        product.setMinimumStock(BigDecimal.ZERO);
         product = productRepository.save(product);
 
         final Integer productId = product.getId();
@@ -92,6 +93,7 @@ public class ConcurrencyTest {
         product.setUnitPrice(BigDecimal.valueOf(15.00));
         product.setProductCode("TEST-PESSIMISTIC-001");
         product.setCurrentStock(BigDecimal.valueOf(200));
+        product.setMinimumStock(BigDecimal.ZERO);
         product = productRepository.save(product);
 
         final Integer productId = product.getId();
@@ -155,6 +157,7 @@ public class ConcurrencyTest {
         product.setUnitPrice(BigDecimal.valueOf(20.00));
         product.setProductCode("TEST-VERSION-001");
         product.setCurrentStock(BigDecimal.valueOf(50));
+        product.setMinimumStock(BigDecimal.ZERO);
         product = productRepository.save(product);
 
         Long initialVersion = product.getVersion();

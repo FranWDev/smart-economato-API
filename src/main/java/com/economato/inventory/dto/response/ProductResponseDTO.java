@@ -33,6 +33,12 @@ public class ProductResponseDTO {
     @Schema(description = "Stock actual del producto", example = "250.00")
     private BigDecimal currentStock;
 
+    @Schema(description = "Porcentaje de disponibilidad del producto (0-100)", example = "85.50")
+    private BigDecimal availabilityPercentage;
+
+    @Schema(description = "Stock mínimo antes de alerta", example = "10.00")
+    private BigDecimal minimumStock;
+
     @Schema(description = "Proveedor del producto")
     private SupplierResponseDTO supplier;
 }

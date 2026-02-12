@@ -69,6 +69,7 @@ public class OrderDetailControllerIntegrationTest extends BaseIntegrationTest {
                 testProduct.setUnit("unidad");
                 testProduct.setUnitPrice(new BigDecimal("10.00"));
                 testProduct.setCurrentStock(new BigDecimal("100"));
+                testProduct.setMinimumStock(BigDecimal.ZERO); // Required field
                 productRepository.save(testProduct);
 
                 testOrder = new Order();

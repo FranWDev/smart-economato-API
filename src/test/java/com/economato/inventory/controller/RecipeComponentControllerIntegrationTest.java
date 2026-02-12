@@ -58,6 +58,7 @@ public class RecipeComponentControllerIntegrationTest extends BaseIntegrationTes
                 testProduct.setUnitPrice(new BigDecimal("2.50"));
                 testProduct.setProductCode("HAR001");
                 testProduct.setCurrentStock(new BigDecimal("100.0"));
+                testProduct.setMinimumStock(BigDecimal.ZERO); // Required field
                 testProduct = productRepository.save(testProduct);
 
                 testRecipe = new Recipe();

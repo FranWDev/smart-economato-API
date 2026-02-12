@@ -43,6 +43,18 @@ public class ProductRequestDTO {
     @Schema(description = "Cantidad actual en inventario", example = "250.00")
     private BigDecimal currentStock;
 
+    @DecimalMin(value = "0.00", message = "El porcentaje de disponibilidad no puede ser negativo")
+    @DecimalMax(value = "100.00", message = "El porcentaje de disponibilidad no puede ser mayor a 100")
+    @Digits(integer = 3, fraction = 2, message = "El porcentaje debe tener máximo 3 dígitos enteros y 2 decimales")
+    @Schema(description = "Porcentaje de disponibilidad del producto (0-100). Si no se especifica, se asume 100%", example = "85.50")
+    private BigDecimal availabilityPercentage;
+
+    @NotNull(message = "El stock mínimo no puede ser nulo")
+    @DecimalMin(value = "0.0", inclusive = true, message = "El stock mínimo no puede ser negativo")
+    @Digits(integer = 10, fraction = 3, message = "El stock mínimo debe tener máximo 10 dígitos enteros y 3 decimales")
+    @Schema(description = "Stock mínimo antes de alerta", example = "10.00")
+    private BigDecimal minimumStock;
+
     @Schema(description = "ID del proveedor del producto", example = "1")
     private Integer supplierId;
 }

@@ -11,11 +11,8 @@ import com.economato.inventory.dto.response.ProductResponseDTO;
 import com.economato.inventory.model.Product;
 import com.economato.inventory.model.Supplier;
 
-@Mapper(
-    componentModel = "spring", 
-    nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE,
-    uses = {SupplierMapper.class}
-)
+@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE, uses = {
+        SupplierMapper.class })
 public interface ProductMapper {
 
     ProductResponseDTO toResponseDTO(Product product);
@@ -24,6 +21,8 @@ public interface ProductMapper {
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "orderDetails", ignore = true)
     @Mapping(target = "supplier", source = "supplierId", qualifiedByName = "supplierIdToSupplier")
+    @Mapping(target = "availabilityPercentage", source = "availabilityPercentage")
+    @Mapping(target = "minimumStock", source = "minimumStock")
     Product toEntity(ProductRequestDTO requestDTO);
 
     @Mapping(target = "id", ignore = true)
@@ -31,6 +30,8 @@ public interface ProductMapper {
     @Mapping(target = "orderDetails", ignore = true)
     @Mapping(target = "currentStock", ignore = true)
     @Mapping(target = "supplier", source = "supplierId", qualifiedByName = "supplierIdToSupplier")
+    @Mapping(target = "availabilityPercentage", source = "availabilityPercentage")
+    @Mapping(target = "minimumStock", source = "minimumStock")
     void updateEntity(ProductRequestDTO requestDTO, @MappingTarget Product product);
 
     @Named("supplierIdToSupplier")
@@ -43,4 +44,3 @@ public interface ProductMapper {
         return supplier;
     }
 }
-
