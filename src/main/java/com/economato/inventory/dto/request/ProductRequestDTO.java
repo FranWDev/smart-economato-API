@@ -18,8 +18,6 @@ public class ProductRequestDTO {
     @Schema(description = "Nombre del producto", example = "Harina de trigo")
     private String name;
 
-    @NotBlank(message = "El tipo de producto no puede estar vacío")
-    @Size(max = 50, message = "El tipo no puede exceder 50 caracteres")
     @Schema(description = "Tipo o categoría del producto", example = "Ingrediente")
     private String type;
 
