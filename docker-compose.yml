@@ -162,8 +162,8 @@ services:
       - inventory-network
     restart: unless-stopped
 
-  # ===================================
-  # Spring Boot Backend
+# ===================================
+  # Spring Boot Backend (OPTIMIZADO)
   # ===================================
   backend:
     build:
@@ -181,6 +181,10 @@ services:
         condition: service_healthy
     ports:
       - "8081:8081"
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
     environment:
       # Database Principal
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/inventory
@@ -194,26 +198,26 @@ services:
       # Redis
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-      SPRING_REDIS_HOST: redis
-      SPRING_REDIS_PORT: 6379
       
-      # JPA
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
       SPRING_JPA_SHOW_SQL: "false"
-      
-      # JWT
+      SPRING_JPA_PROPERTIES_HIBERNATE_GENERATE_STATISTICS: "false"
+
+      LOGGING_LEVEL_ROOT: "ERROR"
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK: "ERROR"
+      LOGGING_LEVEL_COM_ECONOMATO: "ERROR"
+      SPRING_DEVTOOLS_RESTART_ENABLED: "false"
+      SPRING_MAIN_BANNER_MODE: "off"
+
       JWT_SECRET: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
       JWT_EXPIRATION: 86400000
-      
-      # Kafka
+
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      
-      # Java Options
-      JAVA_OPTS: "-Xms256m -Xmx512m -XX:+UseG1GC"
+
+      JAVA_OPTS: "-Xms4g -Xmx4g -XX:+UseZGC -XX:+ZGenerational"
     networks:
       - inventory-network
     restart: unless-stopped
-
   # ===================================
   # Redis Commander
   # ===================================
