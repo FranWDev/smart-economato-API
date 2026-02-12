@@ -63,22 +63,23 @@ public class ProductService {
         this.userRepository = userRepository;
     }
 
-    // CORREGIDO: Ahora devuelve Page<ProductResponseDTO> en lugar de List
-    // NO cachear Page (PageImpl no es serializable con Jackson)
+    @Cacheable(value = "products_page_v2", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> findAll(Pageable pageable) {
-        return repository.findAllProjectedBy(pageable)
+        Page<ProductResponseDTO> page = repository.findAllProjectedBy(pageable)
                 .map(this::toResponseDTO);
+        return new com.economato.inventory.dto.RestPage<>(page.getContent(), page.getPageable(),
+                page.getTotalElements());
     }
 
-    @Cacheable(value = "product", key = "#id")
+    @Cacheable(value = "product_v2", key = "#id")
     @Transactional(readOnly = true)
     public Optional<ProductResponseDTO> findById(Integer id) {
         return repository.findProjectedById(id)
                 .map(this::toResponseDTO);
     }
 
-    @Cacheable(value = "product", key = "'code:' + #codebar")
+    @Cacheable(value = "product_v2", key = "'code:' + #codebar")
     @Transactional(readOnly = true)
     public Optional<ProductResponseDTO> findByCodebar(String codebar) {
         return repository.findProjectedByProductCode(codebar)
@@ -98,7 +99,7 @@ public class ProductService {
                 .collect(Collectors.toList());
     }
 
-    @CacheEvict(value = { "products", "product" }, allEntries = true)
+    @CacheEvict(value = { "products_page_v2", "product_v2" }, allEntries = true)
     @ProductAuditable(action = "CREATE_PRODUCT")
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public ProductResponseDTO save(ProductRequestDTO requestDTO) {
@@ -111,7 +112,7 @@ public class ProductService {
         return productMapper.toResponseDTO(repository.save(product));
     }
 
-    @CacheEvict(value = { "products", "product" }, allEntries = true)
+    @CacheEvict(value = { "products_page_v2", "product_v2" }, allEntries = true)
     @ProductAuditable(action = "UPDATE_PRODUCT")
     @Retryable(retryFor = { OptimisticLockingFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
@@ -134,7 +135,7 @@ public class ProductService {
                 });
     }
 
-    @CacheEvict(value = { "products", "product" }, allEntries = true)
+    @CacheEvict(value = { "products_page_v2", "product_v2" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
         repository.findById(id).ifPresent(product -> {
@@ -223,7 +224,7 @@ public class ProductService {
                         .contains(unit.toUpperCase());
     }
 
-    @CacheEvict(value = { "products", "product" }, allEntries = true)
+    @CacheEvict(value = { "products_page_v2", "product_v2" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
             Exception.class }, isolation = Isolation.REPEATABLE_READ)
     public Optional<ProductResponseDTO> updateStockManually(Integer id, ProductRequestDTO requestDTO) {
