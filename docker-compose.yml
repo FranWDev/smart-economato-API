@@ -1,5 +1,4 @@
 version: '3.8'
-
 services:
   # ===================================
   # PostgreSQL Database (ESCRITURA - PRIMARY)
@@ -7,10 +6,10 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: inventory-postgres
-    # COMANDO FUSIONADO: Incluye configuración de WAL y escucha en todas las interfaces
     command: |
       postgres 
       -c wal_level=replica 
+      -c max_connections=500
       -c hot_standby=on 
       -c max_wal_senders=10 
       -c max_replication_slots=10 
@@ -21,7 +20,6 @@ services:
       POSTGRES_USER: inventory_user
       POSTGRES_PASSWORD: inventory_password
       PGDATA: /var/lib/postgresql/data/pgdata
-      # Permite conexiones de replicación sin contraseña dentro de la red Docker
       POSTGRES_HOST_AUTH_METHOD: trust 
     ports:
       - "5432:5432"
@@ -42,7 +40,6 @@ services:
   postgres-replica:
     image: postgres:16-alpine
     container_name: inventory-postgres-replica
-    # SIN 'user: postgres', corremos como root para arreglar permisos
     depends_on:
       postgres:
         condition: service_healthy
@@ -51,37 +48,32 @@ services:
     environment:
       PGUSER: inventory_user
       PGPASSWORD: inventory_password
-      # Definimos explícitamente PGDATA por seguridad
       PGDATA: /var/lib/postgresql/data
     entrypoint: |
       /bin/sh -c "
       set -e
       
-      echo '1. Asegurando permisos 0700 en data directory...'
-      chown -R postgres:postgres /var/lib/postgresql/data
+      echo '1. Asegurando permisos...'
       chmod 0700 /var/lib/postgresql/data
+      chown -R postgres:postgres /var/lib/postgresql/data
 
       echo '2. Esperando al primario...'
-      until pg_isready -h postgres -p 5432 -U inventory_user -d inventory; do
+      until pg_isready -h inventory-postgres -p 5432 -U inventory_user -d inventory; do
         sleep 2
       done
       
-      # Verificamos si existe PG_VERSION para saber si es una DB válida
       if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
-        echo '3. Carpeta vacía o corrupta. Clonando base de datos...'
-        
-        # Limpiamos todo por seguridad
+        echo '3. Clonando base de datos...'
         rm -rf /var/lib/postgresql/data/*
-        
-        # Clonamos usando el usuario postgres
-        su-exec postgres pg_basebackup -h postgres -D /var/lib/postgresql/data -U inventory_user -vP -R --wal-method=stream
+        # Usamos el nombre del contenedor 'inventory-postgres'
+        su-exec postgres pg_basebackup -h inventory-postgres -D /var/lib/postgresql/data -U inventory_user -vP -R --wal-method=stream
       else
         echo '3. Datos detectados. Omitiendo clonado.'
       fi
       
-      echo '4. Iniciando PostgreSQL en modo Réplica...'
-      # AQUÍ ESTABA EL ERROR: Añadimos explícitamente '-D'
-      exec su-exec postgres postgres -D /var/lib/postgresql/data
+      echo '4. Iniciando PostgreSQL Replica (FORZANDO CONFIG)...'
+      # AQUÍ ESTÁ EL FIX: Inyectamos los flags directamente en el exec
+      exec su-exec postgres postgres -D /var/lib/postgresql/data -c max_connections=500 -c hot_standby=on
       "
     volumes:
       - postgres-replica-data:/var/lib/postgresql/data
@@ -214,7 +206,7 @@ services:
 
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
 
-      JAVA_OPTS: "-Xms4g -Xmx4g -XX:+UseZGC -XX:+ZGenerational"
+      JAVA_OPTS: "-Xms8g -Xmx8g -XX:+UseZGC -XX:+ZGenerational"
     networks:
       - inventory-network
     restart: unless-stopped
