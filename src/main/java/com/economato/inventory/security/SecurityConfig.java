@@ -49,7 +49,7 @@ public class SecurityConfig {
                         .requestMatchers("/robots.txt", "/sitemap.xml", "/manifest.json").permitAll()
                         
                         // Documentación Swagger
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/webjars/**", "/swagger-resources/**", "/configuration/**").permitAll()
                         
                         // ===== RUTAS PROTEGIDAS =====
                         // El control de acceso específico se maneja con @PreAuthorize en los controladores
@@ -61,10 +61,10 @@ public class SecurityConfig {
                         .httpStrictTransportSecurity(hsts -> hsts
                                 .includeSubDomains(true)
                                 .maxAgeInSeconds(31536000))
-                        // Content Security Policy
+                        // Content Security Policy (relajado para Swagger UI)
                         .contentSecurityPolicy(csp -> csp
                                 .policyDirectives("default-src 'self'; " +
-                                        "script-src 'self'; " +
+                                        "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
                                         "style-src 'self' 'unsafe-inline'; " +
                                         "img-src 'self' data: https:; " +
                                         "font-src 'self' data:; " +
