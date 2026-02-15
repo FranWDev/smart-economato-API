@@ -12,7 +12,9 @@ public interface UserProjection {
 
     String getName();
 
-    String getEmail();
+    String getUser();
+
+    boolean getIsFirstLogin();
 
     Role getRole();
 }

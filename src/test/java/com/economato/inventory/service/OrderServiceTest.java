@@ -77,7 +77,7 @@ class OrderServiceTest {
         testUser = new User();
         testUser.setId(1);
         testUser.setName("Test User");
-        testUser.setEmail("test@test.com");
+        testUser.setUser("testUser");
 
         testProduct = new Product();
         testProduct.setId(1);

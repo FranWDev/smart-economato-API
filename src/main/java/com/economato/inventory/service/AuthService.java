@@ -52,22 +52,24 @@ public class AuthService {
 
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public UserResponseDTO register(UserRequestDTO requestDTO) {
-        if (userRepository.existsByEmail(requestDTO.getEmail())) {
-            throw new InvalidOperationException("Email already exists");
+        if (userRepository.existsByUser(requestDTO.getUser())) {
+            throw new InvalidOperationException("User already exists");
         }
 
         User user = new User();
         user.setName(requestDTO.getName());
-        user.setEmail(requestDTO.getEmail());
+        user.setUser(requestDTO.getUser());
         user.setRole(requestDTO.getRole());
         user.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
+        user.setFirstLogin(true);
 
         User savedUser = userRepository.save(user);
 
         return new UserResponseDTO(
                 savedUser.getId(),
                 savedUser.getName(),
-                savedUser.getEmail(),
+                savedUser.getUser(),
+                savedUser.isFirstLogin(),
                 savedUser.getRole());
     }
 

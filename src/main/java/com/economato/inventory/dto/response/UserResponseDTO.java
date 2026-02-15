@@ -20,11 +20,13 @@ public class UserResponseDTO {
     @Schema(description = "Nombre completo del usuario", example = "Juan Pérez")
     private String name;
 
-    @Schema(description = "Correo electrónico del usuario", example = "juan@example.com")
-    private String email;
+    @Schema(description = "Usuario del sistema", example = "juan_perez")
+    private String user;
 
-    @Schema(description = "Rol del usuario. Puede ser ADMIN, CHEF o USER", 
-            allowableValues = {"ADMIN", "CHEF", "USER"}, 
-            example = "USER")
+    @Schema(description = "Indica si es el primer inicio de sesión", example = "true")
+    private boolean isFirstLogin;
+
+    @Schema(description = "Rol del usuario. Puede ser ADMIN, CHEF o USER", allowableValues = { "ADMIN", "CHEF",
+            "USER" }, example = "USER")
     private Role role;
 }

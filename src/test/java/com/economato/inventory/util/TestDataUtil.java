@@ -25,7 +25,7 @@ public class TestDataUtil {
     public static User createAdminUser() {
         User user = new User();
         user.setName("Admin");
-        user.setEmail("admin@economatom.com");
+        user.setUser("adminUser");
         user.setPassword(passwordEncoder.encode("admin123"));
         user.setRole(Role.ADMIN);
         user.setOrders(new ArrayList<>());
@@ -36,7 +36,7 @@ public class TestDataUtil {
     public static User createChefUser() {
         User user = new User();
         user.setName("Chef");
-        user.setEmail("chef@economatom.com");
+        user.setUser("chefUser");
         user.setPassword(passwordEncoder.encode("chef123"));
         user.setRole(Role.CHEF);
         user.setOrders(new ArrayList<>());
@@ -47,7 +47,7 @@ public class TestDataUtil {
     public static User createRegularUser() {
         User user = new User();
         user.setName("User");
-        user.setEmail("user@economatom.com");
+        user.setUser("regularUser");
         user.setPassword(passwordEncoder.encode("user123"));
         user.setRole(Role.USER);
         user.setOrders(new ArrayList<>());
@@ -209,7 +209,7 @@ public class TestDataUtil {
     public static UserRequestDTO createUserRequestDTO() {
         UserRequestDTO dto = new UserRequestDTO();
         dto.setName("UsuarioTest");
-        dto.setEmail("usuario@test.com");
+        dto.setUser("testUser");
         dto.setPassword("password123");
         dto.setRole(Role.USER);
         return dto;

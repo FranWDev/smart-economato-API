@@ -56,26 +56,26 @@ class UserServiceTest {
         testUser = new User();
         testUser.setId(1);
         testUser.setName("Test User");
-        testUser.setEmail("test@test.com");
+        testUser.setUser("testUser");
         testUser.setPassword("encodedPassword");
         testUser.setRole(Role.USER);
 
         testUserRequestDTO = new UserRequestDTO();
         testUserRequestDTO.setName("Test User");
-        testUserRequestDTO.setEmail("test@test.com");
+        testUserRequestDTO.setUser("testUser");
         testUserRequestDTO.setPassword("password123");
         testUserRequestDTO.setRole(Role.USER);
 
         testUserResponseDTO = new UserResponseDTO();
         testUserResponseDTO.setId(1);
         testUserResponseDTO.setName("Test User");
-        testUserResponseDTO.setEmail("test@test.com");
+        testUserResponseDTO.setUser("testUser");
         testUserResponseDTO.setRole(Role.USER);
 
         testProjection = mock(UserProjection.class);
         lenient().when(testProjection.getId()).thenReturn(1);
         lenient().when(testProjection.getName()).thenReturn("Test User");
-        lenient().when(testProjection.getEmail()).thenReturn("test@test.com");
+        lenient().when(testProjection.getUser()).thenReturn("testUser");
         lenient().when(testProjection.getRole()).thenReturn(Role.USER);
     }
 
@@ -90,7 +90,7 @@ class UserServiceTest {
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        assertEquals(testUserResponseDTO.getName(), result.get(0).getName());
+        assertEquals(testUserResponseDTO.getUser(), result.get(0).getUser());
         verify(repository).findAllProjectedBy(pageable);
     }
 
@@ -143,7 +143,7 @@ class UserServiceTest {
     @Test
     void save_WhenEmailDoesNotExist_ShouldCreateUser() {
 
-        when(repository.existsByEmail(testUserRequestDTO.getEmail())).thenReturn(false);
+        when(repository.existsByUser(testUserRequestDTO.getUser())).thenReturn(false);
         when(userMapper.toEntity(testUserRequestDTO)).thenReturn(testUser);
         when(passwordEncoder.encode(testUserRequestDTO.getPassword())).thenReturn("encodedPassword");
         when(repository.save(any(User.class))).thenReturn(testUser);
@@ -152,8 +152,8 @@ class UserServiceTest {
         UserResponseDTO result = userService.save(testUserRequestDTO);
 
         assertNotNull(result);
-        assertEquals(testUserResponseDTO.getName(), result.getName());
-        verify(repository).existsByEmail(testUserRequestDTO.getEmail());
+        assertEquals(testUserResponseDTO.getUser(), result.getUser());
+        verify(repository).existsByUser(testUserRequestDTO.getUser());
         verify(passwordEncoder).encode(testUserRequestDTO.getPassword());
         verify(repository).save(any(User.class));
     }
@@ -161,12 +161,12 @@ class UserServiceTest {
     @Test
     void save_WhenEmailExists_ShouldThrowException() {
 
-        when(repository.existsByEmail(testUserRequestDTO.getEmail())).thenReturn(true);
+        when(repository.existsByUser(testUserRequestDTO.getUser())).thenReturn(true);
 
         assertThrows(InvalidOperationException.class, () -> {
             userService.save(testUserRequestDTO);
         });
-        verify(repository).existsByEmail(testUserRequestDTO.getEmail());
+        verify(repository).existsByUser(testUserRequestDTO.getUser());
         verify(repository, never()).save(any(User.class));
     }
 
@@ -176,10 +176,10 @@ class UserServiceTest {
         testUserRequestDTO.setRole(null);
         User userWithNullRole = new User();
         userWithNullRole.setName("Test User");
-        userWithNullRole.setEmail("test@test.com");
+        userWithNullRole.setUser("testUser");
         userWithNullRole.setRole(null);
 
-        when(repository.existsByEmail(testUserRequestDTO.getEmail())).thenReturn(false);
+        when(repository.existsByUser(testUserRequestDTO.getUser())).thenReturn(false);
         when(userMapper.toEntity(testUserRequestDTO)).thenReturn(userWithNullRole);
         when(passwordEncoder.encode(testUserRequestDTO.getPassword())).thenReturn("encodedPassword");
         when(repository.save(any(User.class))).thenAnswer(invocation -> {
@@ -296,7 +296,7 @@ class UserServiceTest {
 
     @Test
     void save_WhenDuplicateName_ShouldThrowException() {
-        when(repository.existsByEmail(testUserRequestDTO.getEmail())).thenReturn(false);
+        when(repository.existsByUser(testUserRequestDTO.getUser())).thenReturn(false);
         when(repository.findByName(testUserRequestDTO.getName())).thenReturn(Optional.of(testUser));
 
         assertThrows(InvalidOperationException.class, () -> userService.save(testUserRequestDTO));
@@ -306,17 +306,17 @@ class UserServiceTest {
     void update_WhenDuplicateEmail_ShouldThrowException() {
         User existingUser = new User();
         existingUser.setId(1);
-        existingUser.setEmail("old@test.com");
+        existingUser.setUser("oldUser");
         existingUser.setName("Old Name");
 
         UserRequestDTO updateRequest = new UserRequestDTO();
-        updateRequest.setEmail("another@test.com");
+        updateRequest.setUser("anotherUser");
         updateRequest.setName("New Name");
         updateRequest.setPassword("password");
         updateRequest.setRole(Role.USER);
 
         when(repository.findById(1)).thenReturn(Optional.of(existingUser));
-        when(repository.existsByEmail("another@test.com")).thenReturn(true);
+        when(repository.existsByUser("anotherUser")).thenReturn(true);
 
         assertThrows(InvalidOperationException.class, () -> userService.update(1, updateRequest));
     }
@@ -325,11 +325,11 @@ class UserServiceTest {
     void update_WhenDuplicateName_ShouldThrowException() {
         User existingUser = new User();
         existingUser.setId(1);
-        existingUser.setEmail("test@test.com");
+        existingUser.setUser("existingUser");
         existingUser.setName("Old Name");
 
         UserRequestDTO updateRequest = new UserRequestDTO();
-        updateRequest.setEmail("test@test.com");
+        updateRequest.setUser("newUser");
         updateRequest.setName("Another Name");
         updateRequest.setPassword("password");
         updateRequest.setRole(Role.USER);

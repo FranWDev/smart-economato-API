@@ -56,7 +56,7 @@ class OrderAuditServiceTest {
         testUser = new User();
         testUser.setId(1);
         testUser.setName("Test User");
-        testUser.setEmail("test@test.com");
+        testUser.setUser("testUser");
 
         testOrder = new Order();
         testOrder.setId(1);

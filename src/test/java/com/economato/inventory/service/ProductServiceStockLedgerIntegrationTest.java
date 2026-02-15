@@ -65,7 +65,7 @@ class ProductServiceStockLedgerIntegrationTest {
                 testUser.setName("test_user");
                 testUser.setPassword("hashed_password");
                 testUser.setRole(Role.ADMIN);
-                testUser.setEmail("test@example.com");
+                testUser.setUser("adminUser" + System.currentTimeMillis());
                 testUser = userRepository.saveAndFlush(testUser);
 
                 testProduct = new Product();

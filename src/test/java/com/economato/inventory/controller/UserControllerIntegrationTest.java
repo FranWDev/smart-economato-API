@@ -61,7 +61,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .content(asJsonString(userRequest)))
                                 .andDo(print())
                                 .andExpect(status().isCreated())
-                                .andExpect(jsonPath("$.email").value(userRequest.getEmail()))
+                                .andExpect(jsonPath("$.user").value(userRequest.getUser()))
                                 .andExpect(jsonPath("$.name").value(userRequest.getName()))
                                 .andExpect(jsonPath("$.role").value(userRequest.getRole().name()));
         }
@@ -73,7 +73,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$", notNullValue()))
-                                .andExpect(jsonPath("$[*].email").exists())
+                                .andExpect(jsonPath("$[*].user").exists())
                                 .andExpect(jsonPath("$[*].name").exists())
                                 .andExpect(jsonPath("$[*].role").exists());
         }
@@ -95,7 +95,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andDo(print())
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.email").value(userRequest.getEmail()))
+                                .andExpect(jsonPath("$.user").value(userRequest.getUser()))
                                 .andExpect(jsonPath("$.name").value(userRequest.getName()))
                                 .andExpect(jsonPath("$.role").value(userRequest.getRole().name()));
         }
@@ -160,7 +160,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
                 UserRequestDTO duplicateUser = new UserRequestDTO();
                 duplicateUser.setName("Otro Usuario");
-                duplicateUser.setEmail(userRequest.getEmail());
+                duplicateUser.setUser(userRequest.getUser());
                 duplicateUser.setPassword("password123");
                 duplicateUser.setRole(Role.USER);
 
@@ -184,7 +184,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
                 UserRequestDTO duplicateUser = new UserRequestDTO();
                 duplicateUser.setName(userRequest.getName());
-                duplicateUser.setEmail("otro@email.com");
+                duplicateUser.setUser("otro@user.com");
                 duplicateUser.setPassword("password123");
                 duplicateUser.setRole(Role.USER);
 
@@ -210,13 +210,13 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
                 UserRequestDTO user1 = new UserRequestDTO();
                 user1.setName("Chef Usuario");
-                user1.setEmail("chef@test.com");
+                user1.setUser("chef@test.com");
                 user1.setPassword("password123");
                 user1.setRole(Role.CHEF);
 
                 UserRequestDTO user2 = new UserRequestDTO();
                 user2.setName("User Usuario");
-                user2.setEmail("user@test.com");
+                user2.setUser("user@test.com");
                 user2.setPassword("password123");
                 user2.setRole(Role.USER);
 
@@ -248,10 +248,10 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         }
 
         @Test
-        void whenCreateUserWithInvalidEmail_thenBadRequest() throws Exception {
+        void whenCreateUserWithInvalidUser_thenBadRequest() throws Exception {
                 UserRequestDTO userRequest = new UserRequestDTO();
                 userRequest.setName("Usuario Test");
-                userRequest.setEmail("email-invalido");
+                userRequest.setUser("");
                 userRequest.setPassword("password123");
                 userRequest.setRole(Role.USER);
 
@@ -267,7 +267,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         void whenCreateUserWithShortPassword_thenBadRequest() throws Exception {
                 UserRequestDTO userRequest = new UserRequestDTO();
                 userRequest.setName("Usuario Test");
-                userRequest.setEmail("test@valid.com");
+                userRequest.setUser("test@valid.com");
                 userRequest.setPassword("12345");
                 userRequest.setRole(Role.USER);
 
@@ -280,7 +280,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         }
 
         @Test
-        void whenUpdateUserEmail_WithExistingEmail_thenBadRequest() throws Exception {
+        void whenUpdateUserUser_WithExistingUser_thenBadRequest() throws Exception {
 
                 UserRequestDTO user1 = TestDataUtil.createUserRequestDTO();
                 mockMvc.perform(post(BASE_URL)
@@ -291,7 +291,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
                 UserRequestDTO user2 = new UserRequestDTO();
                 user2.setName("Segundo Usuario");
-                user2.setEmail("segundo@test.com");
+                user2.setUser("segundo@test.com");
                 user2.setPassword("password123");
                 user2.setRole(Role.USER);
 
@@ -304,7 +304,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
                 UserResponseDTO createdUser2 = objectMapper.readValue(response2, UserResponseDTO.class);
 
-                user2.setEmail(user1.getEmail());
+                user2.setUser(user1.getUser());
 
                 mockMvc.perform(put(BASE_URL + "/{id}", createdUser2.getId())
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -312,5 +312,32 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .content(asJsonString(user2)))
                                 .andDo(print())
                                 .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void whenUpdateFirstLoginStatus_thenSuccess() throws Exception {
+                UserRequestDTO userRequest = TestDataUtil.createUserRequestDTO();
+
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(userRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                UserResponseDTO createdUser = objectMapper.readValue(response, UserResponseDTO.class);
+
+                mockMvc.perform(patch(BASE_URL + "/{id}/first-login", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("false"))
+                                .andDo(print())
+                                .andExpect(status().isOk());
+
+                mockMvc.perform(get(BASE_URL + "/{id}", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andDo(print())
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.firstLogin").value(false));
         }
 }

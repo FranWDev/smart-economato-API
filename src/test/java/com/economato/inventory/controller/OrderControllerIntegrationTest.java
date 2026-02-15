@@ -331,7 +331,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andExpect(header().string("Content-Type", "application/pdf"))
                                 .andExpect(header().string("Content-Disposition",
-                                        "attachment; filename=\"pedido_" + orderId + ".pdf\""))
+                                                "attachment; filename=\"pedido_" + orderId + ".pdf\""))
                                 .andReturn().getResponse().getContentAsByteArray();
 
                 assertNotNull(pdfBytes);
@@ -374,7 +374,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andExpect(header().string("Content-Type", "application/pdf"))
                                 .andExpect(header().string("Content-Disposition",
-                                        "attachment; filename=\"pedido_" + orderId + ".pdf\""))
+                                                "attachment; filename=\"pedido_" + orderId + ".pdf\""))
                                 .andReturn().getResponse().getContentAsByteArray();
 
                 assertNotNull(pdfBytes);
@@ -386,7 +386,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
                 User longNameUser = TestDataUtil.createAdminUser();
                 longNameUser.setName("Usuario con un nombre extremadamente largo para el PDF de orden");
-                longNameUser.setEmail("admin.longname+" + System.currentTimeMillis() + "@economatom.com");
+                longNameUser.setUser("adminUser" + System.currentTimeMillis());
                 longNameUser.setPassword(passwordEncoder.encode("admin123"));
                 longNameUser = userRepository.saveAndFlush(longNameUser);
 
@@ -414,7 +414,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andExpect(header().string("Content-Type", "application/pdf"))
                                 .andExpect(header().string("Content-Disposition",
-                                        "attachment; filename=\"pedido_" + orderId + ".pdf\""))
+                                                "attachment; filename=\"pedido_" + orderId + ".pdf\""))
                                 .andReturn().getResponse().getContentAsByteArray();
 
                 assertNotNull(pdfBytes);

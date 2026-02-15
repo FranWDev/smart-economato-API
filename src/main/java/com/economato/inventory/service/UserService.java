@@ -60,8 +60,8 @@ public class UserService {
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public UserResponseDTO save(UserRequestDTO requestDTO) {
 
-        if (repository.existsByEmail(requestDTO.getEmail())) {
-            throw new InvalidOperationException("Ya existe un usuario con el email: " + requestDTO.getEmail());
+        if (repository.existsByUser(requestDTO.getUser())) {
+            throw new InvalidOperationException("Ya existe un usuario con el usuario: " + requestDTO.getUser());
         }
 
         if (repository.findByName(requestDTO.getName()).isPresent()) {
@@ -70,6 +70,7 @@ public class UserService {
 
         User user = userMapper.toEntity(requestDTO);
         user.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
+        user.setFirstLogin(true); // Default to true on creation
 
         if (user.getRole() == null) {
             user.setRole(Role.USER);
@@ -85,10 +86,10 @@ public class UserService {
         return repository.findById(id)
                 .map(existing -> {
 
-                    if (!existing.getEmail().equals(requestDTO.getEmail()) &&
-                            repository.existsByEmail(requestDTO.getEmail())) {
+                    if (!existing.getUser().equals(requestDTO.getUser()) &&
+                            repository.existsByUser(requestDTO.getUser())) {
                         throw new InvalidOperationException(
-                                "Ya existe un usuario con el email: " + requestDTO.getEmail());
+                                "Ya existe un usuario con el usuario: " + requestDTO.getUser());
                     }
 
                     if (!existing.getName().equals(requestDTO.getName()) &&
@@ -125,6 +126,15 @@ public class UserService {
         repository.deleteById(id);
     }
 
+    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+    @Transactional(rollbackFor = { ResourceNotFoundException.class })
+    public void updateFirstLoginStatus(Integer id, boolean status) {
+        User user = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
+        user.setFirstLogin(status);
+        repository.save(user);
+    }
+
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findByRole(Role role) {
         return repository.findProjectedByRole(role).stream()
@@ -139,7 +149,8 @@ public class UserService {
         com.economato.inventory.dto.response.UserResponseDTO dto = new com.economato.inventory.dto.response.UserResponseDTO();
         dto.setId(projection.getId());
         dto.setName(projection.getName());
-        dto.setEmail(projection.getEmail());
+        dto.setUser(projection.getUser());
+        dto.setFirstLogin(projection.getIsFirstLogin());
         dto.setRole(projection.getRole());
         return dto;
     }
