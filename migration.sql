@@ -3,7 +3,7 @@
 -- 1. Rename column 'email' to 'user'
 -- Note: Check if your database supports 'CHANGE COLUMN' or uses a different syntax (e.g. RENAME COLUMN)
 -- MySQL/MariaDB syntax:
-ALTER TABLE users CHANGE COLUMN email "user" VARCHAR(100) NOT NULL;
+ALTER TABLE users RENAME COLUMN email TO "user";
 
 -- 2. Drop the old index on email (if the name didn't update automatically or you want to enforce naming convention)
 -- ALTER TABLE users DROP INDEX idx_user_email; -- Only if needed
