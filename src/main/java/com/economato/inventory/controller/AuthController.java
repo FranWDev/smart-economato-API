@@ -46,17 +46,6 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "Registrar nuevo usuario", description = "Registra un nuevo usuario en el sistema. El usuario registrado podrá autenticarse posteriormente usando su email o nombre de usuario. [Acceso público]", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos del nuevo usuario (nombre, correo electrónico, contraseña, rol, etc.)", required = true, content = @Content(schema = @Schema(implementation = UserRequestDTO.class))), responses = {
-            @ApiResponse(responseCode = "200", description = "Usuario registrado correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
-            @ApiResponse(responseCode = "400", description = "Datos inválidos o usuario ya existente")
-    })
-    @PostMapping("/register")
-    public ResponseEntity<UserResponseDTO> registerUser(
-            @Valid @org.springframework.web.bind.annotation.RequestBody UserRequestDTO userRequest) {
-        UserResponseDTO response = authService.register(userRequest);
-        return ResponseEntity.ok(response);
-    }
-
     @Operation(summary = "Validar token JWT", description = "Valida si el token JWT proporcionado en el header Authorization es válido y no ha expirado. [Rol requerido: USER]", security = @SecurityRequirement(name = "bearerAuth"), responses = {
             @ApiResponse(responseCode = "200", description = "Token válido", content = @Content(mediaType = "application/json")),
             @ApiResponse(responseCode = "401", description = "Token inválido o expirado")
