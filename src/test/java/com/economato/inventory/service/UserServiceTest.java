@@ -369,4 +369,94 @@ class UserServiceTest {
         assertThrows(ResourceNotFoundException.class, () -> userService.deleteById(999));
         verify(repository, never()).deleteById(999);
     }
+
+    @Test
+    void changePassword_WhenAdmin_ShouldUpdatePassword() {
+        String newPassword = "newPassword123";
+        com.economato.inventory.dto.request.ChangePasswordRequestDTO request = new com.economato.inventory.dto.request.ChangePasswordRequestDTO();
+        request.setNewPassword(newPassword);
+
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.encode(newPassword)).thenReturn("encodedNewPassword");
+        when(repository.save(any(User.class))).thenReturn(testUser);
+
+        userService.changePassword(1, request, true);
+
+        verify(passwordEncoder).encode(newPassword);
+        verify(repository).save(testUser);
+        // Admin change doesn't update firstLogin status in current logic, verify it
+        // stays as is
+        // or whatever default behavior. Here testUser default is not specified but
+        // let's assume it doesn't throw.
+    }
+
+    @Test
+    void changePassword_WhenUserFirstLogin_ShouldUpdatePasswordAndSetFirstLoginFalse() {
+        String newPassword = "newPassword123";
+        com.economato.inventory.dto.request.ChangePasswordRequestDTO request = new com.economato.inventory.dto.request.ChangePasswordRequestDTO();
+        request.setNewPassword(newPassword);
+
+        testUser.setFirstLogin(true);
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.encode(newPassword)).thenReturn("encodedNewPassword");
+        when(repository.save(any(User.class))).thenReturn(testUser);
+
+        userService.changePassword(1, request, false);
+
+        verify(passwordEncoder).encode(newPassword);
+        verify(repository).save(testUser);
+        assertFalse(testUser.isFirstLogin());
+    }
+
+    @Test
+    void changePassword_WhenUserNotFirstLoginAndCorrectOldPassword_ShouldUpdatePassword() {
+        String oldPassword = "oldPassword";
+        String newPassword = "newPassword123";
+        com.economato.inventory.dto.request.ChangePasswordRequestDTO request = new com.economato.inventory.dto.request.ChangePasswordRequestDTO();
+        request.setOldPassword(oldPassword);
+        request.setNewPassword(newPassword);
+
+        testUser.setFirstLogin(false);
+        testUser.setPassword("encodedOldPassword");
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches(oldPassword, "encodedOldPassword")).thenReturn(true);
+        when(passwordEncoder.encode(newPassword)).thenReturn("encodedNewPassword");
+        when(repository.save(any(User.class))).thenReturn(testUser);
+
+        userService.changePassword(1, request, false);
+
+        verify(passwordEncoder).matches(oldPassword, "encodedOldPassword");
+        verify(passwordEncoder).encode(newPassword);
+        verify(repository).save(testUser);
+    }
+
+    @Test
+    void changePassword_WhenUserNotFirstLoginAndIncorrectOldPassword_ShouldThrowException() {
+        String oldPassword = "wrongPassword";
+        String newPassword = "newPassword123";
+        com.economato.inventory.dto.request.ChangePasswordRequestDTO request = new com.economato.inventory.dto.request.ChangePasswordRequestDTO();
+        request.setOldPassword(oldPassword);
+        request.setNewPassword(newPassword);
+
+        testUser.setFirstLogin(false);
+        testUser.setPassword("encodedOldPassword");
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.matches(oldPassword, "encodedOldPassword")).thenReturn(false);
+
+        assertThrows(InvalidOperationException.class, () -> userService.changePassword(1, request, false));
+        verify(repository, never()).save(testUser);
+    }
+
+    @Test
+    void changePassword_WhenUserNotFirstLoginAndMissingOldPassword_ShouldThrowException() {
+        String newPassword = "newPassword123";
+        com.economato.inventory.dto.request.ChangePasswordRequestDTO request = new com.economato.inventory.dto.request.ChangePasswordRequestDTO();
+        request.setNewPassword(newPassword);
+
+        testUser.setFirstLogin(false);
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+
+        assertThrows(InvalidOperationException.class, () -> userService.changePassword(1, request, false));
+        verify(repository, never()).save(testUser);
+    }
 }

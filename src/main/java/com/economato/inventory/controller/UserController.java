@@ -133,4 +133,26 @@ public class UserController {
                 service.updateFirstLoginStatus(id, status);
                 return ResponseEntity.ok().build();
         }
+
+        @PatchMapping("/{id}/password")
+        @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
+        @Operation(summary = "Cambiar contraseña", description = "Permite cambiar la contraseña del usuario. Requiere contraseña actual si no es admin y no es primer login. [Rol requerido: ADMIN o USER (propio)]", security = @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth"))
+        @ApiResponses({
+                        @ApiResponse(responseCode = "200", description = "Contraseña actualizada correctamente"),
+                        @ApiResponse(responseCode = "400", description = "Datos inválidos o contraseña actual incorrecta"),
+                        @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+                        @ApiResponse(responseCode = "403", description = "Acceso denegado"),
+                        @ApiResponse(responseCode = "401", description = "No autenticado")
+        })
+        public ResponseEntity<Void> changePassword(
+                        @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id,
+                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos de cambio de contraseña", required = true) @RequestBody @Valid com.economato.inventory.dto.request.ChangePasswordRequestDTO request,
+                        org.springframework.security.core.Authentication authentication) {
+
+                boolean isAdmin = authentication.getAuthorities().stream()
+                                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+                service.changePassword(id, request, isAdmin);
+                return ResponseEntity.ok().build();
+        }
 }

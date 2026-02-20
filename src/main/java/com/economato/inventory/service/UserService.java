@@ -135,6 +135,47 @@ public class UserService {
         repository.save(user);
     }
 
+    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+    @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
+    public void changePassword(Integer id, com.economato.inventory.dto.request.ChangePasswordRequestDTO request,
+            boolean isAdmin) {
+        User user = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
+
+        // Si es admin, puede cambiar la contraseña sin la antigua
+        if (isAdmin) {
+            user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            // Si el admin cambia la contraseña, podríamos querer resetear firstLogin a true
+            // o false dependiendo de la logica de negocio
+            // En este caso, asumiremos que si el admin la resetea, el usuario tendra que
+            // cambiarla de nuevo?
+            // "y el usuario si es para cambiar su propia contraseña... isFirstLogin es
+            // false"
+            // "en caso de ser el rol admin, no debe requerir enviarse la antigua
+            // contraseña"
+            // No se especifica si cambia isFirstLogin para admin. Asumimos que no cambia o
+            // se mantiene.
+            // Pero si el usuario la cambia (siendo firstLogin=true), pasa a false.
+        } else {
+            // Es el propio usuario
+            if (user.isFirstLogin()) {
+                // Si es primer login, no pide contraseña antigua
+                user.setFirstLogin(false);
+            } else {
+                // Si no es primer login, DEBE pedir contraseña antigua
+                if (request.getOldPassword() == null || request.getOldPassword().isEmpty()) {
+                    throw new InvalidOperationException("Se requiere la contraseña actual");
+                }
+                if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+                    throw new InvalidOperationException("La contraseña actual es incorrecta");
+                }
+            }
+            user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        }
+
+        repository.save(user);
+    }
+
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findByRole(Role role) {
         return repository.findProjectedByRole(role).stream()
