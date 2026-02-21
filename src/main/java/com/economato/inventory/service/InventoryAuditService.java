@@ -72,6 +72,8 @@ public class InventoryAuditService {
         dto.setQuantity(projection.getQuantity());
         dto.setMovementType(projection.getMovementType());
         dto.setMovementDate(projection.getMovementDate());
+        dto.setPreviousState(projection.getPreviousState());
+        dto.setNewState(projection.getNewState());
 
         if (projection.getProduct() != null) {
             dto.setProductId(projection.getProduct().getId());

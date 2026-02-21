@@ -12,6 +12,10 @@ public interface InventoryAuditProjection {
 
     String getActionDescription();
 
+    String getPreviousState();
+
+    String getNewState();
+
     LocalDateTime getMovementDate();
 
     ProductInfo getProduct();
