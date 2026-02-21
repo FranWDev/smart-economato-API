@@ -10,7 +10,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.security.core.Authentication;
@@ -90,13 +89,6 @@ public class ProductService {
     public Page<ProductResponseDTO> findByName(String namePart, Pageable pageable) {
         return repository.findProjectedByNameContainingIgnoreCase(namePart, pageable)
                 .map(this::toResponseDTO);
-    }
-
-    @Transactional(readOnly = true)
-    public List<ProductResponseDTO> findAllForExport() {
-        return repository.findAllProjectedBy(Sort.by(Sort.Direction.ASC, "id")).stream()
-                .map(this::toResponseDTO)
-                .collect(Collectors.toList());
     }
 
     @CacheEvict(value = { "products_page_v2", "product_v2" }, allEntries = true)

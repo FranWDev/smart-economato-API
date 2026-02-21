@@ -36,26 +36,33 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
+                        // Los dispatches ASYNC son continuaciones de requests ya autenticadas.
+                        // El JwtFilter (OncePerRequestFilter) no corre en ASYNC, por lo que
+                        // hay que permitirlos explícitamente para que StreamingResponseBody funcione.
+                        .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC).permitAll()
+
                         // ===== RUTAS PÚBLICAS =====
                         // Autenticación
                         .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
-                        
+
                         // Vistas públicas
                         .requestMatchers("/login", "/").permitAll()
-                        
+
                         // Recursos estáticos
                         .requestMatchers("/styles/**", "/scripts/**").permitAll()
                         .requestMatchers("/robots.txt", "/sitemap.xml", "/manifest.json").permitAll()
-                        
+
                         // Documentación Swagger
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/webjars/**", "/swagger-resources/**", "/configuration/**").permitAll()
-                        
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html", "/webjars/**",
+                                "/swagger-resources/**", "/configuration/**")
+                        .permitAll()
+
                         // ===== RUTAS PROTEGIDAS =====
-                        // El control de acceso específico se maneja con @PreAuthorize en los controladores
+                        // El control de acceso específico se maneja con @PreAuthorize en los
+                        // controladores
                         // Todas las demás rutas requieren autenticación
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
                 .headers(headers -> headers
                         // HSTS - Force HTTPS
                         .httpStrictTransportSecurity(hsts -> hsts
@@ -76,22 +83,21 @@ public class SecurityConfig {
                         // X-Frame-Options
                         .frameOptions(frame -> frame.deny())
                         // X-Content-Type-Options
-                        .contentTypeOptions(contentType -> {})
+                        .contentTypeOptions(contentType -> {
+                        })
                         // X-XSS-Protection
-                        .xssProtection(xss -> {})
+                        .xssProtection(xss -> {
+                        })
                         // Referrer-Policy
                         .referrerPolicy(referrer -> referrer.policy(
-                                org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
-                )
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.setContentType("application/json");
                             response.getWriter().write("{\"status\":401,\"message\":\"No autorizado\"}");
-                        })
-                )
+                        }))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
@@ -106,15 +112,14 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         // Permitir Angular (puerto 4200), servidor (8080, 8081) y dominio de producción
         configuration.setAllowedOrigins(Arrays.asList(
-            "http://localhost:4200",
-            "http://localhost:8080",
-            "http://localhost:8081",
-            "http://127.0.0.1:4200",
-            "http://127.0.0.1:8080",
-            "http://127.0.0.1:8081",
-            "https://economato.servehttp.com",
-            "https://pfl3wk99-4200.uks1.devtunnels.ms/"
-        ));
+                "http://localhost:4200",
+                "http://localhost:8080",
+                "http://localhost:8081",
+                "http://127.0.0.1:4200",
+                "http://127.0.0.1:8080",
+                "http://127.0.0.1:8081",
+                "https://economato.servehttp.com",
+                "https://pfl3wk99-4200.uks1.devtunnels.ms/"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Origin"));
         configuration.setExposedHeaders(List.of("Authorization"));
