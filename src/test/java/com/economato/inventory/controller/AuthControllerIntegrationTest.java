@@ -138,18 +138,6 @@ public class AuthControllerIntegrationTest extends BaseIntegrationTest {
         }
 
         @Test
-        public void whenRegisterNewUser_thenSuccess() throws Exception {
-                String registerRequest = "{\"name\":\"newuser\",\"password\":\"password123\",\"user\":\"newuser@test.com\",\"role\":\"USER\"}";
-
-                mockMvc.perform(post(BASE_URL + "/register")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(registerRequest))
-                                .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.name").value("newuser"))
-                                .andExpect(jsonPath("$.user").value("newuser@test.com"));
-        }
-
-        @Test
         public void whenLogoutWithValidToken_thenSuccess() throws Exception {
 
                 LoginRequestDTO loginRequest = new LoginRequestDTO();

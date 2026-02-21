@@ -26,4 +26,10 @@ public class RecipeAuditResponseDTO {
 
     @Schema(description = "Fecha y hora en que se registró la auditoría", example = "2025-10-18T14:30:00")
     private LocalDateTime auditDate;
+
+    @Schema(description = "Estado JSON de la receta antes de la acción")
+    private String previousState;
+
+    @Schema(description = "Estado JSON de la receta después de la acción")
+    private String newState;
 }

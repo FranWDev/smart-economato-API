@@ -56,7 +56,7 @@ public class RecipeAuditAspect {
         // Extraer DTO y ID del método
         RecipeRequestDTO foundDto = null;
         Integer recipeId = null;
-        
+
         for (Object arg : joinPoint.getArgs()) {
             if (arg instanceof RecipeRequestDTO) {
                 foundDto = (RecipeRequestDTO) arg;
@@ -64,7 +64,7 @@ public class RecipeAuditAspect {
                 recipeId = (Integer) arg;
             }
         }
-        
+
         final RecipeRequestDTO dto = foundDto;
 
         if (dto == null) {
@@ -75,7 +75,7 @@ public class RecipeAuditAspect {
         // Capturar el estado ANTES del cambio y serializarlo inmediatamente
         String previousState = null;
         if (recipeId != null) {
-            Recipe recipeBefore = recipeRepository.findById(recipeId).orElse(null);
+            Recipe recipeBefore = recipeRepository.findByIdWithDetails(recipeId).orElse(null);
             if (recipeBefore != null) {
                 previousState = buildRecipeState(recipeBefore);
             }
@@ -85,16 +85,16 @@ public class RecipeAuditAspect {
 
         try {
             Recipe recipeAfter = null;
-            
+
             if (recipeId != null) {
-                recipeAfter = recipeRepository.findById(recipeId).orElse(null);
+                recipeAfter = recipeRepository.findByIdWithDetails(recipeId).orElse(null);
             }
-            
+
             // Para CREATE, buscar por nombre
             if (recipeAfter == null && dto.getName() != null) {
                 recipeAfter = recipeRepository.findByName(dto.getName()).orElse(null);
             }
-            
+
             if (recipeAfter == null) {
                 log.warn("Receta no encontrada para auditoría: {}", dto.getName());
                 return result;
@@ -105,10 +105,16 @@ public class RecipeAuditAspect {
             // Construir detalles de la auditoría
             StringBuilder details = new StringBuilder();
             details.append("Nombre: ").append(dto.getName()).append("; ");
-            details.append("Elaboración: ").append(dto.getElaboration() != null ? 
-                dto.getElaboration().substring(0, Math.min(100, dto.getElaboration().length())) : "N/A").append("; ");
-            details.append("Presentación: ").append(dto.getPresentation() != null ? 
-                dto.getPresentation().substring(0, Math.min(100, dto.getPresentation().length())) : "N/A").append("; ");
+            details.append("Elaboración: ")
+                    .append(dto.getElaboration() != null
+                            ? dto.getElaboration().substring(0, Math.min(100, dto.getElaboration().length()))
+                            : "N/A")
+                    .append("; ");
+            details.append("Presentación: ")
+                    .append(dto.getPresentation() != null
+                            ? dto.getPresentation().substring(0, Math.min(100, dto.getPresentation().length()))
+                            : "N/A")
+                    .append("; ");
             details.append("Componentes: ").append(dto.getComponents() != null ? dto.getComponents().size() : 0);
             if (dto.getAllergenIds() != null && !dto.getAllergenIds().isEmpty()) {
                 details.append("; Alérgenos: ").append(dto.getAllergenIds());
@@ -119,22 +125,22 @@ public class RecipeAuditAspect {
 
             // Construir evento de auditoría
             RecipeAuditEvent event = RecipeAuditEvent.builder()
-                .recipeId(recipeAfter.getId())
-                .recipeName(recipeAfter.getName())
-                .userId(user != null ? user.getId() : null)
-                .userName(user != null ? user.getName() : "Sistema")
-                .action(auditable.action())
-                .details(details.toString())
-                .previousState(previousState)
-                .newState(newState)
-                .auditDate(LocalDateTime.now())
-                .build();
+                    .recipeId(recipeAfter.getId())
+                    .recipeName(recipeAfter.getName())
+                    .userId(user != null ? user.getId() : null)
+                    .userName(user != null ? user.getName() : "Sistema")
+                    .action(auditable.action())
+                    .details(details.toString())
+                    .previousState(previousState)
+                    .newState(newState)
+                    .auditDate(LocalDateTime.now())
+                    .build();
 
             // Publicar evento en Kafka de forma asíncrona
             auditEventProducer.publishRecipeAudit(event);
 
-            log.info("Evento de auditoría de receta publicado: receta={}, acción={}", 
-                recipeAfter.getId(), auditable.action());
+            log.info("Evento de auditoría de receta publicado: receta={}, acción={}",
+                    recipeAfter.getId(), auditable.action());
 
         } catch (Exception e) {
             // No propagar excepción para no afectar la operación principal
@@ -153,15 +159,14 @@ public class RecipeAuditAspect {
             state.put("presentacion", recipe.getPresentation());
             state.put("costeTotal", recipe.getTotalCost());
             state.put("componentes", recipe.getComponents().stream()
-                .map(c -> Map.of(
-                    "productoId", c.getProduct().getId(),
-                    "productoNombre", c.getProduct().getName(),
-                    "cantidad", c.getQuantity()
-                ))
-                .collect(Collectors.toList()));
+                    .map(c -> Map.of(
+                            "productoId", c.getProduct().getId(),
+                            "productoNombre", c.getProduct().getName(),
+                            "cantidad", c.getQuantity()))
+                    .collect(Collectors.toList()));
             state.put("alergenos", recipe.getAllergens().stream()
-                .map(a -> a.getName())
-                .collect(Collectors.toList()));
+                    .map(a -> a.getName())
+                    .collect(Collectors.toList()));
             return objectMapper.writeValueAsString(state);
         } catch (Exception e) {
             log.error("Error al serializar estado de la receta: {}", e.getMessage());

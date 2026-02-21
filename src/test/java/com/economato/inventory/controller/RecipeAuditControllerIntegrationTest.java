@@ -47,7 +47,9 @@ class RecipeAuditControllerIntegrationTest {
                 1,
                 "MODIFICACION",
                 "Receta actualizada - cambio de costos",
-                LocalDateTime.now());
+                LocalDateTime.now(),
+                null,
+                null);
 
         testRecipeAudits = Arrays.asList(testRecipeAudit);
     }

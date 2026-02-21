@@ -86,6 +86,8 @@ public class RecipeAuditService {
         dto.setId_user(projection.getUsers() != null ? projection.getUsers().getId() : null);
         dto.setAction(projection.getAction());
         dto.setDetails(projection.getDetails());
+        dto.setPreviousState(projection.getPreviousState());
+        dto.setNewState(projection.getNewState());
         dto.setAuditDate(projection.getAuditDate());
         return dto;
     }

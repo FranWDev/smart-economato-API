@@ -9,6 +9,10 @@ public interface RecipeAuditProjection {
 
     String getDetails();
 
+    String getPreviousState();
+
+    String getNewState();
+
     LocalDateTime getAuditDate();
 
     RecipeInfo getRecipe();
