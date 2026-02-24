@@ -16,7 +16,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import com.economato.inventory.service.TokenBlacklistService;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Set;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
@@ -27,10 +27,23 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private static final WebAuthenticationDetailsSource DETAILS_SOURCE = new WebAuthenticationDetailsSource();
 
-    private static final List<String> PUBLIC_URLS = List.of(
+    private static final Set<String> PUBLIC_URLS = Set.of(
             "/api/auth/login",
             "/api/auth/register",
-            "/login");
+            "/login",
+            "/");
+
+    private static final Set<String> STATIC_PREFIXES = Set.of(
+            "/styles/",
+            "/scripts/",
+            "/swagger-ui/",
+            "/v3/api-docs",
+            "/webjars/",
+            "/swagger-resources/",
+            "/configuration/",
+            "/robots.txt",
+            "/sitemap.xml",
+            "/manifest.json");
 
     public JwtFilter(JwtUtils jwtUtils, UserDetailsService userDetailsService,
             TokenBlacklistService tokenBlacklistService) {
@@ -44,18 +57,15 @@ public class JwtFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
-        String path = request.getRequestURI();
-        if (isPublicUrl(path)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
         String jwt = parseJwt(request);
 
         if (jwt != null && !tokenBlacklistService.isBlacklisted(jwt)) {
             String username = jwtUtils.validateAndExtractUsername(jwt);
 
             if (username != null) {
+                // Cache username in request for audit/other components
+                request.setAttribute("jwt_username", username);
+
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         userDetails,
@@ -70,12 +80,23 @@ public class JwtFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private boolean isPublicUrl(String path) {
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String path = request.getRequestURI();
 
+        // Check exact public URLs
         if (PUBLIC_URLS.contains(path)) {
             return true;
         }
 
+        // Check static prefixes
+        for (String prefix : STATIC_PREFIXES) {
+            if (path.startsWith(prefix)) {
+                return true;
+            }
+        }
+
+        // Special case for /api/auth/ public sub-paths
         if (path.startsWith("/api/auth/") &&
                 !path.equals("/api/auth/validate") &&
                 !path.equals("/api/auth/logout") &&
@@ -83,24 +104,10 @@ public class JwtFilter extends OncePerRequestFilter {
             return true;
         }
 
-        return path.startsWith("/styles/") ||
-                path.startsWith("/scripts/") ||
-                path.startsWith("/swagger-ui/") ||
-                path.startsWith("/v3/api-docs");
-    }
-
-    @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
-        String path = request.getRequestURI();
-
-        return path.startsWith("/styles/") ||
-                path.startsWith("/scripts/") ||
-                path.startsWith("/swagger-ui/") ||
-                path.startsWith("/v3/api-docs");
+        return false;
     }
 
     private String parseJwt(HttpServletRequest request) {
-
         String headerAuth = request.getHeader("Authorization");
         if (headerAuth != null && headerAuth.startsWith("Bearer ")) {
             return headerAuth.substring(7);
@@ -110,14 +117,10 @@ public class JwtFilter extends OncePerRequestFilter {
         if (cookies != null) {
             for (Cookie cookie : cookies) {
                 if ("auth_token".equals(cookie.getName())) {
-                    String token = cookie.getValue();
-                    if (token != null && !token.isEmpty()) {
-                        return token;
-                    }
+                    return cookie.getValue();
                 }
             }
         }
-
         return null;
     }
 }

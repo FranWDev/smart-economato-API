@@ -61,6 +61,38 @@ public class AuthControllerIntegrationTest extends BaseIntegrationTest {
         }
 
         @Test
+        public void whenLoginWithUsernameAlias_thenSuccess() throws Exception {
+                // Enviar el login usando el alias 'username' en lugar de 'name'
+                String loginJson = "{\"username\":\"" + testUser.getName() + "\",\"password\":\"chef123\"}";
+                
+                mockMvc.perform(post(BASE_URL + "/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(loginJson))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.token").exists())
+                                .andExpect(jsonPath("$.token").isString())
+                                .andExpect(jsonPath("$.token").value(not(emptyString())))
+                                .andExpect(jsonPath("$.role").exists())
+                                .andExpect(jsonPath("$.role").value("CHEF"));
+        }
+
+        @Test
+        public void whenLoginWithUserField_thenSuccess() throws Exception {
+                // Enviar el login usando el campo 'user' del usuario
+                String loginJson = "{\"username\":\"" + testUser.getUser() + "\",\"password\":\"chef123\"}";
+                
+                mockMvc.perform(post(BASE_URL + "/login")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(loginJson))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.token").exists())
+                                .andExpect(jsonPath("$.token").isString())
+                                .andExpect(jsonPath("$.token").value(not(emptyString())))
+                                .andExpect(jsonPath("$.role").exists())
+                                .andExpect(jsonPath("$.role").value("CHEF"));
+        }
+
+        @Test
         public void whenLoginWithInvalidCredentials_thenFail() throws Exception {
                 LoginRequestDTO loginRequest = new LoginRequestDTO();
                 loginRequest.setName("usuarioinexistente");

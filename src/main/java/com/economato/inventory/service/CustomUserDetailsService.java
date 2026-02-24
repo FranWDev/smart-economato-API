@@ -1,5 +1,12 @@
 package com.economato.inventory.service;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Collection;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -10,15 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.UserRepository;
 
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 @Service
 @Transactional(readOnly = true)
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private static final long CACHE_TTL_MS = 15 * 60 * 1000;
+    private static final long CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos
 
     private final UserRepository userRepository;
     private final Map<String, CachedEntry> cache = new ConcurrentHashMap<>();
@@ -35,6 +38,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         }
 
         User user = userRepository.findByName(username)
+                .or(() -> userRepository.findByUser(username))
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
         // Validar que el usuario no esté oculto
@@ -56,16 +60,14 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     private static class CachedEntry {
-        final String username;
-        final String password;
-        final String authority;
-        final long timestamp;
+        private final long timestamp;
+        private final UserDetails userDetails;
 
         CachedEntry(String username, String password, String authority) {
-            this.username = username;
-            this.password = password;
-            this.authority = authority;
             this.timestamp = System.currentTimeMillis();
+            List<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(authority));
+            // Pre-build the object to avoid allocation on every load
+            this.userDetails = new FastUserDetails(username, password, authorities);
         }
 
         boolean isExpired() {
@@ -73,11 +75,23 @@ public class CustomUserDetailsService implements UserDetailsService {
         }
 
         UserDetails toUserDetails() {
-            return org.springframework.security.core.userdetails.User
-                    .withUsername(username)
-                    .password(password)
-                    .authorities(Collections.singletonList(new SimpleGrantedAuthority(authority)))
-                    .build();
+            return userDetails;
+        }
+    }
+
+    /**
+     * Reusable UserDetails that ignores eraseCredentials to keep the password in
+     * cache.
+     */
+    private static class FastUserDetails extends org.springframework.security.core.userdetails.User {
+        public FastUserDetails(String username, String password,
+                Collection<? extends GrantedAuthority> authorities) {
+            super(username, password, authorities);
+        }
+
+        @Override
+        public void eraseCredentials() {
+            // No-op to keep password in our cache
         }
     }
 }

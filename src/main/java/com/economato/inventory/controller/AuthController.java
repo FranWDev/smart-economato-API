@@ -34,7 +34,7 @@ public class AuthController {
         this.authService = authService;
     }
 
-    @Operation(summary = "Iniciar sesión", description = "Autentica al usuario con su nombre de usuario y contraseña. Devuelve un token JWT para futuras solicitudes autenticadas. [Acceso público]", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Credenciales del usuario (nombre de usuario y contraseña)", required = true, content = @Content(schema = @Schema(implementation = LoginRequestDTO.class))), responses = {
+    @Operation(summary = "Iniciar sesión", description = "Autentica al usuario con su nombre/username y contraseña. Acepta tanto el campo 'name' como 'username' para el identificador del usuario. Devuelve un token JWT para futuras solicitudes autenticadas. [Acceso público]", requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Credenciales del usuario (nombre de usuario/username y contraseña)", required = true, content = @Content(schema = @Schema(implementation = LoginRequestDTO.class))), responses = {
             @ApiResponse(responseCode = "200", description = "Autenticación exitosa, se devuelve el token JWT", content = @Content(mediaType = "application/json", schema = @Schema(implementation = LoginResponseDTO.class))),
             @ApiResponse(responseCode = "400", description = "Credenciales inválidas o datos incompletos"),
             @ApiResponse(responseCode = "401", description = "Usuario no autorizado")
