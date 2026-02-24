@@ -141,6 +141,28 @@ class UserServiceTest {
     }
 
     @Test
+    void findCurrentUser_WhenUserExists_ShouldReturnResponseDTO() {
+        when(repository.findByName("Test User")).thenReturn(Optional.of(testUser));
+        when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponseDTO);
+
+        UserResponseDTO result = userService.findCurrentUser("Test User");
+
+        assertNotNull(result);
+        assertEquals(testUserResponseDTO.getName(), result.getName());
+        assertEquals(testUserResponseDTO.getUser(), result.getUser());
+        assertEquals(testUserResponseDTO.getRole(), result.getRole());
+        verify(repository).findByName("Test User");
+        verify(userMapper).toResponseDTO(testUser);
+    }
+
+    @Test
+    void findCurrentUser_WhenUserDoesNotExist_ShouldThrowException() {
+        when(repository.findByName("NonExistent")).thenReturn(Optional.empty());
+
+        assertThrows(UsernameNotFoundException.class, () -> userService.findCurrentUser("NonExistent"));
+    }
+
+    @Test
     void save_WhenEmailDoesNotExist_ShouldCreateUser() {
 
         when(repository.existsByUser(testUserRequestDTO.getUser())).thenReturn(false);
@@ -501,8 +523,8 @@ class UserServiceTest {
         testUser.setFirstLogin(false);
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
 
-        assertThrows(InvalidOperationException.class, 
-            () -> userService.updateFirstLoginStatus(1, true, false));
+        assertThrows(InvalidOperationException.class,
+                () -> userService.updateFirstLoginStatus(1, true, false));
         verify(repository, never()).save(testUser);
     }
 
@@ -510,8 +532,8 @@ class UserServiceTest {
     void updateFirstLoginStatus_WhenUserNotFound_ShouldThrowException() {
         when(repository.findById(999)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class, 
-            () -> userService.updateFirstLoginStatus(999, false, false));
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.updateFirstLoginStatus(999, false, false));
         verify(repository, never()).save(any(User.class));
     }
 }

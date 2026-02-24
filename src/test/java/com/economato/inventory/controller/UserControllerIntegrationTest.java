@@ -419,4 +419,21 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .andDo(print())
                                 .andExpect(status().isBadRequest());
         }
+
+        @Test
+        void whenGetCurrentUser_thenReturnsAuthenticatedUserData() throws Exception {
+                mockMvc.perform(get(BASE_URL + "/me")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andDo(print())
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.name").value(testAdmin.getName()))
+                                .andExpect(jsonPath("$.role").value("ADMIN"))
+                                .andExpect(jsonPath("$.id").value(testAdmin.getId()));
+        }
+
+        @Test
+        void whenGetCurrentUser_withoutToken_thenUnauthorized() throws Exception {
+                mockMvc.perform(get(BASE_URL + "/me"))
+                                .andExpect(status().isUnauthorized());
+        }
 }

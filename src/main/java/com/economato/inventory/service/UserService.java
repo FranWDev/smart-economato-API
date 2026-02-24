@@ -56,6 +56,11 @@ public class UserService {
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
 
+    @Transactional(readOnly = true)
+    public UserResponseDTO findCurrentUser(String username) {
+        return userMapper.toResponseDTO(findByUsername(username));
+    }
+
     @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public UserResponseDTO save(UserRequestDTO requestDTO) {
@@ -131,14 +136,15 @@ public class UserService {
     public void updateFirstLoginStatus(Integer id, boolean status, boolean isAdmin) {
         User user = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
-        
-        // Validación de seguridad: solo un admin puede cambiar firstLogin de false a true
+
+        // Validación de seguridad: solo un admin puede cambiar firstLogin de false a
+        // true
         // Un usuario normal solo puede marcarlo como false (completar primer login)
         if (!isAdmin && status && !user.isFirstLogin()) {
             throw new InvalidOperationException(
-                "No se permite reactivar el estado de primer login. Solo los administradores pueden realizar esta acción.");
+                    "No se permite reactivar el estado de primer login. Solo los administradores pueden realizar esta acción.");
         }
-        
+
         user.setFirstLogin(status);
         repository.save(user);
     }

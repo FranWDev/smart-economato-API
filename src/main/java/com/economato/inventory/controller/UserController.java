@@ -32,6 +32,17 @@ public class UserController {
                 this.service = service;
         }
 
+        @GetMapping("/me")
+        @Operation(summary = "Obtener usuario actual", description = "Devuelve los datos del usuario autenticado en base a su token JWT. No requiere pasar ningún ID. [Rol requerido: cualquier usuario autenticado]")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "200", description = "Datos del usuario actual", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
+                        @ApiResponse(responseCode = "401", description = "No autenticado")
+        })
+        public ResponseEntity<UserResponseDTO> getCurrentUser(
+                        org.springframework.security.core.Authentication authentication) {
+                return ResponseEntity.ok(service.findCurrentUser(authentication.getName()));
+        }
+
         @GetMapping
         @PreAuthorize("hasRole('ADMIN')")
         @Operation(summary = "Obtener todos los usuarios", description = "Devuelve una lista paginada de todos los usuarios. Solo accesible para administradores. [Rol requerido: ADMIN]")
