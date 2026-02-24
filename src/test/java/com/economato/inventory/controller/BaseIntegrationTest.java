@@ -2,6 +2,7 @@ package com.economato.inventory.controller;
 
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -9,6 +10,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.economato.inventory.service.CustomUserDetailsService;
 import com.economato.inventory.util.DatabaseCleaner;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -17,17 +19,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @ActiveProfiles("test")
 public abstract class BaseIntegrationTest {
 
-    /**
-     * StreamingResponseBody ejecuta el cuerpo de la respuesta en un hilo async
-     * separado.
-     * Por defecto, SecurityContextHolder usa ThreadLocal (no heredable), lo que
-     * hace que
-     * el hilo async no tenga contexto de seguridad y Spring Security lance una
-     * excepción
-     * cuando la respuesta ya está comprometida. Con MODE_INHERITABLETHREADLOCAL los
-     * hilos
-     * hijos heredan el contexto del padre.
-     */
     @BeforeAll
     static void configureSecurityContextPropagation() {
         SecurityContextHolder.setStrategyName(SecurityContextHolder.MODE_INHERITABLETHREADLOCAL);
@@ -44,6 +35,14 @@ public abstract class BaseIntegrationTest {
 
     @Autowired
     private DatabaseCleaner databaseCleaner;
+
+    @Autowired
+    protected CustomUserDetailsService customUserDetailsService;
+
+    @BeforeEach
+    void clearUserDetailsCache() {
+        customUserDetailsService.clearCache();
+    }
 
     protected String asJsonString(Object obj) {
         try {

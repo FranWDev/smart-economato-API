@@ -1,6 +1,5 @@
 package com.economato.inventory.service;
 
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -12,29 +11,68 @@ import com.economato.inventory.model.User;
 import com.economato.inventory.repository.UserRepository;
 
 import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Transactional(readOnly = true)
 public class CustomUserDetailsService implements UserDetailsService {
 
+    private static final long CACHE_TTL_MS = 15 * 60 * 1000;
+
     private final UserRepository userRepository;
+    private final Map<String, CachedEntry> cache = new ConcurrentHashMap<>();
 
     public CustomUserDetailsService(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
     @Override
-    @Cacheable(value = "userDetails", key = "#username")
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        CachedEntry cached = cache.get(username);
+        if (cached != null && !cached.isExpired()) {
+            return cached.toUserDetails();
+        }
+
         User user = userRepository.findByName(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
-        SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + user.getRole());
+        CachedEntry entry = new CachedEntry(user.getName(), user.getPassword(), "ROLE_" + user.getRole());
+        cache.put(username, entry);
+        return entry.toUserDetails();
+    }
 
-        return org.springframework.security.core.userdetails.User
-                .withUsername(user.getName())
-                .password(user.getPassword())
-                .authorities(Collections.singletonList(authority))
-                .build();
+    public void evictUser(String username) {
+        cache.remove(username);
+    }
+
+    public void clearCache() {
+        cache.clear();
+    }
+
+    private static class CachedEntry {
+        final String username;
+        final String password;
+        final String authority;
+        final long timestamp;
+
+        CachedEntry(String username, String password, String authority) {
+            this.username = username;
+            this.password = password;
+            this.authority = authority;
+            this.timestamp = System.currentTimeMillis();
+        }
+
+        boolean isExpired() {
+            return System.currentTimeMillis() - timestamp > CACHE_TTL_MS;
+        }
+
+        UserDetails toUserDetails() {
+            return org.springframework.security.core.userdetails.User
+                    .withUsername(username)
+                    .password(password)
+                    .authorities(Collections.singletonList(new SimpleGrantedAuthority(authority)))
+                    .build();
+        }
     }
 }
