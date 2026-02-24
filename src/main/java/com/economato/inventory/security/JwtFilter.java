@@ -12,7 +12,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import io.jsonwebtoken.JwtException;
 
 import com.economato.inventory.service.TokenBlacklistService;
 
@@ -25,6 +24,8 @@ public class JwtFilter extends OncePerRequestFilter {
     private final JwtUtils jwtUtils;
     private final UserDetailsService userDetailsService;
     private final TokenBlacklistService tokenBlacklistService;
+
+    private static final WebAuthenticationDetailsSource DETAILS_SOURCE = new WebAuthenticationDetailsSource();
 
     private static final List<String> PUBLIC_URLS = List.of(
             "/api/auth/login",
@@ -51,31 +52,18 @@ public class JwtFilter extends OncePerRequestFilter {
 
         String jwt = parseJwt(request);
 
-        if (jwt != null) {
-            try {
+        if (jwt != null && !tokenBlacklistService.isBlacklisted(jwt)) {
+            String username = jwtUtils.validateAndExtractUsername(jwt);
 
-                if (tokenBlacklistService.isBlacklisted(jwt)) {
+            if (username != null) {
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        userDetails,
+                        null,
+                        userDetails.getAuthorities());
+                authentication.setDetails(DETAILS_SOURCE.buildDetails(request));
 
-                    filterChain.doFilter(request, response);
-                    return;
-                }
-
-                if (jwtUtils.validateJwtToken(jwt)) {
-                    String username = jwtUtils.getUserNameFromJwtToken(jwt);
-
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities());
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                }
-            } catch (JwtException | IllegalArgumentException e) {
-
-            } catch (Exception e) {
-
+                SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }
 

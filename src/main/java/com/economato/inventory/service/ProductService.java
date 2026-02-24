@@ -3,6 +3,7 @@ package com.economato.inventory.service;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.cache.annotation.CacheEvict;
@@ -36,6 +37,10 @@ import com.economato.inventory.repository.UserRepository;
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
 public class ProductService {
+
+    private static final Set<String> VALID_UNITS = Set.of(
+            "KG", "G", "L", "ML", "UNIDAD", "MANOJO", "BOTE",
+            "PAQUETE", "SOBRE", "HOJA", "TUBO", "UDS", "UND");
 
     private final ProductRepository repository;
     private final InventoryAuditRepository movementRepository;
@@ -210,10 +215,7 @@ public class ProductService {
     }
 
     private boolean isValidUnit(String unit) {
-        return unit != null
-                && List.of("KG", "G", "L", "ML", "UNIDAD", "MANOJO", "BOTE", "PAQUETE", "SOBRE", "HOJA", "TUBO", "UDS",
-                        "UND")
-                        .contains(unit.toUpperCase());
+        return unit != null && VALID_UNITS.contains(unit.toUpperCase());
     }
 
     @CacheEvict(value = { "products_page_v2", "product_v2" }, allEntries = true)
