@@ -91,8 +91,8 @@ public class ProductAuditAspect {
 
             // Para CREATE, buscar por nombre
             if (productAfter == null && dto.getName() != null) {
-                var allProducts = productRepository.findAll();
-                productAfter = allProducts.stream()
+                productAfter = productRepository.findByNameContainingIgnoreCase(dto.getName())
+                        .stream()
                         .filter(p -> p.getName().equals(dto.getName()))
                         .findFirst()
                         .orElse(null);

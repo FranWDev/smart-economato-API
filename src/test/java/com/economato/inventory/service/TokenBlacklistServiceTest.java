@@ -51,17 +51,15 @@ class TokenBlacklistServiceTest {
     @Test
     void testCleanExpiredTokens() throws InterruptedException {
         String token = "expired.token";
-        // Crear una fecha de expiración en el pasado
         Calendar calendar = Calendar.getInstance();
         calendar.add(Calendar.SECOND, -1);
         Date expiration = calendar.getTime();
 
         tokenBlacklistService.blacklistToken(token, expiration);
 
-        // Esperar un poco para asegurar que el token expire
         Thread.sleep(100);
 
-        // Al verificar, el servicio limpia automáticamente los tokens expirados
+        tokenBlacklistService.cleanExpiredTokens();
         assertFalse(tokenBlacklistService.isBlacklisted(token));
     }
 

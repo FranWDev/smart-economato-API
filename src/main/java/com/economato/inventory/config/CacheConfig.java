@@ -17,43 +17,65 @@ import java.time.Duration;
 @Profile("!test")
 public class CacheConfig {
 
-    @Bean
-    public RedisCacheConfiguration cacheConfiguration() {
-        return RedisCacheConfiguration.defaultCacheConfig()
-                .entryTtl(Duration.ofMinutes(30)) // Default TTL 30 mins
-                .disableCachingNullValues()
-                .serializeKeysWith(
-                        RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                .serializeValuesWith(RedisSerializationContext.SerializationPair
-                        .fromSerializer(new GenericJackson2JsonRedisSerializer()));
-    }
+        @Bean
+        public RedisCacheConfiguration cacheConfiguration() {
+                return RedisCacheConfiguration.defaultCacheConfig()
+                                .entryTtl(Duration.ofMinutes(30)) // Default TTL 30 mins
+                                .disableCachingNullValues()
+                                .serializeKeysWith(
+                                                RedisSerializationContext.SerializationPair
+                                                                .fromSerializer(new StringRedisSerializer()))
+                                .serializeValuesWith(RedisSerializationContext.SerializationPair
+                                                .fromSerializer(new GenericJackson2JsonRedisSerializer()));
+        }
 
-    @Bean
-    public RedisCacheManagerBuilderCustomizer redisCacheManagerBuilderCustomizer() {
-        return (builder) -> builder
-                .withCacheConfiguration("recipes_page_v2",
-                        RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofMinutes(10))
-                                .serializeKeysWith(RedisSerializationContext.SerializationPair
-                                        .fromSerializer(new StringRedisSerializer()))
-                                .serializeValuesWith(RedisSerializationContext.SerializationPair
-                                        .fromSerializer(new GenericJackson2JsonRedisSerializer())))
-                .withCacheConfiguration("products_page_v2",
-                        RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofMinutes(10))
-                                .serializeKeysWith(RedisSerializationContext.SerializationPair
-                                        .fromSerializer(new StringRedisSerializer()))
-                                .serializeValuesWith(RedisSerializationContext.SerializationPair
-                                        .fromSerializer(new GenericJackson2JsonRedisSerializer())))
-                .withCacheConfiguration("recipe_v2",
-                        RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofHours(1))
-                                .serializeKeysWith(RedisSerializationContext.SerializationPair
-                                        .fromSerializer(new StringRedisSerializer()))
-                                .serializeValuesWith(RedisSerializationContext.SerializationPair
-                                        .fromSerializer(new GenericJackson2JsonRedisSerializer())))
-                .withCacheConfiguration("product_v2",
-                        RedisCacheConfiguration.defaultCacheConfig().entryTtl(Duration.ofHours(1))
-                                .serializeKeysWith(RedisSerializationContext.SerializationPair
-                                        .fromSerializer(new StringRedisSerializer()))
-                                .serializeValuesWith(RedisSerializationContext.SerializationPair
-                                        .fromSerializer(new GenericJackson2JsonRedisSerializer())));
-    }
+        @Bean
+        public RedisCacheManagerBuilderCustomizer redisCacheManagerBuilderCustomizer() {
+                return (builder) -> builder
+                                .withCacheConfiguration("recipes_page_v2",
+                                                RedisCacheConfiguration.defaultCacheConfig()
+                                                                .entryTtl(Duration.ofMinutes(10))
+                                                                .serializeKeysWith(
+                                                                                RedisSerializationContext.SerializationPair
+                                                                                                .fromSerializer(new StringRedisSerializer()))
+                                                                .serializeValuesWith(
+                                                                                RedisSerializationContext.SerializationPair
+                                                                                                .fromSerializer(new GenericJackson2JsonRedisSerializer())))
+                                .withCacheConfiguration("products_page_v2",
+                                                RedisCacheConfiguration.defaultCacheConfig()
+                                                                .entryTtl(Duration.ofMinutes(10))
+                                                                .serializeKeysWith(
+                                                                                RedisSerializationContext.SerializationPair
+                                                                                                .fromSerializer(new StringRedisSerializer()))
+                                                                .serializeValuesWith(
+                                                                                RedisSerializationContext.SerializationPair
+                                                                                                .fromSerializer(new GenericJackson2JsonRedisSerializer())))
+                                .withCacheConfiguration("recipe_v2",
+                                                RedisCacheConfiguration.defaultCacheConfig()
+                                                                .entryTtl(Duration.ofHours(1))
+                                                                .serializeKeysWith(
+                                                                                RedisSerializationContext.SerializationPair
+                                                                                                .fromSerializer(new StringRedisSerializer()))
+                                                                .serializeValuesWith(
+                                                                                RedisSerializationContext.SerializationPair
+                                                                                                .fromSerializer(new GenericJackson2JsonRedisSerializer())))
+                                .withCacheConfiguration("product_v2",
+                                                RedisCacheConfiguration.defaultCacheConfig()
+                                                                .entryTtl(Duration.ofHours(1))
+                                                                .serializeKeysWith(
+                                                                                RedisSerializationContext.SerializationPair
+                                                                                                .fromSerializer(new StringRedisSerializer()))
+                                                                .serializeValuesWith(
+                                                                                RedisSerializationContext.SerializationPair
+                                                                                                .fromSerializer(new GenericJackson2JsonRedisSerializer())))
+                                .withCacheConfiguration("userDetails",
+                                                RedisCacheConfiguration.defaultCacheConfig()
+                                                                .entryTtl(Duration.ofMinutes(15))
+                                                                .serializeKeysWith(
+                                                                                RedisSerializationContext.SerializationPair
+                                                                                                .fromSerializer(new StringRedisSerializer()))
+                                                                .serializeValuesWith(
+                                                                                RedisSerializationContext.SerializationPair
+                                                                                                .fromSerializer(new GenericJackson2JsonRedisSerializer())));
+        }
 }

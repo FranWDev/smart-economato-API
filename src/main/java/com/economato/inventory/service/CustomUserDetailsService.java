@@ -1,5 +1,6 @@
 package com.economato.inventory.service;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -12,7 +13,6 @@ import com.economato.inventory.repository.UserRepository;
 
 import java.util.Collections;
 
-
 @Service
 @Transactional(readOnly = true)
 public class CustomUserDetailsService implements UserDetailsService {
@@ -24,13 +24,13 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     @Override
+    @Cacheable(value = "userDetails", key = "#username")
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findByName(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
-        
-        // Create authority with ROLE_ prefix for Spring Security compatibility
+
         SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + user.getRole());
-        
+
         return org.springframework.security.core.userdetails.User
                 .withUsername(user.getName())
                 .password(user.getPassword())
