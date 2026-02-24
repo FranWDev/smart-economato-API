@@ -45,7 +45,7 @@ public class UserController {
         }
 
         @GetMapping("/{id}")
-        @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
+        @PreAuthorize("hasRole('ADMIN') or #id == @userService.findByUsername(authentication.name).id")
         @Operation(summary = "Obtener usuario por ID", description = "Devuelve los datos de un usuario específico. Accesible para administradores o para el propio usuario. [Rol requerido: USER]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Usuario encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
@@ -120,23 +120,29 @@ public class UserController {
         }
 
         @PatchMapping("/{id}/first-login")
-        @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
-        @Operation(summary = "Actualizar estado de primer login", description = "Actualiza el estado de isFirstLogin a false. Accesible para administradores o el propio usuario. [Rol requerido: USER]", security = @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth"))
+        @PreAuthorize("hasRole('ADMIN') or #id == @userService.findByUsername(authentication.name).id")
+        @Operation(summary = "Actualizar estado de primer login", description = "Actualiza el estado de isFirstLogin. Los usuarios solo pueden cambiarlo a false (completar primer login), los administradores pueden cambiarlo a cualquier valor. [Rol requerido: USER]", security = @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth"))
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Estado actualizado correctamente"),
+                        @ApiResponse(responseCode = "400", description = "Operación no permitida (usuario intenta reactivar primer login)"),
                         @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
                         @ApiResponse(responseCode = "401", description = "No autenticado")
         })
         public ResponseEntity<Void> updateFirstLoginStatus(
                         @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id,
-                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Nuevo estado (true/false)", required = true) @RequestBody boolean status) {
-                service.updateFirstLoginStatus(id, status);
+                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Nuevo estado (true/false)", required = true) @RequestBody boolean status,
+                        org.springframework.security.core.Authentication authentication) {
+
+                boolean isAdmin = authentication.getAuthorities().stream()
+                                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+                service.updateFirstLoginStatus(id, status, isAdmin);
                 return ResponseEntity.ok().build();
         }
 
         @PatchMapping("/{id}/password")
-        @PreAuthorize("hasRole('ADMIN') or #id == authentication.principal.id")
-        @Operation(summary = "Cambiar contraseña", description = "Permite cambiar la contraseña del usuario. Requiere contraseña actual si no es admin y no es primer login. [Rol requerido: ADMIN o USER (propio)]", security = @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth"))
+        @PreAuthorize("hasRole('ADMIN') or #id == @userService.findByUsername(authentication.name).id")
+        @Operation(summary = "Cambiar contraseña", description = "Permite cambiar la contraseña del usuario. Requiere contraseña actual si no es admin y el estado isFirstLogin (en la base de datos) es false. El estado isFirstLogin se valida desde la base de datos, no desde el request, para prevenir ataques. [Rol requerido: ADMIN o USER (propio)]", security = @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth"))
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Contraseña actualizada correctamente"),
                         @ApiResponse(responseCode = "400", description = "Datos inválidos o contraseña actual incorrecta"),

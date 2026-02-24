@@ -459,4 +459,59 @@ class UserServiceTest {
         assertThrows(InvalidOperationException.class, () -> userService.changePassword(1, request, false));
         verify(repository, never()).save(testUser);
     }
+
+    @Test
+    void updateFirstLoginStatus_WhenAdminChangesToFalse_ShouldSucceed() {
+        testUser.setFirstLogin(true);
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(repository.save(any(User.class))).thenReturn(testUser);
+
+        userService.updateFirstLoginStatus(1, false, true);
+
+        assertFalse(testUser.isFirstLogin());
+        verify(repository).save(testUser);
+    }
+
+    @Test
+    void updateFirstLoginStatus_WhenAdminChangesToTrue_ShouldSucceed() {
+        testUser.setFirstLogin(false);
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(repository.save(any(User.class))).thenReturn(testUser);
+
+        userService.updateFirstLoginStatus(1, true, true);
+
+        assertTrue(testUser.isFirstLogin());
+        verify(repository).save(testUser);
+    }
+
+    @Test
+    void updateFirstLoginStatus_WhenUserChangesToFalse_ShouldSucceed() {
+        testUser.setFirstLogin(true);
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(repository.save(any(User.class))).thenReturn(testUser);
+
+        userService.updateFirstLoginStatus(1, false, false);
+
+        assertFalse(testUser.isFirstLogin());
+        verify(repository).save(testUser);
+    }
+
+    @Test
+    void updateFirstLoginStatus_WhenUserTriesToReactivate_ShouldThrowException() {
+        testUser.setFirstLogin(false);
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+
+        assertThrows(InvalidOperationException.class, 
+            () -> userService.updateFirstLoginStatus(1, true, false));
+        verify(repository, never()).save(testUser);
+    }
+
+    @Test
+    void updateFirstLoginStatus_WhenUserNotFound_ShouldThrowException() {
+        when(repository.findById(999)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, 
+            () -> userService.updateFirstLoginStatus(999, false, false));
+        verify(repository, never()).save(any(User.class));
+    }
 }

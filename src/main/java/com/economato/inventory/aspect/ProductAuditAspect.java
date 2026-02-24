@@ -55,7 +55,7 @@ public class ProductAuditAspect {
         // Extraer DTO y ID del método
         ProductRequestDTO foundDto = null;
         Integer productId = null;
-        
+
         for (Object arg : joinPoint.getArgs()) {
             if (arg instanceof ProductRequestDTO) {
                 foundDto = (ProductRequestDTO) arg;
@@ -63,7 +63,7 @@ public class ProductAuditAspect {
                 productId = (Integer) arg;
             }
         }
-        
+
         final ProductRequestDTO dto = foundDto;
 
         if (dto == null) {
@@ -84,20 +84,20 @@ public class ProductAuditAspect {
 
         try {
             Product productAfter = null;
-            
+
             if (productId != null) {
                 productAfter = productRepository.findById(productId).orElse(null);
             }
-            
+
             // Para CREATE, buscar por nombre
             if (productAfter == null && dto.getName() != null) {
                 var allProducts = productRepository.findAll();
                 productAfter = allProducts.stream()
-                    .filter(p -> p.getName().equals(dto.getName()))
-                    .findFirst()
-                    .orElse(null);
+                        .filter(p -> p.getName().equals(dto.getName()))
+                        .findFirst()
+                        .orElse(null);
             }
-            
+
             if (productAfter == null) {
                 log.warn("Producto no encontrado para auditoría: {}", dto.getName());
                 return result;
@@ -113,23 +113,23 @@ public class ProductAuditAspect {
 
             // Construir evento de auditoría
             InventoryAuditEvent event = InventoryAuditEvent.builder()
-                .productId(productAfter.getId())
-                .productName(productAfter.getName())
-                .userId(user != null ? user.getId() : null)
-                .userName(user != null ? user.getName() : "Sistema")
-                .movementType(movementType)
-                .quantity(dto.getCurrentStock() != null ? dto.getCurrentStock() : java.math.BigDecimal.ZERO)
-                .actionDescription(auditable.action())
-                .previousState(previousState)
-                .newState(newState)
-                .movementDate(LocalDateTime.now())
-                .build();
+                    .productId(productAfter.getId())
+                    .productName(productAfter.getName())
+                    .userId(user != null ? user.getId() : null)
+                    .userName(user != null ? user.getName() : "Sistema")
+                    .movementType(movementType)
+                    .quantity(dto.getCurrentStock() != null ? dto.getCurrentStock() : java.math.BigDecimal.ZERO)
+                    .actionDescription(auditable.action())
+                    .previousState(previousState)
+                    .newState(newState)
+                    .movementDate(LocalDateTime.now())
+                    .build();
 
             // Publicar evento en Kafka de forma asíncrona
             auditEventProducer.publishInventoryAudit(event);
 
-            log.info("Evento de auditoría de producto publicado: producto={}, acción={}", 
-                productAfter.getId(), auditable.action());
+            log.info("Evento de auditoría de producto publicado: producto={}, acción={}",
+                    productAfter.getId(), auditable.action());
 
         } catch (Exception e) {
             // No propagar excepción para no afectar la operación principal
@@ -177,7 +177,7 @@ public class ProductAuditAspect {
         if (action == null) {
             return "ADJUSTMENT";
         }
-        
+
         return switch (action.toUpperCase()) {
             case "CREATE_PRODUCT", "CREATE_RECIPE" -> "PRODUCTION";
             case "UPDATE_PRODUCT", "UPDATE_RECIPE" -> "ADJUSTMENT";

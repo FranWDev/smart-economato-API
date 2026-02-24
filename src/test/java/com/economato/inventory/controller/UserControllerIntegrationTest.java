@@ -340,4 +340,83 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.firstLogin").value(false));
         }
+
+        @Test
+        void whenAdminReactivatesFirstLogin_thenSuccess() throws Exception {
+                // Crear un usuario
+                UserRequestDTO userRequest = TestDataUtil.createUserRequestDTO();
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(userRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                UserResponseDTO createdUser = objectMapper.readValue(response, UserResponseDTO.class);
+
+                // Cambiar a false primero
+                mockMvc.perform(patch(BASE_URL + "/{id}/first-login", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("false"))
+                                .andExpect(status().isOk());
+
+                // Admin puede reactivarlo a true
+                mockMvc.perform(patch(BASE_URL + "/{id}/first-login", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("true"))
+                                .andDo(print())
+                                .andExpect(status().isOk());
+
+                // Verificar que está en true
+                mockMvc.perform(get(BASE_URL + "/{id}", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.firstLogin").value(true));
+        }
+
+        @Test
+        void whenUserTriesToReactivateFirstLogin_thenBadRequest() throws Exception {
+                // Crear un usuario regular
+                UserRequestDTO userRequest = TestDataUtil.createUserRequestDTO();
+                userRequest.setRole(Role.USER);
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(userRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                UserResponseDTO createdUser = objectMapper.readValue(response, UserResponseDTO.class);
+
+                // Cambiar a false primero
+                mockMvc.perform(patch(BASE_URL + "/{id}/first-login", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("false"))
+                                .andExpect(status().isOk());
+
+                // Login como el usuario creado
+                LoginRequestDTO loginRequest = new LoginRequestDTO();
+                loginRequest.setName(createdUser.getName());
+                loginRequest.setPassword(userRequest.getPassword());
+
+                String loginResponse = mockMvc.perform(post(AUTH_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(loginRequest)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                LoginResponseDTO userLoginResponse = objectMapper.readValue(loginResponse, LoginResponseDTO.class);
+                String userToken = userLoginResponse.getToken();
+
+                // El usuario no debería poder reactivar firstLogin
+                mockMvc.perform(patch(BASE_URL + "/{id}/first-login", createdUser.getId())
+                                .header("Authorization", "Bearer " + userToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("true"))
+                                .andDo(print())
+                                .andExpect(status().isBadRequest());
+        }
 }
