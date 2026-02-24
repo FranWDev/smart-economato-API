@@ -436,4 +436,161 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                 mockMvc.perform(get(BASE_URL + "/me"))
                                 .andExpect(status().isUnauthorized());
         }
+
+        @Test
+        void whenGetHiddenUsers_thenSuccess() throws Exception {
+                // Crear un usuario y ocultarlo
+                UserRequestDTO userRequest = TestDataUtil.createUserRequestDTO();
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(userRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                UserResponseDTO createdUser = objectMapper.readValue(response, UserResponseDTO.class);
+
+                // Ocultar el usuario
+                mockMvc.perform(patch(BASE_URL + "/{id}/hidden", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("true"))
+                                .andExpect(status().isOk());
+
+                // Obtener usuarios ocultos
+                String hiddenResponse = mockMvc.perform(get(BASE_URL + "/hidden")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andDo(print())
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                UserResponseDTO[] hiddenUsers = objectMapper.readValue(hiddenResponse, UserResponseDTO[].class);
+                assert hiddenUsers.length > 0 : "Debe haber al menos un usuario oculto";
+                assert hiddenUsers[0].isHidden() : "El usuario debe estar marcado como oculto";
+        }
+
+        @Test
+        void whenGetHiddenUsers_whenNoneExist_thenReturnEmptyList() throws Exception {
+                mockMvc.perform(get(BASE_URL + "/hidden")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andDo(print())
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$", empty()));
+        }
+
+        @Test
+        void whenToggleUserHidden_thenSuccess() throws Exception {
+                UserRequestDTO userRequest = TestDataUtil.createUserRequestDTO();
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(userRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                UserResponseDTO createdUser = objectMapper.readValue(response, UserResponseDTO.class);
+
+                // Ocultar usuario
+                mockMvc.perform(patch(BASE_URL + "/{id}/hidden", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("true"))
+                                .andDo(print())
+                                .andExpect(status().isOk());
+
+                // Verificar que está oculto
+                String getResponse = mockMvc.perform(get(BASE_URL + "/{id}", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                UserResponseDTO updatedUser = objectMapper.readValue(getResponse, UserResponseDTO.class);
+                assert updatedUser.isHidden() : "Usuario debe estar oculto";
+        }
+
+        @Test
+        void whenToggleUserHidden_unhideUser_thenSuccess() throws Exception {
+                UserRequestDTO userRequest = TestDataUtil.createUserRequestDTO();
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(userRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                UserResponseDTO createdUser = objectMapper.readValue(response, UserResponseDTO.class);
+
+                // Ocultar usuario
+                mockMvc.perform(patch(BASE_URL + "/{id}/hidden", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("true"))
+                                .andExpect(status().isOk());
+
+                // Mostrar usuario nuevamente
+                mockMvc.perform(patch(BASE_URL + "/{id}/hidden", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("false"))
+                                .andDo(print())
+                                .andExpect(status().isOk());
+
+                // Verificar que ya no está oculto
+                String getResponse = mockMvc.perform(get(BASE_URL + "/{id}", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                UserResponseDTO updatedUser = objectMapper.readValue(getResponse, UserResponseDTO.class);
+                assert !updatedUser.isHidden() : "Usuario no debe estar oculto";
+        }
+
+        @Test
+        void whenTryToHideLastAdmin_thenBadRequest() throws Exception {
+                // Intentar ocultar el único admin
+                mockMvc.perform(patch(BASE_URL + "/{id}/hidden", testAdmin.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("true"))
+                                .andDo(print())
+                                .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void whenToggleHiddenUsersShouldNotAppearInNormalList() throws Exception {
+                UserRequestDTO userRequest = TestDataUtil.createUserRequestDTO();
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(userRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                UserResponseDTO createdUser = objectMapper.readValue(response, UserResponseDTO.class);
+
+                // Obtener usuarios antes de ocultar
+                String beforeResponse = mockMvc.perform(get(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                int countBefore = objectMapper.readValue(beforeResponse, UserResponseDTO[].class).length;
+
+                // Ocultar usuario
+                mockMvc.perform(patch(BASE_URL + "/{id}/hidden", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("true"))
+                                .andExpect(status().isOk());
+
+                // Obtener usuarios después de ocultar
+                String afterResponse = mockMvc.perform(get(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                int countAfter = objectMapper.readValue(afterResponse, UserResponseDTO[].class).length;
+
+                assert countAfter == countBefore - 1 : "El usuario oculto no debe aparecer en la lista";
+        }
 }

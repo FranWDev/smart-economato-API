@@ -172,4 +172,32 @@ public class UserController {
                 service.changePassword(id, request, isAdmin);
                 return ResponseEntity.ok().build();
         }
+
+        @GetMapping("/hidden")
+        @PreAuthorize("hasRole('ADMIN')")
+        @Operation(summary = "Obtener usuarios ocultos", description = "Devuelve una lista paginada de todos los usuarios ocultos. Solo accesible para administradores. [Rol requerido: ADMIN]")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "200", description = "Lista de usuarios ocultos", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
+                        @ApiResponse(responseCode = "403", description = "Acceso denegado")
+        })
+        public ResponseEntity<List<UserResponseDTO>> getHiddenUsers(Pageable pageable) {
+                List<UserResponseDTO> hiddenUsers = service.findHiddenUsers(pageable);
+                return ResponseEntity.ok(hiddenUsers);
+        }
+
+        @PatchMapping("/{id}/hidden")
+        @PreAuthorize("hasRole('ADMIN')")
+        @Operation(summary = "Cambiar estado oculto del usuario", description = "Oculta o muestra un usuario. Los usuarios ocultos no pueden hacer login ni aparecer en listados estándar. No se puede ocultar el último administrador visible. [Rol requerido: ADMIN]")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "200", description = "Estado ocultamiento actualizado correctamente"),
+                        @ApiResponse(responseCode = "400", description = "No se puede ocultar el último administrador visible"),
+                        @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+                        @ApiResponse(responseCode = "403", description = "Acceso denegado")
+        })
+        public ResponseEntity<Void> toggleUserHidden(
+                        @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id,
+                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "true para ocultar, false para mostrar", required = true) @RequestBody boolean hidden) {
+                service.toggleUserHiddenStatus(id, hidden);
+                return ResponseEntity.ok().build();
+        }
 }
