@@ -16,5 +16,7 @@ public interface UserProjection {
 
     boolean getIsFirstLogin();
 
+    boolean getIsHidden();
+
     Role getRole();
 }

@@ -84,14 +84,14 @@ class UserServiceTest {
 
         Pageable pageable = PageRequest.of(0, 10);
         Page<UserProjection> page = new PageImpl<>(Arrays.asList(testProjection));
-        when(repository.findAllProjectedBy(pageable)).thenReturn(page);
+        when(repository.findByIsHiddenFalseProjectedBy(pageable)).thenReturn(page);
 
         List<UserResponseDTO> result = userService.findAll(pageable);
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testUserResponseDTO.getUser(), result.get(0).getUser());
-        verify(repository).findAllProjectedBy(pageable);
+        verify(repository).findByIsHiddenFalseProjectedBy(pageable);
     }
 
     @Test
@@ -294,26 +294,26 @@ class UserServiceTest {
     void findByRole_ShouldReturnUsersWithRole() {
 
         List<UserProjection> users = Arrays.asList(testProjection);
-        when(repository.findProjectedByRole(Role.USER)).thenReturn(users);
+        when(repository.findByRoleAndIsHiddenFalseProjectedBy(Role.USER)).thenReturn(users);
 
         List<UserResponseDTO> result = userService.findByRole(Role.USER);
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testUserResponseDTO.getRole(), result.get(0).getRole());
-        verify(repository).findProjectedByRole(Role.USER);
+        verify(repository).findByRoleAndIsHiddenFalseProjectedBy(Role.USER);
     }
 
     @Test
     void findByRole_WhenNoUsersFound_ShouldReturnEmptyList() {
 
-        when(repository.findProjectedByRole(Role.ADMIN)).thenReturn(Arrays.asList());
+        when(repository.findByRoleAndIsHiddenFalseProjectedBy(Role.ADMIN)).thenReturn(Arrays.asList());
 
         List<UserResponseDTO> result = userService.findByRole(Role.ADMIN);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
-        verify(repository).findProjectedByRole(Role.ADMIN);
+        verify(repository).findByRoleAndIsHiddenFalseProjectedBy(Role.ADMIN);
     }
 
     @Test
@@ -534,6 +534,121 @@ class UserServiceTest {
 
         assertThrows(ResourceNotFoundException.class,
                 () -> userService.updateFirstLoginStatus(999, false, false));
+        verify(repository, never()).save(any(User.class));
+    }
+
+    // ==================== Tests para funcionalidad de usuarios ocultos ====================
+
+    @Test
+    void findHiddenUsers_ShouldReturnListOfHiddenUsers() {
+        Pageable pageable = PageRequest.of(0, 10);
+        UserProjection hiddenProjection = mock(UserProjection.class);
+        lenient().when(hiddenProjection.getId()).thenReturn(2);
+        lenient().when(hiddenProjection.getName()).thenReturn("Hidden User");
+        lenient().when(hiddenProjection.getUser()).thenReturn("hiddenUser");
+        lenient().when(hiddenProjection.getIsHidden()).thenReturn(true);
+        lenient().when(hiddenProjection.getRole()).thenReturn(Role.USER);
+
+        Page<UserProjection> page = new PageImpl<>(Arrays.asList(hiddenProjection));
+        when(repository.findByIsHiddenTrueProjectedBy(pageable)).thenReturn(page);
+
+        List<UserResponseDTO> result = userService.findHiddenUsers(pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertTrue(result.get(0).isHidden());
+        verify(repository).findByIsHiddenTrueProjectedBy(pageable);
+    }
+
+    @Test
+    void findHiddenUsers_WhenNoHiddenUsers_ShouldReturnEmptyList() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<UserProjection> page = new PageImpl<>(Arrays.asList());
+        when(repository.findByIsHiddenTrueProjectedBy(pageable)).thenReturn(page);
+
+        List<UserResponseDTO> result = userService.findHiddenUsers(pageable);
+
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+        verify(repository).findByIsHiddenTrueProjectedBy(pageable);
+    }
+
+    @Test
+    void toggleUserHiddenStatus_WhenHidingNormalUser_ShouldSucceed() {
+        testUser.setRole(Role.USER);
+        testUser.setHidden(false);
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(repository.save(any(User.class))).thenReturn(testUser);
+
+        userService.toggleUserHiddenStatus(1, true);
+
+        assertTrue(testUser.isHidden());
+        verify(repository).findById(1);
+        verify(repository).save(testUser);
+    }
+
+    @Test
+    void toggleUserHiddenStatus_WhenUnhidingUser_ShouldSucceed() {
+        testUser.setHidden(true);
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(repository.save(any(User.class))).thenReturn(testUser);
+
+        userService.toggleUserHiddenStatus(1, false);
+
+        assertFalse(testUser.isHidden());
+        verify(repository).findById(1);
+        verify(repository).save(testUser);
+    }
+
+    @Test
+    void toggleUserHiddenStatus_WhenHidingLastVisibleAdmin_ShouldThrowException() {
+        testUser.setId(1);
+        testUser.setRole(Role.ADMIN);
+        testUser.setHidden(false);
+
+        UserProjection adminProjection = mock(UserProjection.class);
+        lenient().when(adminProjection.getRole()).thenReturn(Role.ADMIN);
+
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        Page<UserProjection> page = new PageImpl<>(Arrays.asList(adminProjection));
+        when(repository.findByIsHiddenFalseProjectedBy(any(Pageable.class))).thenReturn(page);
+
+        assertThrows(InvalidOperationException.class,
+                () -> userService.toggleUserHiddenStatus(1, true));
+        verify(repository, never()).save(any(User.class));
+    }
+
+    @Test
+    void toggleUserHiddenStatus_WhenHidingAdminButMultipleExists_ShouldSucceed() {
+        testUser.setId(1);
+        testUser.setRole(Role.ADMIN);
+        testUser.setHidden(false);
+
+        UserProjection admin1 = mock(UserProjection.class);
+        lenient().when(admin1.getId()).thenReturn(1);
+        when(admin1.getRole()).thenReturn(Role.ADMIN);
+
+        UserProjection admin2 = mock(UserProjection.class);
+        lenient().when(admin2.getId()).thenReturn(2);
+        when(admin2.getRole()).thenReturn(Role.ADMIN);
+
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        Page<UserProjection> page = new PageImpl<>(Arrays.asList(admin1, admin2));
+        when(repository.findByIsHiddenFalseProjectedBy(any(Pageable.class))).thenReturn(page);
+        when(repository.save(any(User.class))).thenReturn(testUser);
+
+        userService.toggleUserHiddenStatus(1, true);
+
+        assertTrue(testUser.isHidden());
+        verify(repository).save(testUser);
+    }
+
+    @Test
+    void toggleUserHiddenStatus_WhenUserNotFound_ShouldThrowException() {
+        when(repository.findById(999)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class,
+                () -> userService.toggleUserHiddenStatus(999, true));
         verify(repository, never()).save(any(User.class));
     }
 }

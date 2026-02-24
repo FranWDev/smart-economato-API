@@ -36,6 +36,9 @@ public class User {
         @Column(name = "is_first_login", nullable = false)
         private boolean isFirstLogin = true;
 
+        @Column(name = "is_hidden", nullable = false)
+        private boolean isHidden = false;
+
         @NotBlank(message = "La contraseña no puede estar vacía")
         @Column(name = "password", nullable = false, length = 255)
         private String password;

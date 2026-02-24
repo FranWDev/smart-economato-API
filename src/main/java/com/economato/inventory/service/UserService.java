@@ -37,7 +37,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findAll(Pageable pageable) {
-        return repository.findAllProjectedBy(pageable).stream()
+        return repository.findByIsHiddenFalseProjectedBy(pageable).stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
     }
@@ -192,9 +192,36 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findByRole(Role role) {
-        return repository.findProjectedByRole(role).stream()
+        return repository.findByRoleAndIsHiddenFalseProjectedBy(role).stream()
                 .map(this::toResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserResponseDTO> findHiddenUsers(Pageable pageable) {
+        return repository.findByIsHiddenTrueProjectedBy(pageable).stream()
+                .map(this::toResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+    @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
+    public void toggleUserHiddenStatus(Integer id, boolean hidden) {
+        User user = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
+
+        // Validación de seguridad: no se puede ocultar el último admin
+        if (hidden && Role.ADMIN.equals(user.getRole())) {
+            long visibleAdmins = repository.findByIsHiddenFalseProjectedBy(Pageable.unpaged()).stream()
+                    .filter(p -> p.getRole() == Role.ADMIN)
+                    .count();
+            if (visibleAdmins <= 1) {
+                throw new InvalidOperationException("No se puede ocultar el último administrador visible del sistema");
+            }
+        }
+
+        user.setHidden(hidden);
+        repository.save(user);
     }
 
     /**
@@ -206,6 +233,7 @@ public class UserService {
         dto.setName(projection.getName());
         dto.setUser(projection.getUser());
         dto.setFirstLogin(projection.getIsFirstLogin());
+        dto.setHidden(projection.getIsHidden());
         dto.setRole(projection.getRole());
         return dto;
     }

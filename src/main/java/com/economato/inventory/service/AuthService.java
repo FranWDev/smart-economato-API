@@ -70,6 +70,7 @@ public class AuthService {
                 savedUser.getName(),
                 savedUser.getUser(),
                 savedUser.isFirstLogin(),
+                savedUser.isHidden(),
                 savedUser.getRole());
     }
 

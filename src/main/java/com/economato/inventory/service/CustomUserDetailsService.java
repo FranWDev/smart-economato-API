@@ -37,6 +37,11 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByName(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
 
+        // Validar que el usuario no esté oculto
+        if (user.isHidden()) {
+            throw new UsernameNotFoundException("User is hidden and cannot login: " + username);
+        }
+
         CachedEntry entry = new CachedEntry(user.getName(), user.getPassword(), "ROLE_" + user.getRole());
         cache.put(username, entry);
         return entry.toUserDetails();

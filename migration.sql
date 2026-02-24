@@ -18,3 +18,6 @@ ALTER TABLE users ADD COLUMN is_first_login BOOLEAN NOT NULL DEFAULT TRUE;
 
 -- 5. (Optional) Update existing users to have is_first_login = FALSE if necessary
 -- UPDATE users SET is_first_login = FALSE;
+
+-- 6. Add 'is_hidden' column with default value FALSE (usuarios no ocultos por defecto)
+ALTER TABLE users ADD COLUMN is_hidden BOOLEAN NOT NULL DEFAULT FALSE;
