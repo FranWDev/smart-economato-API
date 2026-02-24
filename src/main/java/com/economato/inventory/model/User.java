@@ -1,5 +1,6 @@
 package com.economato.inventory.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.util.List;
@@ -48,9 +49,11 @@ public class User {
         @Column(name = "role", nullable = false, length = 20)
         private Role role;
 
+        @JsonIgnore
         @OneToMany(mappedBy = "users")
         private List<Order> orders;
 
+        @JsonIgnore
         @OneToMany(mappedBy = "users")
         private List<InventoryAudit> inventoryMovements;
 }

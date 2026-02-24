@@ -1,5 +1,6 @@
 package com.economato.inventory.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.time.LocalDateTime;
@@ -12,14 +13,11 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(
-    name = "order_header",
-    indexes = {
+@Table(name = "order_header", indexes = {
         @Index(name = "idx_order_status", columnList = "status"),
         @Index(name = "idx_order_date", columnList = "order_date"),
         @Index(name = "idx_order_user", columnList = "user_id")
-    }
-)
+})
 public class Order {
 
     @Id
@@ -27,6 +25,7 @@ public class Order {
     @Column(name = "order_id")
     private Integer id;
 
+    @JsonIgnore
     @NotNull(message = "El usuario no puede ser nulo")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_order_user"))
@@ -45,6 +44,7 @@ public class Order {
     @Column(name = "version")
     private Long version;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderDetail> details = new ArrayList<>();
 }

@@ -1,5 +1,6 @@
 package com.economato.inventory.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
@@ -67,6 +68,7 @@ public class Product {
         @Column(name = "minimum_stock", nullable = false, precision = 10, scale = 3)
         private BigDecimal minimumStock;
 
+        @JsonIgnore
         @ManyToOne(fetch = FetchType.LAZY)
         @JoinColumn(name = "supplier_id", foreignKey = @ForeignKey(name = "fk_product_supplier"))
         private Supplier supplier;
@@ -75,6 +77,7 @@ public class Product {
         @Column(name = "version")
         private Long version;
 
+        @JsonIgnore
         @OneToMany(mappedBy = "product")
         private List<OrderDetail> orderDetails;
 }
