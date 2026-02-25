@@ -27,17 +27,20 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
     private final TokenBlacklistService tokenBlacklistService;
+    private final com.economato.inventory.mapper.UserMapper userMapper;
 
     public AuthService(UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager,
             JwtUtils jwtUtils,
-            TokenBlacklistService tokenBlacklistService) {
+            TokenBlacklistService tokenBlacklistService,
+            com.economato.inventory.mapper.UserMapper userMapper) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.userMapper = userMapper;
     }
 
     @Transactional(readOnly = true)
@@ -56,22 +59,13 @@ public class AuthService {
             throw new InvalidOperationException("User already exists");
         }
 
-        User user = new User();
-        user.setName(requestDTO.getName());
-        user.setUser(requestDTO.getUser());
-        user.setRole(requestDTO.getRole());
+        User user = userMapper.toEntity(requestDTO);
         user.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
         user.setFirstLogin(true);
 
         User savedUser = userRepository.save(user);
 
-        return new UserResponseDTO(
-                savedUser.getId(),
-                savedUser.getName(),
-                savedUser.getUser(),
-                savedUser.isFirstLogin(),
-                savedUser.isHidden(),
-                savedUser.getRole());
+        return userMapper.toResponseDTO(savedUser);
     }
 
     public void logout(String token) {

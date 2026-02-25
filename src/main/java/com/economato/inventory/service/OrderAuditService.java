@@ -33,7 +33,7 @@ public class OrderAuditService {
     @Transactional(readOnly = true)
     public List<OrderAuditResponseDTO> findAll(Pageable pageable) {
         return repository.findAllProjectedBy(pageable).stream()
-                .map(this::toResponseDTO)
+                .map(orderAuditMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
@@ -58,14 +58,14 @@ public class OrderAuditService {
     @Transactional(readOnly = true)
     public List<OrderAuditResponseDTO> findByOrderId(Integer id) {
         return repository.findProjectedByOrderId(id).stream()
-                .map(this::toResponseDTO)
+                .map(orderAuditMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<OrderAuditResponseDTO> findByUserId(Integer id) {
         return repository.findProjectedByUsersId(id).stream()
-                .map(this::toResponseDTO)
+                .map(orderAuditMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
@@ -73,29 +73,8 @@ public class OrderAuditService {
     public List<OrderAuditResponseDTO> findByAuditDateBetween(java.time.LocalDateTime start,
             java.time.LocalDateTime end) {
         return repository.findProjectedByAuditDateBetween(start, end).stream()
-                .map(this::toResponseDTO)
+                .map(orderAuditMapper::toResponseDTO)
                 .collect(Collectors.toList());
-    }
-
-    private OrderAuditResponseDTO toResponseDTO(
-            com.economato.inventory.dto.projection.OrderAuditProjection projection) {
-        OrderAuditResponseDTO dto = new OrderAuditResponseDTO();
-        dto.setId(projection.getId());
-        dto.setAction(projection.getAction());
-        dto.setDetails(projection.getDetails());
-        dto.setPreviousState(projection.getPreviousState());
-        dto.setNewState(projection.getNewState());
-        dto.setAuditDate(projection.getAuditDate());
-
-        if (projection.getOrder() != null) {
-            dto.setOrderId(projection.getOrder().getId());
-        }
-
-        if (projection.getUsers() != null) {
-            dto.setUserId(projection.getUsers().getId());
-            dto.setUserName(projection.getUsers().getName());
-        }
-        return dto;
     }
 
 }

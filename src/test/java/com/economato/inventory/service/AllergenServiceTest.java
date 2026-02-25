@@ -59,6 +59,8 @@ class AllergenServiceTest {
         testProjection = mock(AllergenProjection.class);
         lenient().when(testProjection.getId()).thenReturn(1);
         lenient().when(testProjection.getName()).thenReturn("Test Allergen");
+
+        lenient().when(allergenMapper.toResponseDTO(any(AllergenProjection.class))).thenReturn(testAllergenResponseDTO);
     }
 
     @Test

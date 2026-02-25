@@ -13,7 +13,10 @@ public interface OrderAuditMapper {
     @Mapping(source = "order.id", target = "orderId")
     @Mapping(source = "users.id", target = "userId")
     @Mapping(source = "users.name", target = "userName")
-    @Mapping(source = "previousState", target = "previousState")
-    @Mapping(source = "newState", target = "newState")
     OrderAuditResponseDTO toResponseDTO(OrderAudit audit);
+
+    @Mapping(source = "order.id", target = "orderId")
+    @Mapping(source = "users.id", target = "userId")
+    @Mapping(source = "users.name", target = "userName")
+    OrderAuditResponseDTO toResponseDTO(com.economato.inventory.dto.projection.OrderAuditProjection projection);
 }

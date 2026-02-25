@@ -5,7 +5,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.dto.response.AllergenResponseDTO;
-import com.economato.inventory.dto.response.RecipeResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
 import com.economato.inventory.exception.ResourceNotFoundException;
 import com.economato.inventory.model.Allergen;
@@ -19,26 +18,24 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-@Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
+@Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
+        Exception.class })
 public class RecipeAllergenService {
-    
+
     private final RecipeAllergenRepository repository;
-    private final RecipeService recipeService;
-    private final AllergenService allergenService;
     private final RecipeRepository recipeRepository;
     private final AllergenRepository allergenRepository;
+    private final com.economato.inventory.mapper.AllergenMapper allergenMapper;
 
     public RecipeAllergenService(
             RecipeAllergenRepository repository,
-            RecipeService recipeService,
-            AllergenService allergenService,
             RecipeRepository recipeRepository,
-            AllergenRepository allergenRepository) {
+            AllergenRepository allergenRepository,
+            com.economato.inventory.mapper.AllergenMapper allergenMapper) {
         this.repository = repository;
-        this.recipeService = recipeService;
-        this.allergenService = allergenService;
         this.recipeRepository = recipeRepository;
         this.allergenRepository = allergenRepository;
+        this.allergenMapper = allergenMapper;
     }
 
     @Transactional(readOnly = true)
@@ -46,7 +43,7 @@ public class RecipeAllergenService {
         return repository.findAll(pageable).getContent();
     }
 
-    @Transactional(rollbackFor = {InvalidOperationException.class, RuntimeException.class, Exception.class})
+    @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public RecipeAllergen save(RecipeAllergen entity) {
         return repository.save(entity);
     }
@@ -56,7 +53,8 @@ public class RecipeAllergenService {
         return repository.findById(id);
     }
 
-    @Transactional(rollbackFor = {InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class, Exception.class})
+    @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
+            RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
         repository.deleteById(id);
     }
@@ -73,60 +71,54 @@ public class RecipeAllergenService {
 
     @Transactional(readOnly = true)
     public Optional<List<RecipeAllergen>> getByRecipeId(Integer recipeId) {
-        return recipeService.findById(recipeId)
-                .map(recipeDto -> {
-                    Recipe recipe = parseRecipeDtoToEntity(recipeDto);
-                    return repository.findByRecipe(recipe);
-                });
+        return recipeRepository.findById(recipeId)
+                .map(repository::findByRecipe);
     }
 
     @Transactional(readOnly = true)
     public Optional<List<RecipeAllergen>> getByAllergenId(Integer allergenId) {
-        return allergenService.findById(allergenId)
-                .map(allergenDto -> {
-                    Allergen allergen = parseAllergenDtoToEntity(allergenDto);
-                    return repository.findByAllergen(allergen);
-                });
+        return allergenRepository.findById(allergenId)
+                .map(repository::findByAllergen);
     }
 
-    @Transactional(rollbackFor = {InvalidOperationException.class, RuntimeException.class, Exception.class})
+    @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public boolean addAllergenToRecipe(Integer recipeId, Integer allergenId) {
         Optional<Recipe> recipeOpt = recipeRepository.findById(recipeId);
         Optional<Allergen> allergenOpt = allergenRepository.findById(allergenId);
-        
+
         if (recipeOpt.isEmpty() || allergenOpt.isEmpty()) {
             return false;
         }
-        
+
         Recipe recipe = recipeOpt.get();
         Allergen allergen = allergenOpt.get();
-        
+
         // Verificar si la asociación ya existe
         List<RecipeAllergen> existing = repository.findByRecipeAndAllergen(recipe, allergen);
         if (!existing.isEmpty()) {
             return true; // Ya existe, no hacer nada
         }
-        
+
         RecipeAllergen recipeAllergen = new RecipeAllergen();
         recipeAllergen.setRecipe(recipe);
         recipeAllergen.setAllergen(allergen);
-        
+
         repository.save(recipeAllergen);
         return true;
     }
 
-    @Transactional(rollbackFor = {InvalidOperationException.class, RuntimeException.class, Exception.class})
+    @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public boolean removeAllergenFromRecipe(Integer recipeId, Integer allergenId) {
         Optional<Recipe> recipeOpt = recipeRepository.findById(recipeId);
         Optional<Allergen> allergenOpt = allergenRepository.findById(allergenId);
-        
+
         if (recipeOpt.isEmpty() || allergenOpt.isEmpty()) {
             return false;
         }
-        
+
         Recipe recipe = recipeOpt.get();
         Allergen allergen = allergenOpt.get();
-        
+
         List<RecipeAllergen> associations = repository.findByRecipeAndAllergen(recipe, allergen);
         repository.deleteAll(associations);
         return true;
@@ -140,26 +132,8 @@ public class RecipeAllergenService {
         }
         List<RecipeAllergen> associations = repository.findByRecipe(recipeOpt.get());
         List<AllergenResponseDTO> allergens = associations.stream()
-                .map(ra -> new AllergenResponseDTO(ra.getAllergen().getId(), ra.getAllergen().getName()))
+                .map(ra -> allergenMapper.toResponseDTO(ra.getAllergen()))
                 .toList();
         return Optional.of(allergens);
-    }
-
-    // Helper methods to parse DTOs to entities
-    private Recipe parseRecipeDtoToEntity(RecipeResponseDTO dto) {
-        Recipe recipe = new Recipe();
-        recipe.setId(dto.getId());
-        recipe.setName(dto.getName());
-        recipe.setElaboration(dto.getElaboration());
-        recipe.setPresentation(dto.getPresentation());
-        recipe.setTotalCost(dto.getTotalCost());
-        return recipe;
-    }
-
-    private Allergen parseAllergenDtoToEntity(AllergenResponseDTO dto) {
-        Allergen allergen = new Allergen();
-        allergen.setId(dto.getId());
-        allergen.setName(dto.getName());
-        return allergen;
     }
 }

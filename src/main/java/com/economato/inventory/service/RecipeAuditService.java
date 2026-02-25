@@ -33,7 +33,7 @@ public class RecipeAuditService {
     @Transactional(readOnly = true)
     public List<RecipeAuditResponseDTO> findAll(Pageable pageable) {
         return repository.findAllProjectedBy(pageable).stream()
-                .map(this::toResponseDTO)
+                .map(recipeAuditMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
@@ -56,14 +56,14 @@ public class RecipeAuditService {
     @Transactional(readOnly = true)
     public List<RecipeAuditResponseDTO> findByRecipeId(Integer id) {
         return repository.findProjectedByRecipeId(id).stream()
-                .map(this::toResponseDTO)
+                .map(recipeAuditMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<RecipeAuditResponseDTO> findByUserId(Integer id) {
         return repository.findProjectedByUsersId(id).stream()
-                .map(this::toResponseDTO)
+                .map(recipeAuditMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
@@ -71,21 +71,8 @@ public class RecipeAuditService {
     public List<RecipeAuditResponseDTO> findByMovementDateBetween(java.time.LocalDateTime start,
             java.time.LocalDateTime end) {
         return repository.findProjectedByAuditDateBetween(start, end).stream()
-                .map(this::toResponseDTO)
+                .map(recipeAuditMapper::toResponseDTO)
                 .collect(Collectors.toList());
-    }
-
-    private RecipeAuditResponseDTO toResponseDTO(
-            com.economato.inventory.dto.projection.RecipeAuditProjection projection) {
-        RecipeAuditResponseDTO dto = new RecipeAuditResponseDTO();
-        dto.setId_recipe(projection.getRecipe() != null ? projection.getRecipe().getId() : null);
-        dto.setId_user(projection.getUsers() != null ? projection.getUsers().getId() : null);
-        dto.setAction(projection.getAction());
-        dto.setDetails(projection.getDetails());
-        dto.setPreviousState(projection.getPreviousState());
-        dto.setNewState(projection.getNewState());
-        dto.setAuditDate(projection.getAuditDate());
-        return dto;
     }
 
 }

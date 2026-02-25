@@ -100,6 +100,9 @@ class OrderAuditServiceTest {
         lenient().when(userInfo.getId()).thenReturn(1);
         lenient().when(userInfo.getName()).thenReturn("Test User");
         lenient().when(testProjection.getUsers()).thenReturn(userInfo);
+
+        lenient().when(orderAuditMapper.toResponseDTO(any(OrderAuditProjection.class)))
+                .thenReturn(testOrderAuditResponseDTO);
     }
 
     @Test

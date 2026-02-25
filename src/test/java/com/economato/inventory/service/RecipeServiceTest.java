@@ -138,6 +138,9 @@ class RecipeServiceTest {
         lenient().when(allergenInfo.getName()).thenReturn("Test Allergen");
 
         lenient().when(testProjection.getAllergens()).thenReturn(Collections.singleton(allergenInfo));
+
+        // Mocking mapper behavior to return dummy entity to enable logic flow
+        lenient().when(recipeMapper.toEntity(any(RecipeRequestDTO.class))).thenReturn(testRecipe);
     }
 
     @Test

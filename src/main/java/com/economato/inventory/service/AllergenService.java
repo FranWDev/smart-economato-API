@@ -5,7 +5,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.economato.inventory.dto.projection.AllergenProjection;
 import com.economato.inventory.dto.request.AllergenRequestDTO;
 import com.economato.inventory.dto.response.AllergenResponseDTO;
 import com.economato.inventory.mapper.AllergenMapper;
@@ -31,13 +30,13 @@ public class AllergenService {
     @Transactional(readOnly = true)
     public Page<AllergenResponseDTO> findAll(Pageable pageable) {
         return repository.findAllProjectedBy(pageable)
-                .map(this::toResponseDTO);
+                .map(allergenMapper::toResponseDTO);
     }
 
     @Transactional(readOnly = true)
     public Optional<AllergenResponseDTO> findById(Integer id) {
         return repository.findProjectedById(id)
-                .map(this::toResponseDTO);
+                .map(allergenMapper::toResponseDTO);
     }
 
     public AllergenResponseDTO save(AllergenRequestDTO requestDTO) {
@@ -63,20 +62,13 @@ public class AllergenService {
     public Optional<AllergenResponseDTO> findByName(String namePart) {
         return repository.findProjectedByNameContainingIgnoreCase(namePart).stream()
                 .findFirst()
-                .map(this::toResponseDTO);
+                .map(allergenMapper::toResponseDTO);
     }
 
     @Transactional(readOnly = true)
     public List<AllergenResponseDTO> findByNameContaining(String namePart) {
         return repository.findProjectedByNameContainingIgnoreCase(namePart).stream()
-                .map(this::toResponseDTO)
+                .map(allergenMapper::toResponseDTO)
                 .collect(Collectors.toList());
-    }
-
-    /**
-     * Convierte una proyección de Allergen a AllergenResponseDTO.
-     */
-    private AllergenResponseDTO toResponseDTO(AllergenProjection projection) {
-        return new AllergenResponseDTO(projection.getId(), projection.getName());
     }
 }

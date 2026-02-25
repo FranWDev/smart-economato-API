@@ -15,4 +15,8 @@ public interface RecipeAuditMapper {
     @Mapping(source = "previousState", target = "previousState")
     @Mapping(source = "newState", target = "newState")
     RecipeAuditResponseDTO toResponseDTO(RecipeAudit audit);
+
+    @Mapping(source = "recipe.id", target = "id_recipe")
+    @Mapping(source = "users.id", target = "id_user")
+    RecipeAuditResponseDTO toResponseDTO(com.economato.inventory.dto.projection.RecipeAuditProjection projection);
 }

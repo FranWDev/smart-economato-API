@@ -17,7 +17,6 @@ import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.RecipeComponentRepository;
 import com.economato.inventory.repository.RecipeRepository;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -30,6 +29,7 @@ public class RecipeComponentService {
     private final RecipeComponentRepository repository;
     private final ProductRepository productRepository;
     private final RecipeRepository recipeRepository;
+    private final RecipeComponentMapper recipeComponentMapper;
 
     public RecipeComponentService(
             RecipeComponentRepository repository,
@@ -39,30 +39,32 @@ public class RecipeComponentService {
         this.repository = repository;
         this.productRepository = productRepository;
         this.recipeRepository = recipeRepository;
+        this.recipeComponentMapper = recipeComponentMapper;
     }
 
     @Transactional(readOnly = true)
     public List<RecipeComponentResponseDTO> findAll(Pageable pageable) {
         return repository.findAllProjectedBy(pageable).stream()
-                .map(this::toResponseDTO)
+                .map(recipeComponentMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public Optional<RecipeComponentResponseDTO> findById(Integer id) {
         return repository.findProjectedById(id)
-                .map(this::toResponseDTO);
+                .map(recipeComponentMapper::toResponseDTO);
     }
 
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public RecipeComponentResponseDTO save(RecipeComponentRequestDTO requestDTO) {
-        RecipeComponent component = toEntity(requestDTO);
+        RecipeComponent component = new RecipeComponent();
+        updateEntity(component, requestDTO);
         repository.save(component);
 
         // recargar con proyección
         return repository.findProjectedById(component.getId())
-                .map(this::toResponseDTO)
+                .map(recipeComponentMapper::toResponseDTO)
                 .orElseThrow(() -> new RuntimeException("Saved component not found"));
     }
 
@@ -75,7 +77,7 @@ public class RecipeComponentService {
                     repository.save(existing);
 
                     return repository.findProjectedById(existing.getId())
-                            .map(this::toResponseDTO)
+                            .map(recipeComponentMapper::toResponseDTO)
                             .orElseThrow(() -> new RuntimeException("Updated component not found"));
                 });
     }
@@ -92,48 +94,18 @@ public class RecipeComponentService {
             throw new ResourceNotFoundException("Recipe ID not provided");
         }
         return repository.findProjectedByParentRecipeId(recipeDTO.getId()).stream()
-                .map(this::toResponseDTO)
+                .map(recipeComponentMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Convierte una proyección de RecipeComponent a RecipeComponentResponseDTO.
-     */
-    private RecipeComponentResponseDTO toResponseDTO(
-            com.economato.inventory.dto.projection.RecipeComponentProjection projection) {
-        RecipeComponentResponseDTO dto = new RecipeComponentResponseDTO();
-        dto.setId(projection.getId());
-        dto.setQuantity(projection.getQuantity());
-
-        if (projection.getParentRecipe() != null) {
-            dto.setParentRecipeId(projection.getParentRecipe().getId());
-        }
-
-        if (projection.getProduct() != null) {
-            dto.setProductId(projection.getProduct().getId());
-            dto.setProductName(projection.getProduct().getName());
-
-            BigDecimal price = projection.getProduct().getUnitPrice();
-            if (price != null && projection.getQuantity() != null) {
-                dto.setSubtotal(price.multiply(projection.getQuantity()));
-            }
-        }
-
-        return dto;
-    }
-
-    private RecipeComponent toEntity(RecipeComponentRequestDTO requestDTO) {
-        RecipeComponent component = new RecipeComponent();
-        updateEntity(component, requestDTO);
-        return component;
-    }
-
     private void updateEntity(RecipeComponent component, RecipeComponentRequestDTO requestDTO) {
+        // Asignar propiedades simples del DTO usando el mapper
+        recipeComponentMapper.updateEntity(requestDTO, component);
+
         // Asignar el producto
         Product product = productRepository.findById(requestDTO.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
         component.setProduct(product);
-        component.setQuantity(requestDTO.getQuantity());
 
         // Asignar la receta
         if (requestDTO.getRecipeId() != null) {

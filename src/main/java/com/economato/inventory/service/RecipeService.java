@@ -126,16 +126,24 @@ public class RecipeService {
     }
 
     private Recipe toEntity(RecipeRequestDTO requestDTO) {
-        Recipe recipe = new Recipe();
-        updateEntity(recipe, requestDTO);
+        Recipe recipe = recipeMapper.toEntity(requestDTO);
+        updateEntityCollections(recipe, requestDTO);
         return recipe;
     }
 
     private void updateEntity(Recipe recipe, RecipeRequestDTO requestDTO) {
+        recipeMapper.updateEntity(requestDTO, recipe);
+        updateEntityCollections(recipe, requestDTO);
+    }
 
-        recipe.setName(requestDTO.getName());
-        recipe.setElaboration(requestDTO.getElaboration());
-        recipe.setPresentation(requestDTO.getPresentation());
+    private void updateEntityCollections(Recipe recipe, RecipeRequestDTO requestDTO) {
+
+        if (recipe.getComponents() == null) {
+            recipe.setComponents(new java.util.ArrayList<>());
+        }
+        if (recipe.getAllergens() == null) {
+            recipe.setAllergens(new HashSet<>());
+        }
 
         if (requestDTO.getComponents() != null && !requestDTO.getComponents().isEmpty()) {
 
