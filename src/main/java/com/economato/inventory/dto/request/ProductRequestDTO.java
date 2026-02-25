@@ -1,6 +1,7 @@
 package com.economato.inventory.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import lombok.AllArgsConstructor;
@@ -30,6 +31,7 @@ public class ProductRequestDTO {
     @DecimalMin(value = "0.01", message = "El precio debe ser mayor que cero")
     @Digits(integer = 10, fraction = 2, message = "El precio debe tener máximo 10 dígitos enteros y 2 decimales")
     @Schema(description = "Precio por unidad de medida", example = "1.50")
+    @JsonAlias("price")
     private BigDecimal unitPrice;
 
     @NotBlank(message = "El código del producto no puede estar vacío")
@@ -41,6 +43,7 @@ public class ProductRequestDTO {
     @DecimalMin(value = "0.0", inclusive = true, message = "El stock no puede ser negativo")
     @Digits(integer = 10, fraction = 3, message = "El stock debe tener máximo 10 dígitos enteros y 3 decimales")
     @Schema(description = "Cantidad actual en inventario", example = "250.00")
+    @JsonAlias("stock")
     private BigDecimal currentStock;
 
     @DecimalMin(value = "0.00", message = "El porcentaje de disponibilidad no puede ser negativo")
@@ -53,6 +56,7 @@ public class ProductRequestDTO {
     @DecimalMin(value = "0.0", inclusive = true, message = "El stock mínimo no puede ser negativo")
     @Digits(integer = 10, fraction = 3, message = "El stock mínimo debe tener máximo 10 dígitos enteros y 3 decimales")
     @Schema(description = "Stock mínimo antes de alerta", example = "10.00")
+    @JsonAlias("minStock")
     private BigDecimal minimumStock;
 
     @Schema(description = "ID del proveedor del producto", example = "1")

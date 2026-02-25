@@ -138,7 +138,7 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(productRequest)))
-                                .andExpect(status().isOk());
+                                .andExpect(status().isCreated());
 
                 productRequest.setProductCode("TEST002");
                 mockMvc.perform(post(BASE_URL)
@@ -200,7 +200,7 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
                                         .header("Authorization", "Bearer " + jwtToken)
                                         .contentType(MediaType.APPLICATION_JSON)
                                         .content(asJsonString(productRequest)))
-                                        .andExpect(status().isOk());
+                                        .andExpect(status().isCreated());
                 }
 
                 mockMvc.perform(get(BASE_URL)
@@ -232,7 +232,7 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(ingredientProduct)))
-                                .andExpect(status().isOk());
+                                .andExpect(status().isCreated());
 
                 mockMvc.perform(get(BASE_URL)
                                 .header("Authorization", "Bearer " + jwtToken))
