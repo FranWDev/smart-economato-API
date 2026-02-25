@@ -23,6 +23,7 @@ import com.economato.inventory.dto.request.ProductRequestDTO;
 import com.economato.inventory.dto.response.ProductResponseDTO;
 import com.economato.inventory.exception.ConcurrencyException;
 import com.economato.inventory.exception.InvalidOperationException;
+import com.economato.inventory.exception.ResourceNotFoundException;
 import com.economato.inventory.mapper.ProductMapper;
 import com.economato.inventory.model.MovementType;
 import com.economato.inventory.model.Product;
@@ -69,7 +70,7 @@ public class ProductService {
     @Cacheable(value = "products_page_v4", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> findAll(Pageable pageable) {
-        Page<ProductResponseDTO> page = repository.findAllProjectedBy(pageable)
+        Page<ProductResponseDTO> page = repository.findByIsHiddenFalse(pageable)
                 .map(productMapper::toResponseDTO);
         return new com.economato.inventory.dto.RestPage<>(page.getContent(), page.getPageable(),
                 page.getTotalElements());
@@ -91,7 +92,7 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> findByName(String namePart, Pageable pageable) {
-        return repository.findProjectedByNameContainingIgnoreCase(namePart, pageable)
+        return repository.findByNameContainingIgnoreCaseAndIsHiddenFalse(namePart, pageable)
                 .map(productMapper::toResponseDTO);
     }
 
@@ -149,28 +150,28 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> findByType(String type) {
-        return repository.findProjectedByType(type).stream()
+        return repository.findByTypeAndIsHiddenFalse(type).stream()
                 .map(productMapper::toResponseDTO)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> findByNameContaining(String namePart) {
-        return repository.findProjectedByNameContainingIgnoreCase(namePart).stream()
+        return repository.findByNameContainingIgnoreCaseAndIsHiddenFalse(namePart).stream()
                 .map(productMapper::toResponseDTO)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> findByStockLessThan(BigDecimal stock) {
-        return repository.findProjectedByCurrentStockLessThan(stock).stream()
+        return repository.findByCurrentStockLessThanAndIsHiddenFalse(stock).stream()
                 .map(productMapper::toResponseDTO)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> findByPriceRange(BigDecimal min, BigDecimal max) {
-        return repository.findProjectedByUnitPriceBetween(min, max).stream()
+        return repository.findByUnitPriceBetweenAndIsHiddenFalse(min, max).stream()
                 .map(productMapper::toResponseDTO)
                 .toList();
     }
@@ -188,6 +189,24 @@ public class ProductService {
                         "El proveedor especificado no existe");
             }
         }
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductResponseDTO> findHiddenProducts(Pageable pageable) {
+        return repository.findByIsHiddenTrue(pageable).stream()
+                .map(productMapper::toResponseDTO)
+                .toList();
+    }
+
+    @CacheEvict(value = { "products_page_v2", "product_v2" }, allEntries = true)
+    @ProductAuditable(action = "TOGGLE_HIDDEN")
+    @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
+    public void toggleProductHiddenStatus(Integer id, boolean hidden) {
+        Product product = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con ID: " + id));
+
+        product.setHidden(hidden);
+        repository.save(product);
     }
 
     private boolean isValidUnit(String unit) {

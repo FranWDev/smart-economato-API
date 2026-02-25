@@ -84,7 +84,7 @@ class UserServiceTest {
 
         Pageable pageable = PageRequest.of(0, 10);
         Page<UserProjection> page = new PageImpl<>(Arrays.asList(testProjection));
-        when(repository.findByIsHiddenFalseProjectedBy(pageable)).thenReturn(page);
+        when(repository.findByIsHiddenFalse(pageable)).thenReturn(page);
         when(userMapper.toResponseDTO(any(UserProjection.class))).thenReturn(testUserResponseDTO);
 
         List<UserResponseDTO> result = userService.findAll(pageable);
@@ -92,7 +92,7 @@ class UserServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testUserResponseDTO.getUser(), result.get(0).getUser());
-        verify(repository).findByIsHiddenFalseProjectedBy(pageable);
+        verify(repository).findByIsHiddenFalse(pageable);
     }
 
     @Test
@@ -296,7 +296,7 @@ class UserServiceTest {
     void findByRole_ShouldReturnUsersWithRole() {
 
         List<UserProjection> users = Arrays.asList(testProjection);
-        when(repository.findByRoleAndIsHiddenFalseProjectedBy(Role.USER)).thenReturn(users);
+        when(repository.findProjectedByRoleAndIsHiddenFalse(Role.USER)).thenReturn(users);
         when(userMapper.toResponseDTO(any(UserProjection.class))).thenReturn(testUserResponseDTO);
 
         List<UserResponseDTO> result = userService.findByRole(Role.USER);
@@ -304,19 +304,19 @@ class UserServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testUserResponseDTO.getRole(), result.get(0).getRole());
-        verify(repository).findByRoleAndIsHiddenFalseProjectedBy(Role.USER);
+        verify(repository).findProjectedByRoleAndIsHiddenFalse(Role.USER);
     }
 
     @Test
     void findByRole_WhenNoUsersFound_ShouldReturnEmptyList() {
 
-        when(repository.findByRoleAndIsHiddenFalseProjectedBy(Role.ADMIN)).thenReturn(Arrays.asList());
+        when(repository.findProjectedByRoleAndIsHiddenFalse(Role.ADMIN)).thenReturn(Arrays.asList());
 
         List<UserResponseDTO> result = userService.findByRole(Role.ADMIN);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
-        verify(repository).findByRoleAndIsHiddenFalseProjectedBy(Role.ADMIN);
+        verify(repository).findProjectedByRoleAndIsHiddenFalse(Role.ADMIN);
     }
 
     @Test
@@ -554,7 +554,7 @@ class UserServiceTest {
         lenient().when(hiddenProjection.getRole()).thenReturn(Role.USER);
 
         Page<UserProjection> page = new PageImpl<>(Arrays.asList(hiddenProjection));
-        when(repository.findByIsHiddenTrueProjectedBy(pageable)).thenReturn(page);
+        when(repository.findByIsHiddenTrue(pageable)).thenReturn(page);
 
         UserResponseDTO hiddenResponseDTO = new UserResponseDTO();
         hiddenResponseDTO.setHidden(true);
@@ -565,20 +565,20 @@ class UserServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertTrue(result.get(0).isHidden());
-        verify(repository).findByIsHiddenTrueProjectedBy(pageable);
+        verify(repository).findByIsHiddenTrue(pageable);
     }
 
     @Test
     void findHiddenUsers_WhenNoHiddenUsers_ShouldReturnEmptyList() {
         Pageable pageable = PageRequest.of(0, 10);
         Page<UserProjection> page = new PageImpl<>(Arrays.asList());
-        when(repository.findByIsHiddenTrueProjectedBy(pageable)).thenReturn(page);
+        when(repository.findByIsHiddenTrue(pageable)).thenReturn(page);
 
         List<UserResponseDTO> result = userService.findHiddenUsers(pageable);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
-        verify(repository).findByIsHiddenTrueProjectedBy(pageable);
+        verify(repository).findByIsHiddenTrue(pageable);
     }
 
     @Test
@@ -619,7 +619,7 @@ class UserServiceTest {
 
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
         Page<UserProjection> page = new PageImpl<>(Arrays.asList(adminProjection));
-        when(repository.findByIsHiddenFalseProjectedBy(any(Pageable.class))).thenReturn(page);
+        when(repository.findByIsHiddenFalse(any(Pageable.class))).thenReturn(page);
 
         assertThrows(InvalidOperationException.class,
                 () -> userService.toggleUserHiddenStatus(1, true));
@@ -642,7 +642,7 @@ class UserServiceTest {
 
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
         Page<UserProjection> page = new PageImpl<>(Arrays.asList(admin1, admin2));
-        when(repository.findByIsHiddenFalseProjectedBy(any(Pageable.class))).thenReturn(page);
+        when(repository.findByIsHiddenFalse(any(Pageable.class))).thenReturn(page);
         when(repository.save(any(User.class))).thenReturn(testUser);
 
         userService.toggleUserHiddenStatus(1, true);

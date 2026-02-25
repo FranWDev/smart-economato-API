@@ -45,6 +45,10 @@ public class Recipe {
     @Column(name = "total_cost", precision = 10, scale = 2)
     private BigDecimal totalCost;
 
+    @Column(name = "is_hidden", nullable = false)
+    @Builder.Default
+    private boolean isHidden = false;
+
     @Version
     @Column(name = "version")
     private Long version;

@@ -110,7 +110,7 @@ class ProductServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         Page<ProductProjection> page = new PageImpl<>(Arrays.asList(testProjection));
 
-        when(repository.findAllProjectedBy(pageable)).thenReturn(page);
+        when(repository.findByIsHiddenFalse(pageable)).thenReturn(page);
         when(productMapper.toResponseDTO(any(ProductProjection.class))).thenReturn(testProductResponseDTO);
 
         Page<ProductResponseDTO> result = productService.findAll(pageable);
@@ -118,7 +118,7 @@ class ProductServiceTest {
         assertNotNull(result);
         assertEquals(1, result.getContent().size());
         assertEquals(testProductResponseDTO.getName(), result.getContent().get(0).getName());
-        verify(repository).findAllProjectedBy(pageable);
+        verify(repository).findByIsHiddenFalse(pageable);
     }
 
     @Test
@@ -174,7 +174,7 @@ class ProductServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         Page<ProductProjection> page = new PageImpl<>(Arrays.asList(proj1, proj2));
 
-        when(repository.findProjectedByNameContainingIgnoreCase("leche", pageable)).thenReturn(page);
+        when(repository.findByNameContainingIgnoreCaseAndIsHiddenFalse("leche", pageable)).thenReturn(page);
 
         ProductResponseDTO resp1 = new ProductResponseDTO();
         resp1.setName("Leche Desnatada");
@@ -192,7 +192,7 @@ class ProductServiceTest {
         assertEquals(2, result.getContent().size());
         assertEquals("Leche Desnatada", result.getContent().get(0).getName());
         assertEquals("Leche Entera", result.getContent().get(1).getName());
-        verify(repository).findProjectedByNameContainingIgnoreCase("leche", pageable);
+        verify(repository).findByNameContainingIgnoreCaseAndIsHiddenFalse("leche", pageable);
     }
 
     @Test
@@ -201,7 +201,8 @@ class ProductServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         Page<ProductProjection> emptyPage = new PageImpl<>(Arrays.asList());
 
-        when(repository.findProjectedByNameContainingIgnoreCase("inexistente", pageable)).thenReturn(emptyPage);
+        when(repository.findByNameContainingIgnoreCaseAndIsHiddenFalse("inexistente", pageable))
+                .thenReturn(emptyPage);
 
         // Act
         Page<ProductResponseDTO> result = productService.findByName("inexistente", pageable);
@@ -209,7 +210,7 @@ class ProductServiceTest {
         // Assert
         assertNotNull(result);
         assertEquals(0, result.getContent().size());
-        verify(repository).findProjectedByNameContainingIgnoreCase("inexistente", pageable);
+        verify(repository).findByNameContainingIgnoreCaseAndIsHiddenFalse("inexistente", pageable);
     }
 
     @Test
@@ -388,7 +389,7 @@ class ProductServiceTest {
     void findByType_ShouldReturnProductsOfType() {
 
         List<ProductProjection> products = Arrays.asList(testProjection);
-        when(repository.findProjectedByType("INGREDIENT")).thenReturn(products);
+        when(repository.findByTypeAndIsHiddenFalse("INGREDIENT")).thenReturn(products);
         when(productMapper.toResponseDTO(any(ProductProjection.class))).thenReturn(testProductResponseDTO);
 
         List<ProductResponseDTO> result = productService.findByType("INGREDIENT");
@@ -396,14 +397,14 @@ class ProductServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testProductResponseDTO.getType(), result.get(0).getType());
-        verify(repository).findProjectedByType("INGREDIENT");
+        verify(repository).findByTypeAndIsHiddenFalse("INGREDIENT");
     }
 
     @Test
     void findByNameContaining_ShouldReturnMatchingProducts() {
 
         List<ProductProjection> products = Arrays.asList(testProjection);
-        when(repository.findProjectedByNameContainingIgnoreCase("Test")).thenReturn(products);
+        when(repository.findByNameContainingIgnoreCaseAndIsHiddenFalse("Test")).thenReturn(products);
         when(productMapper.toResponseDTO(any(ProductProjection.class))).thenReturn(testProductResponseDTO);
 
         List<ProductResponseDTO> result = productService.findByNameContaining("Test");
@@ -411,7 +412,7 @@ class ProductServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertTrue(result.get(0).getName().contains("Test"));
-        verify(repository).findProjectedByNameContainingIgnoreCase("Test");
+        verify(repository).findByNameContainingIgnoreCaseAndIsHiddenFalse("Test");
     }
 
     @Test
@@ -419,7 +420,7 @@ class ProductServiceTest {
 
         List<ProductProjection> products = Arrays.asList(testProjection);
         BigDecimal threshold = new BigDecimal("20.0");
-        when(repository.findProjectedByCurrentStockLessThan(threshold)).thenReturn(products);
+        when(repository.findByCurrentStockLessThanAndIsHiddenFalse(threshold)).thenReturn(products);
         when(productMapper.toResponseDTO(any(ProductProjection.class))).thenReturn(testProductResponseDTO);
 
         List<ProductResponseDTO> result = productService.findByStockLessThan(threshold);
@@ -427,7 +428,7 @@ class ProductServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertTrue(result.get(0).getCurrentStock().compareTo(threshold) < 0);
-        verify(repository).findProjectedByCurrentStockLessThan(threshold);
+        verify(repository).findByCurrentStockLessThanAndIsHiddenFalse(threshold);
     }
 
     @Test
@@ -436,14 +437,14 @@ class ProductServiceTest {
         BigDecimal min = new BigDecimal("1.0");
         BigDecimal max = new BigDecimal("10.0");
         List<ProductProjection> products = Arrays.asList(testProjection);
-        when(repository.findProjectedByUnitPriceBetween(min, max)).thenReturn(products);
+        when(repository.findByUnitPriceBetweenAndIsHiddenFalse(min, max)).thenReturn(products);
         when(productMapper.toResponseDTO(any(ProductProjection.class))).thenReturn(testProductResponseDTO);
 
         List<ProductResponseDTO> result = productService.findByPriceRange(min, max);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(repository).findProjectedByUnitPriceBetween(min, max);
+        verify(repository).findByUnitPriceBetweenAndIsHiddenFalse(min, max);
     }
 
     @SuppressWarnings("unchecked")

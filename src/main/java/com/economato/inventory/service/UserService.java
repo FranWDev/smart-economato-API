@@ -36,7 +36,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findAll(Pageable pageable) {
-        return repository.findByIsHiddenFalseProjectedBy(pageable).stream()
+        return repository.findByIsHiddenFalse(pageable).stream()
                 .map(userMapper::toResponseDTO)
                 .toList();
     }
@@ -180,14 +180,14 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findByRole(Role role) {
-        return repository.findByRoleAndIsHiddenFalseProjectedBy(role).stream()
+        return repository.findProjectedByRoleAndIsHiddenFalse(role).stream()
                 .map(userMapper::toResponseDTO)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findHiddenUsers(Pageable pageable) {
-        return repository.findByIsHiddenTrueProjectedBy(pageable).stream()
+        return repository.findByIsHiddenTrue(pageable).stream()
                 .map(userMapper::toResponseDTO)
                 .toList();
     }
@@ -200,7 +200,7 @@ public class UserService {
 
         // Validación de seguridad: no se puede ocultar el último admin
         if (hidden && Role.ADMIN.equals(user.getRole())) {
-            long visibleAdmins = repository.findByIsHiddenFalseProjectedBy(Pageable.unpaged()).stream()
+            long visibleAdmins = repository.findByIsHiddenFalse(Pageable.unpaged()).stream()
                     .filter(p -> p.getRole() == Role.ADMIN)
                     .count();
             if (visibleAdmins <= 1) {

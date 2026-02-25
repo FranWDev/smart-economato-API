@@ -27,6 +27,7 @@ public interface RecipeMapper {
     @Mapping(source = "projection.elaboration", target = "elaboration")
     @Mapping(source = "projection.presentation", target = "presentation")
     @Mapping(source = "projection.totalCost", target = "totalCost")
+    @Mapping(source = "projection.isHidden", target = "hidden")
     @Mapping(source = "projection.components", target = "components")
     @Mapping(source = "projection.allergens", target = "allergens")
     RecipeResponseDTO toResponseDTO(RecipeProjection projection);
@@ -52,6 +53,8 @@ public interface RecipeMapper {
     @Mapping(target = "totalCost", ignore = true)
     @Mapping(target = "components", ignore = true)
     @Mapping(target = "allergens", ignore = true)
+    @Mapping(target = "isHidden", ignore = true)
+    @Mapping(target = "version", ignore = true)
     Recipe toEntity(RecipeRequestDTO requestDTO);
 
     /**
@@ -62,5 +65,7 @@ public interface RecipeMapper {
     @Mapping(target = "totalCost", ignore = true)
     @Mapping(target = "components", ignore = true)
     @Mapping(target = "allergens", ignore = true)
+    @Mapping(target = "hidden", ignore = true)
+    @Mapping(target = "version", ignore = true)
     void updateEntity(RecipeRequestDTO requestDTO, @MappingTarget Recipe recipe);
 }

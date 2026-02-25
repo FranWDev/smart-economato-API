@@ -105,14 +105,32 @@ public class RecipeController {
                         @ApiResponse(responseCode = "204", description = "Receta eliminada"),
                         @ApiResponse(responseCode = "404", description = "Receta no encontrada")
         })
-        public ResponseEntity<Object> delete(
+        public ResponseEntity<Void> delete(
                         @Parameter(description = "ID de la receta", required = true) @PathVariable Integer id) {
                 return recipeService.findById(id)
-                                .map(existing -> {
+                                .map(recipe -> {
                                         recipeService.deleteById(id);
-                                        return ResponseEntity.noContent().build();
+                                        return ResponseEntity.noContent().<Void>build();
                                 })
                                 .orElse(ResponseEntity.notFound().build());
+        }
+
+        @PreAuthorize("hasRole('ADMIN')")
+        @Operation(summary = "Obtener recetas ocultas", description = "Devuelve las recetas que están ocultas. [Rol requerido: ADMIN]")
+        @ApiResponse(responseCode = "200", description = "Lista de recetas encontradas", content = @Content(mediaType = "application/json", schema = @Schema(implementation = RecipeResponseDTO.class)))
+        @GetMapping("/hidden")
+        public ResponseEntity<List<RecipeResponseDTO>> getHiddenRecipes(Pageable pageable) {
+                return ResponseEntity.ok(recipeService.findHiddenRecipes(pageable));
+        }
+
+        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @Operation(summary = "Ocultar/Mostrar receta", description = "Cambia el estado de visibilidad de una receta. [Rol requerido: CHEF o ADMIN]")
+        @PatchMapping("/{id}/toggle-hidden")
+        public ResponseEntity<Void> toggleRecipeHiddenStatus(
+                        @Parameter(description = "ID de la receta", example = "3", required = true) @PathVariable Integer id,
+                        @Parameter(description = "Estado de visibilidad", required = true) @RequestParam boolean hidden) {
+                recipeService.toggleRecipeHiddenStatus(id, hidden);
+                return ResponseEntity.noContent().build();
         }
 
         @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")

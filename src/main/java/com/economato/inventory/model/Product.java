@@ -73,6 +73,9 @@ public class Product {
         @JoinColumn(name = "supplier_id", foreignKey = @ForeignKey(name = "fk_product_supplier"))
         private Supplier supplier;
 
+        @Column(name = "is_hidden", nullable = false)
+        private boolean isHidden = false;
+
         @Version
         @Column(name = "version")
         private Long version;

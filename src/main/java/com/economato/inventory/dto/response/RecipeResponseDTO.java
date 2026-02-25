@@ -28,6 +28,9 @@ public class RecipeResponseDTO {
     @Schema(description = "Costo total de la receta", example = "12.50")
     private BigDecimal totalCost;
 
+    @Schema(description = "Indica si la receta está oculta", example = "false")
+    private boolean isHidden;
+
     @Schema(description = "Lista de componentes de la receta")
     private List<RecipeComponentResponseDTO> components;
 

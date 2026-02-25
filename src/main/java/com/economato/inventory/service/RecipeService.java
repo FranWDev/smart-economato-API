@@ -65,7 +65,7 @@ public class RecipeService {
     @Cacheable(value = "recipes_page_v4", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
     @Transactional(readOnly = true)
     public Page<RecipeResponseDTO> findAll(Pageable pageable) {
-        Page<RecipeResponseDTO> page = repository.findAllProjectedBy(pageable)
+        Page<RecipeResponseDTO> page = repository.findByIsHiddenFalse(pageable)
                 .map(recipeMapper::toResponseDTO);
         return new com.economato.inventory.dto.RestPage<>(page.getContent(), page.getPageable(),
                 page.getTotalElements());
@@ -113,16 +113,34 @@ public class RecipeService {
 
     @Transactional(readOnly = true)
     public List<RecipeResponseDTO> findByNameContaining(String namePart) {
-        return repository.findProjectedByNameContainingIgnoreCase(namePart).stream()
+        return repository.findByNameContainingIgnoreCaseAndIsHiddenFalse(namePart).stream()
                 .map(recipeMapper::toResponseDTO)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<RecipeResponseDTO> findByCostLessThan(BigDecimal maxCost) {
-        return repository.findProjectedByTotalCostLessThan(maxCost).stream()
+        return repository.findByTotalCostLessThanAndIsHiddenFalse(maxCost).stream()
                 .map(recipeMapper::toResponseDTO)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<RecipeResponseDTO> findHiddenRecipes(Pageable pageable) {
+        return repository.findByIsHiddenTrue(pageable).stream()
+                .map(recipeMapper::toResponseDTO)
+                .toList();
+    }
+
+    @CacheEvict(value = { "recipes_page_v2", "recipe_v2" }, allEntries = true)
+    @RecipeAuditable(action = "TOGGLE_HIDDEN")
+    @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
+    public void toggleRecipeHiddenStatus(Integer id, boolean hidden) {
+        Recipe recipe = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Receta no encontrada con ID: " + id));
+
+        recipe.setHidden(hidden);
+        repository.save(recipe);
     }
 
     private Recipe toEntity(RecipeRequestDTO requestDTO) {

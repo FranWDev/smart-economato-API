@@ -54,21 +54,25 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
 
     // --- Proyecciones ---
 
-    Page<ProductProjection> findAllProjectedBy(Pageable pageable);
+    Page<ProductProjection> findByIsHiddenFalse(Pageable pageable);
 
-    List<ProductProjection> findAllProjectedBy(Sort sort);
+    Page<ProductProjection> findByIsHiddenTrue(Pageable pageable);
+
+    List<ProductProjection> findByIsHiddenFalse(Sort sort);
 
     Optional<ProductProjection> findProjectedById(Integer id);
 
     Optional<ProductProjection> findProjectedByProductCode(String productCode);
 
-    Page<ProductProjection> findProjectedByNameContainingIgnoreCase(String namePart, Pageable pageable);
+    Page<ProductProjection> findByNameContainingIgnoreCaseAndIsHiddenFalse(String namePart,
+            Pageable pageable);
 
-    List<ProductProjection> findProjectedByNameContainingIgnoreCase(String namePart);
+    List<ProductProjection> findByNameContainingIgnoreCaseAndIsHiddenFalse(String namePart);
 
-    List<ProductProjection> findProjectedByType(String type);
+    List<ProductProjection> findByTypeAndIsHiddenFalse(String type);
 
-    List<ProductProjection> findProjectedByCurrentStockLessThan(BigDecimal stock);
+    List<ProductProjection> findByCurrentStockLessThanAndIsHiddenFalse(BigDecimal stock);
 
-    List<ProductProjection> findProjectedByUnitPriceBetween(BigDecimal min, BigDecimal max);
+    List<ProductProjection> findByUnitPriceBetweenAndIsHiddenFalse(BigDecimal min,
+            BigDecimal max);
 }

@@ -147,14 +147,14 @@ class RecipeServiceTest {
     void findAll_ShouldReturnPageOfRecipes() {
         Pageable pageable = PageRequest.of(0, 10);
         Page<RecipeProjection> page = new PageImpl<>(Arrays.asList(testProjection));
-        when(repository.findAllProjectedBy(any(Pageable.class))).thenReturn(page);
+        when(repository.findByIsHiddenFalse(any(Pageable.class))).thenReturn(page);
         when(recipeMapper.toResponseDTO(any(RecipeProjection.class))).thenReturn(testRecipeResponseDTO);
 
         Page<RecipeResponseDTO> result = recipeService.findAll(pageable);
 
         assertNotNull(result);
         assertEquals(1, result.getTotalElements());
-        verify(repository).findAllProjectedBy(any(Pageable.class));
+        verify(repository).findByIsHiddenFalse(any(Pageable.class));
     }
 
     @Test
@@ -329,28 +329,30 @@ class RecipeServiceTest {
     @Test
     void findByNameContaining_ShouldReturnMatchingRecipes() {
 
-        when(repository.findProjectedByNameContainingIgnoreCase("Test")).thenReturn(Arrays.asList(testProjection));
+        when(repository.findByNameContainingIgnoreCaseAndIsHiddenFalse("Test"))
+                .thenReturn(Arrays.asList(testProjection));
         when(recipeMapper.toResponseDTO(any(RecipeProjection.class))).thenReturn(testRecipeResponseDTO);
 
         List<RecipeResponseDTO> result = recipeService.findByNameContaining("Test");
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(repository).findProjectedByNameContainingIgnoreCase("Test");
+        verify(repository).findByNameContainingIgnoreCaseAndIsHiddenFalse("Test");
     }
 
     @Test
     void findByCostLessThan_ShouldReturnRecipesBelowCost() {
 
         BigDecimal maxCost = new BigDecimal("20.00");
-        when(repository.findProjectedByTotalCostLessThan(maxCost)).thenReturn(Arrays.asList(testProjection));
+        when(repository.findByTotalCostLessThanAndIsHiddenFalse(maxCost))
+                .thenReturn(Arrays.asList(testProjection));
         when(recipeMapper.toResponseDTO(any(RecipeProjection.class))).thenReturn(testRecipeResponseDTO);
 
         List<RecipeResponseDTO> result = recipeService.findByCostLessThan(maxCost);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(repository).findProjectedByTotalCostLessThan(maxCost);
+        verify(repository).findByTotalCostLessThanAndIsHiddenFalse(maxCost);
     }
 
     @Test

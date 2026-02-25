@@ -15,6 +15,8 @@ public interface RecipeProjection {
 
     BigDecimal getTotalCost();
 
+    boolean getIsHidden();
+
     List<RecipeComponentSummary> getComponents();
 
     Set<AllergenInfo> getAllergens();

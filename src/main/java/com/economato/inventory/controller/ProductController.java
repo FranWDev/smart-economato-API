@@ -11,6 +11,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.util.List;
+
 import com.economato.inventory.dto.request.ProductRequestDTO;
 import com.economato.inventory.dto.response.ProductResponseDTO;
 import com.economato.inventory.service.ProductExcelService;
@@ -157,6 +159,24 @@ public class ProductController {
                                         return ResponseEntity.noContent().<Void>build();
                                 })
                                 .orElse(ResponseEntity.notFound().build());
+        }
+
+        @PreAuthorize("hasRole('ADMIN')")
+        @Operation(summary = "Obtener productos ocultos", description = "Devuelve los productos que están ocultos. [Rol requerido: ADMIN]")
+        @ApiResponse(responseCode = "200", description = "Lista de productos encontrados", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class)))
+        @GetMapping("/hidden")
+        public ResponseEntity<List<ProductResponseDTO>> getHiddenProducts(Pageable pageable) {
+                return ResponseEntity.ok(productService.findHiddenProducts(pageable));
+        }
+
+        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @Operation(summary = "Ocultar/Mostrar producto", description = "Cambia el estado de visibilidad de un producto. [Rol requerido: CHEF]")
+        @PatchMapping("/{id}/toggle-hidden")
+        public ResponseEntity<Void> toggleProductHiddenStatus(
+                        @Parameter(description = "ID del producto", example = "3", required = true) @PathVariable Integer id,
+                        @Parameter(description = "Estado de visibilidad", required = true) @RequestParam boolean hidden) {
+                productService.toggleProductHiddenStatus(id, hidden);
+                return ResponseEntity.noContent().build();
         }
 
         @Operation(summary = "Actualizar stock manualmente con auditoría en ledger", description = "Modifica los datos de un producto y si el stock cambió, lo registra en el ledger "

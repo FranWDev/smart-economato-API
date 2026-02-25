@@ -20,11 +20,13 @@ public interface ProductMapper {
 
     @Mapping(source = "projection.supplier.id", target = "supplier.id")
     @Mapping(source = "projection.supplier.name", target = "supplier.name")
+    @Mapping(source = "projection.isHidden", target = "hidden")
     ProductResponseDTO toResponseDTO(ProductProjection projection);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "orderDetails", ignore = true)
+    @Mapping(target = "hidden", ignore = true)
     @Mapping(target = "supplier", source = "supplierId", qualifiedByName = "supplierIdToSupplier")
     @Mapping(target = "availabilityPercentage", source = "availabilityPercentage")
     @Mapping(target = "minimumStock", source = "minimumStock")
@@ -34,6 +36,7 @@ public interface ProductMapper {
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "orderDetails", ignore = true)
     @Mapping(target = "currentStock", ignore = true)
+    @Mapping(target = "hidden", ignore = true)
     @Mapping(target = "supplier", source = "supplierId", qualifiedByName = "supplierIdToSupplier")
     @Mapping(target = "availabilityPercentage", source = "availabilityPercentage")
     @Mapping(target = "minimumStock", source = "minimumStock")

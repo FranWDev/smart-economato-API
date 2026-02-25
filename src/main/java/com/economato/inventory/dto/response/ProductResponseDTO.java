@@ -39,6 +39,9 @@ public class ProductResponseDTO {
     @Schema(description = "Stock mínimo antes de alerta", example = "10.00")
     private BigDecimal minimumStock;
 
+    @Schema(description = "Indica si el producto está oculto", example = "false")
+    private boolean isHidden;
+
     @Schema(description = "Proveedor del producto")
     private SupplierResponseDTO supplier;
 }

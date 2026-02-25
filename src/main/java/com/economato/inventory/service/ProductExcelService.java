@@ -76,7 +76,7 @@ public class ProductExcelService {
             Slice<ProductProjection> slice;
 
             do {
-                slice = productRepository.findAllProjectedBy(
+                slice = productRepository.findByIsHiddenFalse(
                         PageRequest.of(page++, CHUNK_SIZE, Sort.by(Sort.Direction.ASC, "id")));
 
                 for (ProductProjection p : slice.getContent()) {

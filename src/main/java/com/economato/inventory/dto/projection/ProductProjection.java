@@ -21,5 +21,7 @@ public interface ProductProjection {
 
     BigDecimal getMinimumStock();
 
+    boolean getIsHidden();
+
     SupplierProjection getSupplier();
 }

@@ -56,16 +56,19 @@ public interface RecipeRepository extends JpaRepository<Recipe, Integer> {
         // --- Proyecciones ---
 
         @EntityGraph(attributePaths = { "components", "components.product", "allergens" })
-        Page<com.economato.inventory.dto.projection.RecipeProjection> findAllProjectedBy(Pageable pageable);
+        Page<com.economato.inventory.dto.projection.RecipeProjection> findByIsHiddenFalse(Pageable pageable);
+
+        @EntityGraph(attributePaths = { "components", "components.product", "allergens" })
+        Page<com.economato.inventory.dto.projection.RecipeProjection> findByIsHiddenTrue(Pageable pageable);
 
         @EntityGraph(attributePaths = { "components", "components.product", "allergens" })
         Optional<com.economato.inventory.dto.projection.RecipeProjection> findProjectedById(Integer id);
 
         @EntityGraph(attributePaths = { "components", "components.product", "allergens" })
-        List<com.economato.inventory.dto.projection.RecipeProjection> findProjectedByNameContainingIgnoreCase(
+        List<com.economato.inventory.dto.projection.RecipeProjection> findByNameContainingIgnoreCaseAndIsHiddenFalse(
                         String namePart);
 
         @EntityGraph(attributePaths = { "components", "components.product", "allergens" })
-        List<com.economato.inventory.dto.projection.RecipeProjection> findProjectedByTotalCostLessThan(
+        List<com.economato.inventory.dto.projection.RecipeProjection> findByTotalCostLessThanAndIsHiddenFalse(
                         BigDecimal maxCost);
 }
