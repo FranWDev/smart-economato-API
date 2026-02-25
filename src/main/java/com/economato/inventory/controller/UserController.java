@@ -242,4 +242,34 @@ public class UserController {
                 service.assignTeacher(id, teacherId);
                 return ResponseEntity.ok().build();
         }
+
+        @PostMapping("/{id}/escalate")
+        @PreAuthorize("hasRole('ADMIN')")
+        @Operation(summary = "Escalar permisos temporalmente", description = "Eleva a un usuario al rol CHEF temporalmente. [Rol requerido: ADMIN]")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "200", description = "Permisos escalados correctamente"),
+                        @ApiResponse(responseCode = "400", description = "Operación inválida (usuario ya es CHEF o ADMIN)"),
+                        @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+                        @ApiResponse(responseCode = "403", description = "Acceso denegado")
+        })
+        public ResponseEntity<Void> escalateRole(
+                        @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id,
+                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Duración de los permisos en minutos", required = true) @RequestBody @Valid com.economato.inventory.dto.request.RoleEscalationRequestDTO request) {
+                service.escalateRole(id, request);
+                return ResponseEntity.ok().build();
+        }
+
+        @PostMapping("/{id}/de-escalate")
+        @PreAuthorize("hasRole('ADMIN')")
+        @Operation(summary = "Revocar escalado de permisos temporal", description = "Elimina el rol CHEF temporal y devuelve al usuario a su rol base. [Rol requerido: ADMIN]")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "200", description = "Permisos revocados"),
+                        @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+                        @ApiResponse(responseCode = "403", description = "Acceso denegado")
+        })
+        public ResponseEntity<Void> deescalateRole(
+                        @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id) {
+                service.deescalateRole(id);
+                return ResponseEntity.ok().build();
+        }
 }

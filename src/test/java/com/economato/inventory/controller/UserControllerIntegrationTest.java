@@ -6,6 +6,8 @@ import com.economato.inventory.dto.response.LoginResponseDTO;
 import com.economato.inventory.dto.response.UserResponseDTO;
 import com.economato.inventory.model.Role;
 import com.economato.inventory.model.User;
+import com.economato.inventory.dto.request.RoleEscalationRequestDTO;
+import com.economato.inventory.repository.TemporaryRoleEscalationRepository;
 import com.economato.inventory.repository.UserRepository;
 import com.economato.inventory.util.TestDataUtil;
 
@@ -27,11 +29,15 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         @Autowired
         private UserRepository userRepository;
 
+        @Autowired
+        private TemporaryRoleEscalationRepository escalationRepository;
+
         private String jwtToken;
         private User testAdmin;
 
         @BeforeEach
         void setUp() throws Exception {
+                escalationRepository.deleteAll();
                 userRepository.deleteAll();
 
                 testAdmin = TestDataUtil.createAdminUser();
@@ -684,5 +690,70 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$", notNullValue()))
                                 .andExpect(jsonPath("$[*].id", hasItem(createdStudent.getId())));
+        }
+
+        @Test
+        void whenEscalateRole_thenSuccess() throws Exception {
+                UserRequestDTO studentRequest = TestDataUtil.createUserRequestDTO();
+                studentRequest.setUser("userToEscalate");
+                studentRequest.setRole(Role.USER);
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(studentRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                UserResponseDTO createdUser = objectMapper.readValue(response, UserResponseDTO.class);
+
+                RoleEscalationRequestDTO escalationRequest = new RoleEscalationRequestDTO();
+                escalationRequest.setDurationMinutes(60);
+
+                mockMvc.perform(post(BASE_URL + "/{id}/escalate", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(escalationRequest)))
+                                .andDo(print())
+                                .andExpect(status().isOk());
+
+                mockMvc.perform(get(BASE_URL + "/{id}", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.role").value(Role.CHEF.name()));
+        }
+
+        @Test
+        void whenDeescalateRole_thenSuccess() throws Exception {
+                UserRequestDTO studentRequest = TestDataUtil.createUserRequestDTO();
+                studentRequest.setUser("userToDeescalate");
+                studentRequest.setRole(Role.USER);
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(studentRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                UserResponseDTO createdUser = objectMapper.readValue(response, UserResponseDTO.class);
+
+                RoleEscalationRequestDTO escalationRequest = new RoleEscalationRequestDTO();
+                escalationRequest.setDurationMinutes(60);
+
+                mockMvc.perform(post(BASE_URL + "/{id}/escalate", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(escalationRequest)))
+                                .andExpect(status().isOk());
+
+                mockMvc.perform(post(BASE_URL + "/{id}/de-escalate", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON))
+                                .andDo(print())
+                                .andExpect(status().isOk());
+
+                mockMvc.perform(get(BASE_URL + "/{id}", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.role").value(Role.USER.name()));
         }
 }

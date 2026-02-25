@@ -19,6 +19,20 @@ import com.economato.inventory.repository.UserRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Date;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledFuture;
+
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.TaskScheduler;
+
+import com.economato.inventory.dto.request.RoleEscalationRequestDTO;
+import com.economato.inventory.model.TemporaryRoleEscalation;
+import com.economato.inventory.repository.TemporaryRoleEscalationRepository;
 
 @Service
 @Transactional(rollbackFor = { RuntimeException.class, Exception.class })
@@ -27,11 +41,24 @@ public class UserService {
     private final UserRepository repository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final CustomUserDetailsService customUserDetailsService;
+    private final TemporaryRoleEscalationRepository escalationRepository;
+    private final TaskScheduler taskScheduler;
 
-    public UserService(UserRepository repository, PasswordEncoder passwordEncoder, UserMapper userMapper) {
+    // Map to keep track of scheduled futures so we can cancel them if deescalated
+    // early
+    private final Map<Integer, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>();
+
+    public UserService(UserRepository repository, PasswordEncoder passwordEncoder, UserMapper userMapper,
+            CustomUserDetailsService customUserDetailsService,
+            TemporaryRoleEscalationRepository escalationRepository,
+            TaskScheduler taskScheduler) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.userMapper = userMapper;
+        this.customUserDetailsService = customUserDetailsService;
+        this.escalationRepository = escalationRepository;
+        this.taskScheduler = taskScheduler;
     }
 
     @Transactional(readOnly = true)
@@ -257,5 +284,92 @@ public class UserService {
         return repository.findProjectedByTeacherIdAndIsHiddenFalse(teacher.getId()).stream()
                 .map(userMapper::toResponseDTO)
                 .toList();
+    }
+
+    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+    @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
+    public void escalateRole(Integer userId, RoleEscalationRequestDTO request) {
+        User user = repository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + userId));
+
+        if (Role.CHEF.equals(user.getRole())) {
+            throw new InvalidOperationException("El usuario ya tiene rol CHEF.");
+        }
+        if (Role.ADMIN.equals(user.getRole())) {
+            throw new InvalidOperationException("No se puede escalar a un administrador.");
+        }
+
+        user.setRole(Role.CHEF);
+        repository.save(user);
+
+        LocalDateTime expirationTime = LocalDateTime.now().plusMinutes(request.getDurationMinutes());
+
+        TemporaryRoleEscalation escalation = escalationRepository.findByUserId(userId)
+                .orElse(new TemporaryRoleEscalation());
+        escalation.setUser(user);
+        escalation.setExpirationTime(expirationTime);
+        escalationRepository.save(escalation);
+
+        customUserDetailsService.evictUser(user.getName());
+        customUserDetailsService.evictUser(user.getUser());
+
+        scheduleDeescalation(userId, expirationTime);
+    }
+
+    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+    @Transactional(rollbackFor = { ResourceNotFoundException.class })
+    public void deescalateRole(Integer userId) {
+        User user = repository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + userId));
+
+        if (!Role.CHEF.equals(user.getRole())) {
+            // Already de-escalated or not a CHEF
+            return;
+        }
+
+        user.setRole(Role.USER);
+        repository.save(user);
+
+        escalationRepository.deleteByUserId(userId);
+
+        customUserDetailsService.evictUser(user.getName());
+        customUserDetailsService.evictUser(user.getUser());
+
+        cancelScheduledTask(userId);
+    }
+
+    private void scheduleDeescalation(Integer userId, LocalDateTime expirationTime) {
+        cancelScheduledTask(userId);
+
+        java.time.Instant executionTime = expirationTime.atZone(ZoneId.systemDefault()).toInstant();
+
+        ScheduledFuture<?> future = taskScheduler.schedule(() -> deescalateRole(userId), executionTime);
+        scheduledTasks.put(userId, future);
+    }
+
+    private void cancelScheduledTask(Integer userId) {
+        ScheduledFuture<?> future = scheduledTasks.remove(userId);
+        if (future != null) {
+            future.cancel(false);
+        }
+    }
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void reschedulePendingEscalationsOnStartup() {
+        System.out.println("====== STARTING ROLE ESCALATION SCHEDULE SYNC ======");
+        List<TemporaryRoleEscalation> activeEscalations = escalationRepository.findAll();
+        LocalDateTime now = LocalDateTime.now();
+
+        for (TemporaryRoleEscalation escalation : activeEscalations) {
+            Integer userId = escalation.getUser().getId();
+
+            if (escalation.getExpirationTime().isBefore(now)) {
+                System.out.println("Deescalating expired user ID " + userId);
+                deescalateRole(userId);
+            } else {
+                System.out.println("Rescheduling active escalation for user ID " + userId);
+                scheduleDeescalation(userId, escalation.getExpirationTime());
+            }
+        }
     }
 }

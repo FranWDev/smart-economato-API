@@ -22,6 +22,13 @@ import com.economato.inventory.mapper.UserMapper;
 import com.economato.inventory.model.Role;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.UserRepository;
+import com.economato.inventory.repository.TemporaryRoleEscalationRepository;
+import com.economato.inventory.model.TemporaryRoleEscalation;
+import com.economato.inventory.dto.request.RoleEscalationRequestDTO;
+import org.springframework.scheduling.TaskScheduler;
+import java.util.concurrent.ScheduledFuture;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import java.util.Arrays;
 import java.util.List;
@@ -42,6 +49,15 @@ class UserServiceTest {
 
     @Mock
     private UserMapper userMapper;
+
+    @Mock
+    private CustomUserDetailsService customUserDetailsService;
+
+    @Mock
+    private TemporaryRoleEscalationRepository escalationRepository;
+
+    @Mock
+    private TaskScheduler taskScheduler;
 
     @InjectMocks
     private UserService userService;
@@ -756,5 +772,58 @@ class UserServiceTest {
         when(repository.findByName("regularUser")).thenReturn(Optional.of(regularUser));
 
         assertThrows(InvalidOperationException.class, () -> userService.getMyStudents("regularUser"));
+    }
+
+    @Test
+    void escalateRole_WhenUserExistsAndDurationIsValid_ShouldEscalateAndSchedule() {
+        RoleEscalationRequestDTO requestDTO = new RoleEscalationRequestDTO();
+        requestDTO.setDurationMinutes(60);
+
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(escalationRepository.save(any(TemporaryRoleEscalation.class))).thenAnswer(i -> i.getArgument(0));
+
+        ScheduledFuture mockFuture = mock(ScheduledFuture.class);
+        when(taskScheduler.schedule(any(Runnable.class), any(Instant.class))).thenReturn(mockFuture);
+
+        userService.escalateRole(1, requestDTO);
+
+        assertEquals(Role.CHEF, testUser.getRole());
+        verify(repository).save(testUser);
+        verify(customUserDetailsService).evictUser("testUser");
+        verify(escalationRepository).save(any(TemporaryRoleEscalation.class));
+        verify(taskScheduler).schedule(any(Runnable.class), any(Instant.class));
+    }
+
+    @Test
+    void escalateRole_WhenUserNotFound_ShouldThrowException() {
+        RoleEscalationRequestDTO requestDTO = new RoleEscalationRequestDTO();
+        requestDTO.setDurationMinutes(60);
+
+        when(repository.findById(999)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.escalateRole(999, requestDTO));
+        verify(escalationRepository, never()).save(any());
+        verify(taskScheduler, never()).schedule(any(Runnable.class), any(Instant.class));
+    }
+
+    @Test
+    void deescalateRole_WhenUserExists_ShouldDeescalateAndCancelTask() {
+        testUser.setRole(Role.CHEF);
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+
+        userService.deescalateRole(1);
+
+        assertEquals(Role.USER, testUser.getRole());
+        verify(repository).save(testUser);
+        verify(escalationRepository).deleteByUserId(1);
+        verify(customUserDetailsService).evictUser("testUser");
+    }
+
+    @Test
+    void deescalateRole_WhenUserNotFound_ShouldThrowException() {
+        when(repository.findById(999)).thenReturn(Optional.empty());
+
+        assertThrows(ResourceNotFoundException.class, () -> userService.deescalateRole(999));
+        verify(escalationRepository, never()).deleteByUserId(999);
     }
 }
