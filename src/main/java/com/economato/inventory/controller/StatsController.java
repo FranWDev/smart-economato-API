@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/stats")
 @RequiredArgsConstructor
-@Tag(name = "Statistics", description = "Endpoints for general application statistics")
+@Tag(name = "Estadísticas", description = "Endpoints para obtener estadísticas generales de la aplicación")
 @PreAuthorize("hasRole('ADMIN')")
 public class StatsController {
 
@@ -24,13 +24,15 @@ public class StatsController {
     private final UserService userService;
 
     @GetMapping("/recipes")
-    @Operation(summary = "Get recipe statistics", description = "Returns total count, count with/without allergens, and average price")
+    @Operation(summary = "Obtener estadísticas de las recetas", description = "Devuelve estadísticas de las recetas como el precio promedio, "
+            + "cantidad de recetas con alérgenos y sin alérgenos, y la cantidad total de recetas [Rol requerido: ADMIN]")
     public ResponseEntity<RecipeStatsResponseDTO> getRecipeStats() {
         return ResponseEntity.ok(recipeService.getRecipeStats());
     }
 
     @GetMapping("/users")
-    @Operation(summary = "Get user statistics", description = "Returns total count and counts grouped by role")
+    @Operation(summary = "Obtener estadísticas de los usuarios", description = "Devuelve estadísticas de los usuarios como la cantidad total "
+            + "de usuarios y la cantidad de usuarios por rol [Rol requerido: ADMIN]")
     public ResponseEntity<UserStatsResponseDTO> getUserStats() {
         return ResponseEntity.ok(userService.getUserStats());
     }
