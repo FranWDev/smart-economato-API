@@ -51,4 +51,7 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
     @Query("SELECT u FROM User u WHERE u.role = :role AND u.isHidden = false")
     List<UserProjection> findProjectedByRoleAndIsHiddenFalse(@Param("role") Role role);
+
+    @Query("SELECT u FROM User u WHERE u.teacher.id = :teacherId AND u.isHidden = false")
+    List<UserProjection> findProjectedByTeacherIdAndIsHiddenFalse(@Param("teacherId") Integer teacherId);
 }

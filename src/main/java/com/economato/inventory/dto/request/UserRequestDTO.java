@@ -34,4 +34,7 @@ public class UserRequestDTO {
         @Schema(description = "Rol del usuario. Puede ser ADMIN, CHEF o USER", allowableValues = { "ADMIN", "CHEF",
                         "USER" }, example = "USER", defaultValue = "USER")
         private Role role;
+
+        @Schema(description = "ID del profesor asignado al usuario", example = "2", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+        private Integer teacherId;
 }

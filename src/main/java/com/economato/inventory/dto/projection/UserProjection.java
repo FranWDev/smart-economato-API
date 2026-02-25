@@ -19,4 +19,6 @@ public interface UserProjection {
     boolean getIsHidden();
 
     Role getRole();
+
+    UserSummaryProjection getTeacher();
 }

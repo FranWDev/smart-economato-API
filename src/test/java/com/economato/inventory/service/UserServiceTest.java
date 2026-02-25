@@ -659,4 +659,102 @@ class UserServiceTest {
                 () -> userService.toggleUserHiddenStatus(999, true));
         verify(repository, never()).save(any(User.class));
     }
+
+    // ==================== Tests para funcionalidad de profesor (teacher)
+    // ====================
+
+    @Test
+    void assignTeacher_WhenValidTeacher_ShouldAssignSuccessfully() {
+        User teacher = new User();
+        teacher.setId(2);
+        teacher.setRole(Role.ADMIN);
+
+        testUser.setRole(Role.USER);
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(repository.findById(2)).thenReturn(Optional.of(teacher));
+
+        userService.assignTeacher(1, 2);
+
+        assertEquals(teacher, testUser.getTeacher());
+        verify(repository).save(testUser);
+    }
+
+    @Test
+    void assignTeacher_WhenTeacherIsNull_ShouldUnassignTeacher() {
+        User teacher = new User();
+        teacher.setId(2);
+        teacher.setRole(Role.ADMIN);
+        testUser.setTeacher(teacher);
+        testUser.setRole(Role.USER);
+
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+
+        userService.assignTeacher(1, null);
+
+        assertNull(testUser.getTeacher());
+        verify(repository).save(testUser);
+    }
+
+    @Test
+    void assignTeacher_WhenUserIsAdmin_ShouldThrowException() {
+        testUser.setRole(Role.ADMIN);
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+
+        assertThrows(InvalidOperationException.class, () -> userService.assignTeacher(1, 2));
+        verify(repository, never()).save(any(User.class));
+    }
+
+    @Test
+    void assignTeacher_WhenTeacherIsNotAdmin_ShouldThrowException() {
+        User invalidTeacher = new User();
+        invalidTeacher.setId(2);
+        invalidTeacher.setRole(Role.CHEF);
+
+        testUser.setRole(Role.USER);
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(repository.findById(2)).thenReturn(Optional.of(invalidTeacher));
+
+        assertThrows(InvalidOperationException.class, () -> userService.assignTeacher(1, 2));
+        verify(repository, never()).save(any(User.class));
+    }
+
+    @Test
+    void getMyStudents_WhenUserIsAdmin_ShouldReturnStudents() {
+        User adminTeacher = new User();
+        adminTeacher.setId(1);
+        adminTeacher.setName("Admin Teacher");
+        adminTeacher.setUser("adminTeacher");
+        adminTeacher.setRole(Role.ADMIN);
+
+        UserProjection studentProjection = mock(UserProjection.class);
+        lenient().when(studentProjection.getId()).thenReturn(2);
+        lenient().when(studentProjection.getName()).thenReturn("Student User");
+
+        when(repository.findByName("adminTeacher")).thenReturn(Optional.of(adminTeacher));
+        when(repository.findProjectedByTeacherIdAndIsHiddenFalse(1)).thenReturn(Arrays.asList(studentProjection));
+
+        UserResponseDTO studentResponseDTO = new UserResponseDTO();
+        studentResponseDTO.setId(2);
+        studentResponseDTO.setName("Student User");
+        when(userMapper.toResponseDTO(studentProjection)).thenReturn(studentResponseDTO);
+
+        List<UserResponseDTO> result = userService.getMyStudents("adminTeacher");
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("Student User", result.get(0).getName());
+        verify(repository).findProjectedByTeacherIdAndIsHiddenFalse(1);
+    }
+
+    @Test
+    void getMyStudents_WhenUserIsNotAdmin_ShouldThrowException() {
+        User regularUser = new User();
+        regularUser.setName("Regular User");
+        regularUser.setUser("regularUser");
+        regularUser.setRole(Role.USER);
+
+        when(repository.findByName("regularUser")).thenReturn(Optional.of(regularUser));
+
+        assertThrows(InvalidOperationException.class, () -> userService.getMyStudents("regularUser"));
+    }
 }

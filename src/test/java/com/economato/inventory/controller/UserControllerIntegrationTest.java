@@ -593,4 +593,96 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
                 assert countAfter == countBefore - 1 : "El usuario oculto no debe aparecer en la lista";
         }
+
+        // ==================== Tests funcionalidad Profesor ====================
+
+        @Test
+        void whenGetTeachers_thenSuccessAndReturnsAdminUsers() throws Exception {
+                mockMvc.perform(get(BASE_URL + "/teachers")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andDo(print())
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$", notNullValue()))
+                                .andExpect(jsonPath("$[*].role", everyItem(is("ADMIN"))));
+        }
+
+        @Test
+        void whenAssignTeacher_thenSuccess() throws Exception {
+                // Crear estudiante normal
+                UserRequestDTO studentRequest = TestDataUtil.createUserRequestDTO();
+                studentRequest.setUser("studentUser");
+                studentRequest.setRole(Role.USER);
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(studentRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                UserResponseDTO createdStudent = objectMapper.readValue(response, UserResponseDTO.class);
+
+                // Asignar el administrador actual (testAdmin) como profesor
+                com.economato.inventory.dto.request.TeacherAssignmentRequestDTO assignmentRequest = new com.economato.inventory.dto.request.TeacherAssignmentRequestDTO(
+                                testAdmin.getId());
+
+                mockMvc.perform(patch(BASE_URL + "/{id}/teacher", createdStudent.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(assignmentRequest)))
+                                .andDo(print())
+                                .andExpect(status().isOk());
+
+                // Verificar que el estudiante tiene el profesor
+                mockMvc.perform(get(BASE_URL + "/{id}", createdStudent.getId())
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.teacher").exists())
+                                .andExpect(jsonPath("$.teacher.id").value(testAdmin.getId()));
+        }
+
+        @Test
+        void whenAssignTeacherToAdmin_thenBadRequest() throws Exception {
+                com.economato.inventory.dto.request.TeacherAssignmentRequestDTO assignmentRequest = new com.economato.inventory.dto.request.TeacherAssignmentRequestDTO(
+                                testAdmin.getId());
+
+                mockMvc.perform(patch(BASE_URL + "/{id}/teacher", testAdmin.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(assignmentRequest)))
+                                .andDo(print())
+                                .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void whenGetMyStudents_thenSuccess() throws Exception {
+                // Crear estudiante
+                UserRequestDTO studentRequest = TestDataUtil.createUserRequestDTO();
+                studentRequest.setUser("myStudent");
+                studentRequest.setRole(Role.USER);
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(studentRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                UserResponseDTO createdStudent = objectMapper.readValue(response, UserResponseDTO.class);
+
+                // Asignar profesor
+                com.economato.inventory.dto.request.TeacherAssignmentRequestDTO assignmentRequest = new com.economato.inventory.dto.request.TeacherAssignmentRequestDTO(
+                                testAdmin.getId());
+                mockMvc.perform(patch(BASE_URL + "/{id}/teacher", createdStudent.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(assignmentRequest)))
+                                .andExpect(status().isOk());
+
+                // Obtener estudiantes
+                mockMvc.perform(get(BASE_URL + "/students")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andDo(print())
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$", notNullValue()))
+                                .andExpect(jsonPath("$[*].id", hasItem(createdStudent.getId())));
+        }
 }

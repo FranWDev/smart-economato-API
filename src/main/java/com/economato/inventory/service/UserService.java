@@ -80,6 +80,8 @@ public class UserService {
             user.setRole(Role.USER);
         }
 
+        validateTeacherAssignment(user.getRole(), requestDTO.getTeacherId());
+
         return userMapper.toResponseDTO(repository.save(user));
     }
 
@@ -107,6 +109,8 @@ public class UserService {
                     if (requestDTO.getPassword() != null && !requestDTO.getPassword().isEmpty()) {
                         existing.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
                     }
+
+                    validateTeacherAssignment(existing.getRole(), requestDTO.getTeacherId());
 
                     return userMapper.toResponseDTO(repository.save(existing));
                 });
@@ -210,5 +214,48 @@ public class UserService {
 
         user.setHidden(hidden);
         repository.save(user);
+    }
+
+    private void validateTeacherAssignment(Role userRole, Integer teacherId) {
+        if (teacherId != null) {
+            if (Role.ADMIN.equals(userRole)) {
+                throw new InvalidOperationException("Un usuario con rol ADMIN no puede tener un profesor asignado.");
+            }
+            User teacher = repository.findById(teacherId)
+                    .orElseThrow(
+                            () -> new InvalidOperationException("El profesor asignado no existe con ID: " + teacherId));
+            if (!Role.ADMIN.equals(teacher.getRole())) {
+                throw new InvalidOperationException("El usuario asignado como profesor no tiene el rol ADMIN.");
+            }
+        }
+    }
+
+    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+    @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
+    public void assignTeacher(Integer userId, Integer teacherId) {
+        User user = repository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + userId));
+
+        if (teacherId == null) {
+            user.setTeacher(null);
+        } else {
+            validateTeacherAssignment(user.getRole(), teacherId);
+            User teacher = repository.findById(teacherId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Profesor no encontrado con ID: " + teacherId));
+            user.setTeacher(teacher);
+        }
+
+        repository.save(user);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserResponseDTO> getMyStudents(String username) {
+        User teacher = findByUsername(username);
+        if (!Role.ADMIN.equals(teacher.getRole())) {
+            throw new InvalidOperationException("Solo los usuarios con rol ADMIN tienen alumnos.");
+        }
+        return repository.findProjectedByTeacherIdAndIsHiddenFalse(teacher.getId()).stream()
+                .map(userMapper::toResponseDTO)
+                .toList();
     }
 }
