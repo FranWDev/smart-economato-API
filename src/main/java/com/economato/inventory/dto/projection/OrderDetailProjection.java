@@ -1,7 +1,6 @@
 package com.economato.inventory.dto.projection;
 
 import java.math.BigDecimal;
-import com.economato.inventory.model.OrderDetailId;
 
 public interface OrderDetailProjection {
 

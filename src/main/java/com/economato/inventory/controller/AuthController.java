@@ -18,9 +18,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import com.economato.inventory.dto.request.LoginRequestDTO;
-import com.economato.inventory.dto.request.UserRequestDTO;
 import com.economato.inventory.dto.response.LoginResponseDTO;
-import com.economato.inventory.dto.response.UserResponseDTO;
 import com.economato.inventory.service.AuthService;
 
 @RestController
@@ -64,7 +62,7 @@ public class AuthController {
         response.put("valid", false);
         return ResponseEntity.status(401).body(response);
     }
-    
+
     @Operation(summary = "Obtener rol del token", description = "Devuelve el rol del usuario autenticado a partir del token JWT. [Rol requerido: USER]", security = @SecurityRequirement(name = "bearerAuth"), responses = {
             @ApiResponse(responseCode = "200", description = "Rol obtenido correctamente", content = @Content(mediaType = "application/json")),
             @ApiResponse(responseCode = "401", description = "No autenticado")
@@ -92,7 +90,8 @@ public class AuthController {
             @ApiResponse(responseCode = "401", description = "No autenticado")
     })
     @PostMapping("/logout")
-    public ResponseEntity<Map<String, String>> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public ResponseEntity<Map<String, String>> logout(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         Map<String, String> response = new HashMap<>();
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -101,7 +100,7 @@ public class AuthController {
         }
 
         String token = authHeader.substring(7);
-        
+
         try {
             authService.logout(token);
             response.put("message", "Sesión cerrada exitosamente");

@@ -74,6 +74,7 @@ public class OrderController {
                                 .orElse(ResponseEntity.notFound().build());
         }
 
+        @SuppressWarnings("unused")
         @Operation(summary = "Descargar pedido en PDF", description = "Genera y descarga un PDF con los detalles del pedido (usuario, fecha, estado, productos y total). [Rol requerido: USER]", responses = {
                         @ApiResponse(responseCode = "200", description = "PDF generado correctamente", content = @Content(mediaType = "application/pdf")),
                         @ApiResponse(responseCode = "404", description = "Pedido no encontrado"),

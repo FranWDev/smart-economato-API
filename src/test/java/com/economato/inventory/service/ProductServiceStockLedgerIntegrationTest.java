@@ -21,7 +21,6 @@ import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.StockLedgerRepository;
 import com.economato.inventory.repository.StockSnapshotRepository;
 import com.economato.inventory.repository.UserRepository;
-import com.economato.inventory.service.ProductService;
 
 import java.math.BigDecimal;
 import java.util.List;

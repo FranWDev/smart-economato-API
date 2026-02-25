@@ -156,6 +156,7 @@ public class OrderDetailControllerIntegrationTest extends BaseIntegrationTest {
                 detailRequest.setProductId(testProduct.getId());
                 detailRequest.setQuantity(new BigDecimal("2.5"));
 
+                @SuppressWarnings("unused")
                 String response = mockMvc.perform(post(BASE_URL)
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)

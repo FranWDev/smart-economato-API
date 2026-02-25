@@ -34,6 +34,7 @@ class RecipeAuditControllerIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @SuppressWarnings("removal")
     @MockBean
     private RecipeAuditService recipeAuditService;
 

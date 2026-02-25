@@ -16,7 +16,6 @@ import com.economato.inventory.mapper.OrderAuditMapper;
 import com.economato.inventory.model.Order;
 import com.economato.inventory.model.OrderAudit;
 import com.economato.inventory.repository.OrderAuditRepository;
-import com.economato.inventory.repository.UserRepository;
 
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
@@ -24,13 +23,10 @@ import com.economato.inventory.repository.UserRepository;
 public class OrderAuditService {
 
     private final OrderAuditRepository repository;
-    private final UserRepository userRepository;
     private final OrderAuditMapper orderAuditMapper;
 
-    public OrderAuditService(OrderAuditRepository repository, UserRepository userRepository,
-            OrderAuditMapper orderAuditMapper) {
+    public OrderAuditService(OrderAuditRepository repository, OrderAuditMapper orderAuditMapper) {
         this.repository = repository;
-        this.userRepository = userRepository;
         this.orderAuditMapper = orderAuditMapper;
     }
 

@@ -30,7 +30,6 @@ public class RecipeComponentService {
     private final RecipeComponentRepository repository;
     private final ProductRepository productRepository;
     private final RecipeRepository recipeRepository;
-    private final RecipeComponentMapper recipeComponentMapper;
 
     public RecipeComponentService(
             RecipeComponentRepository repository,
@@ -40,7 +39,6 @@ public class RecipeComponentService {
         this.repository = repository;
         this.productRepository = productRepository;
         this.recipeRepository = recipeRepository;
-        this.recipeComponentMapper = recipeComponentMapper;
     }
 
     @Transactional(readOnly = true)
@@ -103,7 +101,7 @@ public class RecipeComponentService {
      */
     private RecipeComponentResponseDTO toResponseDTO(
             com.economato.inventory.dto.projection.RecipeComponentProjection projection) {
-        com.economato.inventory.dto.response.RecipeComponentResponseDTO dto = new com.economato.inventory.dto.response.RecipeComponentResponseDTO();
+        RecipeComponentResponseDTO dto = new RecipeComponentResponseDTO();
         dto.setId(projection.getId());
         dto.setQuantity(projection.getQuantity());
 
@@ -115,7 +113,6 @@ public class RecipeComponentService {
             dto.setProductId(projection.getProduct().getId());
             dto.setProductName(projection.getProduct().getName());
 
-            // Calcular subtotal
             BigDecimal price = projection.getProduct().getUnitPrice();
             if (price != null && projection.getQuantity() != null) {
                 dto.setSubtotal(price.multiply(projection.getQuantity()));

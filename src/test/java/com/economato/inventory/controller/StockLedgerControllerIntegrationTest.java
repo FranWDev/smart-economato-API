@@ -12,9 +12,6 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.economato.inventory.dto.response.IntegrityCheckResponseDTO;
-import com.economato.inventory.dto.response.StockLedgerResponseDTO;
-import com.economato.inventory.dto.response.StockSnapshotResponseDTO;
 import com.economato.inventory.model.Product;
 import com.economato.inventory.model.StockLedger;
 import com.economato.inventory.model.StockSnapshot;
@@ -39,6 +36,7 @@ class StockLedgerControllerIntegrationTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @SuppressWarnings("removal")
     @MockBean
     private StockLedgerService stockLedgerService;
 

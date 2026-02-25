@@ -24,8 +24,6 @@ import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.RecipeComponentRepository;
 import com.economato.inventory.repository.SupplierRepository;
 import com.economato.inventory.repository.UserRepository;
-import com.economato.inventory.service.ProductService;
-import com.economato.inventory.service.StockLedgerService;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
@@ -448,6 +446,7 @@ class ProductServiceTest {
         verify(repository).findProjectedByUnitPriceBetween(min, max);
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     void updateStockManually_WhenStockIncreases_ShouldRecordMovement() {
 
@@ -469,6 +468,7 @@ class ProductServiceTest {
         assertTrue(result.isPresent());
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     void updateStockManually_WhenStockDecreases_ShouldRecordMovement() {
 

@@ -16,7 +16,6 @@ import com.economato.inventory.mapper.RecipeAuditMapper;
 import com.economato.inventory.model.Recipe;
 import com.economato.inventory.model.RecipeAudit;
 import com.economato.inventory.repository.RecipeAuditRepository;
-import com.economato.inventory.repository.UserRepository;
 
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
@@ -24,13 +23,10 @@ import com.economato.inventory.repository.UserRepository;
 public class RecipeAuditService {
 
     private final RecipeAuditRepository repository;
-    private final UserRepository userRepository;
     private final RecipeAuditMapper recipeAuditMapper;
 
-    public RecipeAuditService(RecipeAuditRepository repository, UserRepository userRepository,
-            RecipeAuditMapper recipeAuditMapper) {
+    public RecipeAuditService(RecipeAuditRepository repository, RecipeAuditMapper recipeAuditMapper) {
         this.repository = repository;
-        this.userRepository = userRepository;
         this.recipeAuditMapper = recipeAuditMapper;
     }
 

@@ -17,8 +17,6 @@ import com.economato.inventory.model.Recipe;
 import com.economato.inventory.model.RecipeCookingAudit;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.RecipeCookingAuditRepository;
-import com.economato.inventory.service.RecipeCookingAuditService;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;

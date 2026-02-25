@@ -36,7 +36,6 @@ public class RecipePdfService {
 
     private static final Color PRIMARY_COLOR = new DeviceRgb(184, 75, 68);
     private static final Color SECONDARY_COLOR = new DeviceRgb(160, 61, 55);
-    private static final Color LIGHT_BG = new DeviceRgb(249, 250, 251);
     private static final Color BORDER_COLOR = new DeviceRgb(229, 231, 235);
     private static final Color TEXT_DARK = new DeviceRgb(51, 51, 51);
     private static final Color TEXT_GRAY = new DeviceRgb(107, 114, 128);

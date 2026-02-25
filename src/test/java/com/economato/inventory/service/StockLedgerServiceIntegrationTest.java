@@ -3,8 +3,6 @@ package com.economato.inventory.service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.MethodOrderer;
-import org.junit.jupiter.api.TestMethodOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -20,7 +18,6 @@ import com.economato.inventory.model.User;
 import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.StockLedgerRepository;
 import com.economato.inventory.repository.StockSnapshotRepository;
-import com.economato.inventory.service.StockLedgerService;
 
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
@@ -202,6 +199,7 @@ class StockLedgerServiceIntegrationTest {
         @DisplayName("Debe detectar corrupción cuando se modifica el stock manualmente")
         void testVerifyChainIntegrity_DetectsStockCorruption() {
 
+                @SuppressWarnings("unused")
                 StockLedger tx1 = stockLedgerService.recordStockMovement(
                                 testProduct.getId(), new BigDecimal("50.0"), MovementType.ENTRADA, "TX1", testUser,
                                 null);
@@ -263,6 +261,7 @@ class StockLedgerServiceIntegrationTest {
         @DisplayName("Debe detectar si se rompe el encadenamiento (previousHash manipulado)")
         void testVerifyChainIntegrity_DetectsBrokenChain() {
 
+                @SuppressWarnings("unused")
                 StockLedger tx1 = stockLedgerService.recordStockMovement(
                                 testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX1", testUser,
                                 null);
@@ -294,6 +293,7 @@ class StockLedgerServiceIntegrationTest {
         @DisplayName("Debe detectar si se elimina una transacción de la cadena")
         void testVerifyChainIntegrity_DetectsDeletedTransaction() {
 
+                @SuppressWarnings("unused")
                 StockLedger tx1 = stockLedgerService.recordStockMovement(
                                 testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX1", testUser,
                                 null);
@@ -302,6 +302,7 @@ class StockLedgerServiceIntegrationTest {
                                 testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX2", testUser,
                                 null);
 
+                @SuppressWarnings("unused")
                 StockLedger tx3 = stockLedgerService.recordStockMovement(
                                 testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX3", testUser,
                                 null);

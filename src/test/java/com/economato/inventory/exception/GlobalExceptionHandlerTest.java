@@ -13,14 +13,6 @@ import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 
-import com.economato.inventory.exception.ConcurrencyException;
-import com.economato.inventory.exception.ErrorResponse;
-import com.economato.inventory.exception.GlobalExceptionHandler;
-import com.economato.inventory.exception.InsufficientStockException;
-import com.economato.inventory.exception.InvalidOperationException;
-import com.economato.inventory.exception.ResourceNotFoundException;
-import com.economato.inventory.exception.StockLockException;
-
 import io.jsonwebtoken.JwtException;
 import jakarta.persistence.OptimisticLockException;
 import jakarta.validation.ConstraintViolation;

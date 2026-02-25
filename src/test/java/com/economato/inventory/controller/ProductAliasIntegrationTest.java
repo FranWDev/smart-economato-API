@@ -1,7 +1,6 @@
 package com.economato.inventory.controller;
 
 import com.economato.inventory.dto.request.LoginRequestDTO;
-import com.economato.inventory.dto.request.ProductRequestDTO;
 import com.economato.inventory.dto.response.LoginResponseDTO;
 import com.economato.inventory.model.Supplier;
 import com.economato.inventory.repository.SupplierRepository;
@@ -12,12 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
-
-import java.math.BigDecimal;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 

@@ -51,6 +51,7 @@ public class OrderAuditAspect {
 
         OrderReceptionRequestDTO receptionDto = null;
         Integer orderId = null;
+        @SuppressWarnings("unused")
         String newStatus = null;
 
         for (Object arg : joinPoint.getArgs()) {
@@ -95,7 +96,9 @@ public class OrderAuditAspect {
 
             if (previousState != null && !previousState.equals("null")) {
                 try {
+                    @SuppressWarnings("unchecked")
                     Map<String, Object> prevMap = objectMapper.readValue(previousState, Map.class);
+                    @SuppressWarnings("unchecked")
                     Map<String, Object> newMap = objectMapper.readValue(buildOrderState(orderAfter), Map.class);
 
                     String prevStatus = (String) prevMap.get("estado");
