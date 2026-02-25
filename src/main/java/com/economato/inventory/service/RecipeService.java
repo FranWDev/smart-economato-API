@@ -16,9 +16,11 @@ import com.economato.inventory.dto.request.RecipeComponentRequestDTO;
 import com.economato.inventory.dto.request.RecipeCookingRequestDTO;
 import com.economato.inventory.dto.request.RecipeRequestDTO;
 import com.economato.inventory.dto.response.RecipeResponseDTO;
+import com.economato.inventory.dto.response.RecipeStatsResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
 import com.economato.inventory.exception.ResourceNotFoundException;
 import com.economato.inventory.mapper.RecipeMapper;
+import com.economato.inventory.mapper.StatsMapper;
 import com.economato.inventory.model.MovementType;
 import com.economato.inventory.model.Product;
 import com.economato.inventory.model.Recipe;
@@ -45,6 +47,7 @@ public class RecipeService {
     private final ProductRepository productRepository;
     private final AllergenRepository allergenRepository;
     private final RecipeMapper recipeMapper;
+    private final StatsMapper statsMapper;
     private final StockLedgerService stockLedgerService;
     private final UserRepository userRepository;
 
@@ -52,12 +55,14 @@ public class RecipeService {
             ProductRepository productRepository,
             AllergenRepository allergenRepository,
             RecipeMapper recipeMapper,
+            StatsMapper statsMapper,
             StockLedgerService stockLedgerService,
             UserRepository userRepository) {
         this.repository = repository;
         this.productRepository = productRepository;
         this.allergenRepository = allergenRepository;
         this.recipeMapper = recipeMapper;
+        this.statsMapper = statsMapper;
         this.stockLedgerService = stockLedgerService;
         this.userRepository = userRepository;
     }
@@ -215,6 +220,16 @@ public class RecipeService {
         } else {
             recipe.getAllergens().clear();
         }
+    }
+
+    @Transactional(readOnly = true)
+    public RecipeStatsResponseDTO getRecipeStats() {
+        long total = repository.countByIsHiddenFalse();
+        long withAllergens = repository.countWithAllergens();
+        long withoutAllergens = repository.countWithoutAllergens();
+        BigDecimal averagePrice = repository.getAveragePrice();
+
+        return statsMapper.toRecipeStatsDTO(total, withAllergens, withoutAllergens, averagePrice);
     }
 
     private void calculateTotalCost(Recipe recipe) {

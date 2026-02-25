@@ -21,6 +21,17 @@ public interface RecipeRepository extends JpaRepository<Recipe, Integer> {
 
         List<Recipe> findByTotalCostLessThan(BigDecimal maxCost);
 
+        long countByIsHiddenFalse();
+
+        @Query("SELECT COUNT(r) FROM Recipe r WHERE r.allergens IS NOT EMPTY AND r.isHidden = false")
+        long countWithAllergens();
+
+        @Query("SELECT COUNT(r) FROM Recipe r WHERE r.allergens IS EMPTY AND r.isHidden = false")
+        long countWithoutAllergens();
+
+        @Query("SELECT AVG(r.totalCost) FROM Recipe r WHERE r.isHidden = false")
+        BigDecimal getAveragePrice();
+
         @Query("SELECT DISTINCT r FROM Recipe r " +
                         "LEFT JOIN FETCH r.components c " +
                         "LEFT JOIN FETCH c.product " +

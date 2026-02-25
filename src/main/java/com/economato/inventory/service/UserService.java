@@ -10,8 +10,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.dto.request.UserRequestDTO;
 import com.economato.inventory.dto.response.UserResponseDTO;
+import com.economato.inventory.dto.response.UserStatsResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
 import com.economato.inventory.exception.ResourceNotFoundException;
+import com.economato.inventory.mapper.StatsMapper;
 import com.economato.inventory.mapper.TemporaryRoleEscalationMapper;
 import com.economato.inventory.mapper.UserMapper;
 import com.economato.inventory.model.Role;
@@ -22,7 +24,6 @@ import java.util.List;
 import java.util.Optional;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -42,6 +43,7 @@ public class UserService {
     private final UserRepository repository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final StatsMapper statsMapper;
     private final TemporaryRoleEscalationMapper escalationMapper;
     private final CustomUserDetailsService customUserDetailsService;
     private final TemporaryRoleEscalationRepository escalationRepository;
@@ -53,6 +55,7 @@ public class UserService {
 
     public UserService(UserRepository repository, PasswordEncoder passwordEncoder, UserMapper userMapper,
             TemporaryRoleEscalationMapper escalationMapper,
+            StatsMapper statsMapper,
             CustomUserDetailsService customUserDetailsService,
             TemporaryRoleEscalationRepository escalationRepository,
             TaskScheduler taskScheduler) {
@@ -60,6 +63,7 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
         this.userMapper = userMapper;
         this.escalationMapper = escalationMapper;
+        this.statsMapper = statsMapper;
         this.customUserDetailsService = customUserDetailsService;
         this.escalationRepository = escalationRepository;
         this.taskScheduler = taskScheduler;
@@ -284,6 +288,13 @@ public class UserService {
         return repository.findProjectedByTeacherIdAndIsHiddenFalse(teacher.getId()).stream()
                 .map(userMapper::toResponseDTO)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public UserStatsResponseDTO getUserStats() {
+        long total = repository.count();
+        var counts = repository.countUsersByRole();
+        return statsMapper.toUserStatsDTO(total, counts);
     }
 
     @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)

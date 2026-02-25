@@ -16,9 +16,11 @@ import com.economato.inventory.dto.request.RecipeComponentRequestDTO;
 import com.economato.inventory.dto.request.RecipeCookingRequestDTO;
 import com.economato.inventory.dto.request.RecipeRequestDTO;
 import com.economato.inventory.dto.response.RecipeResponseDTO;
+import com.economato.inventory.dto.response.RecipeStatsResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
 import com.economato.inventory.exception.ResourceNotFoundException;
 import com.economato.inventory.mapper.RecipeMapper;
+import com.economato.inventory.mapper.StatsMapper;
 import com.economato.inventory.model.Allergen;
 import com.economato.inventory.model.MovementType;
 import com.economato.inventory.model.Product;
@@ -55,6 +57,9 @@ class RecipeServiceTest {
 
     @Mock
     private RecipeMapper recipeMapper;
+
+    @Mock
+    private StatsMapper statsMapper;
 
     @Mock
     private StockLedgerService stockLedgerService;
@@ -607,5 +612,34 @@ class RecipeServiceTest {
         assertNotNull(result);
         verify(productRepository, times(1)).findById(1);
         verify(repository).save(any(Recipe.class));
+    }
+
+    @Test
+    void getRecipeStats_ShouldReturnStats() {
+        // Arrange
+        when(repository.countByIsHiddenFalse()).thenReturn(10L);
+        when(repository.countWithAllergens()).thenReturn(3L);
+        when(repository.countWithoutAllergens()).thenReturn(7L);
+        when(repository.getAveragePrice()).thenReturn(new BigDecimal("15.50"));
+
+        RecipeStatsResponseDTO expected = RecipeStatsResponseDTO.builder()
+                .totalRecipes(10L)
+                .recipesWithAllergens(3L)
+                .recipesWithoutAllergens(7L)
+                .averagePrice(new BigDecimal("15.50"))
+                .build();
+
+        when(statsMapper.toRecipeStatsDTO(anyLong(), anyLong(), anyLong(), any(BigDecimal.class)))
+                .thenReturn(expected);
+
+        // Act
+        RecipeStatsResponseDTO result = recipeService.getRecipeStats();
+
+        // Assert
+        assertEquals(expected, result);
+        verify(repository).countByIsHiddenFalse();
+        verify(repository).countWithAllergens();
+        verify(repository).countWithoutAllergens();
+        verify(repository).getAveragePrice();
     }
 }

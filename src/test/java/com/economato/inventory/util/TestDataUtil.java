@@ -55,6 +55,17 @@ public class TestDataUtil {
         return user;
     }
 
+    public static User createUser(String name, String username, String plainPassword, Role role) {
+        User user = new User();
+        user.setName(name);
+        user.setUser(username);
+        user.setPassword(passwordEncoder.encode(plainPassword));
+        user.setRole(role);
+        user.setOrders(new ArrayList<>());
+        user.setInventoryMovements(new ArrayList<>());
+        return user;
+    }
+
     public static Product createProduct(String name, String type, String unit, BigDecimal price, String code,
             BigDecimal stock) {
         Product product = new Product();

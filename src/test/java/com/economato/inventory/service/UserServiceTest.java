@@ -16,6 +16,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import com.economato.inventory.dto.projection.UserProjection;
 import com.economato.inventory.dto.request.UserRequestDTO;
 import com.economato.inventory.dto.response.UserResponseDTO;
+import com.economato.inventory.dto.response.UserStatsResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
 import com.economato.inventory.exception.ResourceNotFoundException;
 import com.economato.inventory.mapper.UserMapper;
@@ -24,13 +25,13 @@ import com.economato.inventory.model.User;
 import com.economato.inventory.repository.UserRepository;
 import com.economato.inventory.repository.TemporaryRoleEscalationRepository;
 import com.economato.inventory.model.TemporaryRoleEscalation;
+import com.economato.inventory.mapper.StatsMapper;
 import com.economato.inventory.mapper.TemporaryRoleEscalationMapper;
 import com.economato.inventory.dto.request.RoleEscalationRequestDTO;
 import org.springframework.scheduling.TaskScheduler;
 import java.util.concurrent.ScheduledFuture;
 import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 
 import java.util.Arrays;
 import java.util.List;
@@ -51,6 +52,9 @@ class UserServiceTest {
 
     @Mock
     private UserMapper userMapper;
+
+    @Mock
+    private StatsMapper statsMapper;
 
     @Mock
     private CustomUserDetailsService customUserDetailsService;
@@ -837,5 +841,28 @@ class UserServiceTest {
 
         assertThrows(ResourceNotFoundException.class, () -> userService.deescalateRole(999));
         verify(escalationRepository, never()).deleteByUserId(999);
+    }
+
+    @Test
+    void getUserStats_ShouldReturnStats() {
+        // Arrange
+        when(repository.count()).thenReturn(10L);
+        var counts = List.of(mock(com.economato.inventory.dto.projection.RoleCountProjection.class));
+        when(repository.countUsersByRole()).thenReturn(counts);
+
+        UserStatsResponseDTO expected = UserStatsResponseDTO.builder()
+                .totalUsers(10L)
+                .usersByRole(java.util.Map.of("ADMIN", 1L))
+                .build();
+
+        when(statsMapper.toUserStatsDTO(anyLong(), anyList())).thenReturn(expected);
+
+        // Act
+        UserStatsResponseDTO result = userService.getUserStats();
+
+        // Assert
+        assertEquals(expected, result);
+        verify(repository).count();
+        verify(repository).countUsersByRole();
     }
 }
