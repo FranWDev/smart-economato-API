@@ -24,10 +24,12 @@ import com.economato.inventory.model.User;
 import com.economato.inventory.repository.UserRepository;
 import com.economato.inventory.repository.TemporaryRoleEscalationRepository;
 import com.economato.inventory.model.TemporaryRoleEscalation;
+import com.economato.inventory.mapper.TemporaryRoleEscalationMapper;
 import com.economato.inventory.dto.request.RoleEscalationRequestDTO;
 import org.springframework.scheduling.TaskScheduler;
 import java.util.concurrent.ScheduledFuture;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
 import java.util.Arrays;
@@ -55,6 +57,9 @@ class UserServiceTest {
 
     @Mock
     private TemporaryRoleEscalationRepository escalationRepository;
+
+    @Mock
+    private TemporaryRoleEscalationMapper escalationMapper;
 
     @Mock
     private TaskScheduler taskScheduler;
@@ -780,10 +785,17 @@ class UserServiceTest {
         requestDTO.setDurationMinutes(60);
 
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(escalationRepository.findByUserId(1)).thenReturn(Optional.empty());
+
+        TemporaryRoleEscalation mockEscalation = new TemporaryRoleEscalation();
+        mockEscalation.setUser(testUser);
+        mockEscalation.setExpirationTime(LocalDateTime.now().plusMinutes(60));
+
+        when(escalationMapper.toEntity(any(), any())).thenReturn(mockEscalation);
         when(escalationRepository.save(any(TemporaryRoleEscalation.class))).thenAnswer(i -> i.getArgument(0));
 
-        ScheduledFuture mockFuture = mock(ScheduledFuture.class);
-        when(taskScheduler.schedule(any(Runnable.class), any(Instant.class))).thenReturn(mockFuture);
+        ScheduledFuture<?> mockFuture = mock(ScheduledFuture.class);
+        doReturn(mockFuture).when(taskScheduler).schedule(any(Runnable.class), any(Instant.class));
 
         userService.escalateRole(1, requestDTO);
 

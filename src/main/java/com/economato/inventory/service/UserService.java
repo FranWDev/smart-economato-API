@@ -12,6 +12,7 @@ import com.economato.inventory.dto.request.UserRequestDTO;
 import com.economato.inventory.dto.response.UserResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
 import com.economato.inventory.exception.ResourceNotFoundException;
+import com.economato.inventory.mapper.TemporaryRoleEscalationMapper;
 import com.economato.inventory.mapper.UserMapper;
 import com.economato.inventory.model.Role;
 import com.economato.inventory.model.User;
@@ -41,6 +42,7 @@ public class UserService {
     private final UserRepository repository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final TemporaryRoleEscalationMapper escalationMapper;
     private final CustomUserDetailsService customUserDetailsService;
     private final TemporaryRoleEscalationRepository escalationRepository;
     private final TaskScheduler taskScheduler;
@@ -50,12 +52,14 @@ public class UserService {
     private final Map<Integer, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>();
 
     public UserService(UserRepository repository, PasswordEncoder passwordEncoder, UserMapper userMapper,
+            TemporaryRoleEscalationMapper escalationMapper,
             CustomUserDetailsService customUserDetailsService,
             TemporaryRoleEscalationRepository escalationRepository,
             TaskScheduler taskScheduler) {
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.userMapper = userMapper;
+        this.escalationMapper = escalationMapper;
         this.customUserDetailsService = customUserDetailsService;
         this.escalationRepository = escalationRepository;
         this.taskScheduler = taskScheduler;
@@ -186,16 +190,12 @@ public class UserService {
         User user = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
 
-        // Si es admin, puede cambiar la contraseña sin la antigua
         if (isAdmin) {
             user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         } else {
-            // Es el propio usuario
             if (user.isFirstLogin()) {
-                // Si es primer login, no pide contraseña antigua
                 user.setFirstLogin(false);
             } else {
-                // Si no es primer login, DEBE pedir contraseña antigua
                 if (request.getOldPassword() == null || request.getOldPassword().isEmpty()) {
                     throw new InvalidOperationException("Se requiere la contraseña actual");
                 }
@@ -302,13 +302,16 @@ public class UserService {
         user.setRole(Role.CHEF);
         repository.save(user);
 
-        LocalDateTime expirationTime = LocalDateTime.now().plusMinutes(request.getDurationMinutes());
-
         TemporaryRoleEscalation escalation = escalationRepository.findByUserId(userId)
-                .orElse(new TemporaryRoleEscalation());
-        escalation.setUser(user);
-        escalation.setExpirationTime(expirationTime);
+                .map(existing -> {
+                    existing.setExpirationTime(escalationMapper.toEntity(request, user).getExpirationTime());
+                    return existing;
+                })
+                .orElseGet(() -> escalationMapper.toEntity(request, user));
+
         escalationRepository.save(escalation);
+
+        LocalDateTime expirationTime = escalation.getExpirationTime();
 
         customUserDetailsService.evictUser(user.getName());
         customUserDetailsService.evictUser(user.getUser());
