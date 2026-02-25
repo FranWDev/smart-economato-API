@@ -113,6 +113,7 @@ class ProductServiceTest {
         Page<ProductProjection> page = new PageImpl<>(Arrays.asList(testProjection));
 
         when(repository.findAllProjectedBy(pageable)).thenReturn(page);
+        when(productMapper.toResponseDTO(any(ProductProjection.class))).thenReturn(testProductResponseDTO);
 
         Page<ProductResponseDTO> result = productService.findAll(pageable);
 
@@ -126,6 +127,7 @@ class ProductServiceTest {
     void findById_WhenProductExists_ShouldReturnProduct() {
 
         when(repository.findProjectedById(1)).thenReturn(Optional.of(testProjection));
+        when(productMapper.toResponseDTO(any(ProductProjection.class))).thenReturn(testProductResponseDTO);
 
         Optional<ProductResponseDTO> result = productService.findById(1);
 
@@ -149,6 +151,7 @@ class ProductServiceTest {
     void findByCodebar_WhenProductExists_ShouldReturnProduct() {
 
         when(repository.findProjectedByProductCode("TEST001")).thenReturn(Optional.of(testProjection));
+        when(productMapper.toResponseDTO(any(ProductProjection.class))).thenReturn(testProductResponseDTO);
 
         Optional<ProductResponseDTO> result = productService.findByCodebar("TEST001");
 
@@ -174,6 +177,14 @@ class ProductServiceTest {
         Page<ProductProjection> page = new PageImpl<>(Arrays.asList(proj1, proj2));
 
         when(repository.findProjectedByNameContainingIgnoreCase("leche", pageable)).thenReturn(page);
+
+        ProductResponseDTO resp1 = new ProductResponseDTO();
+        resp1.setName("Leche Desnatada");
+        ProductResponseDTO resp2 = new ProductResponseDTO();
+        resp2.setName("Leche Entera");
+
+        when(productMapper.toResponseDTO(proj1)).thenReturn(resp1);
+        when(productMapper.toResponseDTO(proj2)).thenReturn(resp2);
 
         // Act
         Page<ProductResponseDTO> result = productService.findByName("leche", pageable);
@@ -380,6 +391,7 @@ class ProductServiceTest {
 
         List<ProductProjection> products = Arrays.asList(testProjection);
         when(repository.findProjectedByType("INGREDIENT")).thenReturn(products);
+        when(productMapper.toResponseDTO(any(ProductProjection.class))).thenReturn(testProductResponseDTO);
 
         List<ProductResponseDTO> result = productService.findByType("INGREDIENT");
 
@@ -394,6 +406,7 @@ class ProductServiceTest {
 
         List<ProductProjection> products = Arrays.asList(testProjection);
         when(repository.findProjectedByNameContainingIgnoreCase("Test")).thenReturn(products);
+        when(productMapper.toResponseDTO(any(ProductProjection.class))).thenReturn(testProductResponseDTO);
 
         List<ProductResponseDTO> result = productService.findByNameContaining("Test");
 
@@ -409,6 +422,7 @@ class ProductServiceTest {
         List<ProductProjection> products = Arrays.asList(testProjection);
         BigDecimal threshold = new BigDecimal("20.0");
         when(repository.findProjectedByCurrentStockLessThan(threshold)).thenReturn(products);
+        when(productMapper.toResponseDTO(any(ProductProjection.class))).thenReturn(testProductResponseDTO);
 
         List<ProductResponseDTO> result = productService.findByStockLessThan(threshold);
 
@@ -425,6 +439,7 @@ class ProductServiceTest {
         BigDecimal max = new BigDecimal("10.0");
         List<ProductProjection> products = Arrays.asList(testProjection);
         when(repository.findProjectedByUnitPriceBetween(min, max)).thenReturn(products);
+        when(productMapper.toResponseDTO(any(ProductProjection.class))).thenReturn(testProductResponseDTO);
 
         List<ProductResponseDTO> result = productService.findByPriceRange(min, max);
 

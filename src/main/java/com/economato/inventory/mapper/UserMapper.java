@@ -5,6 +5,7 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 
+import com.economato.inventory.dto.projection.UserProjection;
 import com.economato.inventory.dto.request.UserRequestDTO;
 import com.economato.inventory.dto.response.UserResponseDTO;
 import com.economato.inventory.model.User;
@@ -14,12 +15,22 @@ public interface UserMapper {
 
     UserResponseDTO toResponseDTO(User user);
 
+    @Mapping(source = "isFirstLogin", target = "firstLogin")
+    @Mapping(source = "isHidden", target = "hidden")
+    UserResponseDTO toResponseDTO(UserProjection projection);
+
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "password", ignore = true)
+    @Mapping(target = "firstLogin", ignore = true)
+    @Mapping(target = "hidden", ignore = true)
     @Mapping(target = "orders", ignore = true)
     @Mapping(target = "inventoryMovements", ignore = true)
     User toEntity(UserRequestDTO requestDTO);
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "password", ignore = true)
+    @Mapping(target = "firstLogin", ignore = true)
+    @Mapping(target = "hidden", ignore = true)
     @Mapping(target = "orders", ignore = true)
     @Mapping(target = "inventoryMovements", ignore = true)
     void updateEntity(UserRequestDTO requestDTO, @MappingTarget User user);

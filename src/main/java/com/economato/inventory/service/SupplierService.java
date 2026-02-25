@@ -5,7 +5,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.economato.inventory.dto.projection.SupplierProjection;
 import com.economato.inventory.dto.request.SupplierRequestDTO;
 import com.economato.inventory.dto.response.SupplierResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
@@ -17,7 +16,6 @@ import com.economato.inventory.repository.SupplierRepository;
 
 import java.util.Optional;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
@@ -38,13 +36,13 @@ public class SupplierService {
     @Transactional(readOnly = true)
     public Page<SupplierResponseDTO> findAll(Pageable pageable) {
         return repository.findAllProjectedBy(pageable)
-                .map(this::toResponseDTO);
+                .map(supplierMapper::toResponseDTO);
     }
 
     @Transactional(readOnly = true)
     public Optional<SupplierResponseDTO> findById(Integer id) {
         return repository.findProjectedById(id)
-                .map(this::toResponseDTO);
+                .map(supplierMapper::toResponseDTO);
     }
 
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
@@ -85,14 +83,7 @@ public class SupplierService {
     @Transactional(readOnly = true)
     public List<SupplierResponseDTO> findByNameContaining(String namePart) {
         return repository.findProjectedByNameContainingIgnoreCase(namePart).stream()
-                .map(this::toResponseDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Convierte una proyección de Supplier a SupplierResponseDTO.
-     */
-    private SupplierResponseDTO toResponseDTO(SupplierProjection projection) {
-        return new SupplierResponseDTO(projection.getId(), projection.getName());
+                .map(supplierMapper::toResponseDTO)
+                .toList();
     }
 }

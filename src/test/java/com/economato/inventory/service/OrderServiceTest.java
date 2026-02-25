@@ -29,8 +29,6 @@ import com.economato.inventory.model.User;
 import com.economato.inventory.repository.OrderRepository;
 import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.UserRepository;
-import com.economato.inventory.service.OrderService;
-import com.economato.inventory.service.StockLedgerService;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -138,16 +136,16 @@ class OrderServiceTest {
     }
 
     @Test
-    void findAll_ShouldReturnListOfOrders() {
+    void findAll_ShouldReturnPageOfOrders() {
 
         Pageable pageable = PageRequest.of(0, 10);
         Page<OrderProjection> page = new PageImpl<>(Arrays.asList(testProjection));
         when(repository.findAllProjectedBy(pageable)).thenReturn(page);
 
-        List<OrderResponseDTO> result = orderService.findAll(pageable);
+        Page<OrderResponseDTO> result = orderService.findAll(pageable);
 
         assertNotNull(result);
-        assertEquals(1, result.size());
+        assertEquals(1, result.getTotalElements());
         verify(repository).findAllProjectedBy(pageable);
     }
 
@@ -155,6 +153,7 @@ class OrderServiceTest {
     void findById_WhenOrderExists_ShouldReturnOrder() {
 
         when(repository.findProjectedById(1)).thenReturn(Optional.of(testProjection));
+        when(orderMapper.toResponseDTO(any(OrderProjection.class))).thenReturn(testOrderResponseDTO);
 
         Optional<OrderResponseDTO> result = orderService.findById(1);
 
@@ -258,6 +257,7 @@ class OrderServiceTest {
     void findByUser_ShouldReturnUserOrders() {
 
         when(repository.findProjectedByUsersId(1)).thenReturn(Arrays.asList(testProjection));
+        when(orderMapper.toResponseDTO(any(OrderProjection.class))).thenReturn(testOrderResponseDTO);
 
         List<OrderResponseDTO> result = orderService.findByUser(testUserResponseDTO);
 
@@ -271,6 +271,7 @@ class OrderServiceTest {
 
         Page<OrderProjection> page = new PageImpl<>(Arrays.asList(testProjection));
         when(repository.findProjectedByStatus(eq("CREATED"), any(Pageable.class))).thenReturn(page);
+        when(orderMapper.toResponseDTO(any(OrderProjection.class))).thenReturn(testOrderResponseDTO);
 
         List<OrderResponseDTO> result = orderService.findByStatus("CREATED");
 
@@ -285,6 +286,7 @@ class OrderServiceTest {
         LocalDateTime start = LocalDateTime.now().minusDays(7);
         LocalDateTime end = LocalDateTime.now();
         when(repository.findProjectedByOrderDateBetween(start, end)).thenReturn(Arrays.asList(testProjection));
+        when(orderMapper.toResponseDTO(any(OrderProjection.class))).thenReturn(testOrderResponseDTO);
 
         List<OrderResponseDTO> result = orderService.findByDateRange(start, end);
 
@@ -385,6 +387,7 @@ class OrderServiceTest {
 
         Page<OrderProjection> page = new PageImpl<>(Arrays.asList(testProjection));
         when(repository.findProjectedByStatus(eq("PENDING"), any(Pageable.class))).thenReturn(page);
+        when(orderMapper.toResponseDTO(any(OrderProjection.class))).thenReturn(testOrderResponseDTO);
 
         List<OrderResponseDTO> result = orderService.findPendingReception();
 

@@ -85,6 +85,7 @@ class UserServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         Page<UserProjection> page = new PageImpl<>(Arrays.asList(testProjection));
         when(repository.findByIsHiddenFalseProjectedBy(pageable)).thenReturn(page);
+        when(userMapper.toResponseDTO(any(UserProjection.class))).thenReturn(testUserResponseDTO);
 
         List<UserResponseDTO> result = userService.findAll(pageable);
 
@@ -98,6 +99,7 @@ class UserServiceTest {
     void findById_WhenUserExists_ShouldReturnUser() {
 
         when(repository.findProjectedById(1)).thenReturn(Optional.of(testProjection));
+        when(userMapper.toResponseDTO(any(UserProjection.class))).thenReturn(testUserResponseDTO);
 
         Optional<UserResponseDTO> result = userService.findById(1);
 
@@ -295,6 +297,7 @@ class UserServiceTest {
 
         List<UserProjection> users = Arrays.asList(testProjection);
         when(repository.findByRoleAndIsHiddenFalseProjectedBy(Role.USER)).thenReturn(users);
+        when(userMapper.toResponseDTO(any(UserProjection.class))).thenReturn(testUserResponseDTO);
 
         List<UserResponseDTO> result = userService.findByRole(Role.USER);
 
@@ -537,7 +540,8 @@ class UserServiceTest {
         verify(repository, never()).save(any(User.class));
     }
 
-    // ==================== Tests para funcionalidad de usuarios ocultos ====================
+    // ==================== Tests para funcionalidad de usuarios ocultos
+    // ====================
 
     @Test
     void findHiddenUsers_ShouldReturnListOfHiddenUsers() {
@@ -551,6 +555,10 @@ class UserServiceTest {
 
         Page<UserProjection> page = new PageImpl<>(Arrays.asList(hiddenProjection));
         when(repository.findByIsHiddenTrueProjectedBy(pageable)).thenReturn(page);
+
+        UserResponseDTO hiddenResponseDTO = new UserResponseDTO();
+        hiddenResponseDTO.setHidden(true);
+        when(userMapper.toResponseDTO(hiddenProjection)).thenReturn(hiddenResponseDTO);
 
         List<UserResponseDTO> result = userService.findHiddenUsers(pageable);
 

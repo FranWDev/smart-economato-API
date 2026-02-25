@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -67,11 +66,11 @@ public class ProductService {
         this.userRepository = userRepository;
     }
 
-    @Cacheable(value = "products_page_v2", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
+    @Cacheable(value = "products_page_v4", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> findAll(Pageable pageable) {
         Page<ProductResponseDTO> page = repository.findAllProjectedBy(pageable)
-                .map(this::toResponseDTO);
+                .map(productMapper::toResponseDTO);
         return new com.economato.inventory.dto.RestPage<>(page.getContent(), page.getPageable(),
                 page.getTotalElements());
     }
@@ -80,20 +79,20 @@ public class ProductService {
     @Transactional(readOnly = true)
     public Optional<ProductResponseDTO> findById(Integer id) {
         return repository.findProjectedById(id)
-                .map(this::toResponseDTO);
+                .map(productMapper::toResponseDTO);
     }
 
     @Cacheable(value = "product_v2", key = "'code:' + #codebar")
     @Transactional(readOnly = true)
     public Optional<ProductResponseDTO> findByCodebar(String codebar) {
         return repository.findProjectedByProductCode(codebar)
-                .map(this::toResponseDTO);
+                .map(productMapper::toResponseDTO);
     }
 
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> findByName(String namePart, Pageable pageable) {
         return repository.findProjectedByNameContainingIgnoreCase(namePart, pageable)
-                .map(this::toResponseDTO);
+                .map(productMapper::toResponseDTO);
     }
 
     @CacheEvict(value = { "products_page_v2", "product_v2" }, allEntries = true)
@@ -151,52 +150,29 @@ public class ProductService {
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> findByType(String type) {
         return repository.findProjectedByType(type).stream()
-                .map(this::toResponseDTO)
-                .collect(Collectors.toList());
+                .map(productMapper::toResponseDTO)
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> findByNameContaining(String namePart) {
         return repository.findProjectedByNameContainingIgnoreCase(namePart).stream()
-                .map(this::toResponseDTO)
-                .collect(Collectors.toList());
+                .map(productMapper::toResponseDTO)
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> findByStockLessThan(BigDecimal stock) {
         return repository.findProjectedByCurrentStockLessThan(stock).stream()
-                .map(this::toResponseDTO)
-                .collect(Collectors.toList());
+                .map(productMapper::toResponseDTO)
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> findByPriceRange(BigDecimal min, BigDecimal max) {
         return repository.findProjectedByUnitPriceBetween(min, max).stream()
-                .map(this::toResponseDTO)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Convierte una proyección de Product a ProductResponseDTO.
-     */
-    private ProductResponseDTO toResponseDTO(com.economato.inventory.dto.projection.ProductProjection projection) {
-        com.economato.inventory.dto.response.SupplierResponseDTO supplierDTO = null;
-        if (projection.getSupplier() != null) {
-            supplierDTO = new com.economato.inventory.dto.response.SupplierResponseDTO(
-                    projection.getSupplier().getId(),
-                    projection.getSupplier().getName());
-        }
-        return new ProductResponseDTO(
-                projection.getId(),
-                projection.getName(),
-                projection.getType(),
-                projection.getUnit(),
-                projection.getUnitPrice(),
-                projection.getProductCode(),
-                projection.getCurrentStock(),
-                projection.getAvailabilityPercentage(),
-                projection.getMinimumStock(),
-                supplierDTO);
+                .map(productMapper::toResponseDTO)
+                .toList();
     }
 
     private void validateProductData(ProductRequestDTO requestDTO) {

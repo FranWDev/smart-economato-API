@@ -3,6 +3,7 @@ package com.economato.inventory.controller;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -55,7 +56,7 @@ public class OrderController {
         })
         @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
         @GetMapping
-        public ResponseEntity<List<OrderResponseDTO>> getAll(
+        public ResponseEntity<Page<OrderResponseDTO>> getAll(
                         @Parameter(description = "Información de paginación") Pageable pageable) {
                 return ResponseEntity.ok(orderService.findAll(pageable));
         }

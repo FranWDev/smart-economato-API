@@ -70,8 +70,8 @@ class SupplierServiceTest {
     void findAll_ShouldReturnPageOfSuppliers() {
         Pageable pageable = PageRequest.of(0, 10);
         Page<SupplierProjection> page = new PageImpl<>(Arrays.asList(testProjection));
-
         when(repository.findAllProjectedBy(pageable)).thenReturn(page);
+        when(supplierMapper.toResponseDTO(any(SupplierProjection.class))).thenReturn(testSupplierResponseDTO);
 
         Page<SupplierResponseDTO> result = supplierService.findAll(pageable);
 
@@ -83,6 +83,7 @@ class SupplierServiceTest {
     @Test
     void findById_WhenSupplierExists_ShouldReturnSupplier() {
         when(repository.findProjectedById(1)).thenReturn(Optional.of(testProjection));
+        when(supplierMapper.toResponseDTO(any(SupplierProjection.class))).thenReturn(testSupplierResponseDTO);
 
         Optional<SupplierResponseDTO> result = supplierService.findById(1);
 
@@ -206,6 +207,7 @@ class SupplierServiceTest {
     void findByNameContaining_WhenSuppliersExist_ShouldReturnList() {
         List<SupplierProjection> suppliers = Arrays.asList(testProjection);
         when(repository.findProjectedByNameContainingIgnoreCase("Test")).thenReturn(suppliers);
+        when(supplierMapper.toResponseDTO(any(SupplierProjection.class))).thenReturn(testSupplierResponseDTO);
 
         List<SupplierResponseDTO> result = supplierService.findByNameContaining("Test");
 

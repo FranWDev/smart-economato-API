@@ -145,6 +145,7 @@ class RecipeServiceTest {
         Pageable pageable = PageRequest.of(0, 10);
         Page<RecipeProjection> page = new PageImpl<>(Arrays.asList(testProjection));
         when(repository.findAllProjectedBy(any(Pageable.class))).thenReturn(page);
+        when(recipeMapper.toResponseDTO(any(RecipeProjection.class))).thenReturn(testRecipeResponseDTO);
 
         Page<RecipeResponseDTO> result = recipeService.findAll(pageable);
 
@@ -157,6 +158,7 @@ class RecipeServiceTest {
     void findById_WhenRecipeExists_ShouldReturnRecipe() {
 
         when(repository.findProjectedById(1)).thenReturn(Optional.of(testProjection));
+        when(recipeMapper.toResponseDTO(any(RecipeProjection.class))).thenReturn(testRecipeResponseDTO);
 
         Optional<RecipeResponseDTO> result = recipeService.findById(1);
 
@@ -325,6 +327,7 @@ class RecipeServiceTest {
     void findByNameContaining_ShouldReturnMatchingRecipes() {
 
         when(repository.findProjectedByNameContainingIgnoreCase("Test")).thenReturn(Arrays.asList(testProjection));
+        when(recipeMapper.toResponseDTO(any(RecipeProjection.class))).thenReturn(testRecipeResponseDTO);
 
         List<RecipeResponseDTO> result = recipeService.findByNameContaining("Test");
 
@@ -338,6 +341,7 @@ class RecipeServiceTest {
 
         BigDecimal maxCost = new BigDecimal("20.00");
         when(repository.findProjectedByTotalCostLessThan(maxCost)).thenReturn(Arrays.asList(testProjection));
+        when(recipeMapper.toResponseDTO(any(RecipeProjection.class))).thenReturn(testRecipeResponseDTO);
 
         List<RecipeResponseDTO> result = recipeService.findByCostLessThan(maxCost);
 

@@ -96,6 +96,7 @@ class OrderDetailServiceTest {
     void findByOrder_ShouldReturnOrderDetails() {
 
         when(repository.findProjectedByOrderId(1)).thenReturn(Arrays.asList(testProjection));
+        when(orderDetailMapper.toResponseDTO(any(OrderDetailProjection.class))).thenReturn(testOrderDetailResponseDTO);
 
         List<OrderDetailResponseDTO> result = orderDetailService.findByOrder(testOrder);
 
@@ -122,6 +123,7 @@ class OrderDetailServiceTest {
     void findByProduct_ShouldReturnOrderDetails() {
 
         when(repository.findProjectedByProductId(1)).thenReturn(Arrays.asList(testProjection));
+        when(orderDetailMapper.toResponseDTO(any(OrderDetailProjection.class))).thenReturn(testOrderDetailResponseDTO);
 
         List<OrderDetailResponseDTO> result = orderDetailService.findByProduct(testProduct);
 

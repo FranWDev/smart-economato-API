@@ -19,7 +19,6 @@ import com.economato.inventory.repository.UserRepository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @Transactional(rollbackFor = { RuntimeException.class, Exception.class })
@@ -38,15 +37,15 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findAll(Pageable pageable) {
         return repository.findByIsHiddenFalseProjectedBy(pageable).stream()
-                .map(this::toResponseDTO)
-                .collect(Collectors.toList());
+                .map(userMapper::toResponseDTO)
+                .toList();
     }
 
     @Cacheable(value = "user", key = "#id")
     @Transactional(readOnly = true)
     public Optional<UserResponseDTO> findById(Integer id) {
         return repository.findProjectedById(id)
-                .map(this::toResponseDTO);
+                .map(userMapper::toResponseDTO);
     }
 
     @Cacheable(value = "userByEmail", key = "#username")
@@ -159,17 +158,6 @@ public class UserService {
         // Si es admin, puede cambiar la contraseña sin la antigua
         if (isAdmin) {
             user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-            // Si el admin cambia la contraseña, podríamos querer resetear firstLogin a true
-            // o false dependiendo de la logica de negocio
-            // En este caso, asumiremos que si el admin la resetea, el usuario tendra que
-            // cambiarla de nuevo?
-            // "y el usuario si es para cambiar su propia contraseña... isFirstLogin es
-            // false"
-            // "en caso de ser el rol admin, no debe requerir enviarse la antigua
-            // contraseña"
-            // No se especifica si cambia isFirstLogin para admin. Asumimos que no cambia o
-            // se mantiene.
-            // Pero si el usuario la cambia (siendo firstLogin=true), pasa a false.
         } else {
             // Es el propio usuario
             if (user.isFirstLogin()) {
@@ -193,15 +181,15 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findByRole(Role role) {
         return repository.findByRoleAndIsHiddenFalseProjectedBy(role).stream()
-                .map(this::toResponseDTO)
-                .collect(Collectors.toList());
+                .map(userMapper::toResponseDTO)
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findHiddenUsers(Pageable pageable) {
         return repository.findByIsHiddenTrueProjectedBy(pageable).stream()
-                .map(this::toResponseDTO)
-                .collect(Collectors.toList());
+                .map(userMapper::toResponseDTO)
+                .toList();
     }
 
     @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
@@ -222,19 +210,5 @@ public class UserService {
 
         user.setHidden(hidden);
         repository.save(user);
-    }
-
-    /**
-     * Convierte una proyección de User a UserResponseDTO.
-     */
-    private UserResponseDTO toResponseDTO(com.economato.inventory.dto.projection.UserProjection projection) {
-        com.economato.inventory.dto.response.UserResponseDTO dto = new com.economato.inventory.dto.response.UserResponseDTO();
-        dto.setId(projection.getId());
-        dto.setName(projection.getName());
-        dto.setUser(projection.getUser());
-        dto.setFirstLogin(projection.getIsFirstLogin());
-        dto.setHidden(projection.getIsHidden());
-        dto.setRole(projection.getRole());
-        return dto;
     }
 }

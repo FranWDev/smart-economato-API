@@ -6,6 +6,7 @@ import org.mapstruct.MappingTarget;
 import org.mapstruct.Named;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 
+import com.economato.inventory.dto.projection.ProductProjection;
 import com.economato.inventory.dto.request.ProductRequestDTO;
 import com.economato.inventory.dto.response.ProductResponseDTO;
 import com.economato.inventory.model.Product;
@@ -16,6 +17,10 @@ import com.economato.inventory.model.Supplier;
 public interface ProductMapper {
 
     ProductResponseDTO toResponseDTO(Product product);
+
+    @Mapping(source = "projection.supplier.id", target = "supplier.id")
+    @Mapping(source = "projection.supplier.name", target = "supplier.name")
+    ProductResponseDTO toResponseDTO(ProductProjection projection);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "version", ignore = true)

@@ -4,16 +4,26 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 
+import com.economato.inventory.dto.projection.InventoryAuditProjection;
 import com.economato.inventory.dto.response.InventoryMovementResponseDTO;
 import com.economato.inventory.model.InventoryAudit;
 
 import java.math.BigDecimal;
 
-@Mapper(
-    componentModel = "spring",
-    nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE
-)
+@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface InventoryMovementMapper {
+
+    @Mapping(source = "projection.id", target = "id")
+    @Mapping(source = "projection.product.id", target = "productId")
+    @Mapping(source = "projection.product.name", target = "productName")
+    @Mapping(source = "projection.users.id", target = "userId")
+    @Mapping(source = "projection.users.name", target = "userName")
+    @Mapping(source = "projection.product.currentStock", target = "previousStock")
+    @Mapping(source = "projection.product.currentStock", target = "currentStock")
+    @Mapping(source = "projection.actionDescription", target = "actionDescription")
+    @Mapping(source = "projection.previousState", target = "previousState")
+    @Mapping(source = "projection.newState", target = "newState")
+    InventoryMovementResponseDTO toResponseDTO(InventoryAuditProjection projection);
 
     @Mapping(source = "audit.id", target = "id")
     @Mapping(source = "audit.product.id", target = "productId")

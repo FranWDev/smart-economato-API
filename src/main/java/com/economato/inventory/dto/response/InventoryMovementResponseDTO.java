@@ -43,6 +43,9 @@ public class InventoryMovementResponseDTO {
     @Schema(description = "Stock actual del producto después del movimiento", example = "235.00")
     private BigDecimal currentStock;
 
+    @Schema(description = "Descripción de la acción realizada", example = "Actualización de stock manual")
+    private String actionDescription;
+
     @Schema(description = "Estado JSON del producto antes de la acción")
     private String previousState;
 
