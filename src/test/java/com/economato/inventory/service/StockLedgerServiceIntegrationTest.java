@@ -225,9 +225,6 @@ class StockLedgerServiceIntegrationTest {
 
                 String errorMessage = String.join(", ", result.getErrors());
                 assertTrue(errorMessage.contains("Hash corrupto") || errorMessage.contains("TX#"));
-
-                System.out.println("CORRUPCIÓN DETECTADA:");
-                result.getErrors().forEach(System.out::println);
         }
 
         @Test
@@ -251,9 +248,6 @@ class StockLedgerServiceIntegrationTest {
 
                 assertFalse(result.isValid());
                 assertTrue(result.getMessage().contains("CORRUPCIÓN"));
-
-                System.out.println("INTENTO DE ROBO DETECTADO:");
-                result.getErrors().forEach(System.out::println);
         }
 
         @Test
@@ -283,9 +277,6 @@ class StockLedgerServiceIntegrationTest {
                 assertFalse(result.isValid());
                 assertTrue(result.getErrors().stream()
                                 .anyMatch(e -> e.contains("previousHash incorrecto")));
-
-                System.out.println("CADENA ROTA DETECTADA:");
-                result.getErrors().forEach(System.out::println);
         }
 
         @Test
@@ -313,9 +304,6 @@ class StockLedgerServiceIntegrationTest {
                                 .verifyChainIntegrity(testProduct.getId());
 
                 assertFalse(result.isValid());
-
-                System.out.println("TRANSACCIÓN ELIMINADA DETECTADA:");
-                result.getErrors().forEach(System.out::println);
         }
 
         @Test
@@ -470,8 +458,6 @@ class StockLedgerServiceIntegrationTest {
                 assertFalse(snapshotRepository.existsById(testProduct.getId()), "El snapshot debe estar borrado");
                 assertTrue(result.contains("3 transacciones eliminadas"),
                                 "El mensaje debe confirmar 3 transacciones eliminadas");
-
-                System.out.println("HISTORIAL RESTABLECIDO: " + result);
         }
 
         @Test
@@ -496,7 +482,5 @@ class StockLedgerServiceIntegrationTest {
                 StockLedgerService.IntegrityCheckResult integrity = stockLedgerService
                                 .verifyChainIntegrity(testProduct.getId());
                 assertTrue(integrity.isValid(), "La nueva cadena debe ser válida");
-
-                System.out.println("Nueva cadena válida después del reseteo");
         }
 }

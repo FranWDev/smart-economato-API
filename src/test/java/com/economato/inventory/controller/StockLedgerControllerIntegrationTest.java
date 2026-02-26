@@ -1,16 +1,9 @@
 package com.economato.inventory.controller;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
 
 import com.economato.inventory.model.Product;
 import com.economato.inventory.model.StockLedger;
@@ -28,18 +21,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-class StockLedgerControllerIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @SuppressWarnings("removal")
-    @MockBean
-    private StockLedgerService stockLedgerService;
-
+class StockLedgerControllerIntegrationTest extends BaseControllerMockTest {
     private StockLedger testLedger;
     private List<StockLedger> testLedgers;
     private StockSnapshot testSnapshot;
@@ -117,7 +99,6 @@ class StockLedgerControllerIntegrationTest {
     }
 
     @Test
-    @Disabled("BUG: @MockBean causa 500 en lugar de 403. Spring Security falla antes de verificar autorización cuando el servicio está mockeado")
     @WithMockUser(username = "user", roles = { "USER" })
     void verifyAllChains_WithUserRole_ShouldReturnForbidden() throws Exception {
 

@@ -77,8 +77,6 @@ public class ConcurrencyTest {
 
         assertTrue(successCount.get() > 0, "Al menos una actualización debe tener éxito");
 
-        System.out.println("Éxitos: " + successCount.get() + ", Fallos: " + failureCount.get());
-
         productRepository.deleteById(productId);
     }
 

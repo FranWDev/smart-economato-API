@@ -370,7 +370,6 @@ public class UserService {
 
     @EventListener(ApplicationReadyEvent.class)
     public void reschedulePendingEscalationsOnStartup() {
-        System.out.println("====== STARTING ROLE ESCALATION SCHEDULE SYNC ======");
         List<TemporaryRoleEscalation> activeEscalations = escalationRepository.findAll();
         LocalDateTime now = LocalDateTime.now();
 
@@ -378,10 +377,8 @@ public class UserService {
             Integer userId = escalation.getUser().getId();
 
             if (escalation.getExpirationTime().isBefore(now)) {
-                System.out.println("Deescalating expired user ID " + userId);
                 deescalateRole(userId);
             } else {
-                System.out.println("Rescheduling active escalation for user ID " + userId);
                 scheduleDeescalation(userId, escalation.getExpirationTime());
             }
         }

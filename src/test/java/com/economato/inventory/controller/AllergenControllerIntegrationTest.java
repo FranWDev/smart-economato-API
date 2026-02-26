@@ -3,7 +3,6 @@ package com.economato.inventory.controller;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,7 +57,6 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .param("page", "0")
                                 .param("size", "10"))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.content", notNullValue()));
         }
@@ -73,7 +71,6 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(allergen)))
-                                .andDo(print())
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.name", is(allergen.getName())));
         }
@@ -88,7 +85,6 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(allergen)))
-                                .andDo(print())
                                 .andExpect(status().isCreated())
                                 .andReturn().getResponse().getContentAsString();
 
@@ -96,7 +92,6 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
 
                 mockMvc.perform(get(BASE_URL + "/{id}", allergenId)
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.name", is(allergen.getName())));
         }
@@ -111,7 +106,6 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(allergen)))
-                                .andDo(print())
                                 .andExpect(status().isCreated())
                                 .andReturn().getResponse().getContentAsString();
 
@@ -123,7 +117,6 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(allergen)))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.name", is(allergen.getName())));
         }
@@ -138,7 +131,6 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(allergen)))
-                                .andDo(print())
                                 .andExpect(status().isCreated())
                                 .andReturn().getResponse().getContentAsString();
 
@@ -146,12 +138,10 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
 
                 mockMvc.perform(delete(BASE_URL + "/{id}", allergenId)
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isNoContent());
 
                 mockMvc.perform(get(BASE_URL + "/{id}", allergenId)
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isNotFound());
         }
 

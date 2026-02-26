@@ -19,7 +19,6 @@ import org.springframework.http.MediaType;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 
 class UserControllerIntegrationTest extends BaseIntegrationTest {
 
@@ -65,7 +64,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(userRequest)))
-                                .andDo(print())
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.user").value(userRequest.getUser()))
                                 .andExpect(jsonPath("$.name").value(userRequest.getName()))
@@ -76,7 +74,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         void whenGetAllUsers_thenSuccess() throws Exception {
                 mockMvc.perform(get(BASE_URL)
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$", notNullValue()))
                                 .andExpect(jsonPath("$[*].user").exists())
@@ -99,7 +96,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
                 mockMvc.perform(get(BASE_URL + "/{id}", createdUser.getId())
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.user").value(userRequest.getUser()))
                                 .andExpect(jsonPath("$.name").value(userRequest.getName()))
@@ -125,7 +121,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(userRequest)))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.name").value(userRequest.getName()));
         }
@@ -145,12 +140,10 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
                 mockMvc.perform(delete(BASE_URL + "/{id}", createdUser.getId())
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isNoContent());
 
                 mockMvc.perform(get(BASE_URL + "/{id}", createdUser.getId())
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isNotFound());
         }
 
@@ -174,7 +167,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(duplicateUser)))
-                                .andDo(print())
                                 .andExpect(status().isBadRequest());
         }
 
@@ -198,7 +190,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(duplicateUser)))
-                                .andDo(print())
                                 .andExpect(status().isBadRequest());
         }
 
@@ -207,7 +198,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
                 mockMvc.perform(delete(BASE_URL + "/{id}", testAdmin.getId())
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isBadRequest());
         }
 
@@ -240,14 +230,12 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
                 mockMvc.perform(get(BASE_URL + "/by-role/CHEF")
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$", hasSize(1)))
                                 .andExpect(jsonPath("$[0].role").value("CHEF"));
 
                 mockMvc.perform(get(BASE_URL + "/by-role/ADMIN")
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$", hasSize(1)))
                                 .andExpect(jsonPath("$[0].role").value("ADMIN"));
@@ -265,7 +253,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(userRequest)))
-                                .andDo(print())
                                 .andExpect(status().isBadRequest());
         }
 
@@ -281,7 +268,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(userRequest)))
-                                .andDo(print())
                                 .andExpect(status().isBadRequest());
         }
 
@@ -316,7 +302,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(user2)))
-                                .andDo(print())
                                 .andExpect(status().isBadRequest());
         }
 
@@ -337,12 +322,10 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("false"))
-                                .andDo(print())
                                 .andExpect(status().isOk());
 
                 mockMvc.perform(get(BASE_URL + "/{id}", createdUser.getId())
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.firstLogin").value(false));
         }
@@ -372,7 +355,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("true"))
-                                .andDo(print())
                                 .andExpect(status().isOk());
 
                 // Verificar que está en true
@@ -422,7 +404,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + userToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("true"))
-                                .andDo(print())
                                 .andExpect(status().isBadRequest());
         }
 
@@ -430,7 +411,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         void whenGetCurrentUser_thenReturnsAuthenticatedUserData() throws Exception {
                 mockMvc.perform(get(BASE_URL + "/me")
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.name").value(testAdmin.getName()))
                                 .andExpect(jsonPath("$.role").value("ADMIN"))
@@ -466,7 +446,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                 // Obtener usuarios ocultos
                 String hiddenResponse = mockMvc.perform(get(BASE_URL + "/hidden")
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andReturn().getResponse().getContentAsString();
 
@@ -479,7 +458,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         void whenGetHiddenUsers_whenNoneExist_thenReturnEmptyList() throws Exception {
                 mockMvc.perform(get(BASE_URL + "/hidden")
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$", empty()));
         }
@@ -501,7 +479,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("true"))
-                                .andDo(print())
                                 .andExpect(status().isOk());
 
                 // Verificar que está oculto
@@ -538,7 +515,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("false"))
-                                .andDo(print())
                                 .andExpect(status().isOk());
 
                 // Verificar que ya no está oculto
@@ -558,7 +534,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("true"))
-                                .andDo(print())
                                 .andExpect(status().isBadRequest());
         }
 
@@ -606,7 +581,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         void whenGetTeachers_thenSuccessAndReturnsAdminUsers() throws Exception {
                 mockMvc.perform(get(BASE_URL + "/teachers")
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$", notNullValue()))
                                 .andExpect(jsonPath("$[*].role", everyItem(is("ADMIN"))));
@@ -635,7 +609,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(assignmentRequest)))
-                                .andDo(print())
                                 .andExpect(status().isOk());
 
                 // Verificar que el estudiante tiene el profesor
@@ -655,7 +628,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(assignmentRequest)))
-                                .andDo(print())
                                 .andExpect(status().isBadRequest());
         }
 
@@ -686,7 +658,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                 // Obtener estudiantes
                 mockMvc.perform(get(BASE_URL + "/students")
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$", notNullValue()))
                                 .andExpect(jsonPath("$[*].id", hasItem(createdStudent.getId())));
@@ -713,7 +684,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(escalationRequest)))
-                                .andDo(print())
                                 .andExpect(status().isOk());
 
                 mockMvc.perform(get(BASE_URL + "/{id}", createdUser.getId())
@@ -748,7 +718,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                 mockMvc.perform(post(BASE_URL + "/{id}/de-escalate", createdUser.getId())
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON))
-                                .andDo(print())
                                 .andExpect(status().isOk());
 
                 mockMvc.perform(get(BASE_URL + "/{id}", createdUser.getId())

@@ -3,7 +3,6 @@ package com.economato.inventory.controller;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,7 +55,6 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .param("page", "0")
                                 .param("size", "10"))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.content", notNullValue()));
         }
@@ -72,7 +70,6 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(supplier)))
-                                .andDo(print())
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.name", is(supplier.getName())))
                                 .andExpect(jsonPath("$.email", is(supplier.getEmail())))
@@ -94,7 +91,6 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(supplier)))
-                                .andDo(print())
                                 .andExpect(status().isBadRequest());
         }
 
@@ -107,7 +103,6 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(supplier)))
-                                .andDo(print())
                                 .andExpect(status().isCreated())
                                 .andReturn().getResponse().getContentAsString();
 
@@ -115,7 +110,6 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
 
                 mockMvc.perform(get(BASE_URL + "/{id}", supplierId)
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.name", is(supplier.getName())));
         }
@@ -129,7 +123,6 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(supplier)))
-                                .andDo(print())
                                 .andExpect(status().isCreated())
                                 .andReturn().getResponse().getContentAsString();
 
@@ -143,7 +136,6 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(supplier)))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.name", is(supplier.getName())))
                                 .andExpect(jsonPath("$.email", is(supplier.getEmail())))
@@ -159,7 +151,6 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(supplier)))
-                                .andDo(print())
                                 .andExpect(status().isCreated())
                                 .andReturn().getResponse().getContentAsString();
 
@@ -167,12 +158,10 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
 
                 mockMvc.perform(delete(BASE_URL + "/{id}", supplierId)
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isNoContent());
 
                 mockMvc.perform(get(BASE_URL + "/{id}", supplierId)
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isNotFound());
         }
 
@@ -199,7 +188,6 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
                 mockMvc.perform(get(BASE_URL + "/search")
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .param("name", "Distribuidora"))
-                                .andDo(print())
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$", hasSize(2)));
         }
@@ -208,7 +196,6 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
         void whenGetNonExistentSupplier_thenReturnsNotFound() throws Exception {
                 mockMvc.perform(get(BASE_URL + "/{id}", 99999)
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(print())
                                 .andExpect(status().isNotFound());
         }
 
@@ -221,7 +208,6 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(supplier)))
-                                .andDo(print())
                                 .andExpect(status().isNotFound());
         }
 }

@@ -1,20 +1,12 @@
 package com.economato.inventory.controller;
 
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.web.servlet.MockMvc;
 
 import com.economato.inventory.dto.response.InventoryMovementResponseDTO;
-import com.economato.inventory.service.InventoryAuditService;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -26,17 +18,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-class InventoryAuditControllerIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @MockBean
-    private InventoryAuditService inventoryAuditService;
-
+class InventoryAuditControllerIntegrationTest extends BaseControllerMockTest {
     private InventoryMovementResponseDTO testMovement;
     private List<InventoryMovementResponseDTO> testMovements;
 
@@ -83,10 +65,10 @@ class InventoryAuditControllerIntegrationTest {
     }
 
     @Test
-    @Disabled("BUG: @MockBean causa 500 en lugar de 403. Spring Security falla antes de verificar autorización cuando el servicio está mockeado")
     @WithMockUser(username = "user", roles = { "USER" })
     void getAllMovements_WithUserRole_ShouldReturnForbidden() throws Exception {
-        // Este test debería retornar 403 pero retorna 500 debido a interacción entre @MockBean y Spring Security
+        // Este test debería retornar 403 pero retorna 500 debido a interacción entre
+        // @MockBean y Spring Security
         mockMvc.perform(get("/api/inventory-audits")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isForbidden());

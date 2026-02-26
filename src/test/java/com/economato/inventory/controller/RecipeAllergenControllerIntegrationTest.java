@@ -14,7 +14,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.result.MockMvcResultHandlers;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -137,7 +136,6 @@ public class RecipeAllergenControllerIntegrationTest extends BaseIntegrationTest
 
                 mockMvc.perform(get(BASE_URL + "/recipe/{recipeId}/allergens", testRecipe.getId())
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andDo(MockMvcResultHandlers.print())
                                 .andExpect(status().isOk())
                                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                                 .andExpect(jsonPath("$").exists())
