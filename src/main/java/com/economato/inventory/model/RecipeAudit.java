@@ -40,12 +40,12 @@ public class RecipeAudit {
     @JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "fk_recipe_audit_user"))
     private User users;
 
-    @NotBlank(message = "La acción no puede estar vacía")
+    @NotBlank(message = "{recipeaudit.notblank.la.acci.n.no.puede.estar.vac.a}")
     @Size(max = 100)
     @Column(name = "action", nullable = false, length = 100)
     private String action;
 
-    @Size(max = 1000, message = "Los detalles no pueden exceder 1000 caracteres")
+    @Size(max = 1000, message = "{recipeaudit.size.los.detalles.no.pueden.exceder}")
     @Column(name = "details", columnDefinition = "TEXT")
     private String details;
 

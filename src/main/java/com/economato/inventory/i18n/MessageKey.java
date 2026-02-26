@@ -1,0 +1,39 @@
+package com.economato.inventory.i18n;
+
+public enum MessageKey {
+    // Definición de las claves para I18n relacionadas con Reglas de Negocio /
+    // Excepciones.
+    // Esto se actualizará progresivamente con el script de refactoring.
+    ERROR_USER_DELETE_LAST_ADMIN("error.user.delete.last.admin"),
+    ERROR_USER_REQUIRE_CURRENT_PASSWORD("error.user.require.current.password"),
+    ERROR_USER_INVALID_CURRENT_PASSWORD("error.user.invalid.current.password"),
+    ERROR_USER_HIDE_LAST_ADMIN("error.user.hide.last.admin"),
+    ERROR_USER_ADMIN_CANNOT_HAVE_TEACHER("error.user.admin.cannot.have.teacher"),
+    ERROR_USER_TEACHER_MUST_BE_ADMIN("error.user.teacher.must.be.admin"),
+    ERROR_USER_ONLY_ADMIN_HAS_STUDENTS("error.user.only.admin.has.students"),
+    ERROR_USER_ALREADY_ELEVATED("error.user.already.elevated"),
+    ERROR_USER_CANNOT_ESCALATE_ADMIN("error.user.cannot.escalate.admin"),
+    ERROR_AUTH_USER_ALREADY_EXISTS("error.auth.user.already.exists"),
+    ERROR_AUTH_INVALID_LOGOUT_TOKEN("error.auth.invalid.logout.token"),
+    ERROR_AUTH_LOGOUT_TOKEN_REQUIRED("error.auth.logout.token.required"),
+
+    ERROR_PRODUCT_ALREADY_EXISTS("error.product.already.exists"),
+
+    ERROR_SUPPLIER_ALREADY_EXISTS("error.supplier.already.exists"),
+
+    ERROR_RECIPE_NO_COMPONENTS("error.recipe.no.components"),
+    ERROR_RECIPE_ID_NOT_PROVIDED("error.recipe.id.not.provided"),
+    ERROR_RECIPE_ID_NULL("error.recipe.id.null"),
+
+    ERROR_ORDER_INVALID_STATE("error.order.invalid.state");
+
+    private final String key;
+
+    MessageKey(String key) {
+        this.key = key;
+    }
+
+    public String getKey() {
+        return key;
+    }
+}

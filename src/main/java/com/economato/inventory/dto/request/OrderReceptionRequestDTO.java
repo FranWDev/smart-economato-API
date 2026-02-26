@@ -14,15 +14,15 @@ import lombok.NoArgsConstructor;
 @Schema(description = "DTO para procesar la recepción de una orden")
 public class OrderReceptionRequestDTO {
 
-    @NotNull(message = "El ID de la orden no puede ser nulo")
+    @NotNull(message = "{orderreceptionrequestdto.notnull.el.id.de.la.orden.no.puede.ser}")
     @Schema(description = "Identificador de la orden a recibir", example = "5")
     private Integer orderId;
 
-    @NotEmpty(message = "Debe especificar al menos un producto recibido")
+    @NotEmpty(message = "{orderreceptionrequestdto.notempty.debe.especificar.al.menos.un.p}")
     @Schema(description = "Lista de productos recibidos con sus cantidades")
     private List<OrderReceptionDetailRequestDTO> items;
 
-    @NotNull(message = "El estado debe ser especificado")
+    @NotNull(message = "{orderreceptionrequestdto.notnull.el.estado.debe.ser.especificad}")
     @Schema(description = "Estado final de la orden (CONFIRMED o INCOMPLETE)", example = "CONFIRMED")
     private String status;
 }

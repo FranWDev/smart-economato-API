@@ -1,5 +1,8 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.i18n.I18nService;
+import com.economato.inventory.i18n.MessageKey;
+
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +40,7 @@ import com.economato.inventory.repository.UserRepository;
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
 public class ProductService {
+    private final I18nService i18nService;
 
     private static final Set<String> VALID_UNITS = Set.of(
             "KG", "G", "L", "ML", "UNIDAD", "MANOJO", "BOTE",
@@ -50,7 +54,7 @@ public class ProductService {
     private final StockLedgerService stockLedgerService;
     private final UserRepository userRepository;
 
-    public ProductService(
+    public ProductService(I18nService i18nService, 
             ProductRepository repository,
             InventoryAuditRepository movementRepository,
             RecipeComponentRepository recipeComponentRepository,
@@ -58,6 +62,7 @@ public class ProductService {
             ProductMapper productMapper,
             StockLedgerService stockLedgerService,
             UserRepository userRepository) {
+        this.i18nService = i18nService;
         this.repository = repository;
         this.movementRepository = movementRepository;
         this.recipeComponentRepository = recipeComponentRepository;
@@ -101,7 +106,7 @@ public class ProductService {
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public ProductResponseDTO save(ProductRequestDTO requestDTO) {
         if (repository.existsByName(requestDTO.getName())) {
-            throw new InvalidOperationException("Ya existe un producto con ese nombre");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_ALREADY_EXISTS));
         }
 
         validateProductData(requestDTO);
@@ -119,7 +124,7 @@ public class ProductService {
                 .map(existing -> {
                     if (!existing.getName().equals(requestDTO.getName()) &&
                             repository.existsByName(requestDTO.getName())) {
-                        throw new InvalidOperationException("Ya existe un producto con ese nombre");
+                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_ALREADY_EXISTS));
                     }
                     validateProductData(requestDTO);
                     productMapper.updateEntity(requestDTO, existing);
@@ -225,7 +230,7 @@ public class ProductService {
 
                     if (!existing.getName().equals(requestDTO.getName()) &&
                             repository.existsByName(requestDTO.getName())) {
-                        throw new InvalidOperationException("Ya existe un producto con ese nombre");
+                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_ALREADY_EXISTS));
                     }
                     validateProductData(requestDTO);
 

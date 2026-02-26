@@ -1,5 +1,8 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.i18n.I18nService;
+import com.economato.inventory.i18n.MessageKey;
+
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Pageable;
@@ -39,6 +42,7 @@ import com.economato.inventory.repository.TemporaryRoleEscalationRepository;
 @Service
 @Transactional(rollbackFor = { RuntimeException.class, Exception.class })
 public class UserService {
+    private final I18nService i18nService;
 
     private final UserRepository repository;
     private final PasswordEncoder passwordEncoder;
@@ -53,12 +57,14 @@ public class UserService {
     // early
     private final Map<Integer, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>();
 
-    public UserService(UserRepository repository, PasswordEncoder passwordEncoder, UserMapper userMapper,
+    public UserService(I18nService i18nService, UserRepository repository, PasswordEncoder passwordEncoder,
+            UserMapper userMapper,
             TemporaryRoleEscalationMapper escalationMapper,
             StatsMapper statsMapper,
             CustomUserDetailsService customUserDetailsService,
             TemporaryRoleEscalationRepository escalationRepository,
             TaskScheduler taskScheduler) {
+        this.i18nService = i18nService;
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
         this.userMapper = userMapper;
@@ -162,7 +168,7 @@ public class UserService {
         if (Role.ADMIN.equals(user.getRole())) {
             long adminCount = repository.countByRole(Role.ADMIN);
             if (adminCount <= 1) {
-                throw new InvalidOperationException("No se puede eliminar el último administrador del sistema");
+                throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_DELETE_LAST_ADMIN));
             }
         }
 
@@ -201,10 +207,12 @@ public class UserService {
                 user.setFirstLogin(false);
             } else {
                 if (request.getOldPassword() == null || request.getOldPassword().isEmpty()) {
-                    throw new InvalidOperationException("Se requiere la contraseña actual");
+                    throw new InvalidOperationException(
+                            i18nService.getMessage(MessageKey.ERROR_USER_REQUIRE_CURRENT_PASSWORD));
                 }
                 if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
-                    throw new InvalidOperationException("La contraseña actual es incorrecta");
+                    throw new InvalidOperationException(
+                            i18nService.getMessage(MessageKey.ERROR_USER_INVALID_CURRENT_PASSWORD));
                 }
             }
             user.setPassword(passwordEncoder.encode(request.getNewPassword()));
@@ -239,7 +247,7 @@ public class UserService {
                     .filter(p -> p.getRole() == Role.ADMIN)
                     .count();
             if (visibleAdmins <= 1) {
-                throw new InvalidOperationException("No se puede ocultar el último administrador visible del sistema");
+                throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_HIDE_LAST_ADMIN));
             }
         }
 
@@ -249,14 +257,18 @@ public class UserService {
 
     private void validateTeacherAssignment(Role userRole, Integer teacherId) {
         if (teacherId != null) {
-            if (Role.ADMIN.equals(userRole)) {
-                throw new InvalidOperationException("Un usuario con rol ADMIN no puede tener un profesor asignado.");
+            // Un usuario con rol CHEF o ADMIN no puede tener un profesor asignado
+            if (Role.CHEF.equals(userRole) || Role.ADMIN.equals(userRole)) {
+                throw new InvalidOperationException(
+                        i18nService.getMessage(MessageKey.ERROR_USER_ADMIN_CANNOT_HAVE_TEACHER));
             }
             User teacher = repository.findById(teacherId)
                     .orElseThrow(
                             () -> new InvalidOperationException("El profesor asignado no existe con ID: " + teacherId));
-            if (!Role.ADMIN.equals(teacher.getRole())) {
-                throw new InvalidOperationException("El usuario asignado como profesor no tiene el rol ADMIN.");
+            // El profesor debe tener rol CHEF
+            if (!Role.CHEF.equals(teacher.getRole())) {
+                throw new InvalidOperationException(
+                        i18nService.getMessage(MessageKey.ERROR_USER_TEACHER_MUST_BE_ADMIN));
             }
         }
     }
@@ -282,8 +294,8 @@ public class UserService {
     @Transactional(readOnly = true)
     public List<UserResponseDTO> getMyStudents(String username) {
         User teacher = findByUsername(username);
-        if (!Role.ADMIN.equals(teacher.getRole())) {
-            throw new InvalidOperationException("Solo los usuarios con rol ADMIN tienen alumnos.");
+        if (!Role.CHEF.equals(teacher.getRole())) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_ONLY_ADMIN_HAS_STUDENTS));
         }
         return repository.findProjectedByTeacherIdAndIsHiddenFalse(teacher.getId()).stream()
                 .map(userMapper::toResponseDTO)
@@ -304,10 +316,10 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + userId));
 
         if (Role.ELEVATED.equals(user.getRole())) {
-            throw new InvalidOperationException("El usuario ya tiene rol ELEVATED.");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_ALREADY_ELEVATED));
         }
         if (Role.ADMIN.equals(user.getRole())) {
-            throw new InvalidOperationException("No se puede escalar a un administrador.");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_CANNOT_ESCALATE_ADMIN));
         }
 
         user.setRole(Role.ELEVATED);

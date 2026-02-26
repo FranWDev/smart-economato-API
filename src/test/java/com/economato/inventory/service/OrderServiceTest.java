@@ -1,10 +1,15 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.i18n.I18nService;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
+import com.economato.inventory.i18n.MessageKey;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -58,6 +63,8 @@ class OrderServiceTest {
 
     @Mock
     private StockLedgerService stockLedgerService;
+    @Mock
+    private I18nService i18nService;
 
     @InjectMocks
     private OrderService orderService;
@@ -72,6 +79,8 @@ class OrderServiceTest {
 
     @BeforeEach
     void setUp() {
+        Mockito.lenient().when(i18nService.getMessage(ArgumentMatchers.any(MessageKey.class)))
+                .thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
         testUser = new User();
         testUser.setId(1);
         testUser.setName("Test User");
@@ -418,7 +427,7 @@ class OrderServiceTest {
         InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
             orderService.updateStatus(1, "INVALID_STATUS");
         });
-        assertTrue(exception.getMessage().contains("Estado de orden inválido"));
+        assertTrue(exception.getMessage().contains("Estado de orden"));
         verify(repository, never()).save(any(Order.class));
     }
 

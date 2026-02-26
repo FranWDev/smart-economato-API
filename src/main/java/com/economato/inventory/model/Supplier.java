@@ -24,8 +24,8 @@ public class Supplier {
     @Column(name = "supplier_id")
     private Integer id;
 
-    @NotBlank(message = "El nombre del proveedor no puede estar vacío")
-    @Size(min = 2, max = 100, message = "El nombre debe tener entre 2 y 100 caracteres")
+    @NotBlank(message = "{supplier.notblank.el.nombre.del.proveedor.no.pue}")
+    @Size(min = 2, max = 100, message = "{supplier.size.el.nombre.debe.tener.entre.2.y}")
     @Column(name = "name", nullable = false, unique = true, length = 100)
     private String name;
 

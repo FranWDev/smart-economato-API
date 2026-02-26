@@ -1,5 +1,8 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.i18n.I18nService;
+import com.economato.inventory.i18n.MessageKey;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
@@ -21,13 +24,15 @@ import java.util.List;
 @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
         Exception.class })
 public class SupplierService {
+    private final I18nService i18nService;
 
     private final SupplierRepository repository;
     private final ProductRepository productRepository;
     private final SupplierMapper supplierMapper;
 
-    public SupplierService(SupplierRepository repository, ProductRepository productRepository,
+    public SupplierService(I18nService i18nService, SupplierRepository repository, ProductRepository productRepository,
             SupplierMapper supplierMapper) {
+        this.i18nService = i18nService;
         this.repository = repository;
         this.productRepository = productRepository;
         this.supplierMapper = supplierMapper;
@@ -48,7 +53,7 @@ public class SupplierService {
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public SupplierResponseDTO save(SupplierRequestDTO requestDTO) {
         if (repository.existsByName(requestDTO.getName())) {
-            throw new InvalidOperationException("Ya existe un proveedor con ese nombre");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_SUPPLIER_ALREADY_EXISTS));
         }
         Supplier supplier = supplierMapper.toEntity(requestDTO);
         return supplierMapper.toResponseDTO(repository.save(supplier));
@@ -61,7 +66,7 @@ public class SupplierService {
                 .map(existing -> {
                     if (!existing.getName().equals(requestDTO.getName()) &&
                             repository.existsByName(requestDTO.getName())) {
-                        throw new InvalidOperationException("Ya existe un proveedor con ese nombre");
+                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_SUPPLIER_ALREADY_EXISTS));
                     }
                     supplierMapper.updateEntity(requestDTO, existing);
                     return supplierMapper.toResponseDTO(repository.save(existing));

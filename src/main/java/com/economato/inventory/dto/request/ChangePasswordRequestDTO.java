@@ -12,8 +12,8 @@ public class ChangePasswordRequestDTO {
     @Schema(description = "Contraseña actual (requerida solo si no es admin y no es primer login)", example = "oldPassword123")
     private String oldPassword;
 
-    @NotBlank(message = "La nueva contraseña no puede estar vacía")
-    @Size(min = 6, message = "La nueva contraseña debe tener al menos 6 caracteres")
+    @NotBlank(message = "{changepasswordrequestdto.notblank.la.nueva.contrase.a.no.puede.e}")
+    @Size(min = 6, message = "{changepasswordrequestdto.size.la.nueva.contrase.a.debe.tener}")
     @Schema(description = "Nueva contraseña", example = "newPassword123", minLength = 6, requiredMode = Schema.RequiredMode.REQUIRED)
     private String newPassword;
 }

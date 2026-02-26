@@ -1,5 +1,8 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.i18n.I18nService;
+import com.economato.inventory.i18n.MessageKey;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,17 +28,19 @@ import java.util.stream.Collectors;
 @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
         Exception.class })
 public class RecipeComponentService {
+    private final I18nService i18nService;
 
     private final RecipeComponentRepository repository;
     private final ProductRepository productRepository;
     private final RecipeRepository recipeRepository;
     private final RecipeComponentMapper recipeComponentMapper;
 
-    public RecipeComponentService(
+    public RecipeComponentService(I18nService i18nService, 
             RecipeComponentRepository repository,
             ProductRepository productRepository,
             RecipeRepository recipeRepository,
             RecipeComponentMapper recipeComponentMapper) {
+        this.i18nService = i18nService;
         this.repository = repository;
         this.productRepository = productRepository;
         this.recipeRepository = recipeRepository;
@@ -91,7 +96,7 @@ public class RecipeComponentService {
     @Transactional(readOnly = true)
     public List<RecipeComponentResponseDTO> findByParentRecipe(RecipeResponseDTO recipeDTO) {
         if (recipeDTO.getId() == null) {
-            throw new ResourceNotFoundException("Recipe ID not provided");
+            throw new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RECIPE_ID_NOT_PROVIDED));
         }
         return repository.findProjectedByParentRecipeId(recipeDTO.getId()).stream()
                 .map(recipeComponentMapper::toResponseDTO)
@@ -113,7 +118,7 @@ public class RecipeComponentService {
                     .orElseThrow(() -> new ResourceNotFoundException("Recipe not found"));
             component.setParentRecipe(recipe);
         } else {
-            throw new InvalidOperationException("Recipe ID must not be null");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_RECIPE_ID_NULL));
         }
     }
 }

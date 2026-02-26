@@ -14,47 +14,47 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Datos necesarios para crear o actualizar un producto")
 public class ProductRequestDTO {
 
-    @NotBlank(message = "El nombre del producto no puede estar vacío")
-    @Size(min = 2, max = 100, message = "El nombre debe tener entre 2 y 100 caracteres")
+    @NotBlank(message = "{productrequestdto.notblank.el.nombre.del.producto.no.pued}")
+    @Size(min = 2, max = 100, message = "{productrequestdto.size.el.nombre.debe.tener.entre.2.y}")
     @Schema(description = "Nombre del producto", example = "Harina de trigo")
     private String name;
 
     @Schema(description = "Tipo o categoría del producto", example = "Ingrediente")
     private String type;
 
-    @NotBlank(message = "La unidad de medida no puede estar vacía")
-    @Size(max = 20, message = "La unidad no puede exceder 20 caracteres")
+    @NotBlank(message = "{productrequestdto.notblank.la.unidad.de.medida.no.puede.e}")
+    @Size(max = 20, message = "{productrequestdto.size.la.unidad.no.puede.exceder.20.}")
     @Schema(description = "Unidad de medida del producto", example = "kg")
     private String unit;
 
-    @NotNull(message = "El precio unitario no puede ser nulo")
-    @DecimalMin(value = "0.01", message = "El precio debe ser mayor que cero")
-    @Digits(integer = 10, fraction = 2, message = "El precio debe tener máximo 10 dígitos enteros y 2 decimales")
+    @NotNull(message = "{productrequestdto.notnull.el.precio.unitario.no.puede.se}")
+    @DecimalMin(value = "0.01", message = "{productrequestdto.decimalmin.el.precio.debe.ser.mayor.que.c}")
+    @Digits(integer = 10, fraction = 2, message = "{productrequestdto.digits.el.precio.debe.tener.m.ximo.10}")
     @Schema(description = "Precio por unidad de medida", example = "1.50")
     @JsonAlias("price")
     private BigDecimal unitPrice;
 
-    @NotBlank(message = "El código del producto no puede estar vacío")
-    @Size(max = 50, message = "El código no puede exceder 50 caracteres")
+    @NotBlank(message = "{productrequestdto.notblank.el.c.digo.del.producto.no.pued}")
+    @Size(max = 50, message = "{productrequestdto.size.el.c.digo.no.puede.exceder.50.}")
     @Schema(description = "Código único del producto", example = "92438232374")
     private String productCode;
 
-    @NotNull(message = "El stock actual no puede ser nulo")
-    @DecimalMin(value = "0.0", inclusive = true, message = "El stock no puede ser negativo")
-    @Digits(integer = 10, fraction = 3, message = "El stock debe tener máximo 10 dígitos enteros y 3 decimales")
+    @NotNull(message = "{productrequestdto.notnull.el.stock.actual.no.puede.ser.n}")
+    @DecimalMin(value = "0.0", inclusive = true, message = "{productrequestdto.decimalmin.el.stock.no.puede.ser.negativo}")
+    @Digits(integer = 10, fraction = 3, message = "{productrequestdto.digits.el.stock.debe.tener.m.ximo.10.}")
     @Schema(description = "Cantidad actual en inventario", example = "250.00")
     @JsonAlias("stock")
     private BigDecimal currentStock;
 
-    @DecimalMin(value = "0.00", message = "El porcentaje de disponibilidad no puede ser negativo")
-    @DecimalMax(value = "100.00", message = "El porcentaje de disponibilidad no puede ser mayor a 100")
-    @Digits(integer = 3, fraction = 2, message = "El porcentaje debe tener máximo 3 dígitos enteros y 2 decimales")
+    @DecimalMin(value = "0.00", message = "{productrequestdto.decimalmin.el.porcentaje.de.disponibilida}")
+    @DecimalMax(value = "100.00", message = "{productrequestdto.decimalmax.el.porcentaje.de.disponibilida}")
+    @Digits(integer = 3, fraction = 2, message = "{productrequestdto.digits.el.porcentaje.debe.tener.m.xim}")
     @Schema(description = "Porcentaje de disponibilidad del producto (0-100). Si no se especifica, se asume 100%", example = "85.50")
     private BigDecimal availabilityPercentage;
 
-    @NotNull(message = "El stock mínimo no puede ser nulo")
-    @DecimalMin(value = "0.0", inclusive = true, message = "El stock mínimo no puede ser negativo")
-    @Digits(integer = 10, fraction = 3, message = "El stock mínimo debe tener máximo 10 dígitos enteros y 3 decimales")
+    @NotNull(message = "{productrequestdto.notnull.el.stock.m.nimo.no.puede.ser.n}")
+    @DecimalMin(value = "0.0", inclusive = true, message = "{productrequestdto.decimalmin.el.stock.m.nimo.no.puede.ser.n}")
+    @Digits(integer = 10, fraction = 3, message = "{productrequestdto.digits.el.stock.m.nimo.debe.tener.m.x}")
     @Schema(description = "Stock mínimo antes de alerta", example = "10.00")
     @JsonAlias("minStock")
     private BigDecimal minimumStock;

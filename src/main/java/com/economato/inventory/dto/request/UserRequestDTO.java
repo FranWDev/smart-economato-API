@@ -16,18 +16,18 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "DTO para crear o actualizar un usuario")
 public class UserRequestDTO {
 
-        @NotBlank(message = "El nombre no puede estar vacío")
-        @Size(min = 2, max = 100, message = "El nombre debe tener entre 2 y 100 caracteres")
+        @NotBlank(message = "{userrequestdto.notblank.el.nombre.no.puede.estar.vac.o}")
+        @Size(min = 2, max = 100, message = "{userrequestdto.size.el.nombre.debe.tener.entre.2.y}")
         @Schema(description = "Nombre completo del usuario", example = "Juan Pérez", minLength = 2, maxLength = 100)
         private String name;
 
-        @NotBlank(message = "El usuario no puede estar vacío")
-        @Size(max = 100, message = "El usuario no puede exceder 100 caracteres")
+        @NotBlank(message = "{userrequestdto.notblank.el.usuario.no.puede.estar.vac.}")
+        @Size(max = 100, message = "{userrequestdto.size.el.usuario.no.puede.exceder.10}")
         @Schema(description = "Usuario del sistema", example = "juan_perez")
         private String user;
 
-        @NotBlank(message = "La contraseña no puede estar vacía")
-        @Size(min = 6, message = "La contraseña debe tener al menos 6 caracteres")
+        @NotBlank(message = "{userrequestdto.notblank.la.contrase.a.no.puede.estar.v}")
+        @Size(min = 6, message = "{userrequestdto.size.la.contrase.a.debe.tener.al.me}")
         @Schema(description = "Contraseña del usuario", example = "123456", minLength = 6)
         private String password;
 

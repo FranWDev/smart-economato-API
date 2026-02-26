@@ -30,8 +30,8 @@ public class Allergen {
     @Column(name = "allergen_id")
     private Integer id;
 
-    @NotBlank(message = "El nombre del alérgeno no puede estar vacío")
-    @Size(min = 2, max = 50, message = "El nombre debe tener entre 2 y 50 caracteres")
+    @NotBlank(message = "{allergen.notblank.el.nombre.del.al.rgeno.no.pued}")
+    @Size(min = 2, max = 50, message = "{allergen.size.el.nombre.debe.tener.entre.2.y}")
     @Column(name = "name", nullable = false, unique = true, length = 50)
     private String name;
 

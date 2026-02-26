@@ -27,20 +27,20 @@ public class Recipe {
     @Column(name = "recipe_id")
     private Integer id;
 
-    @NotBlank(message = "El nombre de la receta no puede estar vacío")
-    @Size(min = 2, max = 150, message = "El nombre debe tener entre 2 y 150 caracteres")
+    @NotBlank(message = "{recipe.notblank.el.nombre.de.la.receta.no.pued}")
+    @Size(min = 2, max = 150, message = "{recipe.size.el.nombre.debe.tener.entre.2.y}")
     @Column(name = "recipe_name", nullable = false, length = 150)
     private String name;
 
-    @Size(max = 2000, message = "La elaboración no puede exceder 2000 caracteres")
+    @Size(max = 2000, message = "{recipe.size.la.elaboraci.n.no.puede.excede}")
     @Column(name = "elaboration", columnDefinition = "TEXT")
     private String elaboration;
 
-    @Size(max = 1000, message = "La presentación no puede exceder 1000 caracteres")
+    @Size(max = 1000, message = "{recipe.size.la.presentaci.n.no.puede.exced}")
     @Column(name = "presentation", columnDefinition = "TEXT")
     private String presentation;
 
-    @DecimalMin(value = "0.0", inclusive = true, message = "El coste no puede ser negativo")
+    @DecimalMin(value = "0.0", inclusive = true, message = "{recipe.decimalmin.el.coste.no.puede.ser.negativo}")
     @Digits(integer = 10, fraction = 2)
     @Column(name = "total_cost", precision = 10, scale = 2)
     private BigDecimal totalCost;

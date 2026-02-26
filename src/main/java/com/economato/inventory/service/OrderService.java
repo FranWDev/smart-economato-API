@@ -1,5 +1,8 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.i18n.I18nService;
+import com.economato.inventory.i18n.MessageKey;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
                 Exception.class })
 public class OrderService {
+    private final I18nService i18nService;
 
         private final OrderRepository repository;
         private final UserRepository userRepository;
@@ -44,11 +48,12 @@ public class OrderService {
         private final OrderMapper orderMapper;
         private final StockLedgerService stockLedgerService;
 
-        public OrderService(OrderRepository repository,
+        public OrderService(I18nService i18nService, OrderRepository repository,
                         UserRepository userRepository,
                         ProductRepository productRepository,
                         OrderMapper orderMapper,
                         StockLedgerService stockLedgerService) {
+        this.i18nService = i18nService;
                 this.repository = repository;
                 this.userRepository = userRepository;
                 this.productRepository = productRepository;
@@ -273,7 +278,7 @@ public class OrderService {
          */
         private String validateStatus(String status) {
                 if (status == null) {
-                        throw new InvalidOperationException("Estado de orden inválido: null");
+                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_ORDER_INVALID_STATE));
                 }
                 String normalized = status.trim().toUpperCase();
                 List<String> validStatuses = List.of("CREATED", "PENDING", "REVIEW", "CONFIRMED", "INCOMPLETE",

@@ -1,10 +1,15 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.i18n.I18nService;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
+import com.economato.inventory.i18n.MessageKey;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -66,6 +71,8 @@ class RecipeServiceTest {
 
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private I18nService i18nService;
 
     @InjectMocks
     private RecipeService recipeService;
@@ -79,6 +86,8 @@ class RecipeServiceTest {
 
     @BeforeEach
     void setUp() {
+        Mockito.lenient().when(i18nService.getMessage(ArgumentMatchers.any(MessageKey.class)))
+                .thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
         testProduct = new Product();
         testProduct.setId(1);
         testProduct.setName("Test Product");
@@ -474,7 +483,7 @@ class RecipeServiceTest {
             recipeService.cookRecipe(cookingRequest);
         });
 
-        assertTrue(exception.getMessage().contains("no tiene componentes"));
+        assertTrue(exception.getMessage().contains("ERROR_RECIPE_NO_COMPONENTS"));
         verify(stockLedgerService, never()).recordStockMovement(anyInt(), any(), any(), any(), any(), any());
     }
 

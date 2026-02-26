@@ -1,10 +1,15 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.i18n.I18nService;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
+import com.economato.inventory.i18n.MessageKey;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -67,6 +72,8 @@ class UserServiceTest {
 
     @Mock
     private TaskScheduler taskScheduler;
+    @Mock
+    private I18nService i18nService;
 
     @InjectMocks
     private UserService userService;
@@ -78,6 +85,8 @@ class UserServiceTest {
 
     @BeforeEach
     void setUp() {
+        Mockito.lenient().when(i18nService.getMessage(ArgumentMatchers.any(MessageKey.class)))
+                .thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
         testUser = new User();
         testUser.setId(1);
         testUser.setName("Test User");
@@ -692,7 +701,7 @@ class UserServiceTest {
     void assignTeacher_WhenValidTeacher_ShouldAssignSuccessfully() {
         User teacher = new User();
         teacher.setId(2);
-        teacher.setRole(Role.ADMIN);
+        teacher.setRole(Role.CHEF);
 
         testUser.setRole(Role.USER);
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
@@ -708,7 +717,7 @@ class UserServiceTest {
     void assignTeacher_WhenTeacherIsNull_ShouldUnassignTeacher() {
         User teacher = new User();
         teacher.setId(2);
-        teacher.setRole(Role.ADMIN);
+        teacher.setRole(Role.CHEF);
         testUser.setTeacher(teacher);
         testUser.setRole(Role.USER);
 
@@ -721,8 +730,8 @@ class UserServiceTest {
     }
 
     @Test
-    void assignTeacher_WhenUserIsAdmin_ShouldThrowException() {
-        testUser.setRole(Role.ADMIN);
+    void assignTeacher_WhenUserIsChef_ShouldThrowException() {
+        testUser.setRole(Role.CHEF);
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
 
         assertThrows(InvalidOperationException.class, () -> userService.assignTeacher(1, 2));
@@ -730,10 +739,10 @@ class UserServiceTest {
     }
 
     @Test
-    void assignTeacher_WhenTeacherIsNotAdmin_ShouldThrowException() {
+    void assignTeacher_WhenTeacherIsNotChef_ShouldThrowException() {
         User invalidTeacher = new User();
         invalidTeacher.setId(2);
-        invalidTeacher.setRole(Role.CHEF);
+        invalidTeacher.setRole(Role.USER);
 
         testUser.setRole(Role.USER);
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
@@ -744,18 +753,18 @@ class UserServiceTest {
     }
 
     @Test
-    void getMyStudents_WhenUserIsAdmin_ShouldReturnStudents() {
-        User adminTeacher = new User();
-        adminTeacher.setId(1);
-        adminTeacher.setName("Admin Teacher");
-        adminTeacher.setUser("adminTeacher");
-        adminTeacher.setRole(Role.ADMIN);
+    void getMyStudents_WhenUserIsChef_ShouldReturnStudents() {
+        User chefTeacher = new User();
+        chefTeacher.setId(1);
+        chefTeacher.setName("Chef Teacher");
+        chefTeacher.setUser("chefTeacher");
+        chefTeacher.setRole(Role.CHEF);
 
         UserProjection studentProjection = mock(UserProjection.class);
         lenient().when(studentProjection.getId()).thenReturn(2);
         lenient().when(studentProjection.getName()).thenReturn("Student User");
 
-        when(repository.findByName("adminTeacher")).thenReturn(Optional.of(adminTeacher));
+        when(repository.findByName("chefTeacher")).thenReturn(Optional.of(chefTeacher));
         when(repository.findProjectedByTeacherIdAndIsHiddenFalse(1)).thenReturn(Arrays.asList(studentProjection));
 
         UserResponseDTO studentResponseDTO = new UserResponseDTO();
@@ -763,7 +772,7 @@ class UserServiceTest {
         studentResponseDTO.setName("Student User");
         when(userMapper.toResponseDTO(studentProjection)).thenReturn(studentResponseDTO);
 
-        List<UserResponseDTO> result = userService.getMyStudents("adminTeacher");
+        List<UserResponseDTO> result = userService.getMyStudents("chefTeacher");
 
         assertNotNull(result);
         assertEquals(1, result.size());
@@ -772,7 +781,7 @@ class UserServiceTest {
     }
 
     @Test
-    void getMyStudents_WhenUserIsNotAdmin_ShouldThrowException() {
+    void getMyStudents_WhenUserIsNotChef_ShouldThrowException() {
         User regularUser = new User();
         regularUser.setName("Regular User");
         regularUser.setUser("regularUser");

@@ -16,8 +16,8 @@ import lombok.NoArgsConstructor;
 public class AllergenRequestDTO {
 
     @JsonProperty("name")
-    @NotBlank(message = "El nombre del alérgeno no puede estar vacío")
-    @Size(min = 2, max = 50, message = "El nombre debe tener entre 2 y 50 caracteres")
+    @NotBlank(message = "{allergenrequestdto.notblank.el.nombre.del.al.rgeno.no.pued}")
+    @Size(min = 2, max = 50, message = "{allergenrequestdto.size.el.nombre.debe.tener.entre.2.y}")
     @Schema(description = "Nombre del alérgeno", example = "Gluten")
     private String name;
 }

@@ -203,19 +203,19 @@ public class UserController {
 
         @GetMapping("/teachers")
         @PreAuthorize("isAuthenticated()")
-        @Operation(summary = "Obtener profesores", description = "Devuelve una lista de todos los usuarios con rol ADMIN que pueden ser asignados como profesores. [Rol requerido: Cualquiera autenticado]")
+        @Operation(summary = "Obtener profesores", description = "Devuelve una lista de todos los usuarios con rol CHEF que pueden ser asignados como profesores. [Rol requerido: Cualquiera autenticado]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Lista de profesores", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
                         @ApiResponse(responseCode = "401", description = "No autenticado")
         })
         public ResponseEntity<List<UserResponseDTO>> getTeachers() {
-                List<UserResponseDTO> teachers = service.findByRole(Role.ADMIN);
+                List<UserResponseDTO> teachers = service.findByRole(Role.CHEF);
                 return ResponseEntity.ok(teachers);
         }
 
         @GetMapping("/students")
-        @PreAuthorize("hasRole('ADMIN')")
-        @Operation(summary = "Obtener alumnos", description = "Devuelve los usuarios que tienen al profesor actual (ADMIN) asignado. [Rol requerido: ADMIN]")
+        @PreAuthorize("hasRole('CHEF')")
+        @Operation(summary = "Obtener alumnos", description = "Devuelve los usuarios que tienen al profesor actual (CHEF) asignado. [Rol requerido: CHEF]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Lista de alumnos", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
                         @ApiResponse(responseCode = "403", description = "Acceso denegado")
@@ -231,7 +231,7 @@ public class UserController {
         @Operation(summary = "Asignar profesor", description = "Asigna o desasigna un profesor a un usuario específico. [Rol requerido: ADMIN o propietario de la cuenta]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Profesor asignado correctamente"),
-                        @ApiResponse(responseCode = "400", description = "Operación inválida (ej. profesor no existe o usuario es ADMIN)"),
+                        @ApiResponse(responseCode = "400", description = "Operación inválida (ej. profesor no existe o usuario es CHEF)"),
                         @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
                         @ApiResponse(responseCode = "403", description = "Acceso denegado")
         })

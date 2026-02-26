@@ -1,5 +1,8 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.i18n.I18nService;
+import com.economato.inventory.i18n.MessageKey;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -42,6 +45,7 @@ import java.util.stream.Collectors;
 @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
         Exception.class })
 public class RecipeService {
+    private final I18nService i18nService;
 
     private final RecipeRepository repository;
     private final ProductRepository productRepository;
@@ -51,13 +55,14 @@ public class RecipeService {
     private final StockLedgerService stockLedgerService;
     private final UserRepository userRepository;
 
-    public RecipeService(RecipeRepository repository,
+    public RecipeService(I18nService i18nService, RecipeRepository repository,
             ProductRepository productRepository,
             AllergenRepository allergenRepository,
             RecipeMapper recipeMapper,
             StatsMapper statsMapper,
             StockLedgerService stockLedgerService,
             UserRepository userRepository) {
+        this.i18nService = i18nService;
         this.repository = repository;
         this.productRepository = productRepository;
         this.allergenRepository = allergenRepository;
@@ -252,7 +257,7 @@ public class RecipeService {
                         () -> new ResourceNotFoundException("Receta no encontrada: " + cookingRequest.getRecipeId()));
 
         if (recipe.getComponents() == null || recipe.getComponents().isEmpty()) {
-            throw new InvalidOperationException("La receta no tiene componentes definidos");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_RECIPE_NO_COMPONENTS));
         }
 
         User currentUser = getCurrentUser();

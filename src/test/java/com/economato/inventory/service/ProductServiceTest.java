@@ -1,10 +1,15 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.i18n.I18nService;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
+import com.economato.inventory.i18n.MessageKey;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
@@ -57,6 +62,9 @@ class ProductServiceTest {
 
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private I18nService i18nService;
+
 
     @InjectMocks
     private ProductService productService;
@@ -68,6 +76,7 @@ class ProductServiceTest {
 
     @BeforeEach
     void setUp() {
+        Mockito.lenient().when(i18nService.getMessage(ArgumentMatchers.any(MessageKey.class))).thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
         testProduct = new Product();
         testProduct.setId(1);
         testProduct.setName("Test Product");

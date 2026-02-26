@@ -1,10 +1,15 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.i18n.I18nService;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mockito;
+import com.economato.inventory.i18n.MessageKey;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -39,6 +44,9 @@ class SupplierServiceTest {
 
     @Mock
     private SupplierMapper supplierMapper;
+    @Mock
+    private I18nService i18nService;
+
 
     @InjectMocks
     private SupplierService supplierService;
@@ -50,6 +58,7 @@ class SupplierServiceTest {
 
     @BeforeEach
     void setUp() {
+        Mockito.lenient().when(i18nService.getMessage(ArgumentMatchers.any(MessageKey.class))).thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
         testSupplier = new Supplier();
         testSupplier.setId(1);
         testSupplier.setName("Test Supplier");

@@ -12,9 +12,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class RoleEscalationRequestDTO {
 
-    @NotNull(message = "La duración en minutos es obligatoria")
-    @Min(value = 1, message = "La duración mínima debe ser de 1 minuto")
-    @Max(value = 1440, message = "La duración máxima permitida es de 1440 minutos (24 horas)")
+    @NotNull(message = "{roleescalationrequestdto.notnull.la.duraci.n.en.minutos.es.obli}")
+    @Min(value = 1, message = "{roleescalationrequestdto.min.la.duraci.n.m.nima.debe.ser.de}")
+    @Max(value = 1440, message = "{roleescalationrequestdto.max.la.duraci.n.m.xima.permitida.e}")
     private Integer durationMinutes;
 
 }

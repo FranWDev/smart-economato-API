@@ -14,12 +14,12 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Datos para recibir un producto dentro de una orden")
 public class OrderReceptionDetailRequestDTO {
 
-    @NotNull(message = "El ID del producto no puede ser nulo")
+    @NotNull(message = "{orderreceptiondetailrequestdto.notnull.el.id.del.producto.no.puede.se}")
     @Schema(description = "Identificador del producto", example = "42")
     private Integer productId;
 
-    @NotNull(message = "La cantidad recibida no puede ser nula")
-    @PositiveOrZero(message = "La cantidad recibida debe ser mayor o igual a cero")
+    @NotNull(message = "{orderreceptiondetailrequestdto.notnull.la.cantidad.recibida.no.puede.}")
+    @PositiveOrZero(message = "{orderreceptiondetailrequestdto.positiveorzero.la.cantidad.recibida.debe.ser.}")
     @Schema(description = "Cantidad del producto recibida", example = "5.0")
     private BigDecimal quantityReceived;
 }

@@ -16,8 +16,8 @@ import lombok.NoArgsConstructor;
 public class SupplierRequestDTO {
 
     @JsonProperty("name")
-    @NotBlank(message = "El nombre del proveedor no puede estar vacío")
-    @Size(min = 2, max = 100, message = "El nombre debe tener entre 2 y 100 caracteres")
+    @NotBlank(message = "{supplierrequestdto.notblank.el.nombre.del.proveedor.no.pue}")
+    @Size(min = 2, max = 100, message = "{supplierrequestdto.size.el.nombre.debe.tener.entre.2.y}")
     @Schema(description = "Nombre del proveedor", example = "Mariscos Recio S. L.")
     private String name;
 

@@ -578,12 +578,16 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         // ==================== Tests funcionalidad Profesor ====================
 
         @Test
-        void whenGetTeachers_thenSuccessAndReturnsAdminUsers() throws Exception {
+        void whenGetTeachers_thenSuccessAndReturnsChefUsers() throws Exception {
+                // Crear un usuario con rol CHEF
+                User chef = TestDataUtil.createChefUser();
+                userRepository.saveAndFlush(chef);
+
                 mockMvc.perform(get(BASE_URL + "/teachers")
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$", notNullValue()))
-                                .andExpect(jsonPath("$[*].role", everyItem(is("ADMIN"))));
+                                .andExpect(jsonPath("$[*].role", everyItem(is("CHEF"))));
         }
 
         @Test
@@ -601,9 +605,13 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
                 UserResponseDTO createdStudent = objectMapper.readValue(response, UserResponseDTO.class);
 
-                // Asignar el administrador actual (testAdmin) como profesor
+                // Crear profesor chef
+                User chef = TestDataUtil.createChefUser();
+                userRepository.saveAndFlush(chef);
+
+                // Asignar el chef profesor
                 com.economato.inventory.dto.request.TeacherAssignmentRequestDTO assignmentRequest = new com.economato.inventory.dto.request.TeacherAssignmentRequestDTO(
-                                testAdmin.getId());
+                                chef.getId());
 
                 mockMvc.perform(patch(BASE_URL + "/{id}/teacher", createdStudent.getId())
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -616,15 +624,19 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.teacher").exists())
-                                .andExpect(jsonPath("$.teacher.id").value(testAdmin.getId()));
+                                .andExpect(jsonPath("$.teacher.id").value(chef.getId()));
         }
 
         @Test
-        void whenAssignTeacherToAdmin_thenBadRequest() throws Exception {
-                com.economato.inventory.dto.request.TeacherAssignmentRequestDTO assignmentRequest = new com.economato.inventory.dto.request.TeacherAssignmentRequestDTO(
-                                testAdmin.getId());
+        void whenAssignTeacherToChef_thenBadRequest() throws Exception {
+                // Crear un chef
+                User chef = TestDataUtil.createChefUser();
+                userRepository.saveAndFlush(chef);
 
-                mockMvc.perform(patch(BASE_URL + "/{id}/teacher", testAdmin.getId())
+                com.economato.inventory.dto.request.TeacherAssignmentRequestDTO assignmentRequest = new com.economato.inventory.dto.request.TeacherAssignmentRequestDTO(
+                                chef.getId());
+
+                mockMvc.perform(patch(BASE_URL + "/{id}/teacher", chef.getId())
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(assignmentRequest)))
@@ -633,6 +645,22 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
         @Test
         void whenGetMyStudents_thenSuccess() throws Exception {
+                // Crear profesor chef
+                User chef = TestDataUtil.createChefUser();
+                userRepository.saveAndFlush(chef);
+
+                // Login como chef
+                LoginRequestDTO chefLogin = new LoginRequestDTO();
+                chefLogin.setName(chef.getName());
+                chefLogin.setPassword("chef123");
+
+                String chefTokenResponse = mockMvc.perform(post(AUTH_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(chefLogin)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+                String chefToken = objectMapper.readValue(chefTokenResponse, LoginResponseDTO.class).getToken();
+
                 // Crear estudiante
                 UserRequestDTO studentRequest = TestDataUtil.createUserRequestDTO();
                 studentRequest.setUser("myStudent");
@@ -646,18 +674,18 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
                 UserResponseDTO createdStudent = objectMapper.readValue(response, UserResponseDTO.class);
 
-                // Asignar profesor
+                // Asignar el chef como profesor
                 com.economato.inventory.dto.request.TeacherAssignmentRequestDTO assignmentRequest = new com.economato.inventory.dto.request.TeacherAssignmentRequestDTO(
-                                testAdmin.getId());
+                                chef.getId());
                 mockMvc.perform(patch(BASE_URL + "/{id}/teacher", createdStudent.getId())
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(assignmentRequest)))
                                 .andExpect(status().isOk());
 
-                // Obtener estudiantes
+                // Obtener estudiantes con el token del chef
                 mockMvc.perform(get(BASE_URL + "/students")
-                                .header("Authorization", "Bearer " + jwtToken))
+                                .header("Authorization", "Bearer " + chefToken))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$", notNullValue()))
                                 .andExpect(jsonPath("$[*].id", hasItem(createdStudent.getId())));

@@ -26,8 +26,8 @@ public class Product {
         @Column(name = "product_id")
         private Integer id;
 
-        @NotBlank(message = "El nombre del producto no puede estar vacío")
-        @Size(min = 2, max = 100, message = "El nombre debe tener entre 2 y 100 caracteres")
+        @NotBlank(message = "{product.notblank.el.nombre.del.producto.no.pued}")
+        @Size(min = 2, max = 100, message = "{product.size.el.nombre.debe.tener.entre.2.y}")
         @Column(name = "name", nullable = false, length = 100)
         private String name;
 
@@ -35,36 +35,36 @@ public class Product {
         @Column(name = "type", nullable = false, length = 50)
         private String type;
 
-        @NotBlank(message = "La unidad de medida no puede estar vacía")
+        @NotBlank(message = "{product.notblank.la.unidad.de.medida.no.puede.e}")
         @Size(max = 20)
         @Column(name = "unit_of_measure", nullable = false, length = 20)
         private String unit;
 
-        @NotNull(message = "El precio unitario no puede ser nulo")
-        @DecimalMin(value = "0.01", message = "El precio debe ser mayor a 0")
-        @Digits(integer = 10, fraction = 2, message = "Formato de precio inválido")
+        @NotNull(message = "{product.notnull.el.precio.unitario.no.puede.se}")
+        @DecimalMin(value = "0.01", message = "{product.decimalmin.el.precio.debe.ser.mayor.a.0}")
+        @Digits(integer = 10, fraction = 2, message = "{product.digits.formato.de.precio.inv.lido}")
         @Column(name = "unit_price", nullable = false, precision = 10, scale = 2)
         private BigDecimal unitPrice;
 
-        @NotBlank(message = "El código del producto no puede estar vacío")
+        @NotBlank(message = "{product.notblank.el.c.digo.del.producto.no.pued}")
         @Size(max = 50)
         @Column(name = "product_code", nullable = false, unique = true, length = 50)
         private String productCode;
 
-        @NotNull(message = "El stock actual no puede ser nulo")
-        @DecimalMin(value = "0.0", inclusive = true, message = "El stock no puede ser negativo")
-        @Digits(integer = 10, fraction = 3, message = "Formato de stock inválido")
+        @NotNull(message = "{product.notnull.el.stock.actual.no.puede.ser.n}")
+        @DecimalMin(value = "0.0", inclusive = true, message = "{product.decimalmin.el.stock.no.puede.ser.negativo}")
+        @Digits(integer = 10, fraction = 3, message = "{product.digits.formato.de.stock.inv.lido}")
         @Column(name = "current_stock", nullable = false, precision = 10, scale = 3)
         private BigDecimal currentStock;
 
-        @DecimalMin(value = "0.00", message = "El porcentaje de disponibilidad no puede ser negativo")
-        @DecimalMax(value = "100.00", message = "El porcentaje de disponibilidad no puede ser mayor a 100")
-        @Digits(integer = 3, fraction = 2, message = "Formato de disponibilidad inválido")
+        @DecimalMin(value = "0.00", message = "{product.decimalmin.el.porcentaje.de.disponibilida}")
+        @DecimalMax(value = "100.00", message = "{product.decimalmax.el.porcentaje.de.disponibilida}")
+        @Digits(integer = 3, fraction = 2, message = "{product.digits.formato.de.disponibilidad.inv.}")
         @Column(name = "availability_percentage", precision = 5, scale = 2)
         private BigDecimal availabilityPercentage;
 
-        @DecimalMin(value = "0.0", inclusive = true, message = "El stock mínimo no puede ser negativo")
-        @Digits(integer = 10, fraction = 3, message = "Formato de stock mínimo inválido")
+        @DecimalMin(value = "0.0", inclusive = true, message = "{product.decimalmin.el.stock.m.nimo.no.puede.ser.n}")
+        @Digits(integer = 10, fraction = 3, message = "{product.digits.formato.de.stock.m.nimo.inv.li}")
         @Column(name = "minimum_stock", nullable = false, precision = 10, scale = 3)
         private BigDecimal minimumStock;
 

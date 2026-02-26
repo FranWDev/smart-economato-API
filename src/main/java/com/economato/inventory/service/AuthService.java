@@ -1,5 +1,8 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.i18n.I18nService;
+import com.economato.inventory.i18n.MessageKey;
+
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -21,6 +24,7 @@ import java.util.Date;
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
 public class AuthService {
+    private final I18nService i18nService;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -29,12 +33,13 @@ public class AuthService {
     private final TokenBlacklistService tokenBlacklistService;
     private final com.economato.inventory.mapper.UserMapper userMapper;
 
-    public AuthService(UserRepository userRepository,
+    public AuthService(I18nService i18nService, UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             AuthenticationManager authenticationManager,
             JwtUtils jwtUtils,
             TokenBlacklistService tokenBlacklistService,
             com.economato.inventory.mapper.UserMapper userMapper) {
+        this.i18nService = i18nService;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
@@ -56,7 +61,7 @@ public class AuthService {
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public UserResponseDTO register(UserRequestDTO requestDTO) {
         if (userRepository.existsByUser(requestDTO.getUser())) {
-            throw new InvalidOperationException("User already exists");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AUTH_USER_ALREADY_EXISTS));
         }
 
         User user = userMapper.toEntity(requestDTO);
@@ -75,10 +80,10 @@ public class AuthService {
                 tokenBlacklistService.blacklistToken(token, expirationDate);
             } catch (Exception e) {
 
-                throw new InvalidOperationException("Invalid token for logout");
+                throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AUTH_INVALID_LOGOUT_TOKEN));
             }
         } else {
-            throw new InvalidOperationException("Token is required for logout");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AUTH_LOGOUT_TOKEN_REQUIRED));
         }
     }
 }

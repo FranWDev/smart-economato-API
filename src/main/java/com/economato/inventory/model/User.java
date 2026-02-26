@@ -24,12 +24,12 @@ public class User {
         @Column(name = "user_id")
         private Integer id;
 
-        @NotBlank(message = "El nombre no puede estar vacío")
-        @Size(min = 2, max = 100, message = "El nombre debe tener entre 2 y 100 caracteres")
+        @NotBlank(message = "{user.notblank.el.nombre.no.puede.estar.vac.o}")
+        @Size(min = 2, max = 100, message = "{user.size.el.nombre.debe.tener.entre.2.y}")
         @Column(name = "name", nullable = false, length = 100)
         private String name;
 
-        @NotBlank(message = "El usuario no puede estar vacío")
+        @NotBlank(message = "{user.notblank.el.usuario.no.puede.estar.vac.}")
         @Size(max = 100)
         @Column(name = "\"user\"", nullable = false, unique = true, length = 100)
         private String user;
@@ -40,11 +40,11 @@ public class User {
         @Column(name = "is_hidden", nullable = false)
         private boolean isHidden = false;
 
-        @NotBlank(message = "La contraseña no puede estar vacía")
+        @NotBlank(message = "{user.notblank.la.contrase.a.no.puede.estar.v}")
         @Column(name = "password", nullable = false, length = 255)
         private String password;
 
-        @NotNull(message = "El rol no puede estar vacío")
+        @NotNull(message = "{user.notnull.el.rol.no.puede.estar.vac.o}")
         @Enumerated(EnumType.STRING)
         @Column(name = "role", nullable = false, length = 20)
         private Role role;

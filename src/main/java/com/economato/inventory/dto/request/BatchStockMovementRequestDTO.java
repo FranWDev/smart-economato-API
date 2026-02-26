@@ -16,12 +16,12 @@ import java.util.List;
 @Schema(description = "Operación batch de movimientos de stock")
 public class BatchStockMovementRequestDTO {
 
-    @NotEmpty(message = "Debe incluir al menos un movimiento")
+    @NotEmpty(message = "{batchstockmovementrequestdto.notempty.debe.incluir.al.menos.un.movim}")
     @Valid
     @Schema(description = "Lista de movimientos de stock a procesar")
     private List<StockMovementItemDTO> movements;
 
-    @Size(max = 1000, message = "La razón no puede exceder 1000 caracteres")
+    @Size(max = 1000, message = "{batchstockmovementrequestdto.size.la.raz.n.no.puede.exceder.1000}")
     @Schema(description = "Razón general de la operación batch", example = "Rollback de orden #456 - productos recibidos incorrectamente")
     private String reason;
 
