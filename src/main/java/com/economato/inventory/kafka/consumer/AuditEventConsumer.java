@@ -29,7 +29,7 @@ import com.economato.inventory.repository.UserRepository;
 
 @Slf4j
 @Service
-@Profile("!test")
+@Profile({ "!test", "kafka-test" })
 public class AuditEventConsumer {
 
     private final InventoryAuditRepository inventoryAuditRepository;

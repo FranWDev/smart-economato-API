@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 
 @Aspect
 @Component
-@Profile("!test")
+@Profile({ "!test", "kafka-test" })
 public class RecipeCookingAuditAspect {
 
     private static final Logger log = LoggerFactory.getLogger(RecipeCookingAuditAspect.class);

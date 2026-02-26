@@ -31,7 +31,7 @@ import java.util.Map;
  */
 @Aspect
 @Component
-@Profile("!test")
+@Profile({ "!test", "kafka-test" })
 public class ProductAuditAspect {
 
     private static final Logger log = LoggerFactory.getLogger(ProductAuditAspect.class);

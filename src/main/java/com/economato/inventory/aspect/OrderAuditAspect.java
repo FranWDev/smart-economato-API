@@ -27,7 +27,7 @@ import java.util.Map;
 
 @Aspect
 @Component
-@Profile("!test")
+@Profile({ "!test", "kafka-test" })
 public class OrderAuditAspect {
 
     private static final Logger log = LoggerFactory.getLogger(OrderAuditAspect.class);

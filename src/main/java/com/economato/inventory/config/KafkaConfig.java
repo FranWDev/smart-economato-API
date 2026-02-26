@@ -29,7 +29,7 @@ import java.util.Map;
  */
 @EnableKafka
 @Configuration
-@Profile("!test")
+@Profile({ "!test", "kafka-test" })
 public class KafkaConfig {
 
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
@@ -117,26 +117,22 @@ public class KafkaConfig {
         deserializer.setRemoveTypeHeaders(false);
         deserializer.setUseTypeMapperForKey(false);
 
-        ErrorHandlingDeserializer<InventoryAuditEvent> errorHandlingDeserializer = 
-            new ErrorHandlingDeserializer<>(deserializer);
+        ErrorHandlingDeserializer<InventoryAuditEvent> errorHandlingDeserializer = new ErrorHandlingDeserializer<>(
+                deserializer);
 
         return new DefaultKafkaConsumerFactory<>(
-            consumerConfigs("inventory-audit-consumer-group"),
-            new StringDeserializer(),
-            errorHandlingDeserializer
-        );
+                consumerConfigs("inventory-audit-consumer-group"),
+                new StringDeserializer(),
+                errorHandlingDeserializer);
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, InventoryAuditEvent> 
-            inventoryAuditKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, InventoryAuditEvent> factory =
-            new ConcurrentKafkaListenerContainerFactory<>();
+    public ConcurrentKafkaListenerContainerFactory<String, InventoryAuditEvent> inventoryAuditKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, InventoryAuditEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(inventoryAuditConsumerFactory());
         factory.setConcurrency(3); // 3 hilos concurrentes
         factory.getContainerProperties().setAckMode(
-            org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD
-        );
+                org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
         return factory;
     }
 
@@ -148,26 +144,22 @@ public class KafkaConfig {
         deserializer.setRemoveTypeHeaders(false);
         deserializer.setUseTypeMapperForKey(false);
 
-        ErrorHandlingDeserializer<RecipeAuditEvent> errorHandlingDeserializer = 
-            new ErrorHandlingDeserializer<>(deserializer);
+        ErrorHandlingDeserializer<RecipeAuditEvent> errorHandlingDeserializer = new ErrorHandlingDeserializer<>(
+                deserializer);
 
         return new DefaultKafkaConsumerFactory<>(
-            consumerConfigs("recipe-audit-consumer-group"),
-            new StringDeserializer(),
-            errorHandlingDeserializer
-        );
+                consumerConfigs("recipe-audit-consumer-group"),
+                new StringDeserializer(),
+                errorHandlingDeserializer);
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, RecipeAuditEvent> 
-            recipeAuditKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, RecipeAuditEvent> factory =
-            new ConcurrentKafkaListenerContainerFactory<>();
+    public ConcurrentKafkaListenerContainerFactory<String, RecipeAuditEvent> recipeAuditKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, RecipeAuditEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(recipeAuditConsumerFactory());
         factory.setConcurrency(3); // 3 hilos concurrentes
         factory.getContainerProperties().setAckMode(
-            org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD
-        );
+                org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
         return factory;
     }
 
@@ -179,26 +171,22 @@ public class KafkaConfig {
         deserializer.setRemoveTypeHeaders(false);
         deserializer.setUseTypeMapperForKey(false);
 
-        ErrorHandlingDeserializer<OrderAuditEvent> errorHandlingDeserializer = 
-            new ErrorHandlingDeserializer<>(deserializer);
+        ErrorHandlingDeserializer<OrderAuditEvent> errorHandlingDeserializer = new ErrorHandlingDeserializer<>(
+                deserializer);
 
         return new DefaultKafkaConsumerFactory<>(
-            consumerConfigs("order-audit-consumer-group"),
-            new StringDeserializer(),
-            errorHandlingDeserializer
-        );
+                consumerConfigs("order-audit-consumer-group"),
+                new StringDeserializer(),
+                errorHandlingDeserializer);
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, OrderAuditEvent> 
-            orderAuditKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, OrderAuditEvent> factory =
-            new ConcurrentKafkaListenerContainerFactory<>();
+    public ConcurrentKafkaListenerContainerFactory<String, OrderAuditEvent> orderAuditKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, OrderAuditEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(orderAuditConsumerFactory());
         factory.setConcurrency(3); // 3 hilos concurrentes
         factory.getContainerProperties().setAckMode(
-            org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD
-        );
+                org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
         return factory;
     }
 
@@ -210,26 +198,22 @@ public class KafkaConfig {
         deserializer.setRemoveTypeHeaders(false);
         deserializer.setUseTypeMapperForKey(false);
 
-        ErrorHandlingDeserializer<RecipeCookingAuditEvent> errorHandlingDeserializer = 
-            new ErrorHandlingDeserializer<>(deserializer);
+        ErrorHandlingDeserializer<RecipeCookingAuditEvent> errorHandlingDeserializer = new ErrorHandlingDeserializer<>(
+                deserializer);
 
         return new DefaultKafkaConsumerFactory<>(
-            consumerConfigs("recipe-cooking-audit-consumer-group"),
-            new StringDeserializer(),
-            errorHandlingDeserializer
-        );
+                consumerConfigs("recipe-cooking-audit-consumer-group"),
+                new StringDeserializer(),
+                errorHandlingDeserializer);
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, RecipeCookingAuditEvent> 
-            recipeCookingAuditKafkaListenerContainerFactory() {
-        ConcurrentKafkaListenerContainerFactory<String, RecipeCookingAuditEvent> factory =
-            new ConcurrentKafkaListenerContainerFactory<>();
+    public ConcurrentKafkaListenerContainerFactory<String, RecipeCookingAuditEvent> recipeCookingAuditKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, RecipeCookingAuditEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(recipeCookingAuditConsumerFactory());
         factory.setConcurrency(3); // 3 hilos concurrentes
         factory.getContainerProperties().setAckMode(
-            org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD
-        );
+                org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
         return factory;
     }
 }
