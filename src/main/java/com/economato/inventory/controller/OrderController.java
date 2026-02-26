@@ -54,7 +54,7 @@ public class OrderController {
         @Operation(summary = "Obtener todos los pedidos", description = "Devuelve una lista paginada de todos los pedidos registrados en el sistema. [Rol requerido: CHEF]", responses = {
                         @ApiResponse(responseCode = "200", description = "Lista de pedidos obtenida correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OrderResponseDTO.class)))
         })
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping
         public ResponseEntity<Page<OrderResponseDTO>> getAll(
                         @Parameter(description = "Información de paginación") Pageable pageable) {
@@ -65,7 +65,7 @@ public class OrderController {
                         @ApiResponse(responseCode = "200", description = "Pedido encontrado correctamente"),
                         @ApiResponse(responseCode = "404", description = "No se encontró un pedido con el ID especificado")
         })
-        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/{id}")
         public ResponseEntity<OrderResponseDTO> getById(
                         @Parameter(description = "ID del pedido a buscar", example = "10") @PathVariable Integer id) {
@@ -80,7 +80,7 @@ public class OrderController {
                         @ApiResponse(responseCode = "404", description = "Pedido no encontrado"),
                         @ApiResponse(responseCode = "500", description = "Error al generar el PDF")
         })
-        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/{id}/pdf")
         public ResponseEntity<byte[]> downloadOrderPdf(
                         @Parameter(description = "ID del pedido", example = "10") @PathVariable Integer id) {
@@ -110,7 +110,7 @@ public class OrderController {
                         @ApiResponse(responseCode = "200", description = "Pedido creado correctamente"),
                         @ApiResponse(responseCode = "400", description = "Datos inválidos o campos requeridos faltantes")
         })
-        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @PostMapping
         public ResponseEntity<OrderResponseDTO> create(
                         @Valid @org.springframework.web.bind.annotation.RequestBody OrderRequestDTO orderRequest) {
@@ -128,7 +128,7 @@ public class OrderController {
                                         @ApiResponse(responseCode = "404", description = "No se encontró el pedido a actualizar"),
                                         @ApiResponse(responseCode = "409", description = "Conflicto de concurrencia persistente después de 3 reintentos")
                         })
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @PutMapping("/{id}")
         public ResponseEntity<OrderResponseDTO> update(
                         @Parameter(description = "ID del pedido a actualizar", example = "5") @PathVariable Integer id,
@@ -158,7 +158,7 @@ public class OrderController {
                         @ApiResponse(responseCode = "200", description = "Lista de pedidos del usuario obtenida correctamente"),
                         @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
         })
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN') or #userId == authentication.principal.id")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN') or #userId == authentication.principal.id")
         @GetMapping("/user/{userId}")
         public ResponseEntity<List<OrderResponseDTO>> getByUser(
                         @Parameter(description = "ID del usuario asociado a los pedidos", example = "3") @PathVariable Integer userId) {
@@ -170,7 +170,7 @@ public class OrderController {
         @Operation(summary = "Obtener pedidos por estado", description = "Permite listar todos los pedidos que se encuentran en un estado determinado, como 'PENDIENTE', 'ENVIADO' o 'CANCELADO'. [Rol requerido: CHEF]", responses = {
                         @ApiResponse(responseCode = "200", description = "Lista de pedidos filtrada correctamente")
         })
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/status/{status}")
         public List<OrderResponseDTO> getByStatus(
                         @Parameter(description = "Estado del pedido", example = "PENDIENTE") @PathVariable String status) {
@@ -183,7 +183,7 @@ public class OrderController {
         }, responses = {
                         @ApiResponse(responseCode = "200", description = "Lista de pedidos en el rango especificado")
         })
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/daterange")
         public List<OrderResponseDTO> getByDateRange(
                         @RequestParam String start,
@@ -196,7 +196,7 @@ public class OrderController {
         @Operation(summary = "Obtener órdenes pendientes de recepción", description = "Devuelve todas las órdenes que están en estado PENDING y necesitan ser recibidas. [Rol requerido: CHEF]", responses = {
                         @ApiResponse(responseCode = "200", description = "Lista de órdenes pendientes obtenida correctamente")
         })
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/reception/pending")
         public ResponseEntity<List<OrderResponseDTO>> getPendingReception() {
                 return ResponseEntity.ok(orderService.findPendingReception());
@@ -213,7 +213,7 @@ public class OrderController {
                                         @ApiResponse(responseCode = "400", description = "Datos inválidos, validación de cantidades fallida, o cantidades recibidas menores a las solicitadas"),
                                         @ApiResponse(responseCode = "404", description = "Orden o producto no encontrado")
                         })
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @PostMapping("/reception")
         public ResponseEntity<OrderResponseDTO> receiveOrder(
                         @Valid @org.springframework.web.bind.annotation.RequestBody OrderReceptionRequestDTO receptionData) {
@@ -230,7 +230,7 @@ public class OrderController {
                         @ApiResponse(responseCode = "404", description = "No se encontró la orden"),
                         @ApiResponse(responseCode = "400", description = "Estado inválido")
         })
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @PatchMapping("/{id}/status")
         public ResponseEntity<OrderResponseDTO> updateOrderStatus(
                         @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id,

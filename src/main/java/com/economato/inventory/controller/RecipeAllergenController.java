@@ -31,7 +31,7 @@ public class RecipeAllergenController {
         this.recipeAllergenService = recipeAllergenService;
     }
 
-    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping
     @Operation(summary = "Obtener todas las relaciones receta-alérgeno",
                description = "Devuelve una lista paginada de todas las asociaciones entre recetas y alérgenos. [Rol requerido: USER]")
@@ -42,7 +42,7 @@ public class RecipeAllergenController {
         return recipeAllergenService.findAll(pageable);
     }
 
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @PostMapping
     @Operation(summary = "Crear una nueva relación receta-alérgeno",
                description = "Asocia un alérgeno existente a una receta. [Rol requerido: CHEF]")
@@ -77,7 +77,7 @@ public class RecipeAllergenController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/recipe/{recipeId}")
     @Operation(summary = "Obtener alérgenos por receta",
                description = "Devuelve todos los alérgenos asociados a una receta específica. [Rol requerido: USER]")
@@ -95,7 +95,7 @@ public class RecipeAllergenController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/allergen/{allergenId}")
     @Operation(summary = "Obtener recetas por alérgeno",
                description = "Devuelve todas las recetas que contienen el alérgeno especificado. [Rol requerido: USER]")
@@ -113,7 +113,7 @@ public class RecipeAllergenController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @PostMapping("/{recipeId}/{allergenId}")
     @Operation(summary = "Asociar un alérgeno a una receta",
                description = "Crea una asociación entre una receta y un alérgeno existentes. [Rol requerido: CHEF]")
@@ -131,7 +131,7 @@ public class RecipeAllergenController {
         return success ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
     }
 
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @DeleteMapping("/recipe/{recipeId}/allergen/{allergenId}")
     @Operation(summary = "Eliminar asociación entre receta y alérgeno",
                description = "Elimina la asociación entre una receta específica y un alérgeno. [Rol requerido: CHEF]")
@@ -149,7 +149,7 @@ public class RecipeAllergenController {
         return success ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
     }
 
-    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/recipe/{recipeId}/allergens")
     @Operation(summary = "Obtener alérgenos de una receta",
                description = "Devuelve la lista de todos los alérgenos asociados a una receta. [Rol requerido: USER]")

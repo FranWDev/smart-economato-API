@@ -16,4 +16,10 @@ public class SupplierResponseDTO {
 
     @Schema(description = "Nombre del proveedor", example = "Distribuidora Nacional S.A.")
     private String name;
+
+    @Schema(description = "Correo electrónico del proveedor", example = "contacto@distribuidora.com")
+    private String email;
+
+    @Schema(description = "Número de teléfono del proveedor", example = "+34611223344")
+    private String phone;
 }

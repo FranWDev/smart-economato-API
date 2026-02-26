@@ -35,7 +35,7 @@ public class OrderDetailController {
 
     @Operation(summary = "Obtener todos los detalles de pedido", description = "Devuelve una lista paginada de todos los detalles de pedidos existentes. [Rol requerido: CHEF]")
     @ApiResponse(responseCode = "200", description = "Lista obtenida correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OrderDetailResponseDTO.class)))
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping
     public ResponseEntity<List<OrderDetailResponseDTO>> getAll(Pageable pageable) {
         return ResponseEntity.ok(orderDetailService.findAll(pageable));
@@ -46,7 +46,7 @@ public class OrderDetailController {
             @ApiResponse(responseCode = "200", description = "Detalle encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OrderDetailResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "No se encontró el detalle")
     })
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/{orderId}/{productId}")
     public ResponseEntity<OrderDetailResponseDTO> getById(
             @Parameter(description = "ID del pedido", example = "10") @PathVariable Integer orderId,
@@ -61,7 +61,7 @@ public class OrderDetailController {
             @ApiResponse(responseCode = "201", description = "Detalle creado correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OrderDetailResponseDTO.class))),
             @ApiResponse(responseCode = "400", description = "Datos inválidos")
     })
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @PostMapping
     public ResponseEntity<OrderDetailResponseDTO> create(
             @Valid @org.springframework.web.bind.annotation.RequestBody OrderDetailRequestDTO orderDetailRequest) {
@@ -75,7 +75,7 @@ public class OrderDetailController {
             @ApiResponse(responseCode = "404", description = "Detalle no encontrado"),
             @ApiResponse(responseCode = "400", description = "Datos inválidos")
     })
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @PutMapping("/{orderId}/{productId}")
     public ResponseEntity<OrderDetailResponseDTO> update(
             @Parameter(description = "ID del pedido", example = "10") @PathVariable Integer orderId,
@@ -106,7 +106,7 @@ public class OrderDetailController {
 
     @Operation(summary = "Obtener detalles por pedido", description = "Devuelve todos los detalles asociados a un pedido concreto. [Rol requerido: CHEF]")
     @ApiResponse(responseCode = "200", description = "Detalles obtenidos correctamente")
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/order/{orderId}")
     public ResponseEntity<List<OrderDetailResponseDTO>> getByOrder(
             @Parameter(description = "ID del pedido", example = "10") @PathVariable Integer orderId) {
@@ -115,7 +115,7 @@ public class OrderDetailController {
 
     @Operation(summary = "Obtener detalles por producto", description = "Devuelve todos los detalles de pedidos donde aparece un producto específico. [Rol requerido: CHEF]")
     @ApiResponse(responseCode = "200", description = "Detalles obtenidos correctamente")
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/product/{productId}")
     public ResponseEntity<List<OrderDetailResponseDTO>> getByProduct(
             @Parameter(description = "ID del producto", example = "42") @PathVariable Integer productId) {

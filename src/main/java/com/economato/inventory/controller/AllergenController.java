@@ -39,7 +39,7 @@ public class AllergenController {
                     schema = @Schema(implementation = AllergenResponseDTO.class)))
         }
     )
-    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping
     public ResponseEntity<Page<AllergenResponseDTO>> getAll(Pageable pageable) {
         return ResponseEntity.ok(allergenService.findAll(pageable));
@@ -55,7 +55,7 @@ public class AllergenController {
             @ApiResponse(responseCode = "404", description = "Alérgeno no encontrado")
         }
     )
-    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<AllergenResponseDTO> getById(@PathVariable Integer id) {
         return allergenService.findById(id)
@@ -77,7 +77,7 @@ public class AllergenController {
                     schema = @Schema(implementation = AllergenResponseDTO.class)))
         }
     )
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @PostMapping
     public ResponseEntity<AllergenResponseDTO> create(
             @Valid @org.springframework.web.bind.annotation.RequestBody AllergenRequestDTO allergenRequest) {
@@ -101,7 +101,7 @@ public class AllergenController {
             @ApiResponse(responseCode = "404", description = "Alérgeno no encontrado")
         }
     )
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @PutMapping("/{id}")
     public ResponseEntity<AllergenResponseDTO> update(
             @PathVariable Integer id,
@@ -140,7 +140,7 @@ public class AllergenController {
             @ApiResponse(responseCode = "404", description = "Alérgeno no encontrado")
         }
     )
-    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/search")
     public ResponseEntity<AllergenResponseDTO> searchByName(@RequestParam String name) {
         return allergenService.findByName(name)

@@ -719,7 +719,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                 mockMvc.perform(get(BASE_URL + "/{id}", createdUser.getId())
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.role").value(Role.CHEF.name()));
+                                .andExpect(jsonPath("$.role").value(Role.ELEVATED.name()));
         }
 
         @Test

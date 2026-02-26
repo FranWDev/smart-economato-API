@@ -803,7 +803,7 @@ class UserServiceTest {
 
         userService.escalateRole(1, requestDTO);
 
-        assertEquals(Role.CHEF, testUser.getRole());
+        assertEquals(Role.ELEVATED, testUser.getRole());
         verify(repository).save(testUser);
         verify(customUserDetailsService).evictUser("testUser");
         verify(escalationRepository).save(any(TemporaryRoleEscalation.class));
@@ -824,7 +824,7 @@ class UserServiceTest {
 
     @Test
     void deescalateRole_WhenUserExists_ShouldDeescalateAndCancelTask() {
-        testUser.setRole(Role.CHEF);
+        testUser.setRole(Role.ELEVATED);
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
 
         userService.deescalateRole(1);

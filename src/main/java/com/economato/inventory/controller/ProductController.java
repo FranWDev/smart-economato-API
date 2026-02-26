@@ -39,7 +39,7 @@ public class ProductController {
                 this.productExcelService = productExcelService;
         }
 
-        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @Operation(summary = "Obtener todos los productos", description = "Devuelve una lista paginada de todos los productos registrados en el sistema. [Rol requerido: USER]")
         @ApiResponse(responseCode = "200", description = "Lista de productos obtenida correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class)))
         @GetMapping
@@ -47,7 +47,7 @@ public class ProductController {
                 return ResponseEntity.ok(productService.findAll(pageable));
         }
 
-        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @Operation(summary = "Descargar productos en Excel", description = "Genera y descarga un archivo Excel con todos los productos en streaming. [Rol requerido: USER]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Excel generado correctamente", content = @Content(mediaType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")),
@@ -69,7 +69,7 @@ public class ProductController {
                                 .body(stream);
         }
 
-        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @Operation(summary = "Obtener un producto por código de barras", description = "Devuelve la información de un producto específico según su código de barras. [Rol requerido: USER]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Producto encontrado correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class))),
@@ -83,7 +83,7 @@ public class ProductController {
                                 .orElse(ResponseEntity.notFound().build());
         }
 
-        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @Operation(summary = "Buscar productos por nombre", description = "Devuelve una lista paginada de productos que coincidan con el nombre especificado (búsqueda parcial sin distinción de mayúsculas). [Rol requerido: USER]")
         @ApiResponse(responseCode = "200", description = "Lista de productos encontrados", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class)))
         @GetMapping("/search")
@@ -93,7 +93,7 @@ public class ProductController {
                 return ResponseEntity.ok(productService.findByName(name, pageable));
         }
 
-        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @Operation(summary = "Obtener un producto por ID", description = "Devuelve la información de un producto específico según su ID. [Rol requerido: USER]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Producto encontrado correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class))),
@@ -107,7 +107,7 @@ public class ProductController {
                                 .orElse(ResponseEntity.notFound().build());
         }
 
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @Operation(summary = "Crear un nuevo producto", description = "Registra un nuevo producto en el inventario. [Rol requerido: CHEF]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Producto creado correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class))),
@@ -134,7 +134,7 @@ public class ProductController {
                                         +
                                         "Por favor, recargue los datos e intente nuevamente.")
         })
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @PutMapping("/{id}")
         public ResponseEntity<ProductResponseDTO> updateProduct(
                         @Parameter(description = "ID del producto a actualizar", example = "3", required = true) @PathVariable Integer id,
@@ -169,7 +169,7 @@ public class ProductController {
                 return ResponseEntity.ok(productService.findHiddenProducts(pageable));
         }
 
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @Operation(summary = "Ocultar/Mostrar producto", description = "Cambia el estado de visibilidad de un producto. [Rol requerido: CHEF]")
         @PatchMapping("/{id}/toggle-hidden")
         public ResponseEntity<Void> toggleProductHiddenStatus(
@@ -190,7 +190,7 @@ public class ProductController {
                         @ApiResponse(responseCode = "400", description = "Datos inválidos o producto con nombre duplicado"),
                         @ApiResponse(responseCode = "409", description = "Conflicto de concurrencia - El producto fue modificado por otro usuario")
         })
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @PutMapping("/{id}/stock-manual")
         public ResponseEntity<ProductResponseDTO> updateStockManually(
                         @Parameter(description = "ID del producto a actualizar", example = "3", required = true) @PathVariable Integer id,

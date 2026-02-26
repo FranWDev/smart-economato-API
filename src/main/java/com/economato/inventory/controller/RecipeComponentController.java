@@ -33,7 +33,7 @@ public class RecipeComponentController {
         this.recipeService = recipeService;
     }
 
-    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping
     @Operation(summary = "Obtener todos los componentes", description = "Devuelve una lista paginada de todos los componentes de recetas. [Rol requerido: USER]")
     @ApiResponses({
@@ -45,7 +45,7 @@ public class RecipeComponentController {
         return ResponseEntity.status(200).body(componentService.findAll(pageable));
     }
 
-    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/{id}")
     @Operation(summary = "Obtener componente por ID", description = "Devuelve un componente de receta específico. [Rol requerido: USER]")
     @ApiResponses({
@@ -61,7 +61,7 @@ public class RecipeComponentController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @PostMapping("/recipe/{recipeId}")
     @Operation(summary = "Crear componente", description = "Crea un nuevo componente para una receta específica. [Rol requerido: CHEF]")
     @ApiResponses({
@@ -81,7 +81,7 @@ public class RecipeComponentController {
         return ResponseEntity.status(201).body(componentService.save(componentRequest));
     }
 
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @PutMapping("/{id}")
     @Operation(summary = "Actualizar componente", description = "Actualiza un componente de receta existente. [Rol requerido: CHEF]")
     @ApiResponses({
@@ -120,7 +120,7 @@ public class RecipeComponentController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/recipe/{recipeId}")
     @Operation(summary = "Obtener componentes por receta", description = "Devuelve todos los componentes de una receta específica. [Rol requerido: USER]")
     @ApiResponses({

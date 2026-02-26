@@ -31,7 +31,7 @@ public class UserRequestDTO {
         @Schema(description = "Contraseña del usuario", example = "123456", minLength = 6)
         private String password;
 
-        @Schema(description = "Rol del usuario. Puede ser ADMIN, CHEF o USER", allowableValues = { "ADMIN", "CHEF",
+        @Schema(description = "Rol del usuario. Puede ser ADMIN, CHEF, ELEVATED o USER", allowableValues = { "ADMIN", "CHEF",
                         "USER" }, example = "USER", defaultValue = "USER")
         private Role role;
 

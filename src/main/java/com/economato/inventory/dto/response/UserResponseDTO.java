@@ -29,7 +29,7 @@ public class UserResponseDTO {
     @Schema(description = "Indica si el usuario está oculto", example = "false")
     private boolean isHidden;
 
-    @Schema(description = "Rol del usuario. Puede ser ADMIN, CHEF o USER", allowableValues = { "ADMIN", "CHEF",
+    @Schema(description = "Rol del usuario. Puede ser ADMIN, CHEF, ELEVATED o USER", allowableValues = { "ADMIN", "CHEF",
             "USER" }, example = "USER")
     private Role role;
 

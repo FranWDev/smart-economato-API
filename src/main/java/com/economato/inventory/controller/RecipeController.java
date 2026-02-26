@@ -43,7 +43,7 @@ public class RecipeController {
                 this.recipePdfService = recipePdfService;
         }
 
-        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping
         @Operation(summary = "Obtener todas las recetas", description = "Devuelve una lista paginada de todas las recetas. [Rol requerido: USER]")
         @ApiResponses({
@@ -53,7 +53,7 @@ public class RecipeController {
                 return ResponseEntity.ok(recipeService.findAll(pageable));
         }
 
-        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/{id}")
         @Operation(summary = "Obtener receta por ID", description = "Devuelve los datos de una receta específica. [Rol requerido: USER]")
         @ApiResponses({
@@ -67,7 +67,7 @@ public class RecipeController {
                                 .orElse(ResponseEntity.notFound().build());
         }
 
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @PostMapping
         @Operation(summary = "Crear receta", description = "Crea una nueva receta. [Rol requerido: CHEF]")
         @ApiResponses({
@@ -79,7 +79,7 @@ public class RecipeController {
                 return ResponseEntity.status(201).body(created);
         }
 
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @PutMapping("/{id}")
         @Operation(summary = "Actualizar receta", description = "Actualiza los datos de una receta existente. " +
                         "Este endpoint utiliza **bloqueo optimista** mediante control de versión para detectar " +
@@ -123,7 +123,7 @@ public class RecipeController {
                 return ResponseEntity.ok(recipeService.findHiddenRecipes(pageable));
         }
 
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @Operation(summary = "Ocultar/Mostrar receta", description = "Cambia el estado de visibilidad de una receta. [Rol requerido: CHEF o ADMIN]")
         @PatchMapping("/{id}/toggle-hidden")
         public ResponseEntity<Void> toggleRecipeHiddenStatus(
@@ -133,7 +133,7 @@ public class RecipeController {
                 return ResponseEntity.noContent().build();
         }
 
-        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/search")
         @Operation(summary = "Buscar recetas por nombre", description = "Devuelve todas las recetas cuyo nombre contenga la cadena indicada. [Rol requerido: USER]")
         public List<RecipeResponseDTO> searchByName(
@@ -141,7 +141,7 @@ public class RecipeController {
                 return recipeService.findByNameContaining(name);
         }
 
-        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/maxcost")
         @Operation(summary = "Buscar recetas por costo máximo", description = "Devuelve todas las recetas cuyo costo total sea menor al indicado. [Rol requerido: USER]")
         public List<RecipeResponseDTO> findByCostLessThan(
@@ -149,7 +149,7 @@ public class RecipeController {
                 return recipeService.findByCostLessThan(maxCost);
         }
 
-        @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @PostMapping("/cook")
         @Operation(summary = "Cocinar receta", description = "Registra el cocinado de una receta, descontando automáticamente los ingredientes del inventario mediante el ledger inmutable. "
                         +
@@ -166,7 +166,7 @@ public class RecipeController {
         }
 
         @SuppressWarnings("unused")
-        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ADMIN')")
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/{id}/pdf")
         @Operation(summary = "Descargar receta en PDF", description = "Genera y descarga la receta en formato PDF con un diseño estético que incluye ingredientes, elaboración, alérgenos y coste total. [Rol requerido: USER]")
         @ApiResponses({

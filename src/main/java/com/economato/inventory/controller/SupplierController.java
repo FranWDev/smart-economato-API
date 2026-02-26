@@ -40,7 +40,7 @@ public class SupplierController {
                     schema = @Schema(implementation = SupplierResponseDTO.class)))
         }
     )
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping
     public ResponseEntity<Page<SupplierResponseDTO>> getAll(Pageable pageable) {
         return ResponseEntity.ok(supplierService.findAll(pageable));
@@ -56,7 +56,7 @@ public class SupplierController {
             @ApiResponse(responseCode = "404", description = "Proveedor no encontrado")
         }
     )
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<SupplierResponseDTO> getById(@PathVariable Integer id) {
         return supplierService.findById(id)
@@ -141,7 +141,7 @@ public class SupplierController {
                     schema = @Schema(implementation = SupplierResponseDTO.class)))
         }
     )
-    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/search")
     public ResponseEntity<List<SupplierResponseDTO>> searchByName(@RequestParam String name) {
         return ResponseEntity.ok(supplierService.findByNameContaining(name));

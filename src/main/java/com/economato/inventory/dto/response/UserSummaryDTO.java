@@ -23,7 +23,7 @@ public class UserSummaryDTO {
     @Schema(description = "Usuario del sistema", example = "juan_perez")
     private String user;
 
-    @Schema(description = "Rol del usuario. Puede ser ADMIN, CHEF o USER", allowableValues = { "ADMIN", "CHEF",
+    @Schema(description = "Rol del usuario. Puede ser ADMIN, CHEF, ELEVATED o USER", allowableValues = { "ADMIN", "CHEF",
             "USER" }, example = "ADMIN")
     private Role role;
 }

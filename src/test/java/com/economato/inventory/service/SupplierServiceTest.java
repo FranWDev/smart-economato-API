@@ -53,17 +53,25 @@ class SupplierServiceTest {
         testSupplier = new Supplier();
         testSupplier.setId(1);
         testSupplier.setName("Test Supplier");
+        testSupplier.setEmail("test@supplier.com");
+        testSupplier.setPhone("+34600123456");
 
         testSupplierRequestDTO = new SupplierRequestDTO();
         testSupplierRequestDTO.setName("Test Supplier");
+        testSupplierRequestDTO.setEmail("test@supplier.com");
+        testSupplierRequestDTO.setPhone("+34600123456");
 
         testSupplierResponseDTO = new SupplierResponseDTO();
         testSupplierResponseDTO.setId(1);
         testSupplierResponseDTO.setName("Test Supplier");
+        testSupplierResponseDTO.setEmail("test@supplier.com");
+        testSupplierResponseDTO.setPhone("+34600123456");
 
         testProjection = mock(SupplierProjection.class);
         lenient().when(testProjection.getId()).thenReturn(1);
         lenient().when(testProjection.getName()).thenReturn("Test Supplier");
+        lenient().when(testProjection.getEmail()).thenReturn("test@supplier.com");
+        lenient().when(testProjection.getPhone()).thenReturn("+34600123456");
     }
 
     @Test
@@ -89,6 +97,8 @@ class SupplierServiceTest {
 
         assertTrue(result.isPresent());
         assertEquals(testSupplierResponseDTO.getName(), result.get().getName());
+        assertEquals(testSupplierResponseDTO.getEmail(), result.get().getEmail());
+        assertEquals(testSupplierResponseDTO.getPhone(), result.get().getPhone());
         verify(repository).findProjectedById(1);
     }
 
@@ -113,6 +123,8 @@ class SupplierServiceTest {
 
         assertNotNull(result);
         assertEquals(testSupplierResponseDTO.getName(), result.getName());
+        assertEquals(testSupplierResponseDTO.getEmail(), result.getEmail());
+        assertEquals(testSupplierResponseDTO.getPhone(), result.getPhone());
         verify(repository).existsByName(testSupplierRequestDTO.getName());
         verify(repository).save(testSupplier);
     }

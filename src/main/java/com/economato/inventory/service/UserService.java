@@ -303,14 +303,14 @@ public class UserService {
         User user = repository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + userId));
 
-        if (Role.CHEF.equals(user.getRole())) {
-            throw new InvalidOperationException("El usuario ya tiene rol CHEF.");
+        if (Role.ELEVATED.equals(user.getRole())) {
+            throw new InvalidOperationException("El usuario ya tiene rol ELEVATED.");
         }
         if (Role.ADMIN.equals(user.getRole())) {
             throw new InvalidOperationException("No se puede escalar a un administrador.");
         }
 
-        user.setRole(Role.CHEF);
+        user.setRole(Role.ELEVATED);
         repository.save(user);
 
         TemporaryRoleEscalation escalation = escalationRepository.findByUserId(userId)
@@ -336,8 +336,8 @@ public class UserService {
         User user = repository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + userId));
 
-        if (!Role.CHEF.equals(user.getRole())) {
-            // Already de-escalated or not a CHEF
+        if (!Role.ELEVATED.equals(user.getRole())) {
+            // Already de-escalated or not a ELEVATED
             return;
         }
 

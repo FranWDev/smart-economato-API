@@ -12,15 +12,11 @@ import lombok.*;
 @AllArgsConstructor
 @Entity
 @Builder
-@Table(
-    name = "supplier",
-    indexes = {
+@Table(name = "supplier", indexes = {
         @Index(name = "idx_supplier_name", columnList = "name", unique = true)
-    },
-    uniqueConstraints = {
+}, uniqueConstraints = {
         @UniqueConstraint(name = "uk_supplier_name", columnNames = "name")
-    }
-)
+})
 public class Supplier {
 
     @Id
@@ -32,6 +28,12 @@ public class Supplier {
     @Size(min = 2, max = 100, message = "El nombre debe tener entre 2 y 100 caracteres")
     @Column(name = "name", nullable = false, unique = true, length = 100)
     private String name;
+
+    @Column(name = "email", length = 100)
+    private String email;
+
+    @Column(name = "phone", length = 20)
+    private String phone;
 
     @OneToMany(mappedBy = "supplier")
     private List<Product> products;

@@ -245,10 +245,10 @@ public class UserController {
 
         @PostMapping("/{id}/escalate")
         @PreAuthorize("hasRole('ADMIN')")
-        @Operation(summary = "Escalar permisos temporalmente", description = "Eleva a un usuario al rol CHEF temporalmente. [Rol requerido: ADMIN]")
+        @Operation(summary = "Escalar permisos temporalmente", description = "Eleva a un usuario al rol ELEVATED temporalmente. [Rol requerido: ADMIN]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Permisos escalados correctamente"),
-                        @ApiResponse(responseCode = "400", description = "Operación inválida (usuario ya es CHEF o ADMIN)"),
+                        @ApiResponse(responseCode = "400", description = "Operación inválida (usuario ya es ELEVATED o ADMIN)"),
                         @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
                         @ApiResponse(responseCode = "403", description = "Acceso denegado")
         })
@@ -261,7 +261,7 @@ public class UserController {
 
         @PostMapping("/{id}/de-escalate")
         @PreAuthorize("hasRole('ADMIN')")
-        @Operation(summary = "Revocar escalado de permisos temporal", description = "Elimina el rol CHEF temporal y devuelve al usuario a su rol base. [Rol requerido: ADMIN]")
+        @Operation(summary = "Revocar escalado de permisos temporal", description = "Elimina el rol ELEVATED temporal y devuelve al usuario a su rol base. [Rol requerido: ADMIN]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Permisos revocados"),
                         @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),

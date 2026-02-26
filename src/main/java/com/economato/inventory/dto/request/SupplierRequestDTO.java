@@ -20,4 +20,12 @@ public class SupplierRequestDTO {
     @Size(min = 2, max = 100, message = "El nombre debe tener entre 2 y 100 caracteres")
     @Schema(description = "Nombre del proveedor", example = "Mariscos Recio S. L.")
     private String name;
+
+    @JsonProperty("email")
+    @Schema(description = "Correo electrónico del proveedor", example = "contacto@mariscosrecio.com")
+    private String email;
+
+    @JsonProperty("phone")
+    @Schema(description = "Número de teléfono del proveedor", example = "+34600123456")
+    private String phone;
 }
