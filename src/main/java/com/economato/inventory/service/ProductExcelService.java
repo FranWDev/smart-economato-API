@@ -60,7 +60,7 @@ public class ProductExcelService {
             // Fila de cabecera
             String[] headers = {
                     "ID", "Nombre", "Tipo", "Unidad", "Precio Unitario",
-                    "Codigo de Barras", "Stock Actual", "Proveedor"
+                    "Código de Barras", "Stock Actual", "Stock Mínimo", "% Disponibilidad", "Proveedor"
             };
             Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
@@ -89,7 +89,9 @@ public class ProductExcelService {
                     createNumberCell(row, 4, p.getUnitPrice(), numberStyle);
                     createTextCell(row, 5, nullToEmpty(p.getProductCode()), bodyStyle);
                     createNumberCell(row, 6, p.getCurrentStock(), numberStyle);
-                    createTextCell(row, 7,
+                    createNumberCell(row, 7, p.getMinimumStock(), numberStyle);
+                    createNumberCell(row, 8, p.getAvailabilityPercentage(), numberStyle);
+                    createTextCell(row, 9,
                             p.getSupplier() == null ? "" : nullToEmpty(p.getSupplier().getName()),
                             bodyStyle);
                 }
@@ -104,7 +106,7 @@ public class ProductExcelService {
     }
 
     private void setColumnWidths(Sheet sheet) {
-        int[] widths = { 10, 30, 18, 12, 18, 22, 16, 26 };
+        int[] widths = { 10, 30, 18, 12, 18, 22, 16, 16, 18, 26 };
         for (int i = 0; i < widths.length; i++) {
             sheet.setColumnWidth(i, widths[i] * 256);
         }

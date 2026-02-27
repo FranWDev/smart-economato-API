@@ -107,7 +107,7 @@ public class OrderPdfService {
 
         private void addOrderInfoSection(Document document, OrderResponseDTO order, PdfFont boldFont,
                         PdfFont regularFont) {
-                addSectionTitle(document, "Informacion del Pedido", boldFont);
+                addSectionTitle(document, "Información del Pedido", boldFont);
 
                 Table infoTable = new Table(UnitValue.createPercentArray(new float[] { 1, 2, 1, 2 }))
                                 .setWidth(UnitValue.createPercentValue(100))
@@ -316,7 +316,7 @@ public class OrderPdfService {
                 return switch (status.trim().toUpperCase()) {
                         case "CREATED" -> "CREADO";
                         case "PENDING" -> "PENDIENTE";
-                        case "REVIEW" -> "EN REVISION";
+                        case "REVIEW" -> "EN REVISIÓN";
                         case "CONFIRMED" -> "CONFIRMADO";
                         case "INCOMPLETE" -> "INCOMPLETO";
                         case "CANCELLED" -> "CANCELADO";

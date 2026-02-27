@@ -59,7 +59,7 @@ public class RecipePdfService {
         addHeader(document, sanitizePdfText(recipe.getName()), boldFont);
 
         if (recipe.getPresentation() != null && !recipe.getPresentation().isEmpty()) {
-            addSection(document, "Presentacion", sanitizePdfText(recipe.getPresentation()), boldFont, regularFont);
+            addSection(document, "Presentación", sanitizePdfText(recipe.getPresentation()), boldFont, regularFont);
         }
 
         if (recipe.getElaboration() != null && !recipe.getElaboration().isEmpty()) {
@@ -136,7 +136,7 @@ public class RecipePdfService {
     // Mimics .elaboration-steps: numbered list with clean spacing
 
     private void addElaborationSection(Document document, String elaboration, PdfFont boldFont, PdfFont regularFont) {
-        addSectionTitle(document, "Elaboracion", boldFont);
+        addSectionTitle(document, "Elaboración", boldFont);
 
         List<String> steps = parseElaborationSteps(elaboration);
 
@@ -279,10 +279,10 @@ public class RecipePdfService {
 
     private void addAllergensSection(Document document, List<AllergenResponseDTO> allergens,
             PdfFont boldFont, PdfFont regularFont) {
-        addSectionTitle(document, "Alergenos", boldFont);
+        addSectionTitle(document, "Alérgenos", boldFont);
 
         if (allergens == null || allergens.isEmpty()) {
-            Paragraph noAllergens = new Paragraph("Esta receta no contiene alergenos conocidos.")
+            Paragraph noAllergens = new Paragraph("Esta receta no contiene alérgenos conocidos.")
                     .setFont(regularFont)
                     .setFontSize(10)
                     .setFontColor(GREEN_TEXT)
