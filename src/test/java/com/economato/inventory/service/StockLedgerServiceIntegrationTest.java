@@ -10,7 +10,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.exception.InvalidOperationException;
-import com.economato.inventory.dto.request.BatchStockMovementRequestDTO;
 import com.economato.inventory.dto.response.IntegrityCheckResult;
 import com.economato.inventory.model.MovementType;
 import com.economato.inventory.model.Product;

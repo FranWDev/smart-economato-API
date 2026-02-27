@@ -16,10 +16,10 @@ import org.springframework.stereotype.Service;
 @Profile({ "!test", "kafka-test" })
 public class AuditEventProducer {
 
-    private static final String INVENTORY_AUDIT_TOPIC = "inventory-audit-events";
-    private static final String RECIPE_AUDIT_TOPIC = "recipe-audit-events";
-    private static final String ORDER_AUDIT_TOPIC = "order-audit-events";
-    private static final String RECIPE_COOKING_AUDIT_TOPIC = "recipe-cooking-audit-events";
+    public static final String INVENTORY_AUDIT_TOPIC = "inventory-audit-events";
+    public static final String RECIPE_AUDIT_TOPIC = "recipe-audit-events";
+    public static final String ORDER_AUDIT_TOPIC = "order-audit-events";
+    public static final String RECIPE_COOKING_AUDIT_TOPIC = "recipe-cooking-audit-events";
 
     private final AuditOutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;

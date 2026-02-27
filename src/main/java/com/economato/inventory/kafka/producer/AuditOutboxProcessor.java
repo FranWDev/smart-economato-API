@@ -45,27 +45,27 @@ public class AuditOutboxProcessor {
 
     @Scheduled(fixedDelay = 5000)
     public void processOutbox() {
-        List<AuditOutbox> outboxEvents = outboxRepository.findAllByOrderByCreatedAtAsc();
+        List<AuditOutbox> outboxEvents = outboxRepository.findTop100ByOrderByCreatedAtAsc();
 
         for (AuditOutbox event : outboxEvents) {
             try {
                 CompletableFuture<?> future = null;
 
                 switch (event.getTopic()) {
-                    case "inventory-audit-events":
+                    case AuditEventProducer.INVENTORY_AUDIT_TOPIC:
                         InventoryAuditEvent invEvent = objectMapper.readValue(event.getPayload(),
                                 InventoryAuditEvent.class);
                         future = inventoryKafkaTemplate.send(event.getTopic(), event.getEventKey(), invEvent);
                         break;
-                    case "recipe-audit-events":
+                    case AuditEventProducer.RECIPE_AUDIT_TOPIC:
                         RecipeAuditEvent recEvent = objectMapper.readValue(event.getPayload(), RecipeAuditEvent.class);
                         future = recipeKafkaTemplate.send(event.getTopic(), event.getEventKey(), recEvent);
                         break;
-                    case "order-audit-events":
+                    case AuditEventProducer.ORDER_AUDIT_TOPIC:
                         OrderAuditEvent ordEvent = objectMapper.readValue(event.getPayload(), OrderAuditEvent.class);
                         future = orderKafkaTemplate.send(event.getTopic(), event.getEventKey(), ordEvent);
                         break;
-                    case "recipe-cooking-audit-events":
+                    case AuditEventProducer.RECIPE_COOKING_AUDIT_TOPIC:
                         RecipeCookingAuditEvent recCookEvent = objectMapper.readValue(event.getPayload(),
                                 RecipeCookingAuditEvent.class);
                         future = recipeCookingKafkaTemplate.send(event.getTopic(), event.getEventKey(), recCookEvent);

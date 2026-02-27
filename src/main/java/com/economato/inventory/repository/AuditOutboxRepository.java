@@ -9,5 +9,5 @@ import java.util.List;
 @Repository
 public interface AuditOutboxRepository extends JpaRepository<AuditOutbox, Long> {
 
-    List<AuditOutbox> findAllByOrderByCreatedAtAsc();
+    List<AuditOutbox> findTop100ByOrderByCreatedAtAsc();
 }
