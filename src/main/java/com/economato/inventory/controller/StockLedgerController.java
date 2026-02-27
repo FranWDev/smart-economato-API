@@ -10,8 +10,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import com.economato.inventory.dto.request.BatchStockMovementRequestDTO;
@@ -19,12 +17,9 @@ import com.economato.inventory.dto.response.BatchStockMovementResponseDTO;
 import com.economato.inventory.dto.response.IntegrityCheckResponseDTO;
 import com.economato.inventory.dto.response.StockLedgerResponseDTO;
 import com.economato.inventory.dto.response.StockSnapshotResponseDTO;
-import com.economato.inventory.model.Product;
+import com.economato.inventory.mapper.StockLedgerMapper;
 import com.economato.inventory.model.StockLedger;
 import com.economato.inventory.model.StockSnapshot;
-import com.economato.inventory.model.User;
-import com.economato.inventory.repository.ProductRepository;
-import com.economato.inventory.repository.UserRepository;
 import com.economato.inventory.service.StockLedgerService;
 
 import java.util.List;
@@ -37,8 +32,7 @@ import java.util.stream.Collectors;
 public class StockLedgerController {
 
     private final StockLedgerService stockLedgerService;
-    private final ProductRepository productRepository;
-    private final UserRepository userRepository;
+    private final StockLedgerMapper stockLedgerMapper;
 
     @Operation(summary = "Obtener historial de transacciones de un producto", description = "Devuelve todas las transacciones del ledger para un producto específico, "
             +
@@ -53,7 +47,7 @@ public class StockLedgerController {
         List<StockLedger> history = stockLedgerService.getProductHistory(productId);
 
         List<StockLedgerResponseDTO> response = history.stream()
-                .map(this::toDTO)
+                .map(stockLedgerMapper::toDTO)
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(response);
@@ -70,16 +64,13 @@ public class StockLedgerController {
     @GetMapping("/verify/{productId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<IntegrityCheckResponseDTO> verifyProductIntegrity(@PathVariable Integer productId) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
-
         StockLedgerService.IntegrityCheckResult result = stockLedgerService.verifyChainIntegrity(productId);
 
         List<StockLedger> history = stockLedgerService.getProductHistory(productId);
 
         IntegrityCheckResponseDTO response = IntegrityCheckResponseDTO.builder()
-                .productId(productId)
-                .productName(product.getName())
+                .productId(result.getProductId())
+                .productName(result.getProductName())
                 .valid(result.isValid())
                 .message(result.getMessage())
                 .errors(result.getErrors())
@@ -175,23 +166,9 @@ public class StockLedgerController {
             @Valid @RequestBody BatchStockMovementRequestDTO request) {
 
         try {
-            // Obtener usuario actual
-            User currentUser = getCurrentUser();
-
-            // Convertir DTOs a objetos internos
-            List<StockLedgerService.BatchMovementItem> movements = request.getMovements().stream()
-                    .map(item -> new StockLedgerService.BatchMovementItem(
-                            item.getProductId(),
-                            item.getQuantityDelta(),
-                            item.getMovementType(),
-                            item.getDescription() != null ? item.getDescription() : request.getReason()))
-                    .collect(Collectors.toList());
-
-            // Procesar en transacción atómica
-            List<StockLedger> transactions = stockLedgerService.recordBatchStockMovements(
-                    movements,
-                    currentUser,
-                    request.getOrderId());
+            // Procesar en transacción atómica (el servicio maneja la conversión y el
+            // usuario)
+            List<StockLedger> transactions = stockLedgerService.processBatchMovements(request);
 
             // Construir respuesta exitosa
             BatchStockMovementResponseDTO response = BatchStockMovementResponseDTO.builder()
@@ -201,7 +178,7 @@ public class StockLedgerController {
                     .message(String.format("Operación batch completada: %d movimientos procesados exitosamente",
                             transactions.size()))
                     .transactions(transactions.stream()
-                            .map(this::toDTO)
+                            .map(stockLedgerMapper::toDTO)
                             .collect(Collectors.toList()))
                     .build();
 
@@ -221,36 +198,4 @@ public class StockLedgerController {
         }
     }
 
-    private User getCurrentUser() {
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication != null && authentication.isAuthenticated()
-                    && !"anonymousUser".equals(authentication.getPrincipal())) {
-                String username = authentication.getName();
-                return userRepository.findByName(username).orElse(null);
-            }
-        } catch (Exception e) {
-            // Silently fail
-        }
-        return null;
-    }
-
-    private StockLedgerResponseDTO toDTO(StockLedger ledger) {
-        return StockLedgerResponseDTO.builder()
-                .id(ledger.getId())
-                .productId(ledger.getProduct().getId())
-                .productName(ledger.getProduct().getName())
-                .quantityDelta(ledger.getQuantityDelta())
-                .resultingStock(ledger.getResultingStock())
-                .movementType(ledger.getMovementType().name())
-                .description(ledger.getDescription())
-                .previousHash(ledger.getPreviousHash())
-                .currentHash(ledger.getCurrentHash())
-                .transactionTimestamp(ledger.getTransactionTimestamp())
-                .sequenceNumber(ledger.getSequenceNumber())
-                .userName(ledger.getUser() != null ? ledger.getUser().getName() : "SYSTEM")
-                .orderId(ledger.getOrderId())
-                .verified(ledger.getVerified())
-                .build();
-    }
 }

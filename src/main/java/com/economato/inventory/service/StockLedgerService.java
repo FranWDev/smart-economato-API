@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.economato.inventory.dto.request.BatchStockMovementRequestDTO;
+import com.economato.inventory.dto.request.StockMovementItemDTO;
 import com.economato.inventory.exception.InvalidOperationException;
 import com.economato.inventory.model.MovementType;
 import com.economato.inventory.model.Product;
@@ -15,6 +17,9 @@ import com.economato.inventory.model.User;
 import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.StockLedgerRepository;
 import com.economato.inventory.repository.StockSnapshotRepository;
+import com.economato.inventory.repository.UserRepository;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -34,6 +39,7 @@ public class StockLedgerService {
     private final StockLedgerRepository ledgerRepository;
     private final StockSnapshotRepository snapshotRepository;
     private final ProductRepository productRepository;
+    private final UserRepository userRepository;
     private final Environment environment;
 
     private static final String GENESIS_HASH = "GENESIS";
@@ -42,10 +48,12 @@ public class StockLedgerService {
             StockLedgerRepository ledgerRepository,
             StockSnapshotRepository snapshotRepository,
             ProductRepository productRepository,
+            UserRepository userRepository,
             Environment environment) {
         this.ledgerRepository = ledgerRepository;
         this.snapshotRepository = snapshotRepository;
         this.productRepository = productRepository;
+        this.userRepository = userRepository;
         this.environment = environment;
     }
 
@@ -172,10 +180,15 @@ public class StockLedgerService {
     public IntegrityCheckResult verifyChainIntegrity(Integer productId) {
         log.info("Verificando integridad del ledger para producto {}", productId);
 
+        String productName = productRepository.findById(productId)
+                .map(Product::getName)
+                .orElse("Desconocido");
+
         List<StockLedger> chain = ledgerRepository.findByProductIdOrderBySequenceNumber(productId);
 
         if (chain.isEmpty()) {
-            return new IntegrityCheckResult(true, "No hay transacciones para este producto", null);
+            return new IntegrityCheckResult(productId, productName, true, "No hay transacciones para este producto",
+                    null);
         }
 
         List<String> errors = new ArrayList<>();
@@ -225,12 +238,12 @@ public class StockLedgerService {
 
         if (errors.isEmpty()) {
             log.info("Cadena íntegra: {} transacciones verificadas", chain.size());
-            return new IntegrityCheckResult(true,
+            return new IntegrityCheckResult(productId, productName, true,
                     String.format("Cadena íntegra: %d transacciones verificadas", chain.size()),
                     null);
         } else {
             log.error("CORRUPCIÓN DETECTADA: {} errores encontrados", errors.size());
-            return new IntegrityCheckResult(false,
+            return new IntegrityCheckResult(productId, productName, false,
                     String.format("CORRUPCIÓN DETECTADA: %d errores", errors.size()),
                     errors);
         }
@@ -305,14 +318,27 @@ public class StockLedgerService {
     }
 
     public static class IntegrityCheckResult {
+        private final Integer productId;
+        private final String productName;
         private final boolean valid;
         private final String message;
         private final List<String> errors;
 
-        public IntegrityCheckResult(boolean valid, String message, List<String> errors) {
+        public IntegrityCheckResult(Integer productId, String productName, boolean valid, String message,
+                List<String> errors) {
+            this.productId = productId;
+            this.productName = productName;
             this.valid = valid;
             this.message = message;
             this.errors = errors;
+        }
+
+        public Integer getProductId() {
+            return productId;
+        }
+
+        public String getProductName() {
+            return productName;
         }
 
         public boolean isValid() {
@@ -361,6 +387,35 @@ public class StockLedgerService {
                     "Error en operación batch: " + e.getMessage() +
                             ". Se han revertido todos los cambios.");
         }
+    }
+
+    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
+    public List<StockLedger> processBatchMovements(BatchStockMovementRequestDTO request) {
+        User currentUser = getCurrentUser();
+
+        List<BatchMovementItem> movements = request.getMovements().stream()
+                .map(item -> new BatchMovementItem(
+                        item.getProductId(),
+                        item.getQuantityDelta(),
+                        item.getMovementType(),
+                        item.getDescription() != null ? item.getDescription() : request.getReason()))
+                .collect(java.util.stream.Collectors.toList());
+
+        return recordBatchStockMovements(movements, currentUser, request.getOrderId());
+    }
+
+    public User getCurrentUser() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()
+                    && !"anonymousUser".equals(authentication.getPrincipal())) {
+                String username = authentication.getName();
+                return userRepository.findByName(username).orElse(null);
+            }
+        } catch (Exception e) {
+            // Silently fail
+        }
+        return null;
     }
 
     public static class BatchMovementItem {

@@ -57,6 +57,8 @@ class StockLedgerControllerIntegrationTest extends BaseControllerMockTest {
         testSnapshot.setLastVerified(LocalDateTime.now());
 
         testIntegrityResult = new StockLedgerService.IntegrityCheckResult(
+                1,
+                "Test Product",
                 true,
                 "Cadena válida",
                 Arrays.asList());
