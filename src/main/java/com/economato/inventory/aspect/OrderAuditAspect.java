@@ -6,9 +6,9 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+
+import com.economato.inventory.security.SecurityContextHelper;
 
 import com.economato.inventory.annotation.OrderAuditable;
 import com.economato.inventory.dto.event.OrderAuditEvent;
@@ -17,7 +17,6 @@ import com.economato.inventory.kafka.producer.AuditEventProducer;
 import com.economato.inventory.model.Order;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.OrderRepository;
-import com.economato.inventory.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
@@ -34,15 +33,15 @@ public class OrderAuditAspect {
     private static final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
     private final OrderRepository orderRepository;
-    private final UserRepository userRepository;
+    private final SecurityContextHelper securityContextHelper;
     private final AuditEventProducer auditEventProducer;
 
     public OrderAuditAspect(
             OrderRepository orderRepository,
-            UserRepository userRepository,
+            SecurityContextHelper securityContextHelper,
             AuditEventProducer auditEventProducer) {
         this.orderRepository = orderRepository;
-        this.userRepository = userRepository;
+        this.securityContextHelper = securityContextHelper;
         this.auditEventProducer = auditEventProducer;
     }
 
@@ -89,7 +88,7 @@ public class OrderAuditAspect {
                 return result;
             }
 
-            User user = getCurrentUser();
+            User user = securityContextHelper.getCurrentUser();
 
             StringBuilder details = new StringBuilder();
             details.append(auditable.action());
@@ -153,16 +152,4 @@ public class OrderAuditAspect {
         }
     }
 
-    private User getCurrentUser() {
-        try {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
-                String username = auth.getName();
-                return userRepository.findByName(username).orElse(null);
-            }
-        } catch (Exception e) {
-            log.debug("No se pudo obtener usuario autenticado: {}", e.getMessage());
-        }
-        return null;
-    }
 }

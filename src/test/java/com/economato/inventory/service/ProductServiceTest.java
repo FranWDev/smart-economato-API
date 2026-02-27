@@ -35,6 +35,9 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import com.economato.inventory.security.SecurityContextHelper;
+import com.economato.inventory.model.User;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -65,6 +68,8 @@ class ProductServiceTest {
     @Mock
     private I18nService i18nService;
 
+    @Mock
+    private SecurityContextHelper securityContextHelper;
 
     @InjectMocks
     private ProductService productService;
@@ -76,7 +81,8 @@ class ProductServiceTest {
 
     @BeforeEach
     void setUp() {
-        Mockito.lenient().when(i18nService.getMessage(ArgumentMatchers.any(MessageKey.class))).thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
+        Mockito.lenient().when(i18nService.getMessage(ArgumentMatchers.any(MessageKey.class)))
+                .thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
         testProduct = new Product();
         testProduct.setId(1);
         testProduct.setName("Test Product");
@@ -111,6 +117,11 @@ class ProductServiceTest {
         lenient().when(testProjection.getCurrentStock()).thenReturn(new BigDecimal("10.0"));
         lenient().when(testProjection.getUnitPrice()).thenReturn(new BigDecimal("5.0"));
         lenient().when(testProjection.getProductCode()).thenReturn("TEST001");
+
+        User testUser = new User();
+        testUser.setId(1);
+        testUser.setName("Test User");
+        lenient().when(securityContextHelper.getCurrentUser()).thenReturn(testUser);
     }
 
     @Test

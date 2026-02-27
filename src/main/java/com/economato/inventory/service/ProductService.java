@@ -15,8 +15,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,7 +33,7 @@ import com.economato.inventory.repository.InventoryAuditRepository;
 import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.RecipeComponentRepository;
 import com.economato.inventory.repository.SupplierRepository;
-import com.economato.inventory.repository.UserRepository;
+import com.economato.inventory.security.SecurityContextHelper;
 
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
@@ -52,7 +50,7 @@ public class ProductService {
     private final SupplierRepository supplierRepository;
     private final ProductMapper productMapper;
     private final StockLedgerService stockLedgerService;
-    private final UserRepository userRepository;
+    private final SecurityContextHelper securityContextHelper;
 
     public ProductService(I18nService i18nService,
             ProductRepository repository,
@@ -61,7 +59,7 @@ public class ProductService {
             SupplierRepository supplierRepository,
             ProductMapper productMapper,
             StockLedgerService stockLedgerService,
-            UserRepository userRepository) {
+            SecurityContextHelper securityContextHelper) {
         this.i18nService = i18nService;
         this.repository = repository;
         this.movementRepository = movementRepository;
@@ -69,7 +67,7 @@ public class ProductService {
         this.supplierRepository = supplierRepository;
         this.productMapper = productMapper;
         this.stockLedgerService = stockLedgerService;
-        this.userRepository = userRepository;
+        this.securityContextHelper = securityContextHelper;
     }
 
     @Cacheable(value = "products_page_v4", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
@@ -246,7 +244,7 @@ public class ProductService {
                     }
 
                     if (stockDelta.compareTo(BigDecimal.ZERO) != 0) {
-                        User currentUser = getCurrentUser();
+                        User currentUser = securityContextHelper.getCurrentUser();
 
                         stockLedgerService.recordStockMovement(
                                 existing.getId(),
@@ -269,16 +267,4 @@ public class ProductService {
                 });
     }
 
-    private User getCurrentUser() {
-        try {
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.isAuthenticated() && !"anonymousUser".equals(auth.getPrincipal())) {
-                String username = auth.getName();
-                return userRepository.findByName(username).orElse(null);
-            }
-        } catch (Exception e) {
-            // Log silencioso - continuar sin usuario
-        }
-        return null;
-    }
 }

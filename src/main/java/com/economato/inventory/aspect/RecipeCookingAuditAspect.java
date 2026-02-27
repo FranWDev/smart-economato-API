@@ -6,9 +6,9 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+
+import com.economato.inventory.security.SecurityContextHelper;
 
 import com.economato.inventory.annotation.RecipeCookingAuditable;
 import com.economato.inventory.dto.event.RecipeCookingAuditEvent;
@@ -17,7 +17,6 @@ import com.economato.inventory.kafka.producer.AuditEventProducer;
 import com.economato.inventory.model.Recipe;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.RecipeRepository;
-import com.economato.inventory.repository.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
@@ -35,15 +34,15 @@ public class RecipeCookingAuditAspect {
     private static final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
     private final RecipeRepository recipeRepository;
-    private final UserRepository userRepository;
+    private final SecurityContextHelper securityContextHelper;
     private final AuditEventProducer auditEventProducer;
 
     public RecipeCookingAuditAspect(
             RecipeRepository recipeRepository,
-            UserRepository userRepository,
+            SecurityContextHelper securityContextHelper,
             AuditEventProducer auditEventProducer) {
         this.recipeRepository = recipeRepository;
-        this.userRepository = userRepository;
+        this.securityContextHelper = securityContextHelper;
         this.auditEventProducer = auditEventProducer;
     }
 
@@ -75,7 +74,7 @@ public class RecipeCookingAuditAspect {
                 return result;
             }
 
-            User user = getCurrentUser();
+            User user = securityContextHelper.getCurrentUser();
 
             String componentsState = buildComponentsState(recipe);
 
@@ -135,17 +134,4 @@ public class RecipeCookingAuditAspect {
         }
     }
 
-    private User getCurrentUser() {
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication != null && authentication.isAuthenticated()
-                    && !"anonymousUser".equals(authentication.getPrincipal())) {
-                String username = authentication.getName();
-                return userRepository.findByName(username).orElse(null);
-            }
-        } catch (Exception e) {
-            log.debug("No se pudo obtener usuario actual: {}", e.getMessage());
-        }
-        return null;
-    }
 }

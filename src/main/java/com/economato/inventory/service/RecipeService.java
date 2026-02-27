@@ -8,8 +8,6 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +30,7 @@ import com.economato.inventory.model.User;
 import com.economato.inventory.repository.AllergenRepository;
 import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.RecipeRepository;
-import com.economato.inventory.repository.UserRepository;
+import com.economato.inventory.security.SecurityContextHelper;
 
 import java.math.BigDecimal;
 import java.util.HashSet;
@@ -53,7 +51,7 @@ public class RecipeService {
     private final RecipeMapper recipeMapper;
     private final StatsMapper statsMapper;
     private final StockLedgerService stockLedgerService;
-    private final UserRepository userRepository;
+    private final SecurityContextHelper securityContextHelper;
 
     public RecipeService(I18nService i18nService, RecipeRepository repository,
             ProductRepository productRepository,
@@ -61,7 +59,7 @@ public class RecipeService {
             RecipeMapper recipeMapper,
             StatsMapper statsMapper,
             StockLedgerService stockLedgerService,
-            UserRepository userRepository) {
+            SecurityContextHelper securityContextHelper) {
         this.i18nService = i18nService;
         this.repository = repository;
         this.productRepository = productRepository;
@@ -69,7 +67,7 @@ public class RecipeService {
         this.recipeMapper = recipeMapper;
         this.statsMapper = statsMapper;
         this.stockLedgerService = stockLedgerService;
-        this.userRepository = userRepository;
+        this.securityContextHelper = securityContextHelper;
     }
 
     @Cacheable(value = "recipes_page_v4", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
@@ -260,7 +258,7 @@ public class RecipeService {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_RECIPE_NO_COMPONENTS));
         }
 
-        User currentUser = getCurrentUser();
+        User currentUser = securityContextHelper.getCurrentUser();
 
         for (RecipeComponent component : recipe.getComponents()) {
             Product product = productRepository.findById(component.getProduct().getId())
@@ -310,19 +308,5 @@ public class RecipeService {
                 currentUser != null ? currentUser.getName() : "Sistema");
 
         return recipeMapper.toResponseDTO(recipe);
-    }
-
-    private User getCurrentUser() {
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication != null && authentication.isAuthenticated()
-                    && !"anonymousUser".equals(authentication.getPrincipal())) {
-                String username = authentication.getName();
-                return userRepository.findByName(username).orElse(null);
-            }
-        } catch (Exception e) {
-            log.debug("No se pudo obtener usuario actual: {}", e.getMessage());
-        }
-        return null;
     }
 }

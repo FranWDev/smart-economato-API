@@ -35,6 +35,8 @@ import com.economato.inventory.repository.AllergenRepository;
 import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.RecipeRepository;
 import com.economato.inventory.repository.UserRepository;
+import com.economato.inventory.security.SecurityContextHelper;
+import com.economato.inventory.model.User;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -73,6 +75,9 @@ class RecipeServiceTest {
     private UserRepository userRepository;
     @Mock
     private I18nService i18nService;
+
+    @Mock
+    private SecurityContextHelper securityContextHelper;
 
     @InjectMocks
     private RecipeService recipeService;
@@ -155,6 +160,11 @@ class RecipeServiceTest {
 
         // Mocking mapper behavior to return dummy entity to enable logic flow
         lenient().when(recipeMapper.toEntity(any(RecipeRequestDTO.class))).thenReturn(testRecipe);
+
+        User testUser = new User();
+        testUser.setId(1);
+        testUser.setName("Test User");
+        lenient().when(securityContextHelper.getCurrentUser()).thenReturn(testUser);
     }
 
     @Test

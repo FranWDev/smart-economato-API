@@ -7,7 +7,6 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.dto.request.BatchStockMovementRequestDTO;
-import com.economato.inventory.dto.request.StockMovementItemDTO;
 import com.economato.inventory.exception.InvalidOperationException;
 import com.economato.inventory.model.MovementType;
 import com.economato.inventory.model.Product;
@@ -17,9 +16,7 @@ import com.economato.inventory.model.User;
 import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.StockLedgerRepository;
 import com.economato.inventory.repository.StockSnapshotRepository;
-import com.economato.inventory.repository.UserRepository;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
+import com.economato.inventory.security.SecurityContextHelper;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -39,7 +36,7 @@ public class StockLedgerService {
     private final StockLedgerRepository ledgerRepository;
     private final StockSnapshotRepository snapshotRepository;
     private final ProductRepository productRepository;
-    private final UserRepository userRepository;
+    private final SecurityContextHelper securityContextHelper;
     private final Environment environment;
 
     private static final String GENESIS_HASH = "GENESIS";
@@ -48,12 +45,12 @@ public class StockLedgerService {
             StockLedgerRepository ledgerRepository,
             StockSnapshotRepository snapshotRepository,
             ProductRepository productRepository,
-            UserRepository userRepository,
+            SecurityContextHelper securityContextHelper,
             Environment environment) {
         this.ledgerRepository = ledgerRepository;
         this.snapshotRepository = snapshotRepository;
         this.productRepository = productRepository;
-        this.userRepository = userRepository;
+        this.securityContextHelper = securityContextHelper;
         this.environment = environment;
     }
 
@@ -391,7 +388,7 @@ public class StockLedgerService {
 
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public List<StockLedger> processBatchMovements(BatchStockMovementRequestDTO request) {
-        User currentUser = getCurrentUser();
+        User currentUser = securityContextHelper.getCurrentUser();
 
         List<BatchMovementItem> movements = request.getMovements().stream()
                 .map(item -> new BatchMovementItem(
@@ -402,20 +399,6 @@ public class StockLedgerService {
                 .collect(java.util.stream.Collectors.toList());
 
         return recordBatchStockMovements(movements, currentUser, request.getOrderId());
-    }
-
-    public User getCurrentUser() {
-        try {
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication != null && authentication.isAuthenticated()
-                    && !"anonymousUser".equals(authentication.getPrincipal())) {
-                String username = authentication.getName();
-                return userRepository.findByName(username).orElse(null);
-            }
-        } catch (Exception e) {
-            // Silently fail
-        }
-        return null;
     }
 
     public static class BatchMovementItem {

@@ -158,15 +158,6 @@ public class OrderService {
 
         @Transactional(readOnly = true)
         public List<OrderResponseDTO> findByStatus(String status) {
-                // Since findStatus returns Page in repository implementation?
-                // Wait, repository implementation: findProjectedByStatus returns
-                // Page<OrderProjection>
-                // But here we return List<OrderResponseDTO>
-                // Pageable is not passed here.
-                // repository.findProjectedByStatus expects Pageable?
-                // Let's check repository definition I added.
-                // Page<OrderProjection> findProjectedByStatus(String status, Pageable
-                // pageable);
                 return repository.findProjectedByStatus(status, Pageable.unpaged()).getContent().stream()
                                 .map(orderMapper::toResponseDTO)
                                 .toList();
@@ -241,9 +232,6 @@ public class OrderService {
                 return orderMapper.toResponseDTO(savedOrder);
         }
 
-        /**
-         * Obtiene órdenes pendientes de recepción
-         */
         @Transactional(readOnly = true)
         public List<OrderResponseDTO> findPendingReception() {
                 return repository.findProjectedByStatus("PENDING", Pageable.unpaged()).getContent().stream()
@@ -251,14 +239,6 @@ public class OrderService {
                                 .toList();
         }
 
-        /**
-         * Actualiza el estado de una orden con bloqueo optimista y reintentos
-         * Estados permitidos: CREATED, PENDING, REVIEW, CONFIRMED, INCOMPLETE,
-         * CANCELLED
-         * 
-         * Utiliza @Retryable para manejar conflictos de concurrencia automáticamente
-         * con hasta 3 intentos y backoff exponencial de 100ms
-         */
         @OrderAuditable(action = "CAMBIO_ESTADO_ORDEN")
         @Retryable(retryFor = {
                         org.springframework.orm.ObjectOptimisticLockingFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 100, multiplier = 2))
@@ -273,9 +253,6 @@ public class OrderService {
                                 });
         }
 
-        /**
-         * Valida que el estado sea uno de los permitidos
-         */
         private String validateStatus(String status) {
                 if (status == null) {
                         throw new InvalidOperationException(
