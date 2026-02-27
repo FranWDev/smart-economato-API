@@ -32,7 +32,7 @@ public class InventoryAudit {
     @Column(name = "audit_id")
     private Integer id;
 
-    @NotNull(message = "{inventoryaudit.notnull.el.producto.no.puede.ser.nulo}")
+    @NotNull(message = "{validation.inventoryAudit.product.notNull}")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "product_id", nullable = false, foreignKey = @ForeignKey(name = "fk_inventory_audit_product"))
     private Product product;
@@ -42,18 +42,18 @@ public class InventoryAudit {
     @JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "fk_inventory_audit_user"))
     private User users;
 
-    @NotBlank(message = "{inventoryaudit.notblank.el.tipo.de.movimiento.no.puede}")
+    @NotBlank(message = "{validation.inventoryAudit.unknown.notBlank}")
     @Pattern(regexp = "IN|OUT|ADJUSTMENT|RECEPTION|PRODUCTION", 
              message = "{inventoryaudit.pattern.tipo.de.movimiento.inv.lido}")
     @Column(name = "movement_type", nullable = false, length = 20)
     private String movementType;
 
-    @NotNull(message = "{inventoryaudit.notnull.la.cantidad.no.puede.ser.nula}")
+    @NotNull(message = "{validation.inventoryAudit.quantity.notNull}")
     @Digits(integer = 10, fraction = 3)
     @Column(name = "quantity", nullable = false, precision = 10, scale = 3)
     private BigDecimal quantity;
 
-    @Size(max = 500, message = "{inventoryaudit.size.la.descripci.n.no.puede.excede}")
+    @Size(max = 500, message = "{validation.inventoryAudit.actionDescription.size}")
     @Column(name = "action_description", length = 500)
     private String actionDescription;
 

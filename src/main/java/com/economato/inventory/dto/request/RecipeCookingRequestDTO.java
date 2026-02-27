@@ -14,15 +14,15 @@ import java.math.BigDecimal;
 @Builder
 public class RecipeCookingRequestDTO {
 
-    @NotNull(message = "{recipecookingrequestdto.notnull.el.id.de.la.receta.es.obligato}")
-    @Positive(message = "{recipecookingrequestdto.positive.el.id.de.la.receta.debe.ser.po}")
+    @NotNull(message = "{validation.recipeCookingRequestDTO.recipeId.notNull}")
+    @Positive(message = "{validation.recipeCookingRequestDTO.recipeId.positive}")
     private Integer recipeId;
 
-    @NotNull(message = "{recipecookingrequestdto.notnull.la.cantidad.a.cocinar.es.oblig}")
-    @DecimalMin(value = "0.001", message = "{recipecookingrequestdto.decimalmin.la.cantidad.debe.ser.mayor.a.0}")
-    @Digits(integer = 10, fraction = 3, message = "{recipecookingrequestdto.digits.la.cantidad.debe.tener.m.ximo.}")
+    @NotNull(message = "{validation.recipeCookingRequestDTO.quantity.notNull}")
+    @DecimalMin(value = "0.001", message = "{validation.recipeCookingRequestDTO.quantity.decimalMin}")
+    @Digits(integer = 10, fraction = 3, message = "{validation.recipeCookingRequestDTO.quantity.digits}")
     private BigDecimal quantity;
 
-    @Size(max = 500, message = "{recipecookingrequestdto.size.los.detalles.no.pueden.exceder}")
+    @Size(max = 500, message = "{validation.recipeCookingRequestDTO.details.size}")
     private String details;
 }

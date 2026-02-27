@@ -17,13 +17,13 @@ public class OrderDetailRequestDTO {
     @Schema(description = "Identificador del pedido asociado al detalle", example = "15")
     private Integer orderId;
 
-    @NotNull(message = "{orderdetailrequestdto.notnull.el.id.del.producto.no.puede.se}")
+    @NotNull(message = "{validation.orderDetailRequestDTO.productId.notNull}")
     @Schema(description = "Identificador del producto asociado al detalle del pedido", example = "42")
     private Integer productId;
 
-    @NotNull(message = "{orderdetailrequestdto.notnull.la.cantidad.no.puede.ser.nula}")
-    @DecimalMin(value = "0.001", message = "{orderdetailrequestdto.decimalmin.la.cantidad.debe.ser.mayor.que}")
-    @Digits(integer = 10, fraction = 3, message = "{orderdetailrequestdto.digits.la.cantidad.debe.tener.m.ximo.}")
+    @NotNull(message = "{validation.orderDetailRequestDTO.quantity.notNull}")
+    @DecimalMin(value = "0.001", message = "{validation.orderDetailRequestDTO.quantity.decimalMin}")
+    @Digits(integer = 10, fraction = 3, message = "{validation.orderDetailRequestDTO.quantity.digits}")
     @Schema(description = "Cantidad del producto solicitada en el pedido", example = "3.5")
     private BigDecimal quantity;
 

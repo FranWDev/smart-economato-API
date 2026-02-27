@@ -1,8 +1,11 @@
 package com.economato.inventory.exception;
 
+import com.economato.inventory.i18n.I18nService;
+import com.economato.inventory.i18n.MessageKey;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.dao.PessimisticLockingFailureException;
@@ -28,6 +31,9 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class GlobalExceptionHandlerTest {
+
+    @Mock
+    private I18nService i18nService;
 
     @InjectMocks
     private GlobalExceptionHandler exceptionHandler;
@@ -113,6 +119,9 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleOptimisticLockException_ShouldReturnConflict() {
+        when(i18nService.getMessage(MessageKey.ERROR_OPTIMISTIC_LOCK))
+                .thenReturn(
+                        "Los datos fueron modificados por otro usuario. Por favor, recarga la página e intenta nuevamente.");
 
         OptimisticLockException exception = new OptimisticLockException("Optimistic lock");
 
@@ -126,6 +135,9 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleOptimisticLockingFailureException_ShouldReturnConflict() {
+        when(i18nService.getMessage(MessageKey.ERROR_OPTIMISTIC_LOCK))
+                .thenReturn(
+                        "Los datos fueron modificados por otro usuario. Por favor, recarga la página e intenta nuevamente.");
 
         OptimisticLockingFailureException exception = new OptimisticLockingFailureException(
                 "Optimistic locking failure");
@@ -140,6 +152,8 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handlePessimisticLockingFailureException_ShouldReturnLocked() {
+        when(i18nService.getMessage(MessageKey.ERROR_PESSIMISTIC_LOCK))
+                .thenReturn("El recurso está siendo usado por otro usuario. Por favor, intenta en unos momentos.");
 
         PessimisticLockingFailureException exception = new PessimisticLockingFailureException(
                 "Pessimistic locking failure");
@@ -179,6 +193,8 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleBadCredentials_ShouldReturnUnauthorized() {
+        when(i18nService.getMessage(MessageKey.ERROR_AUTH_BAD_CREDENTIALS))
+                .thenReturn("Usuario o contraseña incorrectos");
 
         BadCredentialsException exception = new BadCredentialsException("Bad credentials");
 
@@ -192,6 +208,8 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleJwtException_ShouldReturnUnauthorized() {
+        when(i18nService.getMessage(MessageKey.ERROR_AUTH_JWT_INVALID))
+                .thenReturn("Token JWT inválido");
 
         JwtException exception = new JwtException("JWT error");
 
@@ -200,11 +218,13 @@ class GlobalExceptionHandlerTest {
         assertNotNull(response);
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         assertEquals(401, response.getBody().get("status"));
-        assertTrue(response.getBody().get("message").toString().contains("JWT"));
+        assertTrue(response.getBody().get("message").toString().contains("inválido"));
     }
 
     @Test
     void handleGeneralException_ShouldReturnInternalServerError() {
+        when(i18nService.getMessage(MessageKey.ERROR_INTERNAL_SERVER_ERROR))
+                .thenReturn("Se ha producido un error interno. Por favor, inténtelo de nuevo más tarde.");
 
         Exception exception = new Exception("Generic error");
 

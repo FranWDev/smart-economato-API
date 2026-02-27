@@ -30,8 +30,8 @@ public class Allergen {
     @Column(name = "allergen_id")
     private Integer id;
 
-    @NotBlank(message = "{allergen.notblank.el.nombre.del.al.rgeno.no.pued}")
-    @Size(min = 2, max = 50, message = "{allergen.size.el.nombre.debe.tener.entre.2.y}")
+    @NotBlank(message = "{validation.allergen.name.notBlank}")
+    @Size(min = 2, max = 50, message = "{validation.allergen.name.size}")
     @Column(name = "name", nullable = false, unique = true, length = 50)
     private String name;
 

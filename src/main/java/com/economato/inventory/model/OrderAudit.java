@@ -40,12 +40,12 @@ public class OrderAudit {
     @JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "fk_order_audit_user"))
     private User users;
 
-    @NotBlank(message = "{orderaudit.notblank.la.acci.n.no.puede.estar.vac.a}")
+    @NotBlank(message = "{validation.orderAudit.action.notBlank}")
     @Size(max = 100)
     @Column(name = "action", nullable = false, length = 100)
     private String action;
 
-    @Size(max = 1000, message = "{orderaudit.size.los.detalles.no.pueden.exceder}")
+    @Size(max = 1000, message = "{validation.orderAudit.details.size}")
     @Column(name = "details", columnDefinition = "TEXT")
     private String details;
 

@@ -26,8 +26,8 @@ public class Product {
         @Column(name = "product_id")
         private Integer id;
 
-        @NotBlank(message = "{product.notblank.el.nombre.del.producto.no.pued}")
-        @Size(min = 2, max = 100, message = "{product.size.el.nombre.debe.tener.entre.2.y}")
+        @NotBlank(message = "{validation.product.name.notBlank}")
+        @Size(min = 2, max = 100, message = "{validation.product.name.size}")
         @Column(name = "name", nullable = false, length = 100)
         private String name;
 
@@ -35,36 +35,36 @@ public class Product {
         @Column(name = "type", nullable = false, length = 50)
         private String type;
 
-        @NotBlank(message = "{product.notblank.la.unidad.de.medida.no.puede.e}")
+        @NotBlank(message = "{validation.product.unit.notBlank}")
         @Size(max = 20)
         @Column(name = "unit_of_measure", nullable = false, length = 20)
         private String unit;
 
-        @NotNull(message = "{product.notnull.el.precio.unitario.no.puede.se}")
-        @DecimalMin(value = "0.01", message = "{product.decimalmin.el.precio.debe.ser.mayor.a.0}")
-        @Digits(integer = 10, fraction = 2, message = "{product.digits.formato.de.precio.inv.lido}")
+        @NotNull(message = "{validation.product.unitPrice.notNull}")
+        @DecimalMin(value = "0.01", message = "{validation.product.unitPrice.decimalMin}")
+        @Digits(integer = 10, fraction = 2, message = "{validation.product.unitPrice.digits}")
         @Column(name = "unit_price", nullable = false, precision = 10, scale = 2)
         private BigDecimal unitPrice;
 
-        @NotBlank(message = "{product.notblank.el.c.digo.del.producto.no.pued}")
+        @NotBlank(message = "{validation.product.productCode.notBlank}")
         @Size(max = 50)
         @Column(name = "product_code", nullable = false, unique = true, length = 50)
         private String productCode;
 
-        @NotNull(message = "{product.notnull.el.stock.actual.no.puede.ser.n}")
-        @DecimalMin(value = "0.0", inclusive = true, message = "{product.decimalmin.el.stock.no.puede.ser.negativo}")
-        @Digits(integer = 10, fraction = 3, message = "{product.digits.formato.de.stock.inv.lido}")
+        @NotNull(message = "{validation.product.currentStock.notNull}")
+        @DecimalMin(value = "0.0", inclusive = true, message = "{validation.product.currentStock.decimalMin}")
+        @Digits(integer = 10, fraction = 3, message = "{validation.product.currentStock.digits}")
         @Column(name = "current_stock", nullable = false, precision = 10, scale = 3)
         private BigDecimal currentStock;
 
-        @DecimalMin(value = "0.00", message = "{product.decimalmin.el.porcentaje.de.disponibilida}")
-        @DecimalMax(value = "100.00", message = "{product.decimalmax.el.porcentaje.de.disponibilida}")
-        @Digits(integer = 3, fraction = 2, message = "{product.digits.formato.de.disponibilidad.inv.}")
+        @DecimalMin(value = "0.00", message = "{validation.product.availabilityPercentage.decimalMin}")
+        @DecimalMax(value = "100.00", message = "{validation.product.availabilityPercentage.decimalMax}")
+        @Digits(integer = 3, fraction = 2, message = "{validation.product.availabilityPercentage.digits}")
         @Column(name = "availability_percentage", precision = 5, scale = 2)
         private BigDecimal availabilityPercentage;
 
-        @DecimalMin(value = "0.0", inclusive = true, message = "{product.decimalmin.el.stock.m.nimo.no.puede.ser.n}")
-        @Digits(integer = 10, fraction = 3, message = "{product.digits.formato.de.stock.m.nimo.inv.li}")
+        @DecimalMin(value = "0.0", inclusive = true, message = "{validation.product.minimumStock.decimalMin}")
+        @Digits(integer = 10, fraction = 3, message = "{validation.product.minimumStock.digits}")
         @Column(name = "minimum_stock", nullable = false, precision = 10, scale = 3)
         private BigDecimal minimumStock;
 

@@ -16,21 +16,21 @@ import lombok.NoArgsConstructor;
 @Schema(description = "DTO utilizado para registrar un nuevo movimiento de inventario (entrada o salida).")
 public class InventoryMovementRequestDTO {
 
-    @NotNull(message = "{inventorymovementrequestdto.notnull.el.id.del.producto.no.puede.se}")
+    @NotNull(message = "{validation.inventoryMovementRequestDTO.productId.notNull}")
     @Schema(description = "Identificador único del producto afectado por el movimiento", example = "12")
     private Integer productId;
 
-    @NotNull(message = "{inventorymovementrequestdto.notnull.el.id.del.usuario.no.puede.ser}")
+    @NotNull(message = "{validation.inventoryMovementRequestDTO.userId.notNull}")
     @Schema(description = "ID del usuario responsable del movimiento de inventario", example = "5")
     private Integer userId;
 
-    @NotNull(message = "{inventorymovementrequestdto.notnull.la.cantidad.no.puede.ser.nula}")
-    @Positive(message = "{inventorymovementrequestdto.positive.la.cantidad.debe.ser.mayor.que}")
-    @DecimalMax(value = "9999999.99", message = "{inventorymovementrequestdto.decimalmax.la.cantidad.no.puede.ser.mayor}")
+    @NotNull(message = "{validation.inventoryMovementRequestDTO.quantity.notNull}")
+    @Positive(message = "{validation.inventoryMovementRequestDTO.quantity.positive}")
+    @DecimalMax(value = "9999999.99", message = "{validation.inventoryMovementRequestDTO.quantity.decimalMax}")
     @Schema(description = "Cantidad de producto que entra o sale del inventario", example = "50.75")
     private BigDecimal quantity;
 
-    @NotNull(message = "{inventorymovementrequestdto.notnull.el.tipo.de.movimiento.no.puede}")
+    @NotNull(message = "{validation.inventoryMovementRequestDTO.movementType.notNull}")
     @Pattern(regexp = "^(ENTRADA|SALIDA)$", message = "El tipo de movimiento debe ser ENTRADA o SALIDA")
     @Schema(description = "Tipo de movimiento de inventario (ENTRADA o SALIDA)", example = "ENTRADA")
     private String movementType;

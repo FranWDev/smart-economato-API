@@ -24,8 +24,8 @@ public class Supplier {
     @Column(name = "supplier_id")
     private Integer id;
 
-    @NotBlank(message = "{supplier.notblank.el.nombre.del.proveedor.no.pue}")
-    @Size(min = 2, max = 100, message = "{supplier.size.el.nombre.debe.tener.entre.2.y}")
+    @NotBlank(message = "{validation.supplier.name.notBlank}")
+    @Size(min = 2, max = 100, message = "{validation.supplier.name.size}")
     @Column(name = "name", nullable = false, unique = true, length = 100)
     private String name;
 

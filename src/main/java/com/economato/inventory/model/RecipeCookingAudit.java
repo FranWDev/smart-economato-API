@@ -35,7 +35,7 @@ public class RecipeCookingAudit {
     @Column(name = "cooking_audit_id")
     private Long id;
 
-    @NotNull(message = "{recipecookingaudit.notnull.la.receta.no.puede.ser.nula}")
+    @NotNull(message = "{validation.recipeCookingAudit.recipe.notNull}")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "recipe_id", nullable = false, foreignKey = @ForeignKey(name = "fk_cooking_audit_recipe"))
     private Recipe recipe;
@@ -45,13 +45,13 @@ public class RecipeCookingAudit {
     @JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "fk_cooking_audit_user"))
     private User users;
 
-    @NotNull(message = "{recipecookingaudit.notnull.la.cantidad.cocinada.no.puede.}")
-    @DecimalMin(value = "0.001", message = "{recipecookingaudit.decimalmin.la.cantidad.debe.ser.mayor.a.0}")
+    @NotNull(message = "{validation.recipeCookingAudit.quantityCooked.notNull}")
+    @DecimalMin(value = "0.001", message = "{validation.recipeCookingAudit.quantityCooked.decimalMin}")
     @Digits(integer = 10, fraction = 3)
     @Column(name = "quantity_cooked", nullable = false, precision = 10, scale = 3)
     private BigDecimal quantityCooked;
 
-    @Size(max = 1000, message = "{recipecookingaudit.size.los.detalles.no.pueden.exceder}")
+    @Size(max = 1000, message = "{validation.recipeCookingAudit.details.size}")
     @Column(name = "details", columnDefinition = "TEXT")
     private String details;
 

@@ -13,16 +13,16 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "DTO para crear o actualizar un componente de receta")
 public class RecipeComponentRequestDTO {
 
-    @NotNull(message = "{recipecomponentrequestdto.notnull.el.id.del.producto.no.puede.se}")
+    @NotNull(message = "{validation.recipeComponentRequestDTO.productId.notNull}")
     @Schema(description = "ID del producto asociado al componente", example = "5")
     private Integer productId;
 
     @Schema(description = "ID de la receta asociada al componente (opcional al crear)", example = "1")
     private Integer recipeId;
 
-    @NotNull(message = "{recipecomponentrequestdto.notnull.la.cantidad.no.puede.ser.nula}")
-    @DecimalMin(value = "0.001", message = "{recipecomponentrequestdto.decimalmin.la.cantidad.debe.ser.mayor.que}")
-    @Digits(integer = 10, fraction = 3, message = "{recipecomponentrequestdto.digits.la.cantidad.debe.tener.m.ximo.}")
+    @NotNull(message = "{validation.recipeComponentRequestDTO.quantity.notNull}")
+    @DecimalMin(value = "0.001", message = "{validation.recipeComponentRequestDTO.quantity.decimalMin}")
+    @Digits(integer = 10, fraction = 3, message = "{validation.recipeComponentRequestDTO.quantity.digits}")
     @Schema(description = "Cantidad del producto en la receta", example = "2.5")
     private BigDecimal quantity;
 }

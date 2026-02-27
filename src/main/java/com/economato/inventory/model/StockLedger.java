@@ -25,23 +25,23 @@ public class StockLedger {
     @Column(name = "transaction_id")
     private Long id;
 
-    @NotNull(message = "{stockledger.notnull.el.producto.no.puede.ser.nulo}")
+    @NotNull(message = "{validation.stockLedger.product.notNull}")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "product_id", nullable = false, foreignKey = @ForeignKey(name = "fk_ledger_product"))
     private Product product;
 
-    @NotNull(message = "{stockledger.notnull.la.cantidad.no.puede.ser.nula}")
+    @NotNull(message = "{validation.stockLedger.quantityDelta.notNull}")
     @Digits(integer = 10, fraction = 3)
     @Column(name = "quantity_delta", nullable = false, precision = 10, scale = 3)
     private BigDecimal quantityDelta;
 
-    @NotNull(message = "{stockledger.notnull.el.stock.resultante.no.puede.s}")
+    @NotNull(message = "{validation.stockLedger.resultingStock.notNull}")
     @DecimalMin(value = "0.0", inclusive = true)
     @Digits(integer = 10, fraction = 3)
     @Column(name = "resulting_stock", nullable = false, precision = 10, scale = 3)
     private BigDecimal resultingStock;
 
-    @NotNull(message = "{stockledger.notnull.el.tipo.de.movimiento.no.puede}")
+    @NotNull(message = "{validation.stockLedger.movementType.notNull}")
     @Enumerated(EnumType.STRING)
     @Column(name = "movement_type", nullable = false, length = 50)
     private MovementType movementType;
@@ -50,17 +50,17 @@ public class StockLedger {
     @Column(name = "description", length = 500)
     private String description;
 
-    @NotBlank(message = "{stockledger.notblank.el.hash.previo.no.puede.estar.}")
+    @NotBlank(message = "{validation.stockLedger.previousHash.notBlank}")
     @Size(max = 64)
     @Column(name = "previous_hash", nullable = false, length = 64)
     private String previousHash;
 
-    @NotBlank(message = "{stockledger.notblank.el.hash.actual.no.puede.estar.}")
+    @NotBlank(message = "{validation.stockLedger.currentHash.notBlank}")
     @Size(max = 64)
     @Column(name = "current_hash", nullable = false, length = 64, unique = true)
     private String currentHash;
 
-    @NotNull(message = "{stockledger.notnull.el.timestamp.no.puede.ser.nulo}")
+    @NotNull(message = "{validation.stockLedger.transactionTimestamp.notNull}")
     @Column(name = "transaction_timestamp", nullable = false)
     private LocalDateTime transactionTimestamp;
 
@@ -71,7 +71,7 @@ public class StockLedger {
     @Column(name = "order_id")
     private Integer orderId;
 
-    @NotNull(message = "{stockledger.notnull.el.n.mero.de.secuencia.no.pued}")
+    @NotNull(message = "{validation.stockLedger.sequenceNumber.notNull}")
     @Column(name = "sequence_number", nullable = false)
     private Long sequenceNumber;
 

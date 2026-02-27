@@ -25,7 +25,14 @@ public enum MessageKey {
     ERROR_RECIPE_ID_NOT_PROVIDED("error.recipe.id.not.provided"),
     ERROR_RECIPE_ID_NULL("error.recipe.id.null"),
 
-    ERROR_ORDER_INVALID_STATE("error.order.invalid.state");
+    ERROR_ORDER_INVALID_STATE("error.order.invalid.state"),
+
+    ERROR_OPTIMISTIC_LOCK("error.optimistic.lock"),
+    ERROR_PESSIMISTIC_LOCK("error.pessimistic.lock"),
+    ERROR_INTERNAL_SERVER_ERROR("error.internal.server.error"),
+    ERROR_AUTH_BAD_CREDENTIALS("error.auth.bad.credentials"),
+    ERROR_AUTH_JWT_INVALID("error.auth.jwt.invalid"),
+    ERROR_AUTH_JWT_MISSING("error.auth.jwt.missing");
 
     private final String key;
 

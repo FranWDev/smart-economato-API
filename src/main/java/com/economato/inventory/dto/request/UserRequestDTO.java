@@ -16,18 +16,18 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "DTO para crear o actualizar un usuario")
 public class UserRequestDTO {
 
-        @NotBlank(message = "{userrequestdto.notblank.el.nombre.no.puede.estar.vac.o}")
-        @Size(min = 2, max = 100, message = "{userrequestdto.size.el.nombre.debe.tener.entre.2.y}")
+        @NotBlank(message = "{validation.userRequestDTO.name.notBlank}")
+        @Size(min = 2, max = 100, message = "{validation.userRequestDTO.name.size}")
         @Schema(description = "Nombre completo del usuario", example = "Juan Pérez", minLength = 2, maxLength = 100)
         private String name;
 
-        @NotBlank(message = "{userrequestdto.notblank.el.usuario.no.puede.estar.vac.}")
-        @Size(max = 100, message = "{userrequestdto.size.el.usuario.no.puede.exceder.10}")
+        @NotBlank(message = "{validation.userRequestDTO.user.notBlank}")
+        @Size(max = 100, message = "{validation.userRequestDTO.user.size}")
         @Schema(description = "Usuario del sistema", example = "juan_perez")
         private String user;
 
-        @NotBlank(message = "{userrequestdto.notblank.la.contrase.a.no.puede.estar.v}")
-        @Size(min = 6, message = "{userrequestdto.size.la.contrase.a.debe.tener.al.me}")
+        @NotBlank(message = "{validation.userRequestDTO.password.notBlank}")
+        @Size(min = 6, message = "{validation.userRequestDTO.password.size}")
         @Schema(description = "Contraseña del usuario", example = "123456", minLength = 6)
         private String password;
 

@@ -16,22 +16,22 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "DTO para crear o actualizar una receta")
 public class RecipeRequestDTO {
 
-    @NotBlank(message = "{reciperequestdto.notblank.el.nombre.de.la.receta.no.pued}")
-    @Size(min = 2, max = 150, message = "{reciperequestdto.size.el.nombre.debe.tener.entre.2.y}")
+    @NotBlank(message = "{validation.recipeRequestDTO.name.notBlank}")
+    @Size(min = 2, max = 150, message = "{validation.recipeRequestDTO.name.size}")
     @Schema(description = "Nombre de la receta", example = "Paella Valenciana", minLength = 2, maxLength = 150)
     private String name;
 
-    @NotBlank(message = "{reciperequestdto.notblank.la.elaboraci.n.no.puede.estar.}")
-    @Size(max = 2000, message = "{reciperequestdto.size.la.elaboraci.n.no.puede.excede}")
+    @NotBlank(message = "{validation.recipeRequestDTO.elaboration.notBlank}")
+    @Size(max = 2000, message = "{validation.recipeRequestDTO.elaboration.size}")
     @Schema(description = "Instrucciones de elaboración de la receta", example = "Cocer arroz, añadir ingredientes...")
     private String elaboration;
 
-    @NotBlank(message = "{reciperequestdto.notblank.la.presentaci.n.no.puede.estar}")
-    @Size(max = 1000, message = "{reciperequestdto.size.la.presentaci.n.no.puede.exced}")
+    @NotBlank(message = "{validation.recipeRequestDTO.presentation.notBlank}")
+    @Size(max = 1000, message = "{validation.recipeRequestDTO.presentation.size}")
     @Schema(description = "Descripción de la presentación del plato", example = "Servido en paellera tradicional")
     private String presentation;
 
-    @NotEmpty(message = "{reciperequestdto.notempty.debe.incluir.al.menos.un.compo}")
+    @NotEmpty(message = "{validation.recipeRequestDTO.components.notEmpty}")
     @Valid
     @Schema(description = "Lista de componentes de la receta")
     private List<RecipeComponentRequestDTO> components;

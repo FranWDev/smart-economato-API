@@ -18,20 +18,20 @@ import com.economato.inventory.model.MovementType;
 @Schema(description = "Movimiento individual de stock")
 public class StockMovementItemDTO {
 
-    @NotNull(message = "{stockmovementitemdto.notnull.el.id.del.producto.es.obligato}")
+    @NotNull(message = "{validation.stockMovementItemDTO.productId.notNull}")
     @Schema(description = "ID del producto", example = "1")
     private Integer productId;
 
-    @NotNull(message = "{stockmovementitemdto.notnull.la.cantidad.es.obligatoria}")
-    @Digits(integer = 10, fraction = 3, message = "{stockmovementitemdto.digits.la.cantidad.debe.tener.m.ximo.}")
+    @NotNull(message = "{validation.stockMovementItemDTO.quantityDelta.notNull}")
+    @Digits(integer = 10, fraction = 3, message = "{validation.stockMovementItemDTO.quantityDelta.digits}")
     @Schema(description = "Cantidad a sumar o restar (negativa para restar)", example = "10.500")
     private BigDecimal quantityDelta;
 
-    @NotNull(message = "{stockmovementitemdto.notnull.el.tipo.de.movimiento.es.oblig}")
+    @NotNull(message = "{validation.stockMovementItemDTO.movementType.notNull}")
     @Schema(description = "Tipo de movimiento", example = "AJUSTE")
     private MovementType movementType;
 
-    @Size(max = 500, message = "{stockmovementitemdto.size.la.descripci.n.no.puede.excede}")
+    @Size(max = 500, message = "{validation.stockMovementItemDTO.description.size}")
     @Schema(description = "Descripción del movimiento", example = "Rollback de receta errónea #123")
     private String description;
 }

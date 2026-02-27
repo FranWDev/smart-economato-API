@@ -26,17 +26,17 @@ public class Order {
     private Integer id;
 
     @JsonIgnore
-    @NotNull(message = "{order.notnull.el.usuario.no.puede.ser.nulo}")
+    @NotNull(message = "{validation.order.users.notNull}")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_order_user"))
     private User users;
 
-    @NotNull(message = "{order.notnull.la.fecha.del.pedido.no.puede.s}")
-    @PastOrPresent(message = "{order.pastorpresent.la.fecha.del.pedido.no.puede.s}")
+    @NotNull(message = "{validation.order.orderDate.notNull}")
+    @PastOrPresent(message = "{validation.order.orderDate.pastOrPresent}")
     @Column(name = "order_date", nullable = false)
     private LocalDateTime orderDate;
 
-    @NotBlank(message = "{order.notblank.el.estado.no.puede.estar.vac.o}")
+    @NotBlank(message = "{validation.order.status.notBlank}")
     @Column(name = "status", nullable = false, length = 20)
     private String status;
 

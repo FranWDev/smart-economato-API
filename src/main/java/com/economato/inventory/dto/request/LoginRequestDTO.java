@@ -17,12 +17,12 @@ import lombok.Setter;
 @Schema(description = "DTO para la solicitud de inicio de sesión, contiene las credenciales del usuario.")
 public class LoginRequestDTO {
 
-    @NotBlank(message = "{loginrequestdto.notblank.el.nombre.de.usuario.no.puede.}")
+    @NotBlank(message = "{validation.loginRequestDTO.name.notBlank}")
     @JsonAlias("username")
     @Schema(description = "Nombre de usuario o correo electrónico del usuario (aceptable como 'name' o 'username')", example = "juanperez")
     private String name;
 
-    @NotBlank(message = "{loginrequestdto.notblank.la.contrase.a.no.puede.estar.v}")
+    @NotBlank(message = "{validation.loginRequestDTO.password.notBlank}")
     @Schema(description = "Contraseña del usuario", example = "ContraseñaSegura123!")
     private String password;
 }

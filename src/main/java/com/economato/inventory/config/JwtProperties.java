@@ -15,9 +15,9 @@ import org.springframework.validation.annotation.Validated;
 @ConfigurationProperties(prefix = "jwt")
 public class JwtProperties {
 
-    @NotBlank(message = "{jwtproperties.notblank.el.secreto.jwt.no.puede.estar.}")
+    @NotBlank(message = "{validation.jwtProperties.secret.notBlank}")
     private String secret;
 
-    @Positive(message = "{jwtproperties.positive.la.expiraci.n.jwt.debe.ser.un.}")
+    @Positive(message = "{validation.jwtProperties.expiration.positive}")
     private long expiration;
 }

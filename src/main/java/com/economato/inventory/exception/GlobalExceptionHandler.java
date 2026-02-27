@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import io.jsonwebtoken.JwtException;
 import jakarta.persistence.OptimisticLockException;
+import com.economato.inventory.i18n.I18nService;
+import com.economato.inventory.i18n.MessageKey;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Instant;
@@ -22,7 +25,10 @@ import java.util.Map;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final I18nService i18nService;
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(ResourceNotFoundException ex) {
@@ -80,7 +86,7 @@ public class GlobalExceptionHandler {
         log.warn("Conflicto de concurrencia detectado (OptimisticLockException): {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.CONFLICT.value(),
-                "Los datos fueron modificados por otro usuario. Por favor, recarga la página e intenta nuevamente.",
+                i18nService.getMessage(MessageKey.ERROR_OPTIMISTIC_LOCK),
                 LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
@@ -90,7 +96,7 @@ public class GlobalExceptionHandler {
         log.warn("Conflicto de concurrencia detectado (OptimisticLockingFailureException): {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.CONFLICT.value(),
-                "Los datos fueron modificados por otro usuario. Por favor, recarga la página e intenta nuevamente.",
+                i18nService.getMessage(MessageKey.ERROR_OPTIMISTIC_LOCK),
                 LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
@@ -111,7 +117,7 @@ public class GlobalExceptionHandler {
         log.error("Error al obtener bloqueo pesimista: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.LOCKED.value(),
-                "El recurso está siendo usado por otro usuario. Por favor, intenta en unos momentos.",
+                i18nService.getMessage(MessageKey.ERROR_PESSIMISTIC_LOCK),
                 LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.LOCKED);
     }
@@ -138,7 +144,7 @@ public class GlobalExceptionHandler {
         log.error("Error no controlado", ex);
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                "Se ha producido un error interno. Por favor, inténtelo de nuevo más tarde.",
+                i18nService.getMessage(MessageKey.ERROR_INTERNAL_SERVER_ERROR),
                 LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -148,7 +154,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of(
                         "status", 401,
-                        "message", "Usuario o contraseña incorrectos",
+                        "message", i18nService.getMessage(MessageKey.ERROR_AUTH_BAD_CREDENTIALS),
                         "timestamp", Instant.now().toString()));
     }
 
@@ -157,7 +163,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of(
                         "status", 401,
-                        "message", "Token JWT inválido",
+                        "message", i18nService.getMessage(MessageKey.ERROR_AUTH_JWT_INVALID),
                         "timestamp", Instant.now().toString()));
     }
 
@@ -166,7 +172,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of(
                         "status", 401,
-                        "message", "Token JWT faltante",
+                        "message", i18nService.getMessage(MessageKey.ERROR_AUTH_JWT_MISSING),
                         "timestamp", Instant.now().toString()));
     }
 }

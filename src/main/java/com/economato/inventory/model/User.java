@@ -24,12 +24,12 @@ public class User {
         @Column(name = "user_id")
         private Integer id;
 
-        @NotBlank(message = "{user.notblank.el.nombre.no.puede.estar.vac.o}")
-        @Size(min = 2, max = 100, message = "{user.size.el.nombre.debe.tener.entre.2.y}")
+        @NotBlank(message = "{validation.user.name.notBlank}")
+        @Size(min = 2, max = 100, message = "{validation.user.name.size}")
         @Column(name = "name", nullable = false, length = 100)
         private String name;
 
-        @NotBlank(message = "{user.notblank.el.usuario.no.puede.estar.vac.}")
+        @NotBlank(message = "{validation.user.user.notBlank}")
         @Size(max = 100)
         @Column(name = "\"user\"", nullable = false, unique = true, length = 100)
         private String user;
@@ -40,11 +40,11 @@ public class User {
         @Column(name = "is_hidden", nullable = false)
         private boolean isHidden = false;
 
-        @NotBlank(message = "{user.notblank.la.contrase.a.no.puede.estar.v}")
+        @NotBlank(message = "{validation.user.password.notBlank}")
         @Column(name = "password", nullable = false, length = 255)
         private String password;
 
-        @NotNull(message = "{user.notnull.el.rol.no.puede.estar.vac.o}")
+        @NotNull(message = "{validation.user.role.notNull}")
         @Enumerated(EnumType.STRING)
         @Column(name = "role", nullable = false, length = 20)
         private Role role;

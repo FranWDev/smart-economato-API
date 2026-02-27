@@ -30,18 +30,18 @@ public class RecipeComponent {
     @Column(name = "id")
     private Integer id;
 
-    @NotNull(message = "{recipecomponent.notnull.la.receta.no.puede.ser.nula}")
+    @NotNull(message = "{validation.recipeComponent.parentRecipe.notNull}")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "parent_recipe_id", nullable = false, foreignKey = @ForeignKey(name = "fk_recipe_component_recipe"))
     private Recipe parentRecipe;
 
-    @NotNull(message = "{recipecomponent.notnull.el.producto.no.puede.ser.nulo}")
+    @NotNull(message = "{validation.recipeComponent.product.notNull}")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "product_id", nullable = false, foreignKey = @ForeignKey(name = "fk_recipe_component_product"))
     private Product product;
 
-    @NotNull(message = "{recipecomponent.notnull.la.cantidad.no.puede.ser.nula}")
-    @DecimalMin(value = "0.001", message = "{recipecomponent.decimalmin.la.cantidad.debe.ser.mayor.a.0}")
+    @NotNull(message = "{validation.recipeComponent.quantity.notNull}")
+    @DecimalMin(value = "0.001", message = "{validation.recipeComponent.quantity.decimalMin}")
     @Digits(integer = 10, fraction = 3)
     @Column(name = "quantity", nullable = false, precision = 10, scale = 3)
     private BigDecimal quantity;
