@@ -40,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
                 Exception.class })
 public class OrderService {
-    private final I18nService i18nService;
+        private final I18nService i18nService;
 
         private final OrderRepository repository;
         private final UserRepository userRepository;
@@ -53,7 +53,7 @@ public class OrderService {
                         ProductRepository productRepository,
                         OrderMapper orderMapper,
                         StockLedgerService stockLedgerService) {
-        this.i18nService = i18nService;
+                this.i18nService = i18nService;
                 this.repository = repository;
                 this.userRepository = userRepository;
                 this.productRepository = productRepository;
@@ -278,13 +278,15 @@ public class OrderService {
          */
         private String validateStatus(String status) {
                 if (status == null) {
-                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_ORDER_INVALID_STATE));
+                        throw new InvalidOperationException(
+                                        i18nService.getMessage(MessageKey.ERROR_ORDER_INVALID_STATE));
                 }
                 String normalized = status.trim().toUpperCase();
                 List<String> validStatuses = List.of("CREATED", "PENDING", "REVIEW", "CONFIRMED", "INCOMPLETE",
                                 "CANCELLED");
                 if (!validStatuses.contains(normalized)) {
-                        throw new InvalidOperationException("Estado de orden inválido: " + status);
+                        throw new InvalidOperationException(
+                                        i18nService.getMessage(MessageKey.ERROR_ORDER_INVALID_STATE) + ": " + status);
                 }
                 return normalized;
         }

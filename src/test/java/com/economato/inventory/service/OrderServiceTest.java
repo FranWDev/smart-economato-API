@@ -427,7 +427,7 @@ class OrderServiceTest {
         InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
             orderService.updateStatus(1, "INVALID_STATUS");
         });
-        assertTrue(exception.getMessage().contains("Estado de orden"));
+        assertTrue(exception.getMessage().contains("ERROR_ORDER_INVALID_STATE"));
         verify(repository, never()).save(any(Order.class));
     }
 

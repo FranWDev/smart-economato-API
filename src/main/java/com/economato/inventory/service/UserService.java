@@ -106,11 +106,11 @@ public class UserService {
     public UserResponseDTO save(UserRequestDTO requestDTO) {
 
         if (repository.existsByUser(requestDTO.getUser())) {
-            throw new InvalidOperationException("Ya existe un usuario con el usuario: " + requestDTO.getUser());
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AUTH_USER_ALREADY_EXISTS));
         }
 
         if (repository.findByName(requestDTO.getName()).isPresent()) {
-            throw new InvalidOperationException("Ya existe un usuario con el nombre: " + requestDTO.getName());
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AUTH_USER_ALREADY_EXISTS));
         }
 
         User user = userMapper.toEntity(requestDTO);
@@ -136,13 +136,13 @@ public class UserService {
                     if (!existing.getUser().equals(requestDTO.getUser()) &&
                             repository.existsByUser(requestDTO.getUser())) {
                         throw new InvalidOperationException(
-                                "Ya existe un usuario con el usuario: " + requestDTO.getUser());
+                                i18nService.getMessage(MessageKey.ERROR_AUTH_USER_ALREADY_EXISTS));
                     }
 
                     if (!existing.getName().equals(requestDTO.getName()) &&
                             repository.findByName(requestDTO.getName()).isPresent()) {
                         throw new InvalidOperationException(
-                                "Ya existe un usuario con el nombre: " + requestDTO.getName());
+                                i18nService.getMessage(MessageKey.ERROR_AUTH_USER_ALREADY_EXISTS));
                     }
 
                     userMapper.updateEntity(requestDTO, existing);

@@ -65,14 +65,14 @@ En la raíz del proyecto, ejecuta el script proporcionado para automatizar la ge
 Una vez que el script finaliza y todos los contenedores están `healthy`, tienes acceso local a todo el entorno:
 
 - 🟢 **Backend API Base:** `http://localhost:8081`
-- 📚 **Documentación Interactiva (Swagger UI):** [`http://localhost:8081/swagger-ui.html`](http://localhost:8081/swagger-ui.html)
-- 📝 **Documentación Dinámica (Scalar UI):** [`http://localhost:8081/scalar-ui.html`](http://localhost:8081/scalar-ui.html)
+
+- 📝 **Documentación Dinámica (Scalar UI):** [`http://localhost:8081/scalar`](http://localhost:8081/scalar)
 - 🖥️ **Kafka UI (Gestor de Mensajes):** `http://localhost:8090`
 - 🎯 **Redis Commander (Gestor de Caché):** `http://localhost:8091`
 
 ---
 
-## � Credenciales de Prueba
+##  Credenciales de Prueba
 
 Para probar la plataforma base de manera local, puedes utilizar el endpoint de autenticación con las credenciales por defecto:
 

@@ -168,6 +168,8 @@ class GlobalExceptionHandlerTest {
 
     @Test
     void handleConcurrencyException_ShouldReturnConflict() {
+        when(i18nService.getMessage(MessageKey.ERROR_OPTIMISTIC_LOCK))
+                .thenReturn("Los datos fueron modificados por otro usuario.");
 
         ConcurrencyException exception = new ConcurrencyException("Product", 1);
 
@@ -176,11 +178,13 @@ class GlobalExceptionHandlerTest {
         assertNotNull(response);
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
         assertEquals(409, response.getBody().getStatus());
-        assertTrue(response.getBody().getMessage().contains("Product"));
+        assertTrue(response.getBody().getMessage().contains("modificados"));
     }
 
     @Test
     void handleStockLockException_ShouldReturnLocked() {
+        when(i18nService.getMessage(MessageKey.ERROR_PESSIMISTIC_LOCK))
+                .thenReturn("El recurso está siendo usado.");
 
         StockLockException exception = new StockLockException("Stock lock error");
 

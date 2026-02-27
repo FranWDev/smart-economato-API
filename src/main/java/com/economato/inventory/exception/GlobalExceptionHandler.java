@@ -106,7 +106,7 @@ public class GlobalExceptionHandler {
         log.warn("Conflicto de concurrencia: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.CONFLICT.value(),
-                ex.getMessage(),
+                i18nService.getMessage(MessageKey.ERROR_OPTIMISTIC_LOCK),
                 LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
@@ -127,7 +127,7 @@ public class GlobalExceptionHandler {
         log.warn("Error de bloqueo de stock: {}", ex.getMessage());
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.LOCKED.value(),
-                ex.getMessage(),
+                i18nService.getMessage(MessageKey.ERROR_PESSIMISTIC_LOCK),
                 LocalDateTime.now());
         return new ResponseEntity<>(error, HttpStatus.LOCKED);
     }
