@@ -93,7 +93,7 @@ class OrderServiceTest {
 
         testOrder = new Order();
         testOrder.setId(1);
-        testOrder.setUsers(testUser);
+        testOrder.setUser(testUser);
         testOrder.setOrderDate(LocalDateTime.now());
         testOrder.setStatus("CREATED");
         testOrder.setDetails(new ArrayList<>());
@@ -129,7 +129,7 @@ class OrderServiceTest {
         OrderProjection.UserInfo userInfo = mock(OrderProjection.UserInfo.class);
         lenient().when(userInfo.getId()).thenReturn(1);
         lenient().when(userInfo.getName()).thenReturn("Test User");
-        lenient().when(testProjection.getUsers()).thenReturn(userInfo);
+        lenient().when(testProjection.getUser()).thenReturn(userInfo);
 
         OrderProjection.OrderDetailSummary detailSummary = mock(OrderProjection.OrderDetailSummary.class);
         lenient().when(detailSummary.getQuantity()).thenReturn(new BigDecimal("5.0"));
@@ -265,14 +265,14 @@ class OrderServiceTest {
     @Test
     void findByUser_ShouldReturnUserOrders() {
 
-        when(repository.findProjectedByUsersId(1)).thenReturn(Arrays.asList(testProjection));
+        when(repository.findProjectedByUserId(1)).thenReturn(Arrays.asList(testProjection));
         when(orderMapper.toResponseDTO(any(OrderProjection.class))).thenReturn(testOrderResponseDTO);
 
         List<OrderResponseDTO> result = orderService.findByUser(testUserResponseDTO);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(repository).findProjectedByUsersId(1);
+        verify(repository).findProjectedByUserId(1);
     }
 
     @Test

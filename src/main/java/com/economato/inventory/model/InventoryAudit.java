@@ -37,7 +37,7 @@ public class InventoryAudit {
     @CreatedBy
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "fk_inventory_audit_user"))
-    private User users;
+    private User user;
 
     @NotBlank(message = "{validation.inventoryAudit.unknown.notBlank}")
     @Pattern(regexp = "ENTRADA|SALIDA|AJUSTE|RECEPCION|PRODUCCION", message = "{inventoryaudit.pattern.tipo.de.movimiento.inv.lido}")

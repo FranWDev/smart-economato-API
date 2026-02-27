@@ -11,12 +11,12 @@ import com.economato.inventory.model.OrderAudit;
 public interface OrderAuditMapper {
 
     @Mapping(source = "order.id", target = "orderId")
-    @Mapping(source = "users.id", target = "userId")
-    @Mapping(source = "users.name", target = "userName")
+    @Mapping(source = "user.id", target = "userId")
+    @Mapping(source = "user.name", target = "userName")
     OrderAuditResponseDTO toResponseDTO(OrderAudit audit);
 
     @Mapping(source = "order.id", target = "orderId")
-    @Mapping(source = "users.id", target = "userId")
-    @Mapping(source = "users.name", target = "userName")
+    @Mapping(source = "user.id", target = "userId")
+    @Mapping(source = "user.name", target = "userName")
     OrderAuditResponseDTO toResponseDTO(com.economato.inventory.dto.projection.OrderAuditProjection projection);
 }

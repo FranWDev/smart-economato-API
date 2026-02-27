@@ -77,7 +77,7 @@ public class AuditEventConsumer {
 
             InventoryAudit audit = new InventoryAudit();
             audit.setProduct(product);
-            audit.setUsers(user);
+            audit.setUser(user);
             audit.setMovementType(event.getMovementType());
             audit.setQuantity(event.getQuantity());
             audit.setActionDescription(event.getActionDescription());
@@ -114,7 +114,7 @@ public class AuditEventConsumer {
 
             RecipeAudit audit = new RecipeAudit();
             audit.setRecipe(recipe);
-            audit.setUsers(user);
+            audit.setUser(user);
             audit.setAction(event.getAction());
             audit.setDetails(event.getDetails());
             audit.setPreviousState(event.getPreviousState());
@@ -150,7 +150,7 @@ public class AuditEventConsumer {
 
             OrderAudit audit = new OrderAudit();
             audit.setOrder(order);
-            audit.setUsers(user);
+            audit.setUser(user);
             audit.setAction(event.getAction());
             audit.setDetails(event.getDetails());
             audit.setPreviousState(event.getPreviousState());
@@ -186,7 +186,7 @@ public class AuditEventConsumer {
 
             RecipeCookingAudit audit = new RecipeCookingAudit();
             audit.setRecipe(recipe);
-            audit.setUsers(user);
+            audit.setUser(user);
             audit.setQuantityCooked(event.getQuantityCooked());
             audit.setDetails(event.getDetails());
             audit.setComponentsState(event.getComponentsState());

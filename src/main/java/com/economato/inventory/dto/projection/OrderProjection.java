@@ -7,7 +7,7 @@ import java.util.List;
 public interface OrderProjection {
     Integer getId();
 
-    UserInfo getUsers();
+    UserInfo getUser();
 
     LocalDateTime getOrderDate();
 

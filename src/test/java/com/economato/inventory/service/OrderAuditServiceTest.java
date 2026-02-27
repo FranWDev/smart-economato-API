@@ -65,7 +65,7 @@ class OrderAuditServiceTest {
         testOrderAudit = new OrderAudit();
         testOrderAudit.setId(1);
         testOrderAudit.setOrder(testOrder);
-        testOrderAudit.setUsers(testUser);
+        testOrderAudit.setUser(testUser);
         testOrderAudit.setAction("CAMBIO_ESTADO");
         testOrderAudit.setDetails("Estado cambiado de CREATED a PENDING");
         testOrderAudit.setPreviousState("{\"status\":\"CREATED\"}");
@@ -99,7 +99,7 @@ class OrderAuditServiceTest {
         OrderAuditProjection.UserInfo userInfo = mock(OrderAuditProjection.UserInfo.class);
         lenient().when(userInfo.getId()).thenReturn(1);
         lenient().when(userInfo.getName()).thenReturn("Test User");
-        lenient().when(testProjection.getUsers()).thenReturn(userInfo);
+        lenient().when(testProjection.getUser()).thenReturn(userInfo);
 
         lenient().when(orderAuditMapper.toResponseDTO(any(OrderAuditProjection.class)))
                 .thenReturn(testOrderAuditResponseDTO);
@@ -197,14 +197,14 @@ class OrderAuditServiceTest {
     @Test
     void testFindByUserId_Success() {
 
-        when(orderAuditRepository.findProjectedByUsersId(1)).thenReturn(Arrays.asList(testProjection));
+        when(orderAuditRepository.findProjectedByUserId(1)).thenReturn(Arrays.asList(testProjection));
 
         List<OrderAuditResponseDTO> result = orderAuditService.findByUserId(1);
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testOrderAuditResponseDTO.getId(), result.get(0).getId());
-        verify(orderAuditRepository).findProjectedByUsersId(1);
+        verify(orderAuditRepository).findProjectedByUserId(1);
     }
 
     @Test

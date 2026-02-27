@@ -15,16 +15,16 @@ import java.math.BigDecimal;
         OrderDetailMapper.class }, nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface OrderMapper {
 
-    @Mapping(source = "users.id", target = "userId")
-    @Mapping(source = "users.name", target = "userName")
+    @Mapping(source = "user.id", target = "userId")
+    @Mapping(source = "user.name", target = "userName")
     @Mapping(source = ".", target = "totalPrice", qualifiedByName = "calculateTotalPrice")
     OrderResponseDTO toResponseDTO(Order order);
 
     @Mapping(source = "projection.id", target = "id")
     @Mapping(source = "projection.orderDate", target = "orderDate")
     @Mapping(source = "projection.status", target = "status")
-    @Mapping(source = "projection.users.id", target = "userId")
-    @Mapping(source = "projection.users.name", target = "userName")
+    @Mapping(source = "projection.user.id", target = "userId")
+    @Mapping(source = "projection.user.name", target = "userName")
     @Mapping(source = "projection.details", target = "details")
     OrderResponseDTO toResponseDTO(OrderProjection projection);
 

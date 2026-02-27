@@ -82,7 +82,7 @@ public class OrderService {
 
                 User user = userRepository.findById(requestDTO.getUserId())
                                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-                order.setUsers(user);
+                order.setUser(user);
 
                 for (OrderDetailRequestDTO detailDTO : requestDTO.getDetails()) {
                         Product product = productRepository.findById(detailDTO.getProductId())
@@ -117,7 +117,7 @@ public class OrderService {
                                         User user = userRepository.findById(requestDTO.getUserId())
                                                         .orElseThrow(() -> new ResourceNotFoundException(
                                                                         "User not found"));
-                                        existing.setUsers(user);
+                                        existing.setUser(user);
 
                                         existing.getDetails().clear();
 
@@ -149,7 +149,7 @@ public class OrderService {
 
         @Transactional(readOnly = true)
         public List<OrderResponseDTO> findByUser(com.economato.inventory.dto.response.UserResponseDTO user) {
-                return repository.findProjectedByUsersId(user.getId()).stream()
+                return repository.findProjectedByUserId(user.getId()).stream()
                                 .map(orderMapper::toResponseDTO)
                                 .toList();
         }
@@ -218,7 +218,7 @@ public class OrderService {
                                                 MovementType.ENTRADA,
                                                 String.format("Recepción de pedido #%d - %s", order.getId(),
                                                                 product.getName()),
-                                                order.getUsers(),
+                                                order.getUser(),
                                                 order.getId());
                         }
 

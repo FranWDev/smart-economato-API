@@ -73,7 +73,7 @@ public class OrderDetailControllerIntegrationTest extends BaseIntegrationTest {
                 productRepository.save(testProduct);
 
                 testOrder = new Order();
-                testOrder.setUsers(testUser);
+                testOrder.setUser(testUser);
                 testOrder.setOrderDate(LocalDateTime.now());
                 testOrder.setStatus("PENDING");
                 orderRepository.save(testOrder);

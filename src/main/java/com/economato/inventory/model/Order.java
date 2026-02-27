@@ -26,10 +26,10 @@ public class Order {
     private Integer id;
 
     @JsonIgnore
-    @NotNull(message = "{validation.order.users.notNull}")
+    @NotNull(message = "{validation.order.user.notNull}")
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_order_user"))
-    private User users;
+    private User user;
 
     @NotNull(message = "{validation.order.orderDate.notNull}")
     @PastOrPresent(message = "{validation.order.orderDate.pastOrPresent}")

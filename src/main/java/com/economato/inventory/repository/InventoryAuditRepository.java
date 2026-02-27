@@ -17,7 +17,7 @@ public interface InventoryAuditRepository extends JpaRepository<InventoryAudit, 
 
        List<InventoryAudit> findByProduct(Product product);
 
-       List<InventoryAudit> findByUsers(User users);
+       List<InventoryAudit> findByUser(User user);
 
        List<InventoryAudit> findByMovementType(String movementType);
 
@@ -25,13 +25,13 @@ public interface InventoryAuditRepository extends JpaRepository<InventoryAudit, 
 
        @Query("SELECT ia FROM InventoryAudit ia " +
                      "LEFT JOIN FETCH ia.product " +
-                     "LEFT JOIN FETCH ia.users " +
+                     "LEFT JOIN FETCH ia.user " +
                      "WHERE ia.movementType = :movementType")
        List<InventoryAudit> findByMovementTypeWithDetails(@Param("movementType") String movementType);
 
        @Query("SELECT ia FROM InventoryAudit ia " +
                      "LEFT JOIN FETCH ia.product " +
-                     "LEFT JOIN FETCH ia.users " +
+                     "LEFT JOIN FETCH ia.user " +
                      "WHERE ia.movementDate BETWEEN :start AND :end")
        List<InventoryAudit> findByMovementDateBetweenWithDetails(
                      @Param("start") LocalDateTime start,

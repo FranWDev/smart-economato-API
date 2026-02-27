@@ -143,7 +143,7 @@ public class OrderAuditAspect {
             state.put("id", order.getId());
             state.put("estado", order.getStatus());
             state.put("fechaOrden", order.getOrderDate());
-            state.put("usuarioId", order.getUsers() != null ? order.getUsers().getId() : null);
+            state.put("usuarioId", order.getUser() != null ? order.getUser().getId() : null);
             state.put("numeroDetalles", order.getDetails() != null ? order.getDetails().size() : 0);
             return objectMapper.writeValueAsString(state);
         } catch (Exception e) {

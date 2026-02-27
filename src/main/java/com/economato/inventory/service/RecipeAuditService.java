@@ -62,7 +62,7 @@ public class RecipeAuditService {
 
     @Transactional(readOnly = true)
     public List<RecipeAuditResponseDTO> findByUserId(Integer id) {
-        return repository.findProjectedByUsersId(id).stream()
+        return repository.findProjectedByUserId(id).stream()
                 .map(recipeAuditMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }

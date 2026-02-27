@@ -18,7 +18,7 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
     @Query("SELECT rca FROM RecipeCookingAudit rca WHERE rca.recipe.id = :recipeId ORDER BY rca.cookingDate DESC")
     List<RecipeCookingAudit> findByRecipeId(@Param("recipeId") Integer recipeId);
 
-    @Query("SELECT rca FROM RecipeCookingAudit rca WHERE rca.users.id = :userId ORDER BY rca.cookingDate DESC")
+    @Query("SELECT rca FROM RecipeCookingAudit rca WHERE rca.user.id = :userId ORDER BY rca.cookingDate DESC")
     List<RecipeCookingAudit> findByUserId(@Param("userId") Integer userId);
 
     @Query("SELECT rca FROM RecipeCookingAudit rca WHERE rca.cookingDate BETWEEN :startDate AND :endDate ORDER BY rca.cookingDate DESC")

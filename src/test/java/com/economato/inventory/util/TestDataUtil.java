@@ -144,7 +144,7 @@ public class TestDataUtil {
 
     public static Order createOrder(User user, String status) {
         Order order = new Order();
-        order.setUsers(user);
+        order.setUser(user);
         order.setOrderDate(LocalDateTime.now());
         order.setStatus(status);
         order.setDetails(new ArrayList<>());
@@ -163,7 +163,7 @@ public class TestDataUtil {
     public static InventoryAudit createInventoryAudit(User user, Product product, String movementType,
             BigDecimal quantity) {
         InventoryAudit audit = new InventoryAudit();
-        audit.setUsers(user);
+        audit.setUser(user);
         audit.setProduct(product);
         audit.setMovementDate(LocalDateTime.now());
         audit.setQuantity(quantity);

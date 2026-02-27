@@ -56,7 +56,7 @@ class RecipeCookingAuditServiceTest {
         testAudit = new RecipeCookingAudit();
         testAudit.setId(1L);
         testAudit.setRecipe(testRecipe);
-        testAudit.setUsers(testUser);
+        testAudit.setUser(testUser);
         testAudit.setQuantityCooked(new BigDecimal("2.5"));
         testAudit.setDetails("Test cooking");
         testAudit.setCookingDate(LocalDateTime.now());
@@ -152,7 +152,7 @@ class RecipeCookingAuditServiceTest {
         RecipeCookingAudit audit2 = new RecipeCookingAudit();
         audit2.setId(2L);
         audit2.setRecipe(testRecipe);
-        audit2.setUsers(testUser);
+        audit2.setUser(testUser);
         audit2.setQuantityCooked(new BigDecimal("3.0"));
         audit2.setCookingDate(LocalDateTime.now());
 

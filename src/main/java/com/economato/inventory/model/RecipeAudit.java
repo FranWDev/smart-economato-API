@@ -14,15 +14,12 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(
-    name = "recipe_audit",
-    indexes = {
+@Table(name = "recipe_audit", indexes = {
         @Index(name = "idx_recipe_audit_recipe", columnList = "recipe_id"),
         @Index(name = "idx_recipe_audit_user", columnList = "user_id"),
         @Index(name = "idx_recipe_audit_date", columnList = "audit_date"),
         @Index(name = "idx_recipe_audit_action", columnList = "action")
-    }
-)
+})
 @EntityListeners(AuditingEntityListener.class)
 public class RecipeAudit {
 
@@ -38,7 +35,7 @@ public class RecipeAudit {
     @CreatedBy
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "fk_recipe_audit_user"))
-    private User users;
+    private User user;
 
     @NotBlank(message = "{validation.recipeAudit.action.notBlank}")
     @Size(max = 100)

@@ -17,7 +17,7 @@ public interface RecipeAuditProjection {
 
     RecipeInfo getRecipe();
 
-    UserInfo getUsers();
+    UserInfo getUser();
 
     interface RecipeInfo {
         Integer getId();

@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Profile("!test")
 public class DataSourceAspect {
 
+    @SuppressWarnings("preview")
     @Around("@annotation(transactional)")
     public Object proceed(ProceedingJoinPoint pjp, Transactional transactional) throws Throwable {
         DataSourceType type = transactional.readOnly() ? DataSourceType.READER : DataSourceType.WRITER;

@@ -50,11 +50,11 @@ public class User {
         private Role role;
 
         @JsonIgnore
-        @OneToMany(mappedBy = "users")
+        @OneToMany(mappedBy = "user")
         private List<Order> orders;
 
         @JsonIgnore
-        @OneToMany(mappedBy = "users")
+        @OneToMany(mappedBy = "user")
         private List<InventoryAudit> inventoryMovements;
 
         @ManyToOne(fetch = FetchType.LAZY)

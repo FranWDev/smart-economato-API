@@ -128,7 +128,7 @@ public class AuditOutboxIntegrationTest extends BaseIntegrationTest {
         testUser = userRepository.save(testUser);
 
         testOrder = new Order();
-        testOrder.setUsers(testUser);
+        testOrder.setUser(testUser);
         testOrder.setOrderDate(LocalDateTime.now());
         testOrder.setStatus("PENDING");
         testOrder = orderRepository.save(testOrder);

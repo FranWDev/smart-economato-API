@@ -64,7 +64,7 @@ public class OrderAuditService {
 
     @Transactional(readOnly = true)
     public List<OrderAuditResponseDTO> findByUserId(Integer id) {
-        return repository.findProjectedByUsersId(id).stream()
+        return repository.findProjectedByUserId(id).stream()
                 .map(orderAuditMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }

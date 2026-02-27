@@ -19,14 +19,11 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(
-    name = "recipe_cooking_audit",
-    indexes = {
+@Table(name = "recipe_cooking_audit", indexes = {
         @Index(name = "idx_cooking_audit_recipe", columnList = "recipe_id"),
         @Index(name = "idx_cooking_audit_user", columnList = "user_id"),
         @Index(name = "idx_cooking_audit_date", columnList = "cooking_date")
-    }
-)
+})
 @EntityListeners(AuditingEntityListener.class)
 public class RecipeCookingAudit {
 
@@ -43,7 +40,7 @@ public class RecipeCookingAudit {
     @CreatedBy
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", foreignKey = @ForeignKey(name = "fk_cooking_audit_user"))
-    private User users;
+    private User user;
 
     @NotNull(message = "{validation.recipeCookingAudit.quantityCooked.notNull}")
     @DecimalMin(value = "0.001", message = "{validation.recipeCookingAudit.quantityCooked.decimalMin}")

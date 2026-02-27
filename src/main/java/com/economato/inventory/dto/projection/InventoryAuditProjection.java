@@ -20,7 +20,7 @@ public interface InventoryAuditProjection {
 
     ProductInfo getProduct();
 
-    UserInfo getUsers();
+    UserInfo getUser();
 
     interface ProductInfo {
         Integer getId();

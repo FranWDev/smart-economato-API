@@ -17,7 +17,7 @@ public interface OrderAuditProjection {
 
     OrderInfo getOrder();
 
-    UserInfo getUsers();
+    UserInfo getUser();
 
     interface OrderInfo {
         Integer getId();

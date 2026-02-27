@@ -13,19 +13,19 @@ public interface OrderAuditRepository extends JpaRepository<OrderAudit, Integer>
 
        List<OrderAudit> findByOrderId(Integer id);
 
-       List<OrderAudit> findByUsersId(Integer id);
+       List<OrderAudit> findByUserId(Integer id);
 
        List<OrderAudit> findByAuditDateBetween(LocalDateTime start, LocalDateTime end);
 
        @Query("SELECT oa FROM OrderAudit oa " +
                      "LEFT JOIN FETCH oa.order " +
-                     "LEFT JOIN FETCH oa.users " +
+                     "LEFT JOIN FETCH oa.user " +
                      "WHERE oa.order.id = :orderId")
        List<OrderAudit> findByOrderIdWithDetails(@Param("orderId") Integer orderId);
 
        @Query("SELECT oa FROM OrderAudit oa " +
                      "LEFT JOIN FETCH oa.order " +
-                     "LEFT JOIN FETCH oa.users " +
+                     "LEFT JOIN FETCH oa.user " +
                      "WHERE oa.auditDate BETWEEN :start AND :end")
        List<OrderAudit> findByAuditDateBetweenWithDetails(
                      @Param("start") LocalDateTime start,
@@ -41,8 +41,8 @@ public interface OrderAuditRepository extends JpaRepository<OrderAudit, Integer>
        List<com.economato.inventory.dto.projection.OrderAuditProjection> findProjectedByOrderId(
                      @Param("orderId") Integer orderId);
 
-       @Query("SELECT oa FROM OrderAudit oa WHERE oa.users.id = :userId")
-       List<com.economato.inventory.dto.projection.OrderAuditProjection> findProjectedByUsersId(
+       @Query("SELECT oa FROM OrderAudit oa WHERE oa.user.id = :userId")
+       List<com.economato.inventory.dto.projection.OrderAuditProjection> findProjectedByUserId(
                      @Param("userId") Integer userId);
 
        @Query("SELECT oa FROM OrderAudit oa WHERE oa.auditDate BETWEEN :start AND :end")
