@@ -8,6 +8,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import com.economato.inventory.model.Product;
 import com.economato.inventory.model.StockLedger;
 import com.economato.inventory.model.StockSnapshot;
+import com.economato.inventory.dto.response.IntegrityCheckResult;
 import com.economato.inventory.service.StockLedgerService;
 
 import java.math.BigDecimal;
@@ -25,7 +26,7 @@ class StockLedgerControllerIntegrationTest extends BaseControllerMockTest {
     private StockLedger testLedger;
     private List<StockLedger> testLedgers;
     private StockSnapshot testSnapshot;
-    private StockLedgerService.IntegrityCheckResult testIntegrityResult;
+    private IntegrityCheckResult testIntegrityResult;
 
     @BeforeEach
     void setUp() {
@@ -56,7 +57,7 @@ class StockLedgerControllerIntegrationTest extends BaseControllerMockTest {
         testSnapshot.setLastUpdated(LocalDateTime.now());
         testSnapshot.setLastVerified(LocalDateTime.now());
 
-        testIntegrityResult = new StockLedgerService.IntegrityCheckResult(
+        testIntegrityResult = new IntegrityCheckResult(
                 1,
                 "Test Product",
                 true,

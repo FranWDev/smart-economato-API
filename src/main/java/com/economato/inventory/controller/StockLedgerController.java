@@ -13,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.economato.inventory.dto.request.BatchStockMovementRequestDTO;
+import com.economato.inventory.dto.response.IntegrityCheckResult;
 import com.economato.inventory.dto.response.BatchStockMovementResponseDTO;
 import com.economato.inventory.dto.response.IntegrityCheckResponseDTO;
 import com.economato.inventory.dto.response.StockLedgerResponseDTO;
@@ -64,7 +65,7 @@ public class StockLedgerController {
     @GetMapping("/verify/{productId}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<IntegrityCheckResponseDTO> verifyProductIntegrity(@PathVariable Integer productId) {
-        StockLedgerService.IntegrityCheckResult result = stockLedgerService.verifyChainIntegrity(productId);
+        IntegrityCheckResult result = stockLedgerService.verifyChainIntegrity(productId);
 
         List<StockLedger> history = stockLedgerService.getProductHistory(productId);
 
@@ -89,7 +90,7 @@ public class StockLedgerController {
     @GetMapping("/verify-all")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<IntegrityCheckResponseDTO>> verifyAllChains() {
-        List<StockLedgerService.IntegrityCheckResult> results = stockLedgerService.verifyAllChains();
+        List<IntegrityCheckResult> results = stockLedgerService.verifyAllChains();
 
         List<IntegrityCheckResponseDTO> response = results.stream()
                 .map(result -> {

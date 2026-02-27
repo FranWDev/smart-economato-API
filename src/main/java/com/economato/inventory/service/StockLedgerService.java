@@ -7,6 +7,8 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.dto.request.BatchStockMovementRequestDTO;
+import com.economato.inventory.dto.request.BatchMovementItem;
+import com.economato.inventory.dto.response.IntegrityCheckResult;
 import com.economato.inventory.exception.InvalidOperationException;
 import com.economato.inventory.model.MovementType;
 import com.economato.inventory.model.Product;
@@ -56,6 +58,17 @@ public class StockLedgerService {
 
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public StockLedger recordStockMovement(
+            Integer productId,
+            BigDecimal quantityDelta,
+            MovementType movementType,
+            String description,
+            User user,
+            Integer orderId) {
+
+        return recordStockMovementInternal(productId, quantityDelta, movementType, description, user, orderId);
+    }
+
+    private StockLedger recordStockMovementInternal(
             Integer productId,
             BigDecimal quantityDelta,
             MovementType movementType,
@@ -314,43 +327,6 @@ public class StockLedgerService {
                 deletedCount, product.getName(), product.getCurrentStock(), product.getUnit());
     }
 
-    public static class IntegrityCheckResult {
-        private final Integer productId;
-        private final String productName;
-        private final boolean valid;
-        private final String message;
-        private final List<String> errors;
-
-        public IntegrityCheckResult(Integer productId, String productName, boolean valid, String message,
-                List<String> errors) {
-            this.productId = productId;
-            this.productName = productName;
-            this.valid = valid;
-            this.message = message;
-            this.errors = errors;
-        }
-
-        public Integer getProductId() {
-            return productId;
-        }
-
-        public String getProductName() {
-            return productName;
-        }
-
-        public boolean isValid() {
-            return valid;
-        }
-
-        public String getMessage() {
-            return message;
-        }
-
-        public List<String> getErrors() {
-            return errors;
-        }
-    }
-
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public List<StockLedger> recordBatchStockMovements(
             List<BatchMovementItem> movements,
@@ -363,7 +339,7 @@ public class StockLedgerService {
 
         try {
             for (BatchMovementItem item : movements) {
-                StockLedger transaction = recordStockMovement(
+                StockLedger transaction = recordStockMovementInternal(
                         item.getProductId(),
                         item.getQuantityDelta(),
                         item.getMovementType(),
@@ -401,34 +377,4 @@ public class StockLedgerService {
         return recordBatchStockMovements(movements, currentUser, request.getOrderId());
     }
 
-    public static class BatchMovementItem {
-        private final Integer productId;
-        private final BigDecimal quantityDelta;
-        private final MovementType movementType;
-        private final String description;
-
-        public BatchMovementItem(Integer productId, BigDecimal quantityDelta,
-                MovementType movementType, String description) {
-            this.productId = productId;
-            this.quantityDelta = quantityDelta;
-            this.movementType = movementType;
-            this.description = description;
-        }
-
-        public Integer getProductId() {
-            return productId;
-        }
-
-        public BigDecimal getQuantityDelta() {
-            return quantityDelta;
-        }
-
-        public MovementType getMovementType() {
-            return movementType;
-        }
-
-        public String getDescription() {
-            return description;
-        }
-    }
 }

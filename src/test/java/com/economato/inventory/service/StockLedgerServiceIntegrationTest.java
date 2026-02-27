@@ -10,6 +10,8 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.exception.InvalidOperationException;
+import com.economato.inventory.dto.request.BatchStockMovementRequestDTO;
+import com.economato.inventory.dto.response.IntegrityCheckResult;
 import com.economato.inventory.model.MovementType;
 import com.economato.inventory.model.Product;
 import com.economato.inventory.model.StockLedger;
@@ -185,7 +187,7 @@ class StockLedgerServiceIntegrationTest {
                                         null);
                 }
 
-                StockLedgerService.IntegrityCheckResult result = stockLedgerService
+                IntegrityCheckResult result = stockLedgerService
                                 .verifyChainIntegrity(testProduct.getId());
 
                 assertTrue(result.isValid(), "La cadena debería ser válida");
@@ -217,7 +219,7 @@ class StockLedgerServiceIntegrationTest {
                                 "UPDATE stock_ledger SET resulting_stock = 9999 WHERE transaction_id = ?",
                                 tx2.getId());
 
-                StockLedgerService.IntegrityCheckResult result = stockLedgerService
+                IntegrityCheckResult result = stockLedgerService
                                 .verifyChainIntegrity(testProduct.getId());
 
                 assertFalse(result.isValid(), "¡Debería detectar la corrupción!");
@@ -245,7 +247,7 @@ class StockLedgerServiceIntegrationTest {
                                 "UPDATE stock_ledger SET quantity_delta = 5000 WHERE transaction_id = ?",
                                 tx1.getId());
 
-                StockLedgerService.IntegrityCheckResult result = stockLedgerService
+                IntegrityCheckResult result = stockLedgerService
                                 .verifyChainIntegrity(testProduct.getId());
 
                 assertFalse(result.isValid());
@@ -273,7 +275,7 @@ class StockLedgerServiceIntegrationTest {
                                 "UPDATE stock_ledger SET previous_hash = 'FAKE_HASH' WHERE transaction_id = ?",
                                 tx2.getId());
 
-                StockLedgerService.IntegrityCheckResult result = stockLedgerService
+                IntegrityCheckResult result = stockLedgerService
                                 .verifyChainIntegrity(testProduct.getId());
 
                 assertFalse(result.isValid());
@@ -302,7 +304,7 @@ class StockLedgerServiceIntegrationTest {
 
                 jdbcTemplate.update("DELETE FROM stock_ledger WHERE transaction_id = ?", tx2.getId());
 
-                StockLedgerService.IntegrityCheckResult result = stockLedgerService
+                IntegrityCheckResult result = stockLedgerService
                                 .verifyChainIntegrity(testProduct.getId());
 
                 assertFalse(result.isValid());
@@ -388,10 +390,10 @@ class StockLedgerServiceIntegrationTest {
                                 product2.getId(), new BigDecimal("20.0"), MovementType.ENTRADA, "P2-TX1", testUser,
                                 null);
 
-                List<StockLedgerService.IntegrityCheckResult> results = stockLedgerService.verifyAllChains();
+                List<IntegrityCheckResult> results = stockLedgerService.verifyAllChains();
 
                 assertEquals(2, results.size());
-                assertTrue(results.stream().allMatch(StockLedgerService.IntegrityCheckResult::isValid));
+                assertTrue(results.stream().allMatch(IntegrityCheckResult::isValid));
 
                 StockSnapshot snapshot1 = snapshotRepository.findById(testProduct.getId()).orElseThrow();
                 StockSnapshot snapshot2 = snapshotRepository.findById(product2.getId()).orElseThrow();
@@ -481,7 +483,7 @@ class StockLedgerServiceIntegrationTest {
                 assertEquals(1L, newTx.getSequenceNumber(), "Debe empezar en secuencia 1");
                 assertEquals("GENESIS", newTx.getPreviousHash(), "Debe tener previousHash GENESIS");
 
-                StockLedgerService.IntegrityCheckResult integrity = stockLedgerService
+                IntegrityCheckResult integrity = stockLedgerService
                                 .verifyChainIntegrity(testProduct.getId());
                 assertTrue(integrity.isValid(), "La nueva cadena debe ser válida");
         }

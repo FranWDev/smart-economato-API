@@ -19,7 +19,6 @@ import com.economato.inventory.security.JwtUtils;
 import java.util.Date;
 
 @Service
-@Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
 public class AuthService {
     private final I18nService i18nService;
 
@@ -39,7 +38,6 @@ public class AuthService {
         this.tokenBlacklistService = tokenBlacklistService;
     }
 
-    @Transactional(readOnly = true)
     public LoginResponseDTO login(LoginRequestDTO loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -49,6 +47,7 @@ public class AuthService {
         return jwtUtils.generateJwtToken(authentication);
     }
 
+    @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public void logout(String token) {
         if (token != null && !token.isEmpty()) {
             try {

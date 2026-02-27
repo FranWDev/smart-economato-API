@@ -37,8 +37,6 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
-@Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
-                Exception.class })
 public class OrderService {
         private final I18nService i18nService;
 

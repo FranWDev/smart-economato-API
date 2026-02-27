@@ -40,7 +40,7 @@ USER spring:spring
 EXPOSE 8081
 
 
-ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseG1GC -XX:MaxGCPauseMillis=200"
+ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseZGC -XX:+ZGenerational -XX:MaxGCPauseMillis=200"
 
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
