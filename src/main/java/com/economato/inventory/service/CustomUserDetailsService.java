@@ -1,5 +1,8 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.i18n.I18nService;
+import com.economato.inventory.i18n.MessageKey;
+
 import java.util.Collections;
 import java.util.List;
 import java.util.Collection;
@@ -23,10 +26,12 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private static final long CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutos
 
+    private final I18nService i18nService;
     private final UserRepository userRepository;
     private final Map<String, CachedEntry> cache = new ConcurrentHashMap<>();
 
-    public CustomUserDetailsService(UserRepository userRepository) {
+    public CustomUserDetailsService(I18nService i18nService, UserRepository userRepository) {
+        this.i18nService = i18nService;
         this.userRepository = userRepository;
     }
 
@@ -43,7 +48,8 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         // Validar que el usuario no esté oculto
         if (user.isHidden()) {
-            throw new UsernameNotFoundException("User is hidden and cannot login: " + username);
+            throw new UsernameNotFoundException(
+                    i18nService.getMessage(MessageKey.ERROR_AUTH_USER_HIDDEN) + ": " + username);
         }
 
         CachedEntry entry = new CachedEntry(user.getName(), user.getPassword(), "ROLE_" + user.getRole());

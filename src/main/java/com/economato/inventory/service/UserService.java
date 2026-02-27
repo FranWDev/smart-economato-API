@@ -88,7 +88,8 @@ public class UserService {
     @Transactional(readOnly = true)
     public User findByUsername(String username) {
         return repository.findByName(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
+                .orElseThrow(
+                        () -> new UsernameNotFoundException(i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND)));
     }
 
     @Transactional(readOnly = true)
@@ -158,7 +159,8 @@ public class UserService {
     public void deleteById(Integer id) {
 
         User user = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND) + ": " + id));
 
         if (Role.ADMIN.equals(user.getRole())) {
             long adminCount = repository.countByRole(Role.ADMIN);

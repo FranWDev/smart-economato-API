@@ -513,7 +513,7 @@ class RecipeServiceTest {
             recipeService.cookRecipe(cookingRequest);
         });
 
-        assertTrue(exception.getMessage().contains("Stock insuficiente"));
+        assertTrue(exception.getMessage().contains("ERROR_RECIPE_STOCK_INSUFFICIENT"));
         assertTrue(exception.getMessage().contains(testProduct.getName()));
         verify(stockLedgerService, never()).recordStockMovement(anyInt(), any(), any(), any(), any(), any());
     }

@@ -9,6 +9,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
+import com.economato.inventory.i18n.I18nService;
+import com.economato.inventory.i18n.MessageKey;
 import com.economato.inventory.model.Role;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.UserRepository;
@@ -23,6 +25,8 @@ class CustomUserDetailsServiceTest {
 
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private I18nService i18nService;
 
     @InjectMocks
     private CustomUserDetailsService customUserDetailsService;
@@ -38,6 +42,8 @@ class CustomUserDetailsServiceTest {
         testUser.setPassword("encodedPassword");
         testUser.setRole(Role.USER);
         testUser.setHidden(false);
+        lenient().when(i18nService.getMessage(any(MessageKey.class)))
+                .thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
     }
 
     @Test
@@ -80,7 +86,7 @@ class CustomUserDetailsServiceTest {
 
         UsernameNotFoundException exception = assertThrows(UsernameNotFoundException.class,
                 () -> customUserDetailsService.loadUserByUsername("testUser"));
-        assertTrue(exception.getMessage().contains("hidden"));
+        assertTrue(exception.getMessage().contains("ERROR_AUTH_USER_HIDDEN"));
     }
 
     @Test

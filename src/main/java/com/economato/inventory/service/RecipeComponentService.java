@@ -35,7 +35,7 @@ public class RecipeComponentService {
     private final RecipeRepository recipeRepository;
     private final RecipeComponentMapper recipeComponentMapper;
 
-    public RecipeComponentService(I18nService i18nService, 
+    public RecipeComponentService(I18nService i18nService,
             RecipeComponentRepository repository,
             ProductRepository productRepository,
             RecipeRepository recipeRepository,
@@ -70,7 +70,7 @@ public class RecipeComponentService {
         // recargar con proyección
         return repository.findProjectedById(component.getId())
                 .map(recipeComponentMapper::toResponseDTO)
-                .orElseThrow(() -> new RuntimeException("Saved component not found"));
+                .orElseThrow(() -> new RuntimeException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
     }
 
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
@@ -83,7 +83,8 @@ public class RecipeComponentService {
 
                     return repository.findProjectedById(existing.getId())
                             .map(recipeComponentMapper::toResponseDTO)
-                            .orElseThrow(() -> new RuntimeException("Updated component not found"));
+                            .orElseThrow(() -> new RuntimeException(
+                                    i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
                 });
     }
 
@@ -109,13 +110,15 @@ public class RecipeComponentService {
 
         // Asignar el producto
         Product product = productRepository.findById(requestDTO.getProductId())
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND)));
         component.setProduct(product);
 
         // Asignar la receta
         if (requestDTO.getRecipeId() != null) {
             Recipe recipe = recipeRepository.findById(requestDTO.getRecipeId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Recipe not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            i18nService.getMessage(MessageKey.ERROR_RECIPE_NOT_FOUND)));
             component.setParentRecipe(recipe);
         } else {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_RECIPE_ID_NULL));

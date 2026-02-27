@@ -66,7 +66,8 @@ public class SupplierService {
                 .map(existing -> {
                     if (!existing.getName().equals(requestDTO.getName()) &&
                             repository.existsByName(requestDTO.getName())) {
-                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_SUPPLIER_ALREADY_EXISTS));
+                        throw new InvalidOperationException(
+                                i18nService.getMessage(MessageKey.ERROR_SUPPLIER_ALREADY_EXISTS));
                     }
                     supplierMapper.updateEntity(requestDTO, existing);
                     return supplierMapper.toResponseDTO(repository.save(existing));
@@ -79,7 +80,7 @@ public class SupplierService {
         repository.findById(id).ifPresent(supplier -> {
             if (productRepository.existsBySupplierId(id)) {
                 throw new InvalidOperationException(
-                        "No se puede eliminar el proveedor porque tiene productos asociados");
+                        i18nService.getMessage(MessageKey.ERROR_SUPPLIER_DELETE_HAS_PRODUCTS));
             }
             repository.deleteById(id);
         });

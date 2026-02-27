@@ -145,7 +145,8 @@ public class RecipeService {
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void toggleRecipeHiddenStatus(Integer id, boolean hidden) {
         Recipe recipe = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Receta no encontrada con ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        i18nService.getMessage(MessageKey.ERROR_RECIPE_NOT_FOUND) + ": " + id));
 
         recipe.setHidden(hidden);
         repository.save(recipe);
@@ -195,7 +196,8 @@ public class RecipeService {
 
             for (RecipeComponentRequestDTO componentDTO : mergedComponents) {
                 Product product = productRepository.findById(componentDTO.getProductId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND)));
 
                 RecipeComponent existingComponent = recipe.getComponents().stream()
                         .filter(c -> c.getProduct().getId().equals(componentDTO.getProductId()))
@@ -252,7 +254,8 @@ public class RecipeService {
 
         Recipe recipe = repository.findByIdWithDetails(cookingRequest.getRecipeId())
                 .orElseThrow(
-                        () -> new ResourceNotFoundException("Receta no encontrada: " + cookingRequest.getRecipeId()));
+                        () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RECIPE_NOT_FOUND)
+                                + ": " + cookingRequest.getRecipeId()));
 
         if (recipe.getComponents() == null || recipe.getComponents().isEmpty()) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_RECIPE_NO_COMPONENTS));
@@ -263,7 +266,8 @@ public class RecipeService {
         for (RecipeComponent component : recipe.getComponents()) {
             Product product = productRepository.findById(component.getProduct().getId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "Producto no encontrado: " + component.getProduct().getId()));
+                            i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND) + ": "
+                                    + component.getProduct().getId()));
 
             BigDecimal requiredQuantity = component.getQuantity().multiply(cookingRequest.getQuantity());
 
@@ -277,17 +281,9 @@ public class RecipeService {
                     .divide(BigDecimal.valueOf(100), 3, java.math.RoundingMode.DOWN);
 
             if (usableStock.compareTo(requiredQuantity) < 0) {
-                String errorMessage = String.format(
-                        "Stock insuficiente del producto '%s'. Stock total: %s %s, Stock utilizable (%s%%): %s %s, Requerido: %s %s",
-                        product.getName(),
-                        product.getCurrentStock(),
-                        product.getUnit(),
-                        availabilityPercent,
-                        usableStock,
-                        product.getUnit(),
-                        requiredQuantity,
-                        product.getUnit());
-                throw new InvalidOperationException(errorMessage);
+                throw new InvalidOperationException(
+                        i18nService.getMessage(MessageKey.ERROR_RECIPE_STOCK_INSUFFICIENT) + ": " + product.getName() +
+                                ". Solicitado: " + requiredQuantity + ", Disponible: " + usableStock);
             }
 
             stockLedgerService.recordStockMovement(

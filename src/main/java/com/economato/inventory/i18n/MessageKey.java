@@ -39,7 +39,18 @@ public enum MessageKey {
     ERROR_INTERNAL_SERVER_ERROR("error.internal.server.error"),
     ERROR_AUTH_BAD_CREDENTIALS("error.auth.bad.credentials"),
     ERROR_AUTH_JWT_INVALID("error.auth.jwt.invalid"),
-    ERROR_AUTH_JWT_MISSING("error.auth.jwt.missing");
+    ERROR_AUTH_JWT_MISSING("error.auth.jwt.missing"),
+
+    ERROR_RESOURCE_NOT_FOUND("error.resource.not.found"),
+    ERROR_USER_NOT_FOUND("error.user.not.found"),
+    ERROR_PRODUCT_NOT_FOUND("error.product.not.found"),
+    ERROR_RECIPE_NOT_FOUND("error.recipe.not.found"),
+    ERROR_SUPPLIER_NOT_FOUND("error.supplier.not.found"),
+    ERROR_SUPPLIER_DELETE_HAS_PRODUCTS("error.supplier.delete.has.products"),
+    ERROR_ORDER_NOT_FOUND_GENERAL("error.order.not.found.general"),
+    ERROR_RECIPE_STOCK_INSUFFICIENT("error.recipe.stock.insufficient"),
+    ERROR_STOCK_HASH_CALCULATION("error.stock.hash.calculation"),
+    ERROR_AUTH_USER_HIDDEN("error.auth.user.hidden");
 
     private final String key;
 

@@ -1,5 +1,7 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.i18n.I18nService;
+import com.economato.inventory.i18n.MessageKey;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,15 +27,18 @@ import java.util.Optional;
                 Exception.class })
 public class OrderDetailService {
 
+        private final I18nService i18nService;
         private final OrderDetailRepository repository;
         private final OrderRepository orderRepository;
         private final ProductRepository productRepository;
         private final OrderDetailMapper orderDetailMapper;
 
-        public OrderDetailService(OrderDetailRepository repository,
+        public OrderDetailService(I18nService i18nService,
+                        OrderDetailRepository repository,
                         OrderRepository orderRepository,
                         ProductRepository productRepository,
                         OrderDetailMapper orderDetailMapper) {
+                this.i18nService = i18nService;
                 this.repository = repository;
                 this.orderRepository = orderRepository;
                 this.productRepository = productRepository;
@@ -57,10 +62,12 @@ public class OrderDetailService {
                         RuntimeException.class, Exception.class })
         public OrderDetailResponseDTO save(OrderDetailRequestDTO requestDTO) {
                 Order order = orderRepository.findById(requestDTO.getOrderId())
-                                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                i18nService.getMessage(MessageKey.ERROR_ORDER_NOT_FOUND_GENERAL)));
 
                 Product product = productRepository.findById(requestDTO.getProductId())
-                                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND)));
 
                 OrderDetail orderDetail = orderDetailMapper.toEntity(requestDTO);
                 orderDetail.setOrder(order);
@@ -71,7 +78,8 @@ public class OrderDetailService {
 
                 return repository.findProjectedById(orderDetail.getOrder().getId(), orderDetail.getProduct().getId())
                                 .map(orderDetailMapper::toResponseDTO)
-                                .orElseThrow(() -> new RuntimeException("Saved detail not found"));
+                                .orElseThrow(() -> new RuntimeException(
+                                                i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
         }
 
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,

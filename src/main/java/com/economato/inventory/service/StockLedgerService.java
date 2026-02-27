@@ -1,5 +1,7 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.i18n.I18nService;
+import com.economato.inventory.i18n.MessageKey;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,7 @@ import java.util.Optional;
 @Transactional(rollbackFor = Exception.class)
 public class StockLedgerService {
 
+    private final I18nService i18nService;
     private final StockLedgerRepository ledgerRepository;
     private final StockSnapshotRepository snapshotRepository;
     private final ProductRepository productRepository;
@@ -44,11 +47,13 @@ public class StockLedgerService {
     private static final String GENESIS_HASH = "GENESIS";
 
     public StockLedgerService(
+            I18nService i18nService,
             StockLedgerRepository ledgerRepository,
             StockSnapshotRepository snapshotRepository,
             ProductRepository productRepository,
             SecurityContextHelper securityContextHelper,
             Environment environment) {
+        this.i18nService = i18nService;
         this.ledgerRepository = ledgerRepository;
         this.snapshotRepository = snapshotRepository;
         this.productRepository = productRepository;
@@ -173,7 +178,7 @@ public class StockLedgerService {
             return java.util.HexFormat.of().formatHex(hashBytes);
 
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("Error calculando hash SHA-256", e);
+            throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_STOCK_HASH_CALCULATION), e);
         }
     }
 

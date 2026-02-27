@@ -131,7 +131,7 @@ public class ProductService {
                     try {
                         return productMapper.toResponseDTO(repository.save(existing));
                     } catch (OptimisticLockingFailureException ex) {
-                        throw new ConcurrencyException("Product", id);
+                        throw new ConcurrencyException(i18nService.getMessage(MessageKey.ERROR_OPTIMISTIC_LOCK), id);
                     }
                 });
     }
@@ -140,7 +140,8 @@ public class ProductService {
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
         Product product = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND)));
 
         if (movementRepository.existsByProductId(id)) {
             throw new InvalidOperationException(
@@ -262,7 +263,8 @@ public class ProductService {
                         try {
                             return productMapper.toResponseDTO(repository.save(existing));
                         } catch (OptimisticLockingFailureException ex) {
-                            throw new ConcurrencyException("Product", id);
+                            throw new ConcurrencyException(i18nService.getMessage(MessageKey.ERROR_OPTIMISTIC_LOCK),
+                                    id);
                         }
                     }
                 });

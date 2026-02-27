@@ -81,12 +81,14 @@ public class OrderService {
                 order.setStatus("CREATED");
 
                 User user = userRepository.findById(requestDTO.getUserId())
-                                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND)));
                 order.setUser(user);
 
                 for (OrderDetailRequestDTO detailDTO : requestDTO.getDetails()) {
                         Product product = productRepository.findById(detailDTO.getProductId())
-                                        .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+                                        .orElseThrow(() -> new ResourceNotFoundException(
+                                                        i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND)));
 
                         OrderDetail detail = new OrderDetail();
                         detail.setOrder(order);
@@ -116,7 +118,8 @@ public class OrderService {
                                 .map(existing -> {
                                         User user = userRepository.findById(requestDTO.getUserId())
                                                         .orElseThrow(() -> new ResourceNotFoundException(
-                                                                        "User not found"));
+                                                                        i18nService.getMessage(
+                                                                                        MessageKey.ERROR_USER_NOT_FOUND)));
                                         existing.setUser(user);
 
                                         existing.getDetails().clear();
@@ -126,7 +129,8 @@ public class OrderService {
                                         for (OrderDetailRequestDTO detailDTO : requestDTO.getDetails()) {
                                                 Product product = productRepository.findById(detailDTO.getProductId())
                                                                 .orElseThrow(() -> new ResourceNotFoundException(
-                                                                                "Product not found"));
+                                                                                i18nService.getMessage(
+                                                                                                MessageKey.ERROR_PRODUCT_NOT_FOUND)));
 
                                                 OrderDetail detail = new OrderDetail();
                                                 detail.setOrder(existing);
@@ -211,7 +215,8 @@ public class OrderService {
                         for (OrderDetail detail : order.getDetails()) {
                                 Product product = productRepository.findByIdForUpdate(detail.getProduct().getId())
                                                 .orElseThrow(() -> new ResourceNotFoundException(
-                                                                "Producto no encontrado"));
+                                                                i18nService.getMessage(
+                                                                                MessageKey.ERROR_PRODUCT_NOT_FOUND)));
 
                                 stockLedgerService.recordStockMovement(
                                                 product.getId(),
