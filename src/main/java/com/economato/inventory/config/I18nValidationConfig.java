@@ -61,6 +61,11 @@ public class I18nValidationConfig {
                 Locale.forLanguageTag("uk"),
                 Locale.forLanguageTag("ja"),
                 Locale.forLanguageTag("zh"),
+                Locale.forLanguageTag("ar"),
+                Locale.forLanguageTag("bn"),
+                Locale.forLanguageTag("hi"),
+                Locale.forLanguageTag("id"),
+                Locale.forLanguageTag("ko"),
                 Locale.forLanguageTag("eo")));
         return resolver;
     }

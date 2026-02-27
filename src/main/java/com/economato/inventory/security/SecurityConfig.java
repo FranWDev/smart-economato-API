@@ -1,5 +1,8 @@
 package com.economato.inventory.security;
 
+import com.economato.inventory.i18n.I18nService;
+import com.economato.inventory.i18n.MessageKey;
+
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,9 +18,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.servlet.LocaleResolver;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 @Configuration
 @EnableWebSecurity
@@ -25,9 +30,13 @@ import java.util.List;
 public class SecurityConfig {
 
         private final JwtFilter jwtFilter;
+        private final I18nService i18nService;
+        private final LocaleResolver localeResolver;
 
-        public SecurityConfig(JwtFilter jwtFilter) {
+        public SecurityConfig(JwtFilter jwtFilter, I18nService i18nService, LocaleResolver localeResolver) {
                 this.jwtFilter = jwtFilter;
+                this.i18nService = i18nService;
+                this.localeResolver = localeResolver;
         }
 
         @Bean
@@ -103,8 +112,12 @@ public class SecurityConfig {
                                                 .authenticationEntryPoint((request, response, authException) -> {
                                                         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                                                         response.setContentType("application/json");
+                                                        Locale locale = localeResolver.resolveLocale(request);
+                                                        String message = i18nService.getMessage(
+                                                                        MessageKey.ERROR_AUTH_UNAUTHORIZED, locale);
                                                         response.getWriter().write(
-                                                                        "{\"status\":401,\"message\":\"No autorizado\"}");
+                                                                        String.format("{\"status\":401,\"message\":\"%s\"}",
+                                                                                        message));
                                                 }))
                                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                                 .build();

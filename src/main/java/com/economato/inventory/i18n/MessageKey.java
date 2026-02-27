@@ -16,6 +16,7 @@ public enum MessageKey {
     ERROR_AUTH_USER_ALREADY_EXISTS("error.auth.user.already.exists"),
     ERROR_AUTH_INVALID_LOGOUT_TOKEN("error.auth.invalid.logout.token"),
     ERROR_AUTH_LOGOUT_TOKEN_REQUIRED("error.auth.logout.token.required"),
+    ERROR_AUTH_UNAUTHORIZED("error.auth.unauthorized"),
 
     ERROR_PRODUCT_ALREADY_EXISTS("error.product.already.exists"),
     ERROR_PRODUCT_DELETE_HAS_MOVEMENTS("error.product.delete.has.movements"),
