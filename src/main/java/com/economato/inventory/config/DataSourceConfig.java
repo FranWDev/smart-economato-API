@@ -5,6 +5,7 @@ import java.util.Map;
 
 import javax.sql.DataSource;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
@@ -30,15 +31,16 @@ public class DataSourceConfig {
 
     @Bean
     @Primary
-    public DataSource dataSource() {
+    public DataSource dataSource(@Qualifier("writerDataSource") DataSource writer,
+            @Qualifier("readerDataSource") DataSource reader) {
         RoutingDataSource routingDataSource = new RoutingDataSource();
 
         Map<Object, Object> targetDataSources = new HashMap<>();
-        targetDataSources.put(DataSourceType.WRITER, writerDataSource());
-        targetDataSources.put(DataSourceType.READER, readerDataSource());
+        targetDataSources.put(DataSourceType.WRITER, writer);
+        targetDataSources.put(DataSourceType.READER, reader);
 
         routingDataSource.setTargetDataSources(targetDataSources);
-        routingDataSource.setDefaultTargetDataSource(writerDataSource());
+        routingDataSource.setDefaultTargetDataSource(writer);
 
         return routingDataSource;
     }

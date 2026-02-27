@@ -16,15 +16,19 @@ public class DataSourceAspect {
 
     @Around("@annotation(transactional)")
     public Object proceed(ProceedingJoinPoint pjp, Transactional transactional) throws Throwable {
-        try {
-            if (transactional.readOnly()) {
-                DbContextHolder.set(DataSourceType.READER);
-            } else {
-                DbContextHolder.set(DataSourceType.WRITER);
-            }
-            return pjp.proceed();
-        } finally {
-            DbContextHolder.clear();
-        }
+        DataSourceType type = transactional.readOnly() ? DataSourceType.READER : DataSourceType.WRITER;
+        return ScopedValue.where(DbContextHolder.CONTEXT, type)
+                .call(() -> {
+                    try {
+                        return pjp.proceed();
+                    } catch (Throwable t) {
+                        if (t instanceof RuntimeException) {
+                            throw (RuntimeException) t;
+                        } else if (t instanceof Error) {
+                            throw (Error) t;
+                        }
+                        throw new RuntimeException(t);
+                    }
+                });
     }
 }
