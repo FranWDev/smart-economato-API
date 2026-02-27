@@ -4,7 +4,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 
 import com.economato.inventory.dto.response.OrderAuditResponseDTO;
 
@@ -40,12 +39,12 @@ class OrderAuditControllerIntegrationTest extends BaseControllerMockTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    
     void getAllOrderAudits_ShouldReturnList() throws Exception {
 
         when(orderAuditService.findAll(any(Pageable.class))).thenReturn(testOrderAudits);
 
-        mockMvc.perform(get("/api/order-audits")
+        mockMvc.perform(get("/api/order-audits").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .param("page", "0")
                 .param("size", "10")
                 .contentType(MediaType.APPLICATION_JSON))
@@ -57,12 +56,12 @@ class OrderAuditControllerIntegrationTest extends BaseControllerMockTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    
     void getOrderAuditById_WhenExists_ShouldReturnAudit() throws Exception {
 
         when(orderAuditService.findById(1)).thenReturn(Optional.of(testOrderAudit));
 
-        mockMvc.perform(get("/api/order-audits/1")
+        mockMvc.perform(get("/api/order-audits/1").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
@@ -71,23 +70,23 @@ class OrderAuditControllerIntegrationTest extends BaseControllerMockTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    
     void getOrderAuditById_WhenNotExists_ShouldReturn404() throws Exception {
 
         when(orderAuditService.findById(anyInt())).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/order-audits/999")
+        mockMvc.perform(get("/api/order-audits/999").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    
     void getOrderAuditsByOrderId_ShouldReturnList() throws Exception {
 
         when(orderAuditService.findByOrderId(1)).thenReturn(testOrderAudits);
 
-        mockMvc.perform(get("/api/order-audits/by-order/1")
+        mockMvc.perform(get("/api/order-audits/by-order/1").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -95,12 +94,12 @@ class OrderAuditControllerIntegrationTest extends BaseControllerMockTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    
     void getOrderAuditsByUserId_ShouldReturnList() throws Exception {
 
         when(orderAuditService.findByUserId(1)).thenReturn(testOrderAudits);
 
-        mockMvc.perform(get("/api/order-audits/by-user/1")
+        mockMvc.perform(get("/api/order-audits/by-user/1").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -108,7 +107,7 @@ class OrderAuditControllerIntegrationTest extends BaseControllerMockTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    
     void getOrderAuditsByDateRange_ShouldReturnList() throws Exception {
 
         LocalDateTime start = LocalDateTime.now().minusDays(7);
@@ -116,7 +115,7 @@ class OrderAuditControllerIntegrationTest extends BaseControllerMockTest {
         when(orderAuditService.findByAuditDateBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
                 .thenReturn(testOrderAudits);
 
-        mockMvc.perform(get("/api/order-audits/by-date-range")
+        mockMvc.perform(get("/api/order-audits/by-date-range").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .param("start", start.toString())
                 .param("end", end.toString())
                 .contentType(MediaType.APPLICATION_JSON))

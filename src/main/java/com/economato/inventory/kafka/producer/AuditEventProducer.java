@@ -6,7 +6,7 @@ import com.economato.inventory.dto.event.RecipeAuditEvent;
 import com.economato.inventory.dto.event.RecipeCookingAuditEvent;
 import com.economato.inventory.model.AuditOutbox;
 import com.economato.inventory.repository.AuditOutboxRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;

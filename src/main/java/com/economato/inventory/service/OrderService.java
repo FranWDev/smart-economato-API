@@ -11,8 +11,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -109,8 +108,8 @@ public class OrderService {
          * automáticos
          */
         @CacheEvict(value = { "orders", "order" }, allEntries = true)
-        @Retryable(retryFor = {
-                        org.springframework.orm.ObjectOptimisticLockingFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 100, multiplier = 2))
+        @Retryable(includes = {
+                        org.springframework.orm.ObjectOptimisticLockingFailureException.class }, maxRetries = 3, delay = 100, multiplier = 2)
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
         public Optional<OrderResponseDTO> update(Integer id, OrderRequestDTO requestDTO) {
@@ -244,8 +243,8 @@ public class OrderService {
         }
 
         @OrderAuditable(action = "CAMBIO_ESTADO_ORDEN")
-        @Retryable(retryFor = {
-                        org.springframework.orm.ObjectOptimisticLockingFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 100, multiplier = 2))
+        @Retryable(includes = {
+                        org.springframework.orm.ObjectOptimisticLockingFailureException.class }, maxRetries = 3, delay = 100, multiplier = 2)
         @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
         public Optional<OrderResponseDTO> updateStatus(Integer orderId, String newStatus) {
                 return repository.findById(orderId)

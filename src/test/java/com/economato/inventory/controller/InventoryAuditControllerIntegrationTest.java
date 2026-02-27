@@ -4,7 +4,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 
 import com.economato.inventory.dto.response.InventoryMovementResponseDTO;
 
@@ -36,12 +35,12 @@ class InventoryAuditControllerIntegrationTest extends BaseControllerMockTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    
     void getAllMovements_ShouldReturnList() throws Exception {
 
         when(inventoryAuditService.findAll(any(Pageable.class))).thenReturn(testMovements);
 
-        mockMvc.perform(get("/api/inventory-audits")
+        mockMvc.perform(get("/api/inventory-audits").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .param("page", "0")
                 .param("size", "10")
                 .contentType(MediaType.APPLICATION_JSON))
@@ -53,34 +52,34 @@ class InventoryAuditControllerIntegrationTest extends BaseControllerMockTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    
     void getAllMovements_WithAdminRole_ShouldReturnList() throws Exception {
 
         when(inventoryAuditService.findAll(any(Pageable.class))).thenReturn(testMovements);
 
-        mockMvc.perform(get("/api/inventory-audits")
+        mockMvc.perform(get("/api/inventory-audits").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
     }
 
     @Test
-    @WithMockUser(username = "user", roles = { "USER" })
+    
     void getAllMovements_WithUserRole_ShouldReturnForbidden() throws Exception {
         // Este test debería retornar 403 pero retorna 500 debido a interacción entre
         // @MockBean y Spring Security
-        mockMvc.perform(get("/api/inventory-audits")
+        mockMvc.perform(get("/api/inventory-audits").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("user").roles("USER"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    
     void getMovementById_WhenExists_ShouldReturnMovement() throws Exception {
 
         when(inventoryAuditService.findById(1)).thenReturn(Optional.of(testMovement));
 
-        mockMvc.perform(get("/api/inventory-audits/1")
+        mockMvc.perform(get("/api/inventory-audits/1").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
@@ -89,23 +88,23 @@ class InventoryAuditControllerIntegrationTest extends BaseControllerMockTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    
     void getMovementById_WhenNotExists_ShouldReturn404() throws Exception {
 
         when(inventoryAuditService.findById(anyInt())).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/inventory-audits/999")
+        mockMvc.perform(get("/api/inventory-audits/999").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    
     void getMovementsByType_ShouldReturnList() throws Exception {
 
         when(inventoryAuditService.findByMovementType("ENTRADA")).thenReturn(testMovements);
 
-        mockMvc.perform(get("/api/inventory-audits/type/ENTRADA")
+        mockMvc.perform(get("/api/inventory-audits/type/ENTRADA").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -113,24 +112,24 @@ class InventoryAuditControllerIntegrationTest extends BaseControllerMockTest {
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    
     void getMovementsByType_WithAdminRole_ShouldReturnList() throws Exception {
 
         when(inventoryAuditService.findByMovementType(anyString())).thenReturn(testMovements);
 
-        mockMvc.perform(get("/api/inventory-audits/type/SALIDA")
+        mockMvc.perform(get("/api/inventory-audits/type/SALIDA").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
 
     @Test
-    @WithMockUser(username = "admin", roles = { "ADMIN" })
+    
     void getMovementsByDateRange_ShouldReturnList() throws Exception {
 
         when(inventoryAuditService.findByMovementDateBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
                 .thenReturn(testMovements);
 
-        mockMvc.perform(get("/api/inventory-audits/by-date-range")
+        mockMvc.perform(get("/api/inventory-audits/by-date-range").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .param("start", "2026-01-01T00:00:00")
                 .param("end", "2026-02-01T23:59:59")
                 .contentType(MediaType.APPLICATION_JSON))

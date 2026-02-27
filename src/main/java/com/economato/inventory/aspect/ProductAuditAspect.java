@@ -14,8 +14,7 @@ import com.economato.inventory.kafka.producer.AuditEventProducer;
 import com.economato.inventory.model.Product;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.ProductRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -46,7 +45,7 @@ public class ProductAuditAspect {
         this.productRepository = productRepository;
         this.securityContextHelper = securityContextHelper;
         this.auditEventProducer = auditEventProducer;
-        this.objectMapper = objectMapper.registerModule(new JavaTimeModule());
+        this.objectMapper = objectMapper;
     }
 
     @Around("@annotation(auditable)")

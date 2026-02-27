@@ -13,8 +13,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -114,7 +113,7 @@ public class ProductService {
 
     @CacheEvict(value = { "products_page_v4", "product_v4" }, allEntries = true)
     @ProductAuditable(action = "UPDATE_PRODUCT")
-    @Retryable(retryFor = { OptimisticLockingFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 100))
+    @Retryable(includes = { OptimisticLockingFailureException.class }, maxRetries = 3, delay = 100)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
             Exception.class }, isolation = Isolation.REPEATABLE_READ)
     public Optional<ProductResponseDTO> update(Integer id, ProductRequestDTO requestDTO) {

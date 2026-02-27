@@ -3,8 +3,6 @@ package com.economato.inventory.aspect;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.ProceedingJoinPoint;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -17,32 +15,34 @@ import com.economato.inventory.kafka.producer.AuditEventProducer;
 import com.economato.inventory.model.Order;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.OrderRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Aspect
 @Component
 @Profile({ "!test", "kafka-test" })
+@Slf4j
 public class OrderAuditAspect {
-
-    private static final Logger log = LoggerFactory.getLogger(OrderAuditAspect.class);
-    private static final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
     private final OrderRepository orderRepository;
     private final SecurityContextHelper securityContextHelper;
     private final AuditEventProducer auditEventProducer;
+    private final ObjectMapper objectMapper;
 
     public OrderAuditAspect(
             OrderRepository orderRepository,
             SecurityContextHelper securityContextHelper,
-            AuditEventProducer auditEventProducer) {
+            AuditEventProducer auditEventProducer,
+            ObjectMapper objectMapper) {
         this.orderRepository = orderRepository;
         this.securityContextHelper = securityContextHelper;
         this.auditEventProducer = auditEventProducer;
+        this.objectMapper = objectMapper;
     }
 
     @Around("@annotation(auditable)")

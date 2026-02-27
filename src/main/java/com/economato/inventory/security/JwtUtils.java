@@ -27,7 +27,18 @@ public class JwtUtils {
 
     public JwtUtils(JwtProperties jwtProperties) {
         this.jwtProperties = jwtProperties;
-        this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtProperties.getSecret()));
+        String secret = jwtProperties.getSecret();
+        byte[] keyBytes;
+        try {
+            keyBytes = Decoders.BASE64.decode(secret);
+        } catch (io.jsonwebtoken.io.DecodingException e) {
+            try {
+                keyBytes = Decoders.BASE64URL.decode(secret);
+            } catch (io.jsonwebtoken.io.DecodingException ex) {
+                keyBytes = secret.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            }
+        }
+        this.key = Keys.hmacShaKeyFor(keyBytes);
         this.jwtParser = Jwts.parser().verifyWith(key).build();
     }
 

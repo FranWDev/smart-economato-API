@@ -3,13 +3,9 @@ package com.economato.inventory.aspect;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.ProceedingJoinPoint;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-
 import com.economato.inventory.security.SecurityContextHelper;
-
 import com.economato.inventory.annotation.RecipeAuditable;
 import com.economato.inventory.dto.event.RecipeAuditEvent;
 import com.economato.inventory.dto.request.RecipeRequestDTO;
@@ -17,13 +13,14 @@ import com.economato.inventory.kafka.producer.AuditEventProducer;
 import com.economato.inventory.model.Recipe;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.RecipeRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Aspecto para auditoría de recetas.
@@ -32,22 +29,23 @@ import java.util.stream.Collectors;
 @Aspect
 @Component
 @Profile({ "!test", "kafka-test" })
+@Slf4j
 public class RecipeAuditAspect {
-
-    private static final Logger log = LoggerFactory.getLogger(RecipeAuditAspect.class);
-    private static final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
     private final RecipeRepository recipeRepository;
     private final SecurityContextHelper securityContextHelper;
     private final AuditEventProducer auditEventProducer;
+    private final ObjectMapper objectMapper;
 
     public RecipeAuditAspect(
             RecipeRepository recipeRepository,
             SecurityContextHelper securityContextHelper,
-            AuditEventProducer auditEventProducer) {
+            AuditEventProducer auditEventProducer,
+            ObjectMapper objectMapper) {
         this.recipeRepository = recipeRepository;
         this.securityContextHelper = securityContextHelper;
         this.auditEventProducer = auditEventProducer;
+        this.objectMapper = objectMapper;
     }
 
     @Around("@annotation(auditable)")
