@@ -1,7 +1,9 @@
 
 
 
-FROM maven:3.9.9-eclipse-temurin-25-alpine AS builder
+FROM eclipse-temurin:25-jdk-alpine AS builder
+
+RUN apk add --no-cache maven
 
 WORKDIR /build
 
@@ -40,7 +42,7 @@ USER spring:spring
 EXPOSE 8081
 
 
-ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseZGC -XX:+ZGenerational -XX:MaxGCPauseMillis=200 --enable-preview"
+ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseZGC -XX:+ZGenerational -XX:MaxGCPauseMillis=200"
 
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \

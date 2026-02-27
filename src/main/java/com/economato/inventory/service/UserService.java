@@ -27,13 +27,6 @@ import com.economato.inventory.repository.UserRepository;
 import java.util.List;
 import java.util.Optional;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledFuture;
-
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 
 import com.economato.inventory.dto.request.RoleEscalationRequestDTO;

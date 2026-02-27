@@ -8,7 +8,6 @@ import com.economato.inventory.model.Product;
 import com.economato.inventory.model.StockLedger;
 import com.economato.inventory.model.StockSnapshot;
 import com.economato.inventory.dto.response.IntegrityCheckResult;
-import com.economato.inventory.service.StockLedgerService;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -65,35 +64,41 @@ class StockLedgerControllerIntegrationTest extends BaseControllerMockTest {
     }
 
     @Test
-    
+
     void getProductHistory_ShouldReturnList() throws Exception {
 
         when(stockLedgerService.getProductHistory(1)).thenReturn(testLedgers);
 
-        mockMvc.perform(get("/api/stock-ledger/history/1").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
+        mockMvc.perform(get("/api/stock-ledger/history/1")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                        .user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray());
     }
 
     @Test
-    
+
     void getProductHistory_WithAdminRole_ShouldReturnList() throws Exception {
 
         when(stockLedgerService.getProductHistory(anyInt())).thenReturn(testLedgers);
 
-        mockMvc.perform(get("/api/stock-ledger/history/1").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
+        mockMvc.perform(get("/api/stock-ledger/history/1")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                        .user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
 
     @Test
-    
+
     void verifyAllChains_ShouldReturnList() throws Exception {
 
         when(stockLedgerService.verifyAllChains()).thenReturn(Arrays.asList(testIntegrityResult));
 
-        mockMvc.perform(get("/api/stock-ledger/verify-all").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
+        mockMvc.perform(get("/api/stock-ledger/verify-all")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                        .user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -101,21 +106,25 @@ class StockLedgerControllerIntegrationTest extends BaseControllerMockTest {
     }
 
     @Test
-    
+
     void verifyAllChains_WithUserRole_ShouldReturnForbidden() throws Exception {
 
-        mockMvc.perform(get("/api/stock-ledger/verify-all").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("user").roles("USER"))
+        mockMvc.perform(get("/api/stock-ledger/verify-all")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                        .user("user").roles("USER"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    
+
     void getCurrentStock_WhenExists_ShouldReturnSnapshot() throws Exception {
 
         when(stockLedgerService.getCurrentStock(1)).thenReturn(Optional.of(testSnapshot));
 
-        mockMvc.perform(get("/api/stock-ledger/snapshot/1").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
+        mockMvc.perform(get("/api/stock-ledger/snapshot/1")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                        .user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.productId").value(1))
@@ -124,32 +133,38 @@ class StockLedgerControllerIntegrationTest extends BaseControllerMockTest {
     }
 
     @Test
-    
+
     void getCurrentStock_WithAdminRole_ShouldReturnSnapshot() throws Exception {
 
         when(stockLedgerService.getCurrentStock(anyInt())).thenReturn(Optional.of(testSnapshot));
 
-        mockMvc.perform(get("/api/stock-ledger/snapshot/1").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
+        mockMvc.perform(get("/api/stock-ledger/snapshot/1")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                        .user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
 
     @Test
-    
+
     void resetChain_ShouldReturnOk() throws Exception {
 
         when(stockLedgerService.resetProductLedger(1)).thenReturn("Historial restablecido");
 
-        mockMvc.perform(delete("/api/stock-ledger/reset/1").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
+        mockMvc.perform(delete("/api/stock-ledger/reset/1")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                        .user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
     }
 
     @Test
-    
+
     void resetChain_WithChefRole_ShouldReturnForbidden() throws Exception {
 
-        mockMvc.perform(delete("/api/stock-ledger/reset/1").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("chef").roles("CHEF"))
+        mockMvc.perform(delete("/api/stock-ledger/reset/1")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                        .user("chef").roles("CHEF"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isForbidden());
     }
