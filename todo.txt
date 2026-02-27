@@ -1,0 +1,40 @@
+37. Patrón Check-Then-Act (TOCTOU Race Condition) en Deletes
+
+Se hace findById() antes de deleteById(). Entre ambas llamadas otro hilo puede modificar el registro: ProductController.java:155-162 UserController.java:111-118
+38. UserService.toggleUserHiddenStatus() Carga Todos los Usuarios en Memoria para Contar ADMINs
+
+Debería usar una query COUNT en BD en lugar de cargar toda la lista: UserService.java:246-250
+39. Conversión Hexadecimal Manual Cuando Java 17+ Tiene HexFormat
+
+El bucle manual es verboso e innecesario: StockLedgerService.java:155-165
+40. Collectors.toList() Mutable cuando .toList() Inmutable Está Disponible (Java 16+) RecipeService.java:178-191
+41. CacheWarmupService con Catch Vacíos — Fallos Silenciosos
+
+Los errores en el warmup se tragan completamente sin log, ocultando problemas reales: CacheWarmupService.java:79-88
+42. ProductAuditAspect.objectMapper es static final Mutable — Debería Inyectarse
+
+Un ObjectMapper estático no puede ser extendido/configurado por el contexto de Spring y es un riesgo de thread-safety en configuraciones complejas: ProductAuditAspect.java:38
+43. ProductAuditAspect Usa LoggerFactory Manualmente en Vez de @Slf4j (Inconsistencia)
+
+Todo el resto del proyecto usa la anotación de Lombok @Slf4j: ProductAuditAspect.java:37
+44. AuthController.logout() Atrapa Excepciones y Devuelve Mensaje Crudo al Cliente
+
+Expone mensajes de excepción internos al cliente y rompe la coherencia del GlobalExceptionHandler: AuthController.java:104-111
+45. @ApiResponse(responseCode = "200") cuando el Endpoint Responde 201
+
+El contrato Swagger documenta 200 pero la implementación retorna 201 Created: ProductController.java:112-121
+46. UserController.getAll() Acepta Pageable pero Retorna List Sin Metadatos
+
+El cliente no puede saber cuántas páginas existen ni el total de elementos: UserController.java:53-56 UserService.java:78-83
+47. UserService.scheduledTasks No Escala Horizontalmente
+
+Las tareas de de-escalación temporal están en un ConcurrentHashMap en memoria. Con múltiples instancias de la app, solo la instancia que escaló puede de-escalar: UserService.java:56-58
+48. Nombre de Clase Completamente Cualificado en Declaración de Campo
+
+AuthService declara el mapper con el paquete completo en lugar de importarlo: AuthService.java:34 AuthService.java:41-42
+49. Mensajes de Error Hardcodeados en Español en Lugar de Usar I18nService
+
+Múltiples métodos en ProductService y OrderService tienen strings en lugar de claves i18n: ProductService.java:144-153 ProductService.java:184-196 OrderService.java:205-211
+50. SpringSecurityAuditorAware No Maneja el Caso "anonymousUser"
+
+Si una operación auditada se ejecuta sin autenticación (ej. startup), auth.isAuthenticated() devuelve true para anonymous y findByName("anonymousUser") fallará o retornará vacío silenciosamente: SpringSecurityAuditorAware.java:22-32
