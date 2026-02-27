@@ -207,7 +207,7 @@ services:
 
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
 
-      JAVA_OPTS: "-Xms512m -Xmx1024m -XX:+UseZGC -XX:+ZGenerational"
+      JAVA_OPTS: "-Xms512m -Xmx1024m -XX:+UseZGC -XX:+ZGenerational --enable-preview"
     networks:
       - inventory-network
     restart: unless-stopped
