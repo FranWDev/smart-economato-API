@@ -61,13 +61,15 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private static class CachedEntry {
         private final long timestamp;
-        private final UserDetails userDetails;
+        private final String username;
+        private final String password;
+        private final String authority;
 
         CachedEntry(String username, String password, String authority) {
             this.timestamp = System.currentTimeMillis();
-            List<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(authority));
-            // Pre-build the object to avoid allocation on every load
-            this.userDetails = new FastUserDetails(username, password, authorities);
+            this.username = username;
+            this.password = password;
+            this.authority = authority;
         }
 
         boolean isExpired() {
@@ -75,23 +77,18 @@ public class CustomUserDetailsService implements UserDetailsService {
         }
 
         UserDetails toUserDetails() {
-            return userDetails;
+            List<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(authority));
+            return new FastUserDetails(username, password, authorities);
         }
     }
 
     /**
-     * Reusable UserDetails that ignores eraseCredentials to keep the password in
-     * cache.
+     * Reusable UserDetails implementation.
      */
     private static class FastUserDetails extends org.springframework.security.core.userdetails.User {
         public FastUserDetails(String username, String password,
                 Collection<? extends GrantedAuthority> authorities) {
             super(username, password, authorities);
-        }
-
-        @Override
-        public void eraseCredentials() {
-            // No-op to keep password in our cache
         }
     }
 }
