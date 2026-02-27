@@ -15,15 +15,12 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(
-    name = "inventory_audit",
-    indexes = {
+@Table(name = "inventory_audit", indexes = {
         @Index(name = "idx_inventory_audit_product", columnList = "product_id"),
         @Index(name = "idx_inventory_audit_user", columnList = "user_id"),
         @Index(name = "idx_inventory_audit_date", columnList = "movement_date"),
         @Index(name = "idx_inventory_audit_type", columnList = "movement_type")
-    }
-)
+})
 @EntityListeners(AuditingEntityListener.class)
 public class InventoryAudit {
 
@@ -43,8 +40,7 @@ public class InventoryAudit {
     private User users;
 
     @NotBlank(message = "{validation.inventoryAudit.unknown.notBlank}")
-    @Pattern(regexp = "IN|OUT|ADJUSTMENT|RECEPTION|PRODUCTION", 
-             message = "{inventoryaudit.pattern.tipo.de.movimiento.inv.lido}")
+    @Pattern(regexp = "ENTRADA|SALIDA|AJUSTE|RECEPCION|PRODUCCION", message = "{inventoryaudit.pattern.tipo.de.movimiento.inv.lido}")
     @Column(name = "movement_type", nullable = false, length = 20)
     private String movementType;
 

@@ -143,7 +143,7 @@ public class AuditOutboxIntegrationTest extends BaseIntegrationTest {
     void testOutboxToKafkaFlow() throws Exception {
         InventoryAuditEvent event = new InventoryAuditEvent();
         event.setProductId(testProduct.getId());
-        event.setMovementType("IN");
+        event.setMovementType("ENTRADA");
         event.setQuantity(BigDecimal.valueOf(5.0));
         event.setMovementDate(LocalDateTime.now());
         event.setActionDescription("Test Kafka Integration");

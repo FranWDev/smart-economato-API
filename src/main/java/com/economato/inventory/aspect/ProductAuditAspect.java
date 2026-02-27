@@ -179,10 +179,10 @@ public class ProductAuditAspect {
         }
 
         return switch (action.toUpperCase()) {
-            case "CREATE_PRODUCT", "CREATE_RECIPE" -> "PRODUCTION";
-            case "UPDATE_PRODUCT", "UPDATE_RECIPE" -> "ADJUSTMENT";
-            case "DELETE_PRODUCT", "DELETE_RECIPE" -> "OUT";
-            default -> "ADJUSTMENT";
+            case "CREATE_PRODUCT", "CREATE_RECIPE" -> "PRODUCCION";
+            case "UPDATE_PRODUCT", "UPDATE_RECIPE" -> "AJUSTE";
+            case "DELETE_PRODUCT", "DELETE_RECIPE" -> "SALIDA";
+            default -> "AJUSTE";
         };
     }
 }
