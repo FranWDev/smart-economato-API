@@ -82,7 +82,7 @@ public class CacheWarmupService implements CommandLineRunner {
                         try {
                             recipeService.findById(recipe.getId());
                         } catch (Exception e) {
-
+                            log.warn("Error cargando detalle de receta {}: {}", recipe.getId(), e.getMessage());
                         }
                     });
 
@@ -97,7 +97,7 @@ public class CacheWarmupService implements CommandLineRunner {
             log.info("Pre-cargando usuarios...");
 
             Pageable page1 = PageRequest.of(0, 10);
-            List<UserResponseDTO> users = userService.findAll(page1);
+            Page<UserResponseDTO> users = userService.findAll(page1);
 
             users.stream()
                     .limit(3)
@@ -105,7 +105,7 @@ public class CacheWarmupService implements CommandLineRunner {
                         try {
                             userService.findById(user.getId());
                         } catch (Exception e) {
-
+                            log.warn("Error cargando detalle de usuario {}: {}", user.getId(), e.getMessage());
                         }
                     });
 

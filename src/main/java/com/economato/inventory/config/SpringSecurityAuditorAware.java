@@ -23,7 +23,7 @@ public class SpringSecurityAuditorAware implements AuditorAware<User> {
     public Optional<User> getCurrentAuditor() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-        if (auth != null && auth.isAuthenticated()) {
+        if (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) {
             String username = auth.getName();
             return userRepository.findByName(username);
         }

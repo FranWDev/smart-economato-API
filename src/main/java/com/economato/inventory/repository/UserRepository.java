@@ -38,6 +38,8 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     @Query("SELECT u.role as role, COUNT(u) as count FROM User u GROUP BY u.role")
     List<com.economato.inventory.dto.projection.RoleCountProjection> countUsersByRole();
 
+    long countByRoleAndIsHiddenFalse(Role role);
+
     // --- Proyecciones ---
 
     Page<UserProjection> findAllProjectedBy(Pageable pageable);

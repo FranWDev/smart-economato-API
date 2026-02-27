@@ -18,6 +18,10 @@ public enum MessageKey {
     ERROR_AUTH_LOGOUT_TOKEN_REQUIRED("error.auth.logout.token.required"),
 
     ERROR_PRODUCT_ALREADY_EXISTS("error.product.already.exists"),
+    ERROR_PRODUCT_DELETE_HAS_MOVEMENTS("error.product.delete.has.movements"),
+    ERROR_PRODUCT_DELETE_IN_RECIPE("error.product.delete.in.recipe"),
+    ERROR_PRODUCT_INVALID_UNIT("error.product.invalid.unit"),
+    ERROR_PRODUCT_SUPPLIER_NOT_FOUND("error.product.supplier.not.found"),
 
     ERROR_SUPPLIER_ALREADY_EXISTS("error.supplier.already.exists"),
 
@@ -25,6 +29,9 @@ public enum MessageKey {
     ERROR_RECIPE_ID_NOT_PROVIDED("error.recipe.id.not.provided"),
     ERROR_RECIPE_ID_NULL("error.recipe.id.null"),
 
+    ERROR_ORDER_NOT_FOUND("error.order.not.found"),
+    ERROR_ORDER_PRODUCT_NOT_FOUND("error.order.product.not.found"),
+    ERROR_ORDER_CANNOT_RECEIVE_LESS("error.order.cannot.receive.less"),
     ERROR_ORDER_INVALID_STATE("error.order.invalid.state"),
 
     ERROR_OPTIMISTIC_LOCK("error.optimistic.lock"),

@@ -139,17 +139,16 @@ public class ProductService {
     @CacheEvict(value = { "products_page_v4", "product_v4" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
-        repository.findById(id).ifPresent(product -> {
-            if (movementRepository.existsByProductId(id)) {
-                throw new InvalidOperationException(
-                        "No se puede eliminar el producto porque tiene movimientos de inventario asociados");
-            }
-            if (recipeComponentRepository.existsByProductId(id)) {
-                throw new InvalidOperationException(
-                        "No se puede eliminar el producto porque es utilizado en recetas");
-            }
-            repository.deleteById(id);
-        });
+        repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        if (movementRepository.existsByProductId(id)) {
+            throw new InvalidOperationException(
+                    i18nService.getMessage(MessageKey.ERROR_PRODUCT_DELETE_HAS_MOVEMENTS));
+        }
+        if (recipeComponentRepository.existsByProductId(id)) {
+            throw new InvalidOperationException(
+                    i18nService.getMessage(MessageKey.ERROR_PRODUCT_DELETE_IN_RECIPE));
+        }
+        repository.deleteById(id);
     }
 
     @Transactional(readOnly = true)
@@ -183,14 +182,14 @@ public class ProductService {
     private void validateProductData(ProductRequestDTO requestDTO) {
         if (!isValidUnit(requestDTO.getUnit())) {
             throw new InvalidOperationException(
-                    "Unidad de medida inválida. Debe ser: KG, G, L, ML o UND");
+                    i18nService.getMessage(MessageKey.ERROR_PRODUCT_INVALID_UNIT));
         }
 
         // Validar que el supplier existe si se proporciona
         if (requestDTO.getSupplierId() != null) {
             if (!supplierRepository.existsById(requestDTO.getSupplierId())) {
                 throw new InvalidOperationException(
-                        "El proveedor especificado no existe");
+                        i18nService.getMessage(MessageKey.ERROR_PRODUCT_SUPPLIER_NOT_FOUND));
             }
         }
     }

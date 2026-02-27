@@ -114,18 +114,18 @@ class UserServiceTest {
     }
 
     @Test
-    void findAll_ShouldReturnListOfUsers() {
+    void findAll_ShouldReturnPageOfUsers() {
 
         Pageable pageable = PageRequest.of(0, 10);
         Page<UserProjection> page = new PageImpl<>(Arrays.asList(testProjection));
         when(repository.findByIsHiddenFalse(pageable)).thenReturn(page);
         when(userMapper.toResponseDTO(any(UserProjection.class))).thenReturn(testUserResponseDTO);
 
-        List<UserResponseDTO> result = userService.findAll(pageable);
+        Page<UserResponseDTO> result = userService.findAll(pageable);
 
         assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(testUserResponseDTO.getUser(), result.get(0).getUser());
+        assertEquals(1, result.getTotalElements());
+        assertEquals(testUserResponseDTO.getUser(), result.getContent().get(0).getUser());
         verify(repository).findByIsHiddenFalse(pageable);
     }
 
@@ -652,11 +652,11 @@ class UserServiceTest {
         lenient().when(adminProjection.getRole()).thenReturn(Role.ADMIN);
 
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
-        Page<UserProjection> page = new PageImpl<>(Arrays.asList(adminProjection));
-        when(repository.findByIsHiddenFalse(any(Pageable.class))).thenReturn(page);
+        when(repository.countByRoleAndIsHiddenFalse(Role.ADMIN)).thenReturn(1L);
 
-        assertThrows(InvalidOperationException.class,
+        InvalidOperationException exception = assertThrows(InvalidOperationException.class,
                 () -> userService.toggleUserHiddenStatus(1, true));
+        assertTrue(exception.getMessage().contains(MessageKey.ERROR_USER_HIDE_LAST_ADMIN.name()));
         verify(repository, never()).save(any(User.class));
     }
 
@@ -666,17 +666,8 @@ class UserServiceTest {
         testUser.setRole(Role.ADMIN);
         testUser.setHidden(false);
 
-        UserProjection admin1 = mock(UserProjection.class);
-        lenient().when(admin1.getId()).thenReturn(1);
-        when(admin1.getRole()).thenReturn(Role.ADMIN);
-
-        UserProjection admin2 = mock(UserProjection.class);
-        lenient().when(admin2.getId()).thenReturn(2);
-        when(admin2.getRole()).thenReturn(Role.ADMIN);
-
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
-        Page<UserProjection> page = new PageImpl<>(Arrays.asList(admin1, admin2));
-        when(repository.findByIsHiddenFalse(any(Pageable.class))).thenReturn(page);
+        when(repository.countByRoleAndIsHiddenFalse(Role.ADMIN)).thenReturn(2L);
         when(repository.save(any(User.class))).thenReturn(testUser);
 
         userService.toggleUserHiddenStatus(1, true);
@@ -807,16 +798,12 @@ class UserServiceTest {
         when(escalationMapper.toEntity(any(), any())).thenReturn(mockEscalation);
         when(escalationRepository.save(any(TemporaryRoleEscalation.class))).thenAnswer(i -> i.getArgument(0));
 
-        ScheduledFuture<?> mockFuture = mock(ScheduledFuture.class);
-        doReturn(mockFuture).when(taskScheduler).schedule(any(Runnable.class), any(Instant.class));
-
         userService.escalateRole(1, requestDTO);
 
         assertEquals(Role.ELEVATED, testUser.getRole());
         verify(repository).save(testUser);
         verify(customUserDetailsService).evictUser("testUser");
         verify(escalationRepository).save(any(TemporaryRoleEscalation.class));
-        verify(taskScheduler).schedule(any(Runnable.class), any(Instant.class));
     }
 
     @Test
@@ -828,7 +815,6 @@ class UserServiceTest {
 
         assertThrows(ResourceNotFoundException.class, () -> userService.escalateRole(999, requestDTO));
         verify(escalationRepository, never()).save(any());
-        verify(taskScheduler, never()).schedule(any(Runnable.class), any(Instant.class));
     }
 
     @Test

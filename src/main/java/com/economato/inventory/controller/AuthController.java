@@ -101,13 +101,8 @@ public class AuthController {
 
         String token = authHeader.substring(7);
 
-        try {
-            authService.logout(token);
-            response.put("message", "Sesión cerrada exitosamente");
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            response.put("message", "Error al cerrar sesión: " + e.getMessage());
-            return ResponseEntity.badRequest().body(response);
-        }
+        authService.logout(token);
+        response.put("message", "Sesión cerrada exitosamente");
+        return ResponseEntity.ok(response);
     }
 }

@@ -22,6 +22,7 @@ import com.economato.inventory.dto.request.ProductRequestDTO;
 import com.economato.inventory.dto.response.ProductResponseDTO;
 import com.economato.inventory.exception.ConcurrencyException;
 import com.economato.inventory.exception.InvalidOperationException;
+import com.economato.inventory.exception.ResourceNotFoundException;
 import com.economato.inventory.mapper.ProductMapper;
 import com.economato.inventory.model.Product;
 import com.economato.inventory.repository.InventoryAuditRepository;
@@ -270,7 +271,7 @@ class ProductServiceTest {
         InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
             productService.save(testProductRequestDTO);
         });
-        assertTrue(exception.getMessage().contains("Unidad de medida inválida"));
+        assertTrue(exception.getMessage().contains(MessageKey.ERROR_PRODUCT_INVALID_UNIT.name()));
         verify(repository, never()).save(any(Product.class));
     }
 
@@ -376,7 +377,7 @@ class ProductServiceTest {
         InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
             productService.deleteById(1);
         });
-        assertTrue(exception.getMessage().contains("movimientos de inventario"));
+        assertTrue(exception.getMessage().contains(MessageKey.ERROR_PRODUCT_DELETE_HAS_MOVEMENTS.name()));
         verify(repository, never()).deleteById(anyInt());
     }
 
@@ -390,16 +391,15 @@ class ProductServiceTest {
         InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
             productService.deleteById(1);
         });
-        assertTrue(exception.getMessage().contains("utilizado en recetas"));
+        assertTrue(exception.getMessage().contains(MessageKey.ERROR_PRODUCT_DELETE_IN_RECIPE.name()));
         verify(repository, never()).deleteById(anyInt());
     }
 
     @Test
     void deleteById_WhenProductDoesNotExist_ShouldDoNothing() {
-
-        when(repository.findById(999)).thenReturn(Optional.empty());
-
-        productService.deleteById(999);
+        assertThrows(ResourceNotFoundException.class, () -> {
+            productService.deleteById(999);
+        });
 
         verify(repository).findById(999);
         verify(repository, never()).deleteById(anyInt());

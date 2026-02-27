@@ -16,9 +16,9 @@ services:
       -c hot_standby_feedback=on
       -c listen_addresses='*'
     environment:
-      POSTGRES_DB: inventory
-      POSTGRES_USER: inventory_user
-      POSTGRES_PASSWORD: inventory_password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       PGDATA: /var/lib/postgresql/data/pgdata
       POSTGRES_HOST_AUTH_METHOD: trust 
     ports:
@@ -26,7 +26,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U inventory_user -d inventory"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -46,8 +46,8 @@ services:
     ports:
       - "5433:5432"
     environment:
-      PGUSER: inventory_user
-      PGPASSWORD: inventory_password
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
       PGDATA: /var/lib/postgresql/data
     entrypoint: |
       /bin/sh -c "
@@ -58,21 +58,20 @@ services:
       chown -R postgres:postgres /var/lib/postgresql/data
 
       echo '2. Esperando al primario...'
-      until pg_isready -h inventory-postgres -p 5432 -U inventory_user -d inventory; do
+      until pg_isready -h inventory-postgres -p 5432 -U ${POSTGRES_USER} -d ${POSTGRES_DB}; do
         sleep 2
       done
       
       if [ ! -s /var/lib/postgresql/data/PG_VERSION ]; then
         echo '3. Clonando base de datos...'
         rm -rf /var/lib/postgresql/data/*
-        # Usamos el nombre del contenedor 'inventory-postgres'
-        su-exec postgres pg_basebackup -h inventory-postgres -D /var/lib/postgresql/data -U inventory_user -vP -R --wal-method=stream
+        # Usamos el nombre del contenedor 'inventory-postgres' y las variables inyectadas
+        su-exec postgres pg_basebackup -h inventory-postgres -D /var/lib/postgresql/data -U ${POSTGRES_USER} -vP -R --wal-method=stream
       else
         echo '3. Datos detectados. Omitiendo clonado.'
       fi
       
       echo '4. Iniciando PostgreSQL Replica (FORZANDO CONFIG)...'
-      # AQUÍ ESTÁ EL FIX: Inyectamos los flags directamente en el exec
       exec su-exec postgres postgres -D /var/lib/postgresql/data -c max_connections=500 -c hot_standby=on
       "
     volumes:
@@ -80,6 +79,7 @@ services:
     networks:
       - inventory-network
     restart: unless-stopped
+
   # ===================================
   # Redis Cache
   # ===================================
@@ -154,8 +154,8 @@ services:
       - inventory-network
     restart: unless-stopped
 
-# ===================================
-  # Spring Boot Backend (OPTIMIZADO)
+  # ===================================
+  # Spring Boot Backend 
   # ===================================
   backend:
     build:
@@ -179,13 +179,13 @@ services:
         hard: 65536
     environment:
       # Database Principal
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/inventory
-      SPRING_DATASOURCE_USERNAME: inventory_user
-      SPRING_DATASOURCE_PASSWORD: inventory_password
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
       
       # URLs para CQRS
-      DB_WRITER_URL: jdbc:postgresql://postgres:5432/inventory
-      DB_READER_URL: jdbc:postgresql://postgres-replica:5432/inventory
+      DB_WRITER_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      DB_READER_URL: jdbc:postgresql://postgres-replica:5432/${POSTGRES_DB}
 
       # Redis
       SPRING_DATA_REDIS_HOST: redis
@@ -201,8 +201,9 @@ services:
       SPRING_DEVTOOLS_RESTART_ENABLED: "false"
       SPRING_MAIN_BANNER_MODE: "off"
 
-      JWT_SECRET: 404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970
-      JWT_EXPIRATION: 86400000
+      # Seguridad JWT
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION}
 
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
 
@@ -210,6 +211,7 @@ services:
     networks:
       - inventory-network
     restart: unless-stopped
+
   # ===================================
   # Redis Commander
   # ===================================

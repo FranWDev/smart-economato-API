@@ -185,7 +185,7 @@ public class RecipeService {
                                 .reduce(BigDecimal.ZERO, BigDecimal::add));
                         return merged;
                     })
-                    .collect(Collectors.toList());
+                    .toList();
 
             var requestedProductIds = mergedComponents.stream()
                     .map(RecipeComponentRequestDTO::getProductId)

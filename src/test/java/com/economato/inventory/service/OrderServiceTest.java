@@ -367,7 +367,7 @@ class OrderServiceTest {
         InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
             orderService.receiveOrder(receptionData);
         });
-        assertTrue(exception.getMessage().contains("No se puede recibir menos cantidad"));
+        assertTrue(exception.getMessage().contains(MessageKey.ERROR_ORDER_CANNOT_RECEIVE_LESS.name()));
         verify(repository, never()).save(any(Order.class));
     }
 
@@ -542,7 +542,7 @@ class OrderServiceTest {
         InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
             orderService.receiveOrder(receptionData);
         });
-        assertTrue(exception.getMessage().contains("No se puede recibir menos cantidad"));
+        assertTrue(exception.getMessage().contains(MessageKey.ERROR_ORDER_CANNOT_RECEIVE_LESS.name()));
         verify(repository, never()).save(any(Order.class));
     }
 }

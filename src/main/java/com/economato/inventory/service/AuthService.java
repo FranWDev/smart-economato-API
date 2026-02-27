@@ -15,6 +15,7 @@ import com.economato.inventory.dto.response.LoginResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
 import com.economato.inventory.repository.UserRepository;
 import com.economato.inventory.security.JwtUtils;
+import com.economato.inventory.mapper.UserMapper;
 
 import java.util.Date;
 
@@ -31,7 +32,7 @@ public class AuthService {
             AuthenticationManager authenticationManager,
             JwtUtils jwtUtils,
             TokenBlacklistService tokenBlacklistService,
-            com.economato.inventory.mapper.UserMapper userMapper) {
+            UserMapper userMapper) {
         this.i18nService = i18nService;
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;

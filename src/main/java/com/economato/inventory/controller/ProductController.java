@@ -110,7 +110,7 @@ public class ProductController {
         @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @Operation(summary = "Crear un nuevo producto", description = "Registra un nuevo producto en el inventario. [Rol requerido: CHEF]")
         @ApiResponses({
-                        @ApiResponse(responseCode = "200", description = "Producto creado correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class))),
+                        @ApiResponse(responseCode = "201", description = "Producto creado correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class))),
                         @ApiResponse(responseCode = "400", description = "Datos del producto inválidos")
         })
         @PostMapping
@@ -153,12 +153,8 @@ public class ProductController {
         @DeleteMapping("/{id}")
         public ResponseEntity<Void> deleteProduct(
                         @Parameter(description = "ID del producto a eliminar", example = "3", required = true) @PathVariable Integer id) {
-                return productService.findById(id)
-                                .map(product -> {
-                                        productService.deleteById(id);
-                                        return ResponseEntity.noContent().<Void>build();
-                                })
-                                .orElse(ResponseEntity.notFound().build());
+                productService.deleteById(id);
+                return ResponseEntity.noContent().build();
         }
 
         @PreAuthorize("hasRole('ADMIN')")

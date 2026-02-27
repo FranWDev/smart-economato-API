@@ -180,7 +180,8 @@ public class OrderService {
                         Exception.class }, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
         public OrderResponseDTO receiveOrder(OrderReceptionRequestDTO receptionData) {
                 Order order = repository.findByIdWithDetails(receptionData.getOrderId())
-                                .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada"));
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                i18nService.getMessage(MessageKey.ERROR_ORDER_NOT_FOUND)));
 
                 order.setStatus("REVIEW");
 
@@ -189,16 +190,16 @@ public class OrderService {
                                         .filter(d -> d.getProduct().getId().equals(receptionItem.getProductId()))
                                         .findFirst()
                                         .orElseThrow(() -> new ResourceNotFoundException(
-                                                        "Producto no encontrado en la orden"));
+                                                        i18nService.getMessage(
+                                                                        MessageKey.ERROR_ORDER_PRODUCT_NOT_FOUND)));
 
                         if (receptionItem.getQuantityReceived().compareTo(detail.getQuantity()) < 0) {
                                 throw new InvalidOperationException(
-                                                "No se puede recibir menos cantidad de la solicitada para "
+                                                i18nService.getMessage(MessageKey.ERROR_ORDER_CANNOT_RECEIVE_LESS) + " "
                                                                 + detail.getProduct().getName() +
                                                                 ". Solicitado: " + detail.getQuantity() + ", Recibido: "
                                                                 + receptionItem.getQuantityReceived());
                         }
-
                         detail.setQuantityReceived(receptionItem.getQuantityReceived());
                 }
 

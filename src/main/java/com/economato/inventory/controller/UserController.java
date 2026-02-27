@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -50,8 +51,8 @@ public class UserController {
                         @ApiResponse(responseCode = "200", description = "Lista de usuarios", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
                         @ApiResponse(responseCode = "403", description = "Acceso denegado")
         })
-        public ResponseEntity<List<UserResponseDTO>> getAll(Pageable pageable) {
-                List<UserResponseDTO> users = service.findAll(pageable);
+        public ResponseEntity<Page<UserResponseDTO>> getAll(Pageable pageable) {
+                Page<UserResponseDTO> users = service.findAll(pageable);
                 return ResponseEntity.ok(users);
         }
 
@@ -109,12 +110,8 @@ public class UserController {
         })
         public ResponseEntity<Object> delete(
                         @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id) {
-                return service.findById(id)
-                                .map(existing -> {
-                                        service.deleteById(id);
-                                        return ResponseEntity.noContent().build();
-                                })
-                                .orElse(ResponseEntity.notFound().build());
+                service.deleteById(id);
+                return ResponseEntity.noContent().build();
         }
 
         @GetMapping("/by-role/{role}")

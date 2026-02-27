@@ -5,6 +5,7 @@ import com.economato.inventory.i18n.MessageKey;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -33,7 +34,7 @@ import java.util.concurrent.ScheduledFuture;
 
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.annotation.Scheduled;
 
 import com.economato.inventory.dto.request.RoleEscalationRequestDTO;
 import com.economato.inventory.model.TemporaryRoleEscalation;
@@ -51,19 +52,13 @@ public class UserService {
     private final TemporaryRoleEscalationMapper escalationMapper;
     private final CustomUserDetailsService customUserDetailsService;
     private final TemporaryRoleEscalationRepository escalationRepository;
-    private final TaskScheduler taskScheduler;
-
-    // Map to keep track of scheduled futures so we can cancel them if deescalated
-    // early
-    private final Map<Integer, ScheduledFuture<?>> scheduledTasks = new ConcurrentHashMap<>();
 
     public UserService(I18nService i18nService, UserRepository repository, PasswordEncoder passwordEncoder,
             UserMapper userMapper,
             TemporaryRoleEscalationMapper escalationMapper,
             StatsMapper statsMapper,
             CustomUserDetailsService customUserDetailsService,
-            TemporaryRoleEscalationRepository escalationRepository,
-            TaskScheduler taskScheduler) {
+            TemporaryRoleEscalationRepository escalationRepository) {
         this.i18nService = i18nService;
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
@@ -72,14 +67,14 @@ public class UserService {
         this.statsMapper = statsMapper;
         this.customUserDetailsService = customUserDetailsService;
         this.escalationRepository = escalationRepository;
-        this.taskScheduler = taskScheduler;
     }
 
     @Transactional(readOnly = true)
-    public List<UserResponseDTO> findAll(Pageable pageable) {
-        return repository.findByIsHiddenFalse(pageable).stream()
-                .map(userMapper::toResponseDTO)
-                .toList();
+    public Page<UserResponseDTO> findAll(Pageable pageable) {
+        Page<UserResponseDTO> page = repository.findByIsHiddenFalse(pageable)
+                .map(userMapper::toResponseDTO);
+        return new com.economato.inventory.dto.RestPage<>(page.getContent(), page.getPageable(),
+                page.getTotalElements());
     }
 
     @Cacheable(value = "user", key = "#id")
@@ -243,9 +238,7 @@ public class UserService {
 
         // Validación de seguridad: no se puede ocultar el último admin
         if (hidden && Role.ADMIN.equals(user.getRole())) {
-            long visibleAdmins = repository.findByIsHiddenFalse(Pageable.unpaged()).stream()
-                    .filter(p -> p.getRole() == Role.ADMIN)
-                    .count();
+            long visibleAdmins = repository.countByRoleAndIsHiddenFalse(Role.ADMIN);
             if (visibleAdmins <= 1) {
                 throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_HIDE_LAST_ADMIN));
             }
@@ -334,12 +327,8 @@ public class UserService {
 
         escalationRepository.save(escalation);
 
-        LocalDateTime expirationTime = escalation.getExpirationTime();
-
         customUserDetailsService.evictUser(user.getName());
         customUserDetailsService.evictUser(user.getUser());
-
-        scheduleDeescalation(userId, expirationTime);
     }
 
     @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
@@ -360,27 +349,9 @@ public class UserService {
 
         customUserDetailsService.evictUser(user.getName());
         customUserDetailsService.evictUser(user.getUser());
-
-        cancelScheduledTask(userId);
     }
 
-    private void scheduleDeescalation(Integer userId, LocalDateTime expirationTime) {
-        cancelScheduledTask(userId);
-
-        java.time.Instant executionTime = expirationTime.atZone(ZoneId.systemDefault()).toInstant();
-
-        ScheduledFuture<?> future = taskScheduler.schedule(() -> deescalateRole(userId), executionTime);
-        scheduledTasks.put(userId, future);
-    }
-
-    private void cancelScheduledTask(Integer userId) {
-        ScheduledFuture<?> future = scheduledTasks.remove(userId);
-        if (future != null) {
-            future.cancel(false);
-        }
-    }
-
-    @EventListener(ApplicationReadyEvent.class)
+    @Scheduled(cron = "0 * * * * *") // Run every minute
     public void reschedulePendingEscalationsOnStartup() {
         List<TemporaryRoleEscalation> activeEscalations = escalationRepository.findAll();
         LocalDateTime now = LocalDateTime.now();
@@ -390,8 +361,6 @@ public class UserService {
 
             if (escalation.getExpirationTime().isBefore(now)) {
                 deescalateRole(userId);
-            } else {
-                scheduleDeescalation(userId, escalation.getExpirationTime());
             }
         }
     }

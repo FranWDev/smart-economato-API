@@ -75,10 +75,10 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                 mockMvc.perform(get(BASE_URL)
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$", notNullValue()))
-                                .andExpect(jsonPath("$[*].user").exists())
-                                .andExpect(jsonPath("$[*].name").exists())
-                                .andExpect(jsonPath("$[*].role").exists());
+                                .andExpect(jsonPath("$.content", notNullValue()))
+                                .andExpect(jsonPath("$.content[*].user").exists())
+                                .andExpect(jsonPath("$.content[*].name").exists())
+                                .andExpect(jsonPath("$.content[*].role").exists());
         }
 
         @Test
@@ -555,7 +555,8 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andReturn().getResponse().getContentAsString();
 
-                int countBefore = objectMapper.readValue(beforeResponse, UserResponseDTO[].class).length;
+                com.fasterxml.jackson.databind.JsonNode beforeNode = objectMapper.readTree(beforeResponse);
+                int countBefore = beforeNode.get("content").size();
 
                 // Ocultar usuario
                 mockMvc.perform(patch(BASE_URL + "/{id}/hidden", createdUser.getId())
@@ -570,7 +571,8 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andReturn().getResponse().getContentAsString();
 
-                int countAfter = objectMapper.readValue(afterResponse, UserResponseDTO[].class).length;
+                com.fasterxml.jackson.databind.JsonNode afterNode = objectMapper.readTree(afterResponse);
+                int countAfter = afterNode.get("content").size();
 
                 assert countAfter == countBefore - 1 : "El usuario oculto no debe aparecer en la lista";
         }

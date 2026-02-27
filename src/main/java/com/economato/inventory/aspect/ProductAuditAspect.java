@@ -3,8 +3,6 @@ package com.economato.inventory.aspect;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.ProceedingJoinPoint;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import com.economato.inventory.security.SecurityContextHelper;
@@ -23,6 +21,8 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
+
 /**
  * Aspecto para auditoría de productos.
  * Publica eventos en Kafka de forma asíncrona y no bloqueante.
@@ -30,22 +30,23 @@ import java.util.Map;
 @Aspect
 @Component
 @Profile({ "!test", "kafka-test" })
+@Slf4j
 public class ProductAuditAspect {
-
-    private static final Logger log = LoggerFactory.getLogger(ProductAuditAspect.class);
-    private static final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
     private final ProductRepository productRepository;
     private final SecurityContextHelper securityContextHelper;
     private final AuditEventProducer auditEventProducer;
+    private final ObjectMapper objectMapper;
 
     public ProductAuditAspect(
             ProductRepository productRepository,
             SecurityContextHelper securityContextHelper,
-            AuditEventProducer auditEventProducer) {
+            AuditEventProducer auditEventProducer,
+            ObjectMapper objectMapper) {
         this.productRepository = productRepository;
         this.securityContextHelper = securityContextHelper;
         this.auditEventProducer = auditEventProducer;
+        this.objectMapper = objectMapper.registerModule(new JavaTimeModule());
     }
 
     @Around("@annotation(auditable)")
