@@ -107,9 +107,9 @@
             <version>${springdoc.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.springdoc</groupId>
-            <artifactId>springdoc-openapi-starter-webmvc-scalar</artifactId>
-            <version>${springdoc.version}</version>
+            <groupId>com.scalar.maven</groupId>
+            <artifactId>scalar-webmvc</artifactId>
+            <version>0.5.55</version>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
