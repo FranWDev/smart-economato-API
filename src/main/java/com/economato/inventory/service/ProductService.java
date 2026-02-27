@@ -54,7 +54,7 @@ public class ProductService {
     private final StockLedgerService stockLedgerService;
     private final UserRepository userRepository;
 
-    public ProductService(I18nService i18nService, 
+    public ProductService(I18nService i18nService,
             ProductRepository repository,
             InventoryAuditRepository movementRepository,
             RecipeComponentRepository recipeComponentRepository,
@@ -81,14 +81,14 @@ public class ProductService {
                 page.getTotalElements());
     }
 
-    @Cacheable(value = "product_v2", key = "#id")
+    @Cacheable(value = "product_v4", key = "#id")
     @Transactional(readOnly = true)
     public Optional<ProductResponseDTO> findById(Integer id) {
         return repository.findProjectedById(id)
                 .map(productMapper::toResponseDTO);
     }
 
-    @Cacheable(value = "product_v2", key = "'code:' + #codebar")
+    @Cacheable(value = "product_v4", key = "'code:' + #codebar")
     @Transactional(readOnly = true)
     public Optional<ProductResponseDTO> findByCodebar(String codebar) {
         return repository.findProjectedByProductCode(codebar)
@@ -101,7 +101,7 @@ public class ProductService {
                 .map(productMapper::toResponseDTO);
     }
 
-    @CacheEvict(value = { "products_page_v2", "product_v2" }, allEntries = true)
+    @CacheEvict(value = { "products_page_v4", "product_v4" }, allEntries = true)
     @ProductAuditable(action = "CREATE_PRODUCT")
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public ProductResponseDTO save(ProductRequestDTO requestDTO) {
@@ -114,7 +114,7 @@ public class ProductService {
         return productMapper.toResponseDTO(repository.save(product));
     }
 
-    @CacheEvict(value = { "products_page_v2", "product_v2" }, allEntries = true)
+    @CacheEvict(value = { "products_page_v4", "product_v4" }, allEntries = true)
     @ProductAuditable(action = "UPDATE_PRODUCT")
     @Retryable(retryFor = { OptimisticLockingFailureException.class }, maxAttempts = 3, backoff = @Backoff(delay = 100))
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
@@ -124,7 +124,8 @@ public class ProductService {
                 .map(existing -> {
                     if (!existing.getName().equals(requestDTO.getName()) &&
                             repository.existsByName(requestDTO.getName())) {
-                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_ALREADY_EXISTS));
+                        throw new InvalidOperationException(
+                                i18nService.getMessage(MessageKey.ERROR_PRODUCT_ALREADY_EXISTS));
                     }
                     validateProductData(requestDTO);
                     productMapper.updateEntity(requestDTO, existing);
@@ -137,7 +138,7 @@ public class ProductService {
                 });
     }
 
-    @CacheEvict(value = { "products_page_v2", "product_v2" }, allEntries = true)
+    @CacheEvict(value = { "products_page_v4", "product_v4" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
         repository.findById(id).ifPresent(product -> {
@@ -203,7 +204,7 @@ public class ProductService {
                 .toList();
     }
 
-    @CacheEvict(value = { "products_page_v2", "product_v2" }, allEntries = true)
+    @CacheEvict(value = { "products_page_v4", "product_v4" }, allEntries = true)
     @ProductAuditable(action = "TOGGLE_HIDDEN")
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void toggleProductHiddenStatus(Integer id, boolean hidden) {
@@ -218,7 +219,7 @@ public class ProductService {
         return unit != null && VALID_UNITS.contains(unit.toUpperCase());
     }
 
-    @CacheEvict(value = { "products_page_v2", "product_v2" }, allEntries = true)
+    @CacheEvict(value = { "products_page_v4", "product_v4" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
             Exception.class }, isolation = Isolation.REPEATABLE_READ)
     public Optional<ProductResponseDTO> updateStockManually(Integer id, ProductRequestDTO requestDTO) {
@@ -230,7 +231,8 @@ public class ProductService {
 
                     if (!existing.getName().equals(requestDTO.getName()) &&
                             repository.existsByName(requestDTO.getName())) {
-                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_ALREADY_EXISTS));
+                        throw new InvalidOperationException(
+                                i18nService.getMessage(MessageKey.ERROR_PRODUCT_ALREADY_EXISTS));
                     }
                     validateProductData(requestDTO);
 
