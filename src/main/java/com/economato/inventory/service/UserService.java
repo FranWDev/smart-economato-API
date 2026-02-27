@@ -167,7 +167,7 @@ public class UserService {
             }
         }
 
-        repository.deleteById(id);
+        repository.delete(user);
     }
 
     @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)

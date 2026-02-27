@@ -318,12 +318,12 @@ class UserServiceTest {
         // Mock que el usuario existe y no es el último admin
         testUser.setRole(Role.USER);
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
-        doNothing().when(repository).deleteById(1);
+        doNothing().when(repository).delete(testUser);
 
         userService.deleteById(1);
 
         verify(repository).findById(1);
-        verify(repository).deleteById(1);
+        verify(repository).delete(testUser);
     }
 
     @Test
@@ -406,7 +406,7 @@ class UserServiceTest {
         when(repository.countByRole(Role.ADMIN)).thenReturn(1L);
 
         assertThrows(InvalidOperationException.class, () -> userService.deleteById(1));
-        verify(repository, never()).deleteById(1);
+        verify(repository, never()).delete(any(User.class));
     }
 
     @Test
@@ -414,11 +414,11 @@ class UserServiceTest {
         testUser.setRole(Role.ADMIN);
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
         when(repository.countByRole(Role.ADMIN)).thenReturn(2L);
-        doNothing().when(repository).deleteById(1);
+        doNothing().when(repository).delete(testUser);
 
         userService.deleteById(1);
 
-        verify(repository).deleteById(1);
+        verify(repository).delete(testUser);
     }
 
     @Test
@@ -426,7 +426,7 @@ class UserServiceTest {
         when(repository.findById(999)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class, () -> userService.deleteById(999));
-        verify(repository, never()).deleteById(999);
+        verify(repository, never()).delete(any(User.class));
     }
 
     @Test

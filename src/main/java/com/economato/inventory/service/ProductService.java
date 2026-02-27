@@ -139,7 +139,9 @@ public class ProductService {
     @CacheEvict(value = { "products_page_v4", "product_v4" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
-        repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+        Product product = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+
         if (movementRepository.existsByProductId(id)) {
             throw new InvalidOperationException(
                     i18nService.getMessage(MessageKey.ERROR_PRODUCT_DELETE_HAS_MOVEMENTS));
@@ -148,7 +150,7 @@ public class ProductService {
             throw new InvalidOperationException(
                     i18nService.getMessage(MessageKey.ERROR_PRODUCT_DELETE_IN_RECIPE));
         }
-        repository.deleteById(id);
+        repository.delete(product);
     }
 
     @Transactional(readOnly = true)

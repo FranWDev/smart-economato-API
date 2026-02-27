@@ -358,14 +358,14 @@ class ProductServiceTest {
         when(repository.findById(1)).thenReturn(Optional.of(testProduct));
         when(movementRepository.existsByProductId(1)).thenReturn(false);
         when(recipeComponentRepository.existsByProductId(1)).thenReturn(false);
-        doNothing().when(repository).deleteById(1);
+        doNothing().when(repository).delete(testProduct);
 
         productService.deleteById(1);
 
         verify(repository).findById(1);
         verify(movementRepository).existsByProductId(1);
         verify(recipeComponentRepository).existsByProductId(1);
-        verify(repository).deleteById(1);
+        verify(repository).delete(testProduct);
     }
 
     @Test
@@ -378,7 +378,7 @@ class ProductServiceTest {
             productService.deleteById(1);
         });
         assertTrue(exception.getMessage().contains(MessageKey.ERROR_PRODUCT_DELETE_HAS_MOVEMENTS.name()));
-        verify(repository, never()).deleteById(anyInt());
+        verify(repository, never()).delete(any(Product.class));
     }
 
     @Test
@@ -392,7 +392,7 @@ class ProductServiceTest {
             productService.deleteById(1);
         });
         assertTrue(exception.getMessage().contains(MessageKey.ERROR_PRODUCT_DELETE_IN_RECIPE.name()));
-        verify(repository, never()).deleteById(anyInt());
+        verify(repository, never()).delete(any(Product.class));
     }
 
     @Test
@@ -402,7 +402,7 @@ class ProductServiceTest {
         });
 
         verify(repository).findById(999);
-        verify(repository, never()).deleteById(anyInt());
+        verify(repository, never()).delete(any(Product.class));
     }
 
     @Test
