@@ -9,7 +9,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.economato.inventory.dto.projection.ProductProjection;
-import com.economato.inventory.dto.response.ProductResponseDTO;
 import com.economato.inventory.model.Product;
 
 import jakarta.persistence.LockModeType;
@@ -19,60 +18,58 @@ import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Integer> {
 
-    boolean existsByName(String name);
+        boolean existsByName(String name);
 
-    List<Product> findByType(String type);
+        List<Product> findByType(String type);
 
-    List<Product> findByNameContainingIgnoreCase(String namePart);
+        List<Product> findByNameContainingIgnoreCase(String namePart);
 
-    Page<Product> findByNameContainingIgnoreCase(String namePart, Pageable pageable);
+        Page<Product> findByNameContainingIgnoreCase(String namePart, Pageable pageable);
 
-    List<Product> findByCurrentStockLessThan(BigDecimal stock);
+        List<Product> findByCurrentStockLessThan(BigDecimal stock);
 
-    List<Product> findByUnitPriceBetween(BigDecimal min, BigDecimal max);
+        List<Product> findByUnitPriceBetween(BigDecimal min, BigDecimal max);
 
-    Optional<Product> findByProductCode(String productCode);
+        Optional<Product> findByProductCode(String productCode);
 
-    Optional<Product> findById(ProductResponseDTO product2);
+        @Query("SELECT p FROM Product p WHERE p.id = :id")
+        Optional<Product> findByIdOptimized(@Param("id") Integer id);
 
-    @Query("SELECT p FROM Product p WHERE p.id = :id")
-    Optional<Product> findByIdOptimized(@Param("id") Integer id);
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        @Query("SELECT p FROM Product p WHERE p.id = :id")
+        Optional<Product> findByIdForUpdate(@Param("id") Integer id);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT p FROM Product p WHERE p.id = :id")
-    Optional<Product> findByIdForUpdate(@Param("id") Integer id);
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        @Query("SELECT p FROM Product p WHERE p.id IN :ids")
+        List<Product> findByIdsForUpdate(@Param("ids") List<Integer> ids);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT p FROM Product p WHERE p.id IN :ids")
-    List<Product> findByIdsForUpdate(@Param("ids") List<Integer> ids);
+        @Lock(LockModeType.PESSIMISTIC_READ)
+        @Query("SELECT p FROM Product p WHERE p.id = :id")
+        Optional<Product> findByIdForRead(@Param("id") Integer id);
 
-    @Lock(LockModeType.PESSIMISTIC_READ)
-    @Query("SELECT p FROM Product p WHERE p.id = :id")
-    Optional<Product> findByIdForRead(@Param("id") Integer id);
+        boolean existsBySupplierId(Integer supplierId);
 
-    boolean existsBySupplierId(Integer supplierId);
+        // --- Proyecciones ---
 
-    // --- Proyecciones ---
+        Page<ProductProjection> findByIsHiddenFalse(Pageable pageable);
 
-    Page<ProductProjection> findByIsHiddenFalse(Pageable pageable);
+        Page<ProductProjection> findByIsHiddenTrue(Pageable pageable);
 
-    Page<ProductProjection> findByIsHiddenTrue(Pageable pageable);
+        List<ProductProjection> findByIsHiddenFalse(Sort sort);
 
-    List<ProductProjection> findByIsHiddenFalse(Sort sort);
+        Optional<ProductProjection> findProjectedById(Integer id);
 
-    Optional<ProductProjection> findProjectedById(Integer id);
+        Optional<ProductProjection> findProjectedByProductCode(String productCode);
 
-    Optional<ProductProjection> findProjectedByProductCode(String productCode);
+        Page<ProductProjection> findByNameContainingIgnoreCaseAndIsHiddenFalse(String namePart,
+                        Pageable pageable);
 
-    Page<ProductProjection> findByNameContainingIgnoreCaseAndIsHiddenFalse(String namePart,
-            Pageable pageable);
+        List<ProductProjection> findByNameContainingIgnoreCaseAndIsHiddenFalse(String namePart);
 
-    List<ProductProjection> findByNameContainingIgnoreCaseAndIsHiddenFalse(String namePart);
+        List<ProductProjection> findByTypeAndIsHiddenFalse(String type);
 
-    List<ProductProjection> findByTypeAndIsHiddenFalse(String type);
+        List<ProductProjection> findByCurrentStockLessThanAndIsHiddenFalse(BigDecimal stock);
 
-    List<ProductProjection> findByCurrentStockLessThanAndIsHiddenFalse(BigDecimal stock);
-
-    List<ProductProjection> findByUnitPriceBetweenAndIsHiddenFalse(BigDecimal min,
-            BigDecimal max);
+        List<ProductProjection> findByUnitPriceBetweenAndIsHiddenFalse(BigDecimal min,
+                        BigDecimal max);
 }
