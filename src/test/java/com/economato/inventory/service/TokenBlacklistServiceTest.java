@@ -2,34 +2,65 @@ package com.economato.inventory.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ValueOperations;
 
-import java.util.Calendar;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.Date;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
 
+@ExtendWith(MockitoExtension.class)
 class TokenBlacklistServiceTest {
 
-    private TokenBlacklistService tokenBlacklistService;
+    private RedisTokenBlacklistService tokenBlacklistService;
+
+    @Mock
+    private RedisTemplate<String, String> redisTemplate;
+
+    @Mock
+    private ValueOperations<String, String> valueOperations;
 
     @BeforeEach
     void setUp() {
-        tokenBlacklistService = new TokenBlacklistService();
+        tokenBlacklistService = new RedisTokenBlacklistService(redisTemplate);
     }
 
     @Test
     void testBlacklistToken() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+
         String token = "test.jwt.token";
-        Date expiration = new Date(System.currentTimeMillis() + 3600000); // 1 hora en el futuro
+        Date expiration = new Date(System.currentTimeMillis() + 3600000); // 1 hour in future
 
         tokenBlacklistService.blacklistToken(token, expiration);
+
+        verify(valueOperations).set(
+                eq("token_blacklist:" + token),
+                eq("revoked"),
+                any(Duration.class));
+    }
+
+    @Test
+    void testIsBlacklistedReturnsTrue() {
+        String token = "blacklisted.token";
+        when(redisTemplate.hasKey("token_blacklist:" + token)).thenReturn(true);
 
         assertTrue(tokenBlacklistService.isBlacklisted(token));
     }
 
     @Test
-    void testIsBlacklistedReturnsFalseForNonBlacklistedToken() {
+    void testIsBlacklistedReturnsFalse() {
         String token = "non.blacklisted.token";
+        when(redisTemplate.hasKey("token_blacklist:" + token)).thenReturn(false);
 
         assertFalse(tokenBlacklistService.isBlacklisted(token));
     }
@@ -37,68 +68,34 @@ class TokenBlacklistServiceTest {
     @Test
     void testBlacklistTokenWithNullToken() {
         tokenBlacklistService.blacklistToken(null, new Date());
-
-        assertFalse(tokenBlacklistService.isBlacklisted(null));
+        verifyNoInteractions(valueOperations);
     }
 
     @Test
-    void testBlacklistTokenWithEmptyToken() {
-        tokenBlacklistService.blacklistToken("", new Date());
-
-        assertFalse(tokenBlacklistService.isBlacklisted(""));
-    }
-
-    @Test
-    void testCleanExpiredTokens() throws InterruptedException {
+    void testBlacklistTokenWithExpiredDate() {
         String token = "expired.token";
-        Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.SECOND, -1);
-        Date expiration = calendar.getTime();
+        Date expiration = new Date(System.currentTimeMillis() - 1000); // Past
 
         tokenBlacklistService.blacklistToken(token, expiration);
 
-        Thread.sleep(100);
-
-        tokenBlacklistService.cleanExpiredTokens();
-        assertFalse(tokenBlacklistService.isBlacklisted(token));
+        verifyNoInteractions(valueOperations);
     }
 
     @Test
     void testGetBlacklistSize() {
-        assertEquals(0, tokenBlacklistService.getBlacklistSize());
-
-        Date expiration = new Date(System.currentTimeMillis() + 3600000);
-        tokenBlacklistService.blacklistToken("token1", expiration);
-        tokenBlacklistService.blacklistToken("token2", expiration);
+        Set<String> keys = Set.of("key1", "key2");
+        when(redisTemplate.keys(anyString())).thenReturn(keys);
 
         assertEquals(2, tokenBlacklistService.getBlacklistSize());
     }
 
     @Test
     void testClearBlacklist() {
-        Date expiration = new Date(System.currentTimeMillis() + 3600000);
-        tokenBlacklistService.blacklistToken("token1", expiration);
-        tokenBlacklistService.blacklistToken("token2", expiration);
-
-        assertEquals(2, tokenBlacklistService.getBlacklistSize());
+        Set<String> keys = Set.of("key1", "key2");
+        when(redisTemplate.keys(anyString())).thenReturn(keys);
 
         tokenBlacklistService.clearBlacklist();
 
-        assertEquals(0, tokenBlacklistService.getBlacklistSize());
-    }
-
-    @Test
-    void testMultipleTokensBlacklisting() {
-        Date expiration = new Date(System.currentTimeMillis() + 3600000);
-
-        for (int i = 0; i < 10; i++) {
-            tokenBlacklistService.blacklistToken("token" + i, expiration);
-        }
-
-        assertEquals(10, tokenBlacklistService.getBlacklistSize());
-
-        for (int i = 0; i < 10; i++) {
-            assertTrue(tokenBlacklistService.isBlacklisted("token" + i));
-        }
+        verify(redisTemplate).delete(keys);
     }
 }
