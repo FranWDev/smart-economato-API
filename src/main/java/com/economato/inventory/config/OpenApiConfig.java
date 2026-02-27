@@ -12,8 +12,9 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("API Economatom")
-                        .version("1.0")
-                        .description("Documentación de la API"));
+                        .title("API Smart Economato")
+                        .version("2.0")
+                        .description(
+                                "Documentación completa de todos los endpoints de la API de Smart Economato."));
     }
 }
