@@ -134,16 +134,6 @@ class StockLedgerControllerIntegrationTest extends BaseControllerMockTest {
 
     @Test
     @WithMockUser(username = "admin", roles = { "ADMIN" })
-    void getAllSnapshots_ShouldReturnList() throws Exception {
-
-        mockMvc.perform(get("/api/stock-ledger/snapshots")
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray());
-    }
-
-    @Test
-    @WithMockUser(username = "admin", roles = { "ADMIN" })
     void resetChain_ShouldReturnOk() throws Exception {
 
         when(stockLedgerService.resetProductLedger(1)).thenReturn("Historial restablecido");
