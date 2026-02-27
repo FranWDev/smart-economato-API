@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 import com.economato.inventory.dto.response.RecipeResponseDTO;
 import com.economato.inventory.dto.response.UserResponseDTO;
 
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
