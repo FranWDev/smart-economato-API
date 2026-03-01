@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -22,22 +23,30 @@ import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Configuración de Redis para caché con invalidación eventual.
- * 
- * Características:
- * - Serialización JSON para objetos complejos
- * - TTL personalizado por tipo de caché
- * - Invalidación manual mediante @CacheEvict
- */
 @Configuration
 @EnableCaching
 @Profile("!test")
 public class RedisConfig {
 
+        private static GenericJackson2JsonRedisSerializer buildRedisSerializer(ObjectMapper baseMapper) {
+                PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
+                                .allowIfBaseType(Object.class)
+                                .build();
+
+                // copy() produces an independent instance: the application-wide singleton
+                // is never mutated by activateDefaultTyping.
+                ObjectMapper redisMapper = baseMapper.copy();
+                redisMapper.activateDefaultTyping(
+                                ptv,
+                                ObjectMapper.DefaultTyping.NON_FINAL,
+                                JsonTypeInfo.As.PROPERTY);
+
+                return new GenericJackson2JsonRedisSerializer(redisMapper);
+        }
+
         /**
          * Configuración del CacheManager con TTL personalizados.
-         * 
+         *
          * Caches configurados:
          * - products: 1 hora (datos que cambian con frecuencia)
          * - recipes: 2 horas (datos más estables)
@@ -46,21 +55,11 @@ public class RedisConfig {
          * - allergens: 24 horas (datos maestros)
          */
         @Bean
-        public CacheManager cacheManager(RedisConnectionFactory connectionFactory, ObjectMapper objectMapper) {
-                // Configuración de validación de tipos polimórficos
-                PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
-                                .allowIfBaseType(Object.class)
-                                .build();
+        public CacheManager cacheManager(RedisConnectionFactory connectionFactory,
+                        @Qualifier("jackson2ObjectMapper") ObjectMapper objectMapper) {
 
-                objectMapper.activateDefaultTyping(
-                                ptv,
-                                ObjectMapper.DefaultTyping.NON_FINAL,
-                                JsonTypeInfo.As.PROPERTY);
+                GenericJackson2JsonRedisSerializer serializer = buildRedisSerializer(objectMapper);
 
-                // Configuración de serialización
-                GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
-
-                // Configuración base de Redis Cache
                 RedisCacheConfiguration defaultConfig = RedisCacheConfiguration
                                 .defaultCacheConfig()
                                 .serializeKeysWith(
@@ -71,10 +70,8 @@ public class RedisConfig {
                                 .disableCachingNullValues()
                                 .entryTtl(Duration.ofMinutes(30));
 
-                // Configuraciones específicas por tipo de caché
                 Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
 
-                // ... (rest of configuration unchanged)
                 cacheConfigurations.put("products_page_v4", defaultConfig.entryTtl(Duration.ofMinutes(10)));
                 cacheConfigurations.put("recipes_page_v4", defaultConfig.entryTtl(Duration.ofMinutes(10)));
                 cacheConfigurations.put("product_v4", defaultConfig.entryTtl(Duration.ofHours(1)));
@@ -99,24 +96,15 @@ public class RedisConfig {
 
         @Bean
         public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory,
-                        ObjectMapper objectMapper) {
+                        @Qualifier("jackson2ObjectMapper") ObjectMapper objectMapper) {
+
                 RedisTemplate<String, Object> template = new RedisTemplate<>();
                 template.setConnectionFactory(connectionFactory);
 
                 template.setKeySerializer(new StringRedisSerializer());
                 template.setHashKeySerializer(new StringRedisSerializer());
 
-                // Configuración de validación de tipos polimórficos
-                PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
-                                .allowIfBaseType(Object.class)
-                                .build();
-
-                objectMapper.activateDefaultTyping(
-                                ptv,
-                                ObjectMapper.DefaultTyping.NON_FINAL,
-                                JsonTypeInfo.As.PROPERTY);
-
-                GenericJackson2JsonRedisSerializer serializer = new GenericJackson2JsonRedisSerializer(objectMapper);
+                GenericJackson2JsonRedisSerializer serializer = buildRedisSerializer(objectMapper);
 
                 template.setValueSerializer(serializer);
                 template.setHashValueSerializer(serializer);
