@@ -26,8 +26,6 @@ import com.economato.inventory.repository.UserRepository;
 
 import java.util.List;
 import java.util.Optional;
-import java.time.LocalDateTime;
-import org.springframework.scheduling.annotation.Scheduled;
 
 import com.economato.inventory.dto.request.RoleEscalationRequestDTO;
 import com.economato.inventory.model.TemporaryRoleEscalation;
@@ -346,17 +344,4 @@ public class UserService {
         customUserDetailsService.evictUser(user.getUser());
     }
 
-    @Scheduled(cron = "0 * * * * *") // Run every minute
-    public void reschedulePendingEscalationsOnStartup() {
-        List<TemporaryRoleEscalation> activeEscalations = escalationRepository.findAll();
-        LocalDateTime now = LocalDateTime.now();
-
-        for (TemporaryRoleEscalation escalation : activeEscalations) {
-            Integer userId = escalation.getUser().getId();
-
-            if (escalation.getExpirationTime().isBefore(now)) {
-                deescalateRole(userId);
-            }
-        }
-    }
 }
