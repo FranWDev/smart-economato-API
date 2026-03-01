@@ -217,12 +217,8 @@ public class OrderController {
         @PostMapping("/reception")
         public ResponseEntity<OrderResponseDTO> receiveOrder(
                         @Valid @org.springframework.web.bind.annotation.RequestBody OrderReceptionRequestDTO receptionData) {
-                try {
-                        OrderResponseDTO result = orderService.receiveOrder(receptionData);
-                        return ResponseEntity.ok(result);
-                } catch (RuntimeException e) {
-                        return ResponseEntity.badRequest().build();
-                }
+                OrderResponseDTO result = orderService.receiveOrder(receptionData);
+                return ResponseEntity.ok(result);
         }
 
         @Operation(summary = "Actualizar estado de una orden", description = "Permite cambiar el estado de una orden entre: CREATED, PENDING, REVIEW, COMPLETED, INCOMPLETE. [Rol requerido: CHEF]", responses = {
@@ -235,13 +231,9 @@ public class OrderController {
         public ResponseEntity<OrderResponseDTO> updateOrderStatus(
                         @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id,
                         @org.springframework.web.bind.annotation.RequestBody UpdateStatusRequest statusRequest) {
-                try {
-                        return orderService.updateStatus(id, statusRequest.getStatus())
-                                        .map(ResponseEntity::ok)
-                                        .orElse(ResponseEntity.notFound().build());
-                } catch (IllegalArgumentException e) {
-                        return ResponseEntity.badRequest().build();
-                }
+                return orderService.updateStatus(id, statusRequest.getStatus())
+                                .map(ResponseEntity::ok)
+                                .orElse(ResponseEntity.notFound().build());
         }
 
         /**
