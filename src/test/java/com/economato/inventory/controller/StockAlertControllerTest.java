@@ -3,7 +3,12 @@ package com.economato.inventory.controller;
 import com.economato.inventory.dto.response.AlertResolution;
 import com.economato.inventory.dto.response.AlertSeverity;
 import com.economato.inventory.dto.response.StockAlertDTO;
+import com.economato.inventory.dto.response.StockPredictionResponseDTO;
 import com.economato.inventory.service.StockAlertService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -113,5 +118,24 @@ class StockAlertControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(1, response.getBody().size());
         assertEquals(alert, response.getBody().get(0));
+    }
+
+    @Test
+    void getPredictions_returnsPaginatedPredictions() {
+        StockPredictionResponseDTO dto = StockPredictionResponseDTO.builder()
+                .productId(1)
+                .productName("Harina")
+                .projectedConsumption(BigDecimal.valueOf(10.0))
+                .build();
+        Page<StockPredictionResponseDTO> page = new PageImpl<>(List.of(dto));
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(stockAlertService.getAllPredictions(pageable)).thenReturn(page);
+
+        ResponseEntity<Page<StockPredictionResponseDTO>> response = controller.getPredictions(pageable);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(page, response.getBody());
+        verify(stockAlertService).getAllPredictions(pageable);
     }
 }

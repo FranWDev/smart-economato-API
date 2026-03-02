@@ -5,6 +5,7 @@ import com.economato.inventory.dto.projection.WeeklyIngredientConsumption;
 import com.economato.inventory.dto.response.AlertResolution;
 import com.economato.inventory.dto.response.AlertSeverity;
 import com.economato.inventory.dto.response.StockAlertDTO;
+import com.economato.inventory.dto.response.StockPredictionResponseDTO;
 import com.economato.inventory.model.Recipe;
 import com.economato.inventory.model.StockPrediction;
 import com.economato.inventory.repository.OrderDetailRepository;
@@ -17,6 +18,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,29 +32,20 @@ import java.util.stream.Collectors;
 
 /**
  * Genera alertas predictivas de stock bajo combinando:
- * <ul>
- * <li>Proyección Holt-Winters del consumo de ingredientes (12 semanas
- * históricas).</li>
- * <li>Stock físico actual ({@code product.currentStock}).</li>
- * <li>Cantidades pendientes de recibir en pedidos activos (CREATED / PENDING /
- * REVIEW).</li>
- * </ul>
+ * Proyección Holt-Winters del consumo de ingredientes (12 semanas históricas).
+ * Stock físico actual ({@code product.currentStock}).
+ * Cantidades pendientes de recibir en pedidos activos (CREATED / PENDING /
+ * REVIEW).
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class StockAlertService {
 
-    /** Número de semanas de historial que se incluyen en el modelo. */
     private static final int HISTORY_WEEKS = 12;
 
-    /** Horizonte de predicción en días. */
     private static final int HORIZON_DAYS = 14;
 
-    /**
-     * Período estacional del modelo (semanas). 1 = sin estacionalidad semanal entre
-     * semanas.
-     */
     private static final int SEASON_PERIOD = 1;
 
     private final RecipeCookingAuditRepository cookingAuditRepository;
@@ -109,6 +103,20 @@ public class StockAlertService {
     // -------------------------------------------------------------------------
     // Lógica de cálculo
     // -------------------------------------------------------------------------
+
+    /**
+     * Devuelve una lista paginada de todas las predicciones almacenadas.
+     */
+    @Transactional(readOnly = true)
+    public Page<StockPredictionResponseDTO> getAllPredictions(Pageable pageable) {
+        return predictionRepository.findAll(pageable)
+                .map(prediction -> StockPredictionResponseDTO.builder()
+                        .productId(prediction.getId())
+                        .productName(prediction.getProduct().getName())
+                        .projectedConsumption(prediction.getProjectedConsumption())
+                        .updatedAt(prediction.getUpdatedAt())
+                        .build());
+    }
 
     private List<StockAlertDTO> computeAlerts() {
         return computeAlerts(null);

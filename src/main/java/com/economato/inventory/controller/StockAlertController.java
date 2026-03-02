@@ -2,6 +2,7 @@ package com.economato.inventory.controller;
 
 import com.economato.inventory.dto.response.AlertSeverity;
 import com.economato.inventory.dto.response.StockAlertDTO;
+import com.economato.inventory.dto.response.StockPredictionResponseDTO;
 import com.economato.inventory.service.StockAlertService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -10,6 +11,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -70,5 +73,12 @@ public class StockAlertController {
     @Operation(summary = "Obtener alertas para una lista de productos", description = "Calcula las alertas predictivas para un conjunto de IDs de producto. [Rol requerido: CHEF]")
     public ResponseEntity<List<StockAlertDTO>> getBatchAlerts(@RequestBody List<Integer> productIds) {
         return ResponseEntity.ok(stockAlertService.getAlertsByProductIds(productIds));
+    }
+
+    @PreAuthorize("hasRole('CHEF')")
+    @GetMapping("/predictions")
+    @Operation(summary = "Obtener todas las predicciones persistidas", description = "Devuelve una lista paginada de los consumos proyectados para los próximos 14 días. [Rol requerido: CHEF]")
+    public ResponseEntity<Page<StockPredictionResponseDTO>> getPredictions(Pageable pageable) {
+        return ResponseEntity.ok(stockAlertService.getAllPredictions(pageable));
     }
 }
