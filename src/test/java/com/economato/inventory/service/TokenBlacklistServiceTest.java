@@ -1,5 +1,6 @@
 package com.economato.inventory.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,6 +11,7 @@ import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Duration;
 import java.util.Date;
+import java.util.Locale;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -27,9 +29,12 @@ class TokenBlacklistServiceTest {
     @Mock
     private ValueOperations<String, String> valueOperations;
 
+    @Mock
+    private Cache<String, Locale> tokenLocaleCache;
+
     @BeforeEach
     void setUp() {
-        tokenBlacklistService = new RedisTokenBlacklistService(redisTemplate);
+        tokenBlacklistService = new RedisTokenBlacklistService(redisTemplate, tokenLocaleCache);
     }
 
     @Test
@@ -45,6 +50,7 @@ class TokenBlacklistServiceTest {
                 eq("token_blacklist:" + token),
                 eq("revoked"),
                 any(Duration.class));
+        verify(tokenLocaleCache).invalidate(token);
     }
 
     @Test

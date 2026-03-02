@@ -1,21 +1,26 @@
 package com.economato.inventory.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.Date;
+import java.util.Locale;
 
 @Service
 @Profile("!test")
 public class RedisTokenBlacklistService implements TokenBlacklistService {
 
     private final RedisTemplate<String, String> redisTemplate;
+    private final Cache<String, Locale> tokenLocaleCache;
     private static final String BLACKLIST_PREFIX = "token_blacklist:";
 
-    public RedisTokenBlacklistService(RedisTemplate<String, String> redisTemplate) {
+    public RedisTokenBlacklistService(RedisTemplate<String, String> redisTemplate,
+            Cache<String, Locale> tokenLocaleCache) {
         this.redisTemplate = redisTemplate;
+        this.tokenLocaleCache = tokenLocaleCache;
     }
 
     @Override
@@ -28,6 +33,7 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
                         "revoked",
                         Duration.ofMillis(ttlMillis));
             }
+            tokenLocaleCache.invalidate(token);
         }
     }
 

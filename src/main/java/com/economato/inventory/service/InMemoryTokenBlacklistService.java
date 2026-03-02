@@ -1,10 +1,12 @@
 package com.economato.inventory.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -13,11 +15,17 @@ import java.util.concurrent.ConcurrentHashMap;
 public class InMemoryTokenBlacklistService implements TokenBlacklistService {
 
     private final Map<String, Date> blacklistedTokens = new ConcurrentHashMap<>();
+    private final Cache<String, Locale> tokenLocaleCache;
+
+    public InMemoryTokenBlacklistService(Cache<String, Locale> tokenLocaleCache) {
+        this.tokenLocaleCache = tokenLocaleCache;
+    }
 
     @Override
     public void blacklistToken(String token, Date expirationDate) {
         if (token != null && !token.isEmpty()) {
             blacklistedTokens.put(token, expirationDate);
+            tokenLocaleCache.invalidate(token);
         }
     }
 

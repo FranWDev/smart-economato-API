@@ -1,5 +1,7 @@
 package com.economato.inventory.config;
 
+import com.economato.inventory.i18n.TokenLocaleResolver;
+import com.github.benmanes.caffeine.cache.Cache;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,8 +23,8 @@ import java.util.Locale;
 public class I18nValidationConfig {
 
     @Bean
-    public LocaleResolver localeResolver() {
-        AcceptHeaderLocaleResolver resolver = new AcceptHeaderLocaleResolver();
+    public LocaleResolver localeResolver(Cache<String, Locale> tokenLocaleCache) {
+        TokenLocaleResolver resolver = new TokenLocaleResolver(tokenLocaleCache);
         // Definimos español como idioma por defecto (fallback absoluto)
         resolver.setDefaultLocale(Locale.forLanguageTag("es"));
         // Restringimos los lenguajes soportados a los que tenemos .properties
