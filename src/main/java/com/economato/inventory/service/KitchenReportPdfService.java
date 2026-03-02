@@ -106,7 +106,7 @@ public class KitchenReportPdfService {
                 .setBackgroundColor(SECONDARY_COLOR)
                 .setPaddingTop(3)
                 .setMarginTop(0)
-                .setMarginBottom(24);
+                .setMarginBottom(16);
         document.add(accent);
     }
 
@@ -114,20 +114,21 @@ public class KitchenReportPdfService {
             PdfFont regularFont) {
         addSectionTitle(document, "Información General", boldFont);
 
-        Table infoTable = new Table(UnitValue.createPercentArray(new float[] { 1, 2, 1, 2 }))
+        Table infoTable = new Table(UnitValue.createPercentArray(new float[] { 1, 1, 1, 1 }))
                 .setWidth(UnitValue.createPercentValue(100))
-                .setMarginBottom(24);
+                .setMarginBottom(16);
 
-        addInfoPair(infoTable, "SESIONES:", String.valueOf(report.getTotalCookingSessions()), boldFont, regularFont);
-        addInfoPair(infoTable, "PORCIONES TOTALES:", formatDecimal(report.getTotalPortionsCooked()), boldFont,
+        addInfoPair(infoTable, "ELABORACIONES REGISTRADAS:", String.valueOf(report.getTotalCookingSessions()), boldFont,
                 regularFont);
-        addInfoPair(infoTable, "RECETAS DISTINTAS:", String.valueOf(report.getDistinctRecipesCooked()), boldFont,
+        addInfoPair(infoTable, "PORCIONES PREPARADAS:", formatDecimal(report.getTotalPortionsCooked()), boldFont,
                 regularFont);
-        addInfoPair(infoTable, "PRODUCTOS DISTINTOS:", String.valueOf(report.getDistinctProductsUsed()), boldFont,
+        addInfoPair(infoTable, "DIVERSIDAD DE RECETAS:", String.valueOf(report.getDistinctRecipesCooked()), boldFont,
                 regularFont);
-        addInfoPair(infoTable, "USUARIOS ÚNICOS:", String.valueOf(report.getDistinctUsersCooking()), boldFont,
+        addInfoPair(infoTable, "DIVERSIDAD DE PRODUCTOS:", String.valueOf(report.getDistinctProductsUsed()), boldFont,
                 regularFont);
-        addInfoPair(infoTable, "FECHA EMISIÓN:", LocalDateTime.now().format(DATE_FORMAT), boldFont, regularFont);
+        addInfoPair(infoTable, "USUARIOS PARTICIPANTES:", String.valueOf(report.getDistinctUsersCooking()), boldFont,
+                regularFont);
+        addInfoPair(infoTable, "FECHA DE EMISIÓN:", LocalDateTime.now().format(DATE_FORMAT), boldFont, regularFont);
 
         document.add(infoTable);
     }
@@ -167,10 +168,10 @@ public class KitchenReportPdfService {
         table.addCell(valueCell);
     }
 
-    // TOP RECIPES
+    // RECIPES
     private void addTopRecipesTable(Document document, List<RecipeStatDTO> details, PdfFont boldFont,
             PdfFont regularFont) {
-        addSectionTitle(document, "Top Recetas Cocinadas", boldFont);
+        addSectionTitle(document, "Recetas Más Elaboradas", boldFont);
 
         Table table = new Table(UnitValue.createPercentArray(new float[] { 3, 1, 1 }))
                 .setWidth(UnitValue.createPercentValue(100))
@@ -178,8 +179,8 @@ public class KitchenReportPdfService {
                 .setMarginBottom(8);
 
         table.addHeaderCell(createTableHeaderCell("Receta", boldFont));
-        table.addHeaderCell(createTableHeaderCell("Veces Cocinada", boldFont));
-        table.addHeaderCell(createTableHeaderCell("Raciones Totales", boldFont));
+        table.addHeaderCell(createTableHeaderCell("Veces Preparada", boldFont));
+        table.addHeaderCell(createTableHeaderCell("Porciones Totales", boldFont));
 
         if (details != null && !details.isEmpty()) {
             for (int i = 0; i < details.size(); i++) {
@@ -199,9 +200,9 @@ public class KitchenReportPdfService {
         document.add(table);
     }
 
-    // TOP USERS
+    // USERS
     private void addTopUsersTable(Document document, List<UserStatDTO> details, PdfFont boldFont, PdfFont regularFont) {
-        addSectionTitle(document, "Usuarios que más han cocinado", boldFont);
+        addSectionTitle(document, "Usuarios con Mayor Actividad", boldFont);
 
         Table table = new Table(UnitValue.createPercentArray(new float[] { 3, 1 }))
                 .setWidth(UnitValue.createPercentValue(100))
@@ -209,7 +210,7 @@ public class KitchenReportPdfService {
                 .setMarginBottom(8);
 
         table.addHeaderCell(createTableHeaderCell("Usuario", boldFont));
-        table.addHeaderCell(createTableHeaderCell("Veces Cocinadas", boldFont));
+        table.addHeaderCell(createTableHeaderCell("Número de Elaboraciones", boldFont));
 
         if (details != null && !details.isEmpty()) {
             for (int i = 0; i < details.size(); i++) {
@@ -226,10 +227,10 @@ public class KitchenReportPdfService {
         document.add(table);
     }
 
-    // TOP PRODUCTS
+    // PRODUCTS
     private void addTopProductsTable(Document document, List<ProductStatDTO> details, PdfFont boldFont,
             PdfFont regularFont) {
-        addSectionTitle(document, "Consumo de Productos", boldFont);
+        addSectionTitle(document, "Análisis de Consumo de Inventario", boldFont);
 
         Table table = new Table(UnitValue.createPercentArray(new float[] { 3, 1, 1 }))
                 .setWidth(UnitValue.createPercentValue(100))
@@ -331,13 +332,24 @@ public class KitchenReportPdfService {
     }
 
     private void addFooter(Document document, PdfFont regularFont) {
-        Paragraph footer = new Paragraph("Generado por Smart Economato")
-                .setFont(regularFont)
-                .setFontSize(8)
-                .setFontColor(TEXT_GRAY)
-                .setTextAlignment(TextAlignment.CENTER)
-                .setMarginTop(20);
-        document.add(footer);
+        int numberOfPages = document.getPdfDocument().getNumberOfPages();
+        for (int i = 1; i <= numberOfPages; i++) {
+            document.showTextAligned(new Paragraph(String.valueOf(i))
+                    .setFont(regularFont)
+                    .setFontSize(8)
+                    .setFontColor(ColorConstants.BLACK),
+                    PageSize.A4.getWidth() / 2, 20, i,
+                    TextAlignment.CENTER,
+                    VerticalAlignment.BOTTOM, 0);
+
+            document.showTextAligned(new Paragraph("Generado por Smart Economato")
+                    .setFont(regularFont)
+                    .setFontSize(7)
+                    .setFontColor(TEXT_GRAY),
+                    PageSize.A4.getWidth() / 2, 10, i,
+                    TextAlignment.CENTER,
+                    VerticalAlignment.BOTTOM, 0);
+        }
     }
 
     private String formatCurrency(BigDecimal value) {
