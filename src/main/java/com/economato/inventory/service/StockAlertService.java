@@ -78,11 +78,34 @@ public class StockAlertService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Devuelve la alerta predictiva para un producto específico, si existe.
+     */
+    @Transactional(readOnly = true)
+    public Optional<StockAlertDTO> getAlertByProductId(Integer productId) {
+        return computeAlerts(Set.of(productId)).stream().findFirst();
+    }
+
+    /**
+     * Devuelve las alertas predictivas para una lista específica de productos.
+     */
+    @Transactional(readOnly = true)
+    public List<StockAlertDTO> getAlertsByProductIds(Collection<Integer> productIds) {
+        if (productIds == null || productIds.isEmpty()) {
+            return List.of();
+        }
+        return computeAlerts(new HashSet<>(productIds));
+    }
+
     // -------------------------------------------------------------------------
     // Lógica de cálculo
     // -------------------------------------------------------------------------
 
     private List<StockAlertDTO> computeAlerts() {
+        return computeAlerts(null);
+    }
+
+    private List<StockAlertDTO> computeAlerts(Set<Integer> filterIds) {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime since = now.minusWeeks(HISTORY_WEEKS);
 
@@ -96,6 +119,15 @@ public class StockAlertService {
 
         // Agrupar consumo por productId -> lista ordenada de consumos semanales
         Map<Integer, List<Double>> consumptionByProduct = groupByProduct(weeklyData);
+
+        // Filtrar por IDs si se solicita
+        if (filterIds != null && !filterIds.isEmpty()) {
+            consumptionByProduct.keySet().retainAll(filterIds);
+        }
+
+        if (consumptionByProduct.isEmpty()) {
+            return List.of();
+        }
 
         // Obtener mapa de cantidades pendientes por producto
         Map<Integer, BigDecimal> pendingByProduct = buildPendingMap();
