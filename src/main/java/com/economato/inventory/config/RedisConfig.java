@@ -90,6 +90,7 @@ public class RedisConfig {
                 return RedisCacheManager.builder(connectionFactory)
                                 .cacheDefaults(defaultConfig)
                                 .withInitialCacheConfigurations(cacheConfigurations)
+                                .enableStatistics()
                                 .transactionAware()
                                 .build();
         }
