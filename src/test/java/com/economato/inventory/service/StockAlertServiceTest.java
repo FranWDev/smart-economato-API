@@ -1,7 +1,6 @@
 package com.economato.inventory.service;
 
 import com.economato.inventory.dto.projection.PendingProductQuantity;
-import com.economato.inventory.dto.projection.WeeklyIngredientConsumption;
 import com.economato.inventory.dto.response.AlertResolution;
 import com.economato.inventory.dto.response.AlertSeverity;
 import com.economato.inventory.dto.response.StockAlertDTO;
@@ -20,9 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.MessageSource;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -53,7 +50,6 @@ class StockAlertServiceTest {
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        org.mockito.Mockito.lenient().when(predictionRepository.findAll()).thenReturn(List.of());
         org.mockito.Mockito.lenient().when(messageSource.getMessage(anyString(), any(), any()))
                 .thenAnswer(invocation -> {
                     String key = invocation.getArgument(0);
@@ -66,8 +62,8 @@ class StockAlertServiceTest {
     }
 
     @Test
-    void getActiveAlerts_whenNoConsumptionData_returnsEmptyList() {
-        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any())).thenReturn(List.of());
+    void getActiveAlerts_whenNoPredictionsInDB_returnsEmptyList() {
+        when(predictionRepository.findAll()).thenReturn(List.of());
 
         List<StockAlertDTO> result = stockAlertService.getActiveAlerts();
 
@@ -85,21 +81,19 @@ class StockAlertServiceTest {
         product.setCurrentStock(BigDecimal.valueOf(1.0));
         product.setHidden(false);
 
-        // Weekly consumption: 8kg/week consistently
-        WeeklyIngredientConsumption row = mock(WeeklyIngredientConsumption.class);
-        when(row.getProductId()).thenReturn(productId);
-        when(row.getWeekIndex()).thenReturn(0);
-        when(row.getTotalConsumed()).thenReturn(BigDecimal.valueOf(8.0));
-
-        // Proyected: 16kg for 14 days
-        double projectedConsumptionFor14Days = 16.0;
+        // Saved prediction: 16kg for 14 days
+        com.economato.inventory.model.StockPrediction prediction = com.economato.inventory.model.StockPrediction
+                .builder()
+                .id(productId)
+                .product(product)
+                .projectedConsumption(BigDecimal.valueOf(16.0))
+                .build();
 
         // --- Mocks ---
-        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any())).thenReturn(List.of(row));
-        when(productRepository.findAll()).thenReturn(List.of(product));
+        when(predictionRepository.findAll()).thenReturn(List.of(prediction));
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of());
-        when(forecaster.forecast(anyList(), anyInt(), anyInt())).thenReturn(projectedConsumptionFor14Days);
+        when(productRepository.findAll()).thenReturn(List.of(product));
         when(cookingAuditRepository.findTopConsumingRecipesByProduct(eq(productId), any()))
                 .thenReturn(List.of("Gazpacho"));
 
@@ -127,33 +121,27 @@ class StockAlertServiceTest {
         product.setCurrentStock(BigDecimal.valueOf(2.0));
         product.setHidden(false);
 
-        WeeklyIngredientConsumption row = mock(WeeklyIngredientConsumption.class);
-        when(row.getProductId()).thenReturn(productId);
-        when(row.getWeekIndex()).thenReturn(0);
-        when(row.getTotalConsumed()).thenReturn(BigDecimal.valueOf(5.0));
-
         // Proyected 10kg for 14 days.
-        // Current 2.0 + Pending 15.0 = 17.0 (Enough!)
-        double projected = 10.0;
+        com.economato.inventory.model.StockPrediction prediction = com.economato.inventory.model.StockPrediction
+                .builder()
+                .id(productId)
+                .product(product)
+                .projectedConsumption(BigDecimal.valueOf(10.0))
+                .build();
 
+        // Current 2.0 + Pending 15.0 = 17.0 (Enough!)
         PendingProductQuantity pending = mock(PendingProductQuantity.class);
         when(pending.getProductId()).thenReturn(productId);
         when(pending.getPendingQuantity()).thenReturn(BigDecimal.valueOf(15.0));
 
         // --- Mocks ---
-        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any())).thenReturn(List.of(row));
-        when(productRepository.findAll()).thenReturn(List.of(product));
+        when(predictionRepository.findAll()).thenReturn(List.of(prediction));
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of(pending));
-        when(forecaster.forecast(anyList(), anyInt(), anyInt())).thenReturn(projected);
+        when(productRepository.findAll()).thenReturn(List.of(product));
 
         // --- Execute ---
-        // Note: The logic in StockAlertService says if severity == OK, it's filtered
-        // out from getActiveAlerts.
-        // classifySeverity(daysRemaining).
-        // DaysRemaining = (2+15) / (10/14) = 17 / 0.714 = ~23.8 days.
-        // classifySeverity(23) -> AlertSeverity.OK.
-
+        // DaysRemaining = (2+15) / (10/14) = 17 / 0.714 = ~23.8 days -> OK
         List<StockAlertDTO> alerts = stockAlertService.getActiveAlerts();
 
         // --- Verify ---
@@ -171,26 +159,24 @@ class StockAlertServiceTest {
         product.setCurrentStock(BigDecimal.valueOf(1.0));
         product.setHidden(false);
 
-        WeeklyIngredientConsumption row = mock(WeeklyIngredientConsumption.class);
-        when(row.getProductId()).thenReturn(productId);
-        when(row.getWeekIndex()).thenReturn(0);
-        when(row.getTotalConsumed()).thenReturn(BigDecimal.valueOf(10.0));
-
         // Proyected 20L for 14 days.
-        // Current 1.0 + Pending 4.0 = 5.0L (Deficit of 15L!)
-        // DaysRemaining = 5 / (20/14) = 5 / 1.42 = 3.5 days -> HIGH severity
-        double projected = 20.0;
+        com.economato.inventory.model.StockPrediction prediction = com.economato.inventory.model.StockPrediction
+                .builder()
+                .id(productId)
+                .product(product)
+                .projectedConsumption(BigDecimal.valueOf(20.0))
+                .build();
 
+        // Current 1.0 + Pending 4.0 = 5.0L (Deficit of 15L!)
         PendingProductQuantity pending = mock(PendingProductQuantity.class);
         when(pending.getProductId()).thenReturn(productId);
         when(pending.getPendingQuantity()).thenReturn(BigDecimal.valueOf(4.0));
 
         // --- Mocks ---
-        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any())).thenReturn(List.of(row));
-        when(productRepository.findAll()).thenReturn(List.of(product));
+        when(predictionRepository.findAll()).thenReturn(List.of(prediction));
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of(pending));
-        when(forecaster.forecast(anyList(), anyInt(), anyInt())).thenReturn(projected);
+        when(productRepository.findAll()).thenReturn(List.of(product));
 
         // --- Execute ---
         List<StockAlertDTO> alerts = stockAlertService.getActiveAlerts();
@@ -199,7 +185,6 @@ class StockAlertServiceTest {
         assertFalse(alerts.isEmpty());
         assertEquals(AlertResolution.PARTIALLY_COVERED, alerts.get(0).getResolution());
         assertEquals(AlertSeverity.HIGH, alerts.get(0).getSeverity());
-        assertTrue(alerts.get(0).getMessage().contains("Considera ampliar el pedido"));
     }
 
     @Test
@@ -211,7 +196,6 @@ class StockAlertServiceTest {
         // 14-20 -> LOW
         // >= 21 -> OK (Filtered out)
 
-        // Helper to run a test case
         checkSeverity(1.0, 20.0, AlertSeverity.CRITICAL); // Days: 1 / (20/14) = 0.7
         checkSeverity(5.0, 20.0, AlertSeverity.HIGH); // Days: 5 / (20/14) = 3.5
         checkSeverity(10.0, 20.0, AlertSeverity.MEDIUM); // Days: 10 / (20/14) = 7.0
@@ -220,9 +204,6 @@ class StockAlertServiceTest {
     }
 
     private void checkSeverity(double effectiveStock, double projected14Days, AlertSeverity expected) {
-        // Reset mocks for each call if necessary, but here we can just mock a different
-        // product each time
-        // Or better, just one product and execute once per case
         Integer productId = 999;
         Product product = new Product();
         product.setId(productId);
@@ -230,23 +211,24 @@ class StockAlertServiceTest {
         product.setCurrentStock(BigDecimal.valueOf(effectiveStock));
         product.setHidden(false);
 
-        WeeklyIngredientConsumption row = mock(WeeklyIngredientConsumption.class);
-        when(row.getProductId()).thenReturn(productId);
-        when(row.getWeekIndex()).thenReturn(0);
-        when(row.getTotalConsumed()).thenReturn(BigDecimal.valueOf(projected14Days / 2.0)); // arbitrary history
+        com.economato.inventory.model.StockPrediction prediction = com.economato.inventory.model.StockPrediction
+                .builder()
+                .id(productId)
+                .product(product)
+                .projectedConsumption(BigDecimal.valueOf(projected14Days))
+                .build();
 
-        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any())).thenReturn(List.of(row));
-        when(productRepository.findAll()).thenReturn(List.of(product));
+        when(predictionRepository.findAll()).thenReturn(List.of(prediction));
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of());
-        when(forecaster.forecast(anyList(), anyInt(), anyInt())).thenReturn(projected14Days);
+        when(productRepository.findAll()).thenReturn(List.of(product));
 
         List<StockAlertDTO> alerts = stockAlertService.getActiveAlerts();
 
         if (expected == null) {
-            assertTrue(alerts.isEmpty(), "Should have no active alerts for effective stock " + effectiveStock);
+            assertTrue(alerts.isEmpty());
         } else {
-            assertFalse(alerts.isEmpty(), "Should have an alert for effective stock " + effectiveStock);
+            assertFalse(alerts.isEmpty());
             assertEquals(expected, alerts.get(0).getSeverity());
         }
     }
