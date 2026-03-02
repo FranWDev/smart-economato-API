@@ -216,7 +216,7 @@ public class StockAlertService {
             // Guardar o actualizar predicción
             StockPrediction prediction = predictionRepository.findById(productId)
                     .orElseGet(() -> StockPrediction.builder()
-                            .productId(productId)
+                            .id(productId)
                             .product(productRepository.getReferenceById(productId))
                             .build());
 
@@ -409,7 +409,7 @@ public class StockAlertService {
         return predictionRepository.findAll()
                 .stream()
                 .collect(Collectors.toMap(
-                        StockPrediction::getProductId,
+                        StockPrediction::getId,
                         StockPrediction::getProjectedConsumption));
     }
 }

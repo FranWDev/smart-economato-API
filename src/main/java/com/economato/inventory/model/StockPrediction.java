@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 public class StockPrediction {
 
     @Id
-    private Integer productId;
+    private Integer id;
 
     @OneToOne(fetch = FetchType.LAZY)
     @MapsId
