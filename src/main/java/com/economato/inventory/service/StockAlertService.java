@@ -123,56 +123,27 @@ public class StockAlertService {
     }
 
     private List<StockAlertDTO> computeAlerts(Set<Integer> filterIds) {
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime since = now.minusWeeks(HISTORY_WEEKS);
-
-        // 1. Obtener consumo semanal por ingrediente
-        List<WeeklyIngredientConsumption> weeklyData = cookingAuditRepository.findWeeklyConsumptionPerIngredient(since,
-                since);
-
-        if (weeklyData.isEmpty()) {
-            return List.of();
-        }
-
-        // Agrupar consumo por productId -> lista ordenada de consumos semanales
-        Map<Integer, List<Double>> consumptionByProduct = groupByProduct(weeklyData);
-
-        // Filtrar por IDs si se solicita
-        if (filterIds != null && !filterIds.isEmpty()) {
-            consumptionByProduct.keySet().retainAll(filterIds);
-        }
-
-        if (consumptionByProduct.isEmpty()) {
-            return List.of();
-        }
-
-        // Obtener mapa de cantidades pendientes por producto
-        Map<Integer, BigDecimal> pendingByProduct = buildPendingMap();
-
-        // Obtener mapa de stock actual por producto
-        Map<Integer, BigDecimal> stockByProduct = buildStockMap();
-
-        // Obtener predicciones guardadas para evitar recálculo si es posible
+        LocalDateTime since = LocalDateTime.now().minusWeeks(HISTORY_WEEKS);
         Map<Integer, BigDecimal> persistedPredictions = buildPredictionMap();
 
-        // Generar alerta por cada producto con historial
+        if (filterIds != null && !filterIds.isEmpty()) {
+            persistedPredictions.keySet().retainAll(filterIds);
+        }
+
+        if (persistedPredictions.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Integer, BigDecimal> pendingByProduct = buildPendingMap();
+        Map<Integer, BigDecimal> stockByProduct = buildStockMap();
+
         List<StockAlertDTO> alerts = new ArrayList<>();
-        for (Map.Entry<Integer, List<Double>> entry : consumptionByProduct.entrySet()) {
+        for (Map.Entry<Integer, BigDecimal> entry : persistedPredictions.entrySet()) {
             Integer productId = entry.getKey();
-            List<Double> weeklyConsumption = entry.getValue();
+            BigDecimal projected = entry.getValue();
 
             BigDecimal currentStock = stockByProduct.getOrDefault(productId, BigDecimal.ZERO);
             BigDecimal pending = pendingByProduct.getOrDefault(productId, BigDecimal.ZERO);
-
-            // 1. Intentar usar predicción persistida
-            BigDecimal projected = persistedPredictions.get(productId);
-
-            // 2. Si no hay o es una lista de IDs filtrada (revisión manual), calcular en
-            // caliente
-            if (projected == null || (filterIds != null && filterIds.contains(productId))) {
-                double projectedRaw = forecaster.forecast(weeklyConsumption, SEASON_PERIOD, HORIZON_DAYS);
-                projected = BigDecimal.valueOf(projectedRaw).setScale(3, RoundingMode.HALF_UP);
-            }
 
             StockAlertDTO alert = buildAlert(productId, currentStock, pending, projected, since);
             if (alert != null) {
