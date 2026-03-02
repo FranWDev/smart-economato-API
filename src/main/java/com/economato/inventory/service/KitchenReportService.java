@@ -22,6 +22,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -79,21 +80,29 @@ public class KitchenReportService {
                 break;
             case ALL_TIME:
             default:
-                start = LocalDateTime.of(2000, 1, 1, 0, 0); // Fechas seguras en el pasado
+                start = LocalDateTime.of(2000, 1, 1, 0, 0);
                 end = now.with(LocalTime.MAX);
                 break;
         }
 
-        try (Stream<RecipeCookingAudit> auditStream = (range == ReportRange.ALL_TIME) ? 
-                auditRepository.streamAllOrderByDateDesc() : 
+        String reportPeriodText;
+        if (range == ReportRange.ALL_TIME) {
+            reportPeriodText = "Histórico (Todos los tiempos)";
+        } else {
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+            reportPeriodText = start.toLocalDate().format(formatter) + " - " + end.toLocalDate().format(formatter);
+        }
+
+        try (Stream<RecipeCookingAudit> auditStream = (range == ReportRange.ALL_TIME) ?
+                auditRepository.streamAllOrderByDateDesc() :
                 auditRepository.streamByDateRange(start, end)) {
-            
-            return processAudits(auditStream, range.name());
+
+            return processAudits(auditStream, reportPeriodText);
         }
     }
 
-    private KitchenReportResponseDTO processAudits(Stream<RecipeCookingAudit> auditStream, String reportPeriod) {
-        
+    private KitchenReportResponseDTO processAudits(Stream<RecipeCookingAudit> auditStream, String reportPeriodText) {
+
         final BigDecimal[] totalPortionsHolder = new BigDecimal[]{BigDecimal.ZERO};
         final int[] totalSessionsHolder = new int[]{0};
 
@@ -122,9 +131,15 @@ public class KitchenReportService {
 
             if (audit.getUser() != null) {
                 Integer userId = audit.getUser().getId();
+                // Use name field primarily; fall back to user (login) field if name is blank
+                String nameToUse = audit.getUser().getName();
+                if (nameToUse == null || nameToUse.trim().isEmpty()) {
+                    nameToUse = audit.getUser().getUser();
+                }
+
                 UserStatDTO uStat = userStats.getOrDefault(userId, UserStatDTO.builder()
                         .userId(userId)
-                        .userName(audit.getUser().getName())
+                        .userName(nameToUse)
                         .timesCooked(0)
                         .build());
                 uStat.setTimesCooked(uStat.getTimesCooked() + 1);
@@ -136,11 +151,12 @@ public class KitchenReportService {
                 try {
                     Map<String, Object> stateMap = objectMapper.readValue(componentsState, new TypeReference<Map<String, Object>>() {});
                     if (stateMap.containsKey("components")) {
+                        @SuppressWarnings("unchecked")
                         List<Map<String, Object>> components = (List<Map<String, Object>>) stateMap.get("components");
                         for (Map<String, Object> comp : components) {
                             Integer prodId = (Integer) comp.get("productId");
                             String prodName = (String) comp.get("productName");
-                            
+
                             Object quantObj = comp.get("quantity");
                             BigDecimal baseQuantity = BigDecimal.ZERO;
                             if (quantObj instanceof Number) {
@@ -168,7 +184,7 @@ public class KitchenReportService {
 
         if (totalSessionsHolder[0] == 0) {
             return mapper.toReport(
-                reportPeriod, 0, BigDecimal.ZERO, 0, 0, 0, BigDecimal.ZERO, 
+                reportPeriodText, 0, BigDecimal.ZERO, 0, 0, 0, BigDecimal.ZERO,
                 Collections.emptyList(), Collections.emptyList(), Collections.emptyList()
             );
         }
@@ -198,7 +214,7 @@ public class KitchenReportService {
                 .collect(Collectors.toList());
 
         return mapper.toReport(
-                reportPeriod,
+                reportPeriodText,
                 totalSessionsHolder[0],
                 totalPortionsHolder[0],
                 recipeStats.size(),
