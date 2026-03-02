@@ -10,17 +10,15 @@ import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.service.prediction.HoltWintersForecaster;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -53,6 +51,7 @@ public class StockAlertService {
     private final OrderDetailRepository orderDetailRepository;
     private final ProductRepository productRepository;
     private final HoltWintersForecaster forecaster;
+    private final MessageSource messageSource;
 
     /**
      * Calcula y devuelve todas las alertas predictivas activas
@@ -216,28 +215,37 @@ public class StockAlertService {
     private String buildMessage(String name, BigDecimal stock, BigDecimal pending,
             BigDecimal projected, BigDecimal gap,
             AlertResolution resolution, String unit) {
+
+        Locale locale = LocaleContextHolder.getLocale();
+
         String gapStr = gap.setScale(2, RoundingMode.HALF_UP).toPlainString();
         String projStr = projected.setScale(2, RoundingMode.HALF_UP).toPlainString();
         String stockStr = stock.setScale(2, RoundingMode.HALF_UP).toPlainString();
         String pendStr = pending.setScale(2, RoundingMode.HALF_UP).toPlainString();
 
-        return switch (resolution) {
-            case COVERED_BY_ORDER ->
-                String.format("%s — Stock actual: %s %s. Consumo proyectado (%d días): %s %s. " +
-                        "El pedido en curso (%s %s) cubre el déficit con margen.",
-                        name, stockStr, unit, HORIZON_DAYS, projStr, unit, pendStr, unit);
-            case PARTIALLY_COVERED ->
-                String.format("%s — Stock actual: %s %s. Consumo proyectado (%d días): %s %s. " +
-                        "El pedido en curso (%s %s) reduce el déficit, pero aún faltan ~%s %s. " +
-                        "Considera ampliar el pedido.",
-                        name, stockStr, unit, HORIZON_DAYS, projStr, unit, pendStr, unit, gapStr, unit);
-            case UNCOVERED ->
-                String.format("%s — Stock actual: %s %s. Consumo proyectado (%d días): %s %s. " +
-                        "Déficit estimado: ~%s %s. Sin pedidos activos — se recomienda acción urgente.",
-                        name, stockStr, unit, HORIZON_DAYS, projStr, unit, gapStr, unit);
-            default ->
-                String.format("%s — Déficit proyectado: %s %s.", name, gapStr, unit);
-        };
+        Object[] args;
+        String key;
+
+        switch (resolution) {
+            case COVERED_BY_ORDER -> {
+                key = "stock.alert.message.covered";
+                args = new Object[] { name, stockStr, unit, HORIZON_DAYS, projStr, unit, pendStr, unit };
+            }
+            case PARTIALLY_COVERED -> {
+                key = "stock.alert.message.partially.covered";
+                args = new Object[] { name, stockStr, unit, HORIZON_DAYS, projStr, unit, pendStr, unit, gapStr, unit };
+            }
+            case UNCOVERED -> {
+                key = "stock.alert.message.uncovered";
+                args = new Object[] { name, stockStr, unit, HORIZON_DAYS, projStr, unit, gapStr, unit };
+            }
+            default -> {
+                key = "stock.alert.message.default";
+                args = new Object[] { name, gapStr, unit };
+            }
+        }
+
+        return messageSource.getMessage(key, args, locale);
     }
 
     // -------------------------------------------------------------------------
