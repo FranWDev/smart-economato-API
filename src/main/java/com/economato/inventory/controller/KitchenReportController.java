@@ -51,10 +51,13 @@ public class KitchenReportController {
         return ResponseEntity.ok(service.generateReport(range, startDate, endDate));
     }
 
+    @SuppressWarnings("unused")
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/export/pdf")
-    @Operation(summary = "Exportar reporte de cocina a PDF", description = "Genera y descarga un documento PDF con el reporte estadístico de cocina según el rango especificado. Si no se provee, asume ALL_TIME. [Sin restricción de rol]")
+    @Operation(summary = "Exportar reporte de cocina a PDF", description = "Genera y descarga un documento PDF con el reporte estadístico de cocina según el rango especificado. Si no se provee, asume ALL_TIME. [Rol requerido: ADMIN]")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "PDF generado correctamente", content = @Content(mediaType = "application/pdf")),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado"),
             @ApiResponse(responseCode = "500", description = "Error al generar el PDF")
     })
     public ResponseEntity<byte[]> exportPdf(
