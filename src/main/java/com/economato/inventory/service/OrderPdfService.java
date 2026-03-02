@@ -13,11 +13,18 @@ import com.economato.inventory.dto.response.OrderResponseDTO;
 import com.itextpdf.kernel.colors.Color;
 import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.colors.DeviceRgb;
+import com.itextpdf.kernel.events.Event;
+import com.itextpdf.kernel.events.IEventHandler;
+import com.itextpdf.kernel.events.PdfDocumentEvent;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.geom.PageSize;
+import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
+import com.itextpdf.layout.Canvas;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.borders.Border;
 import com.itextpdf.layout.borders.SolidBorder;
@@ -46,17 +53,20 @@ public class OrderPdfService {
                         ByteArrayOutputStream baos = new ByteArrayOutputStream();
                         PdfWriter writer = new PdfWriter(baos);
                         PdfDocument pdfDoc = new PdfDocument(writer);
-                        try (Document document = new Document(pdfDoc, PageSize.A4)) {
-                                document.setMargins(40, 40, 40, 40);
 
-                                PdfFont regularFont = PdfFontFactory.createFont("Helvetica");
+                        PdfFont footerFont = PdfFontFactory.createFont("Helvetica");
+                        pdfDoc.addEventHandler(PdfDocumentEvent.END_PAGE, new FooterEventHandler(footerFont));
+
+                        try (Document document = new Document(pdfDoc, PageSize.A4)) {
+                                document.setMargins(40, 40, 50, 40);
+
+                                PdfFont regularFont = footerFont;
                                 PdfFont boldFont = PdfFontFactory.createFont("Helvetica-Bold");
 
                                 addHeader(document, order, boldFont);
                                 addOrderInfoSection(document, order, boldFont, regularFont);
                                 addProductsTable(document, order.getDetails(), boldFont, regularFont);
                                 addTotalBanner(document, order.getTotalPrice(), boldFont);
-                                addFooter(document, regularFont);
                         }
                         return baos.toByteArray();
                 } catch (Exception e) {
@@ -281,14 +291,45 @@ public class OrderPdfService {
 
         // ===== FOOTER =====
 
-        private void addFooter(Document document, PdfFont regularFont) {
-                Paragraph footer = new Paragraph("Generado por Smart Economato")
-                                .setFont(regularFont)
-                                .setFontSize(8)
-                                .setFontColor(TEXT_GRAY)
-                                .setTextAlignment(TextAlignment.CENTER)
-                                .setMarginTop(20);
-                document.add(footer);
+        private class FooterEventHandler implements IEventHandler {
+                private final PdfFont font;
+
+                FooterEventHandler(PdfFont font) {
+                        this.font = font;
+                }
+
+                @Override
+                public void handleEvent(Event event) {
+                        PdfDocumentEvent docEvent = (PdfDocumentEvent) event;
+                        PdfDocument pdf = docEvent.getDocument();
+                        PdfPage page = docEvent.getPage();
+                        int pageNum = pdf.getPageNumber(page);
+                        float pageWidth = page.getPageSize().getWidth();
+
+                        try {
+                                PdfCanvas canvas = new PdfCanvas(page.newContentStreamAfter(), page.getResources(),
+                                                pdf);
+
+                                try (Canvas c = new Canvas(canvas, new Rectangle(0, 18, pageWidth, 16))) {
+                                        c.add(new Paragraph(String.valueOf(pageNum))
+                                                        .setFont(font)
+                                                        .setFontSize(8)
+                                                        .setFontColor(ColorConstants.BLACK)
+                                                        .setTextAlignment(TextAlignment.CENTER));
+                                }
+
+                                try (Canvas c = new Canvas(canvas, new Rectangle(0, 4, pageWidth, 14))) {
+                                        c.add(new Paragraph("Generado por Smart Economato")
+                                                        .setFont(font)
+                                                        .setFontSize(7)
+                                                        .setFontColor(TEXT_GRAY)
+                                                        .setTextAlignment(TextAlignment.CENTER));
+                                }
+
+                                canvas.release();
+                        } catch (Exception ignored) {
+                        }
+                }
         }
 
         // ===== HELPERS =====

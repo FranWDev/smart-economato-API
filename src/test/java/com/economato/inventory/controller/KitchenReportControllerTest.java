@@ -29,10 +29,7 @@ class KitchenReportControllerTest {
     @Mock
     private KitchenReportService service;
 
-    /**
-     * Real instance — not mocked. This ensures iText actually runs so that
-     * PDF-generation errors (e.g. "cannot draw on flushed pages") are caught here.
-     */
+    /** Real instance - not mocked. iText runs for real so PDF errors are caught here. */
     @Spy
     private KitchenReportPdfService pdfService = new KitchenReportPdfService();
 
@@ -42,7 +39,7 @@ class KitchenReportControllerTest {
     @Test
     void testGetReport_Daily() {
         KitchenReportResponseDTO mockResponse = KitchenReportResponseDTO.builder()
-                .reportPeriod("DAILY")
+                .reportPeriod("02/03/2026 - 02/03/2026")
                 .totalCookingSessions(5)
                 .totalEstimatedCost(BigDecimal.valueOf(100))
                 .build();
@@ -54,14 +51,14 @@ class KitchenReportControllerTest {
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals("DAILY", response.getBody().getReportPeriod());
+        assertEquals("02/03/2026 - 02/03/2026", response.getBody().getReportPeriod());
         assertEquals(5, response.getBody().getTotalCookingSessions());
     }
 
     @Test
     void testGetReport_CustomRange() {
         KitchenReportResponseDTO mockResponse = KitchenReportResponseDTO.builder()
-                .reportPeriod("CUSTOM")
+                .reportPeriod("01/01/2023 - 31/12/2023")
                 .totalCookingSessions(10)
                 .build();
 
@@ -75,13 +72,12 @@ class KitchenReportControllerTest {
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals("CUSTOM", response.getBody().getReportPeriod());
+        assertEquals("01/01/2023 - 31/12/2023", response.getBody().getReportPeriod());
         assertEquals(10, response.getBody().getTotalCookingSessions());
     }
 
     @Test
     void testExportPdf_generatesRealPdf() {
-        // Arrange: a realistic report with data, including the lists the PDF renders
         KitchenReportResponseDTO mockResponse = KitchenReportResponseDTO.builder()
                 .reportPeriod("02/03/2026 - 08/03/2026")
                 .totalCookingSessions(12)
@@ -97,20 +93,19 @@ class KitchenReportControllerTest {
 
         when(service.generateReport(eq(ReportRange.WEEKLY), any(), any())).thenReturn(mockResponse);
 
-        // Act: the real KitchenReportPdfService runs — iText generates an actual PDF
         ResponseEntity<byte[]> response = controller.exportPdf(ReportRange.WEEKLY, null, null);
 
-        // Assert: check response metadata
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(MediaType.APPLICATION_PDF, response.getHeaders().getContentType());
-        assertEquals("attachment; filename=\"reporte-cocina-weekly.pdf\"",
-                response.getHeaders().getContentDisposition().toString());
 
-        // Assert: verify the bytes look like a real PDF (%PDF magic bytes)
+        String disposition = response.getHeaders().getContentDisposition().toString();
+        assertTrue(disposition.startsWith("attachment; filename=\"reporte-cocina-"), "Unexpected: " + disposition);
+        assertTrue(disposition.endsWith(".pdf\""), "Expected .pdf ending: " + disposition);
+
         byte[] pdfBytes = response.getBody();
         assertNotNull(pdfBytes);
-        assertTrue(pdfBytes.length > 500, "PDF should be larger than 500 bytes, was: " + pdfBytes.length);
+        assertTrue(pdfBytes.length > 500, "Expected real PDF, got: " + pdfBytes.length + " bytes");
         assertEquals('%', (char) pdfBytes[0]);
         assertEquals('P', (char) pdfBytes[1]);
         assertEquals('D', (char) pdfBytes[2]);

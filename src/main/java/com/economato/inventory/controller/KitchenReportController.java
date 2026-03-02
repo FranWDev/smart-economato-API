@@ -69,7 +69,12 @@ public class KitchenReportController {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
-        String filename = "reporte-cocina-" + range.name().toLowerCase() + ".pdf";
+        String filename = "reporte-cocina-" + report.getReportPeriod()
+                .toLowerCase()
+                .replaceAll("[^a-z0-9áéíóúüñ\\-_]", "-")
+                .replaceAll("-{2,}", "-")
+                .replaceAll("^-|-$", "")
+                + ".pdf";
         headers.setContentDisposition(ContentDisposition.attachment()
                 .filename(filename)
                 .build());
