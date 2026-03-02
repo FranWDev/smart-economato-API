@@ -194,4 +194,53 @@ class StockAlertServiceTest {
         assertEquals(AlertSeverity.HIGH, alerts.get(0).getSeverity());
         assertTrue(alerts.get(0).getMessage().contains("Considera ampliar el pedido"));
     }
+
+    @Test
+    void verifyAllSeverityLevels() {
+        // Test thresholds:
+        // < 3 -> CRITICAL
+        // 3-6 -> HIGH
+        // 7-13 -> MEDIUM
+        // 14-20 -> LOW
+        // >= 21 -> OK (Filtered out)
+
+        // Helper to run a test case
+        checkSeverity(1.0, 20.0, AlertSeverity.CRITICAL); // Days: 1 / (20/14) = 0.7
+        checkSeverity(5.0, 20.0, AlertSeverity.HIGH); // Days: 5 / (20/14) = 3.5
+        checkSeverity(10.0, 20.0, AlertSeverity.MEDIUM); // Days: 10 / (20/14) = 7.0
+        checkSeverity(25.0, 20.0, AlertSeverity.LOW); // Days: 25 / (20/14) = 17.5
+        checkSeverity(35.0, 20.0, null); // Days: 35 / (20/14) = 24.5 -> OK -> Filtered
+    }
+
+    private void checkSeverity(double effectiveStock, double projected14Days, AlertSeverity expected) {
+        // Reset mocks for each call if necessary, but here we can just mock a different
+        // product each time
+        // Or better, just one product and execute once per case
+        Integer productId = 999;
+        Product product = new Product();
+        product.setId(productId);
+        product.setName("Test Product");
+        product.setCurrentStock(BigDecimal.valueOf(effectiveStock));
+        product.setHidden(false);
+
+        WeeklyIngredientConsumption row = mock(WeeklyIngredientConsumption.class);
+        when(row.getProductId()).thenReturn(productId);
+        when(row.getWeekIndex()).thenReturn(0);
+        when(row.getTotalConsumed()).thenReturn(BigDecimal.valueOf(projected14Days / 2.0)); // arbitrary history
+
+        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any())).thenReturn(List.of(row));
+        when(productRepository.findAll()).thenReturn(List.of(product));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of());
+        when(forecaster.forecast(anyList(), anyInt(), anyInt())).thenReturn(projected14Days);
+
+        List<StockAlertDTO> alerts = stockAlertService.getActiveAlerts();
+
+        if (expected == null) {
+            assertTrue(alerts.isEmpty(), "Should have no active alerts for effective stock " + effectiveStock);
+        } else {
+            assertFalse(alerts.isEmpty(), "Should have an alert for effective stock " + effectiveStock);
+            assertEquals(expected, alerts.get(0).getSeverity());
+        }
+    }
 }
