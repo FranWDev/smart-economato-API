@@ -9,6 +9,8 @@ import com.economato.inventory.model.Product;
 import com.economato.inventory.repository.OrderDetailRepository;
 import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.RecipeCookingAuditRepository;
+import com.economato.inventory.repository.RecipeRepository;
+import com.economato.inventory.repository.StockPredictionRepository;
 import com.economato.inventory.service.prediction.HoltWintersForecaster;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +40,10 @@ class StockAlertServiceTest {
     @Mock
     private ProductRepository productRepository;
     @Mock
+    private RecipeRepository recipeRepository;
+    @Mock
+    private StockPredictionRepository predictionRepository;
+    @Mock
     private HoltWintersForecaster forecaster;
     @Mock
     private MessageSource messageSource;
@@ -47,6 +53,7 @@ class StockAlertServiceTest {
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient().when(predictionRepository.findAll()).thenReturn(List.of());
         org.mockito.Mockito.lenient().when(messageSource.getMessage(anyString(), any(), any()))
                 .thenAnswer(invocation -> {
                     String key = invocation.getArgument(0);

@@ -5,13 +5,19 @@ import com.economato.inventory.dto.projection.WeeklyIngredientConsumption;
 import com.economato.inventory.dto.response.AlertResolution;
 import com.economato.inventory.dto.response.AlertSeverity;
 import com.economato.inventory.dto.response.StockAlertDTO;
+import com.economato.inventory.model.Recipe;
+import com.economato.inventory.model.StockPrediction;
 import com.economato.inventory.repository.OrderDetailRepository;
 import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.RecipeCookingAuditRepository;
+import com.economato.inventory.repository.RecipeRepository;
+import com.economato.inventory.repository.StockPredictionRepository;
 import com.economato.inventory.service.prediction.HoltWintersForecaster;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +37,7 @@ import java.util.stream.Collectors;
  * REVIEW).</li>
  * </ul>
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class StockAlertService {
@@ -50,6 +57,8 @@ public class StockAlertService {
     private final RecipeCookingAuditRepository cookingAuditRepository;
     private final OrderDetailRepository orderDetailRepository;
     private final ProductRepository productRepository;
+    private final RecipeRepository recipeRepository;
+    private final StockPredictionRepository predictionRepository;
     private final HoltWintersForecaster forecaster;
     private final MessageSource messageSource;
 
@@ -135,6 +144,9 @@ public class StockAlertService {
         // Obtener mapa de stock actual por producto
         Map<Integer, BigDecimal> stockByProduct = buildStockMap();
 
+        // Obtener predicciones guardadas para evitar recálculo si es posible
+        Map<Integer, BigDecimal> persistedPredictions = buildPredictionMap();
+
         // Generar alerta por cada producto con historial
         List<StockAlertDTO> alerts = new ArrayList<>();
         for (Map.Entry<Integer, List<Double>> entry : consumptionByProduct.entrySet()) {
@@ -144,8 +156,15 @@ public class StockAlertService {
             BigDecimal currentStock = stockByProduct.getOrDefault(productId, BigDecimal.ZERO);
             BigDecimal pending = pendingByProduct.getOrDefault(productId, BigDecimal.ZERO);
 
-            double projectedRaw = forecaster.forecast(weeklyConsumption, SEASON_PERIOD, HORIZON_DAYS);
-            BigDecimal projected = BigDecimal.valueOf(projectedRaw).setScale(3, RoundingMode.HALF_UP);
+            // 1. Intentar usar predicción persistida
+            BigDecimal projected = persistedPredictions.get(productId);
+
+            // 2. Si no hay o es una lista de IDs filtrada (revisión manual), calcular en
+            // caliente
+            if (projected == null || (filterIds != null && filterIds.contains(productId))) {
+                double projectedRaw = forecaster.forecast(weeklyConsumption, SEASON_PERIOD, HORIZON_DAYS);
+                projected = BigDecimal.valueOf(projectedRaw).setScale(3, RoundingMode.HALF_UP);
+            }
 
             StockAlertDTO alert = buildAlert(productId, currentStock, pending, projected, since);
             if (alert != null) {
@@ -154,6 +173,59 @@ public class StockAlertService {
         }
 
         return alerts;
+    }
+
+    /**
+     * Recalcula las predicciones para todos los ingredientes de una receta.
+     * Se ejecuta de forma asíncrona (Virtual Threads habilitados).
+     */
+    @Async
+    @Transactional
+    public void updatePredictionsForRecipe(Integer recipeId) {
+        log.info("[Async] Iniciando recálculo de predicciones para receta ID: {}", recipeId);
+
+        var recipeOpt = recipeRepository.findByIdWithDetails(recipeId);
+        if (recipeOpt.isEmpty()) {
+            log.warn("[Async] Receta no encontrada: {}", recipeId);
+            return;
+        }
+
+        Recipe recipe = recipeOpt.get();
+        Set<Integer> productIds = recipe.getComponents().stream()
+                .map(c -> c.getProduct().getId())
+                .collect(Collectors.toSet());
+
+        if (productIds.isEmpty()) {
+            return;
+        }
+
+        LocalDateTime since = LocalDateTime.now().minusWeeks(HISTORY_WEEKS);
+        List<WeeklyIngredientConsumption> weeklyData = cookingAuditRepository.findWeeklyConsumptionPerIngredient(since,
+                since);
+
+        Map<Integer, List<Double>> consumptionByProduct = groupByProduct(weeklyData);
+
+        for (Integer productId : productIds) {
+            List<Double> consumption = consumptionByProduct.get(productId);
+            if (consumption == null || consumption.isEmpty())
+                continue;
+
+            double projectedRaw = forecaster.forecast(consumption, SEASON_PERIOD, HORIZON_DAYS);
+            BigDecimal projected = BigDecimal.valueOf(projectedRaw).setScale(4, RoundingMode.HALF_UP);
+
+            // Guardar o actualizar predicción
+            StockPrediction prediction = predictionRepository.findById(productId)
+                    .orElseGet(() -> StockPrediction.builder()
+                            .productId(productId)
+                            .product(productRepository.getReferenceById(productId))
+                            .build());
+
+            prediction.setProjectedConsumption(projected);
+            predictionRepository.save(prediction);
+            log.debug("[Async] Predicción actualizada para producto {}: {}", productId, projected);
+        }
+
+        log.info("[Async] Recálculo completado para receta ID: {}", recipeId);
     }
 
     private StockAlertDTO buildAlert(Integer productId,
@@ -331,5 +403,13 @@ public class StockAlertService {
                 .collect(Collectors.toMap(
                         p -> p.getId(),
                         p -> p.getCurrentStock() != null ? p.getCurrentStock() : BigDecimal.ZERO));
+    }
+
+    private Map<Integer, BigDecimal> buildPredictionMap() {
+        return predictionRepository.findAll()
+                .stream()
+                .collect(Collectors.toMap(
+                        StockPrediction::getProductId,
+                        StockPrediction::getProjectedConsumption));
     }
 }

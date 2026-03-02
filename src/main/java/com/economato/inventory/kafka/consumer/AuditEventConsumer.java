@@ -26,6 +26,7 @@ import com.economato.inventory.repository.RecipeAuditRepository;
 import com.economato.inventory.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.repository.RecipeRepository;
 import com.economato.inventory.repository.UserRepository;
+import com.economato.inventory.service.StockAlertService;
 
 @Slf4j
 @Service
@@ -40,6 +41,7 @@ public class AuditEventConsumer {
     private final RecipeRepository recipeRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final StockAlertService stockAlertService;
 
     public AuditEventConsumer(
             InventoryAuditRepository inventoryAuditRepository,
@@ -49,7 +51,8 @@ public class AuditEventConsumer {
             ProductRepository productRepository,
             RecipeRepository recipeRepository,
             OrderRepository orderRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            StockAlertService stockAlertService) {
         this.inventoryAuditRepository = inventoryAuditRepository;
         this.recipeAuditRepository = recipeAuditRepository;
         this.recipeCookingAuditRepository = recipeCookingAuditRepository;
@@ -58,6 +61,7 @@ public class AuditEventConsumer {
         this.recipeRepository = recipeRepository;
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
+        this.stockAlertService = stockAlertService;
     }
 
     @KafkaListener(topics = "inventory-audit-events", groupId = "inventory-audit-consumer-group", containerFactory = "inventoryAuditKafkaListenerContainerFactory")
@@ -196,6 +200,10 @@ public class AuditEventConsumer {
 
             log.info("Auditoría de cocinado guardada: id={}, receta={}, cantidad={}, usuario={}",
                     audit.getId(), event.getRecipeId(), event.getQuantityCooked(), event.getUserName());
+
+            // Disparar recálculo asíncrono de predicciones para los productos de esta
+            // receta
+            stockAlertService.updatePredictionsForRecipe(event.getRecipeId());
 
         } catch (Exception e) {
             log.error("Error al procesar evento de auditoría de cocinado: {}", e.getMessage(), e);
