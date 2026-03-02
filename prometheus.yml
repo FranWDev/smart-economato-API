@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 10s # Alta resolución para Stock Ledger
+  evaluation_interval: 10s
+
+scrape_configs:
+  - job_name: 'inventory-backend'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['backend:8081']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'production-api'
