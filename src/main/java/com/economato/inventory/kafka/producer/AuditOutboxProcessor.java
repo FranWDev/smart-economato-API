@@ -47,7 +47,8 @@ public class AuditOutboxProcessor {
         
         // Registrar Gauge para eventos pendientes en Outbox
         Gauge.builder("kafka.audit.outbox.pending", 
-            () -> outboxRepository.countByProcessed(false))
+            outboxRepository, 
+            AuditOutboxRepository::count)
             .description("Eventos pendientes en Outbox (Lag de Integración)")
             .register(meterRegistry);
     }
