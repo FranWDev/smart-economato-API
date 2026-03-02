@@ -31,7 +31,6 @@ public class JwtFilter extends OncePerRequestFilter {
             "/api/auth/login",
             "/api/auth/register",
             "/login",
-            "/api/kitchen-reports/export/pdf",
             "/",
             "/scalar",
             "/scalar-ui.html");
