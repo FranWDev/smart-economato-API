@@ -8,15 +8,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collections;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -27,8 +29,12 @@ class KitchenReportControllerTest {
     @Mock
     private KitchenReportService service;
 
-    @Mock
-    private KitchenReportPdfService pdfService;
+    /**
+     * Real instance — not mocked. This ensures iText actually runs so that
+     * PDF-generation errors (e.g. "cannot draw on flushed pages") are caught here.
+     */
+    @Spy
+    private KitchenReportPdfService pdfService = new KitchenReportPdfService();
 
     @InjectMocks
     private KitchenReportController controller;
@@ -64,8 +70,7 @@ class KitchenReportControllerTest {
 
         when(service.generateReport(eq(ReportRange.CUSTOM), eq(startDate), eq(endDate))).thenReturn(mockResponse);
 
-        ResponseEntity<KitchenReportResponseDTO> response = controller.getReport(ReportRange.CUSTOM, startDate,
-                endDate);
+        ResponseEntity<KitchenReportResponseDTO> response = controller.getReport(ReportRange.CUSTOM, startDate, endDate);
 
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
@@ -75,23 +80,40 @@ class KitchenReportControllerTest {
     }
 
     @Test
-    void testExportPdf() {
+    void testExportPdf_generatesRealPdf() {
+        // Arrange: a realistic report with data, including the lists the PDF renders
         KitchenReportResponseDTO mockResponse = KitchenReportResponseDTO.builder()
-                .reportPeriod("WEEKLY")
+                .reportPeriod("02/03/2026 - 08/03/2026")
+                .totalCookingSessions(12)
+                .totalPortionsCooked(BigDecimal.valueOf(36))
+                .distinctRecipesCooked(3)
+                .distinctUsersCooking(2)
+                .distinctProductsUsed(5)
+                .totalEstimatedCost(BigDecimal.valueOf(198.50))
+                .topRecipes(Collections.emptyList())
+                .topUsers(Collections.emptyList())
+                .topProducts(Collections.emptyList())
                 .build();
-        byte[] mockPdfBytes = new byte[] { 1, 2, 3 };
 
         when(service.generateReport(eq(ReportRange.WEEKLY), any(), any())).thenReturn(mockResponse);
-        when(pdfService.generateKitchenReportPdf(any())).thenReturn(mockPdfBytes);
 
+        // Act: the real KitchenReportPdfService runs — iText generates an actual PDF
         ResponseEntity<byte[]> response = controller.exportPdf(ReportRange.WEEKLY, null, null);
 
+        // Assert: check response metadata
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
-        assertNotNull(response.getBody());
-        assertEquals(3, response.getBody().length);
-        assertEquals("application/pdf", response.getHeaders().getContentType().toString());
+        assertEquals(MediaType.APPLICATION_PDF, response.getHeaders().getContentType());
         assertEquals("attachment; filename=\"reporte-cocina-weekly.pdf\"",
                 response.getHeaders().getContentDisposition().toString());
+
+        // Assert: verify the bytes look like a real PDF (%PDF magic bytes)
+        byte[] pdfBytes = response.getBody();
+        assertNotNull(pdfBytes);
+        assertTrue(pdfBytes.length > 500, "PDF should be larger than 500 bytes, was: " + pdfBytes.length);
+        assertEquals('%', (char) pdfBytes[0]);
+        assertEquals('P', (char) pdfBytes[1]);
+        assertEquals('D', (char) pdfBytes[2]);
+        assertEquals('F', (char) pdfBytes[3]);
     }
 }

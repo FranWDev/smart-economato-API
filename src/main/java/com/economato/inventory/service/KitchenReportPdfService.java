@@ -7,11 +7,18 @@ import com.economato.inventory.dto.response.UserStatDTO;
 import com.itextpdf.kernel.colors.Color;
 import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.colors.DeviceRgb;
+import com.itextpdf.kernel.events.Event;
+import com.itextpdf.kernel.events.IEventHandler;
+import com.itextpdf.kernel.events.PdfDocumentEvent;
 import com.itextpdf.kernel.font.PdfFont;
 import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.geom.PageSize;
+import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
+import com.itextpdf.layout.Canvas;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.borders.Border;
 import com.itextpdf.layout.borders.SolidBorder;
@@ -47,10 +54,15 @@ public class KitchenReportPdfService {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             PdfWriter writer = new PdfWriter(baos);
             PdfDocument pdfDoc = new PdfDocument(writer);
-            try (Document document = new Document(pdfDoc, PageSize.A4)) {
-                document.setMargins(40, 40, 40, 40);
 
-                PdfFont regularFont = PdfFontFactory.createFont("Helvetica");
+            // Register footer before adding any content so every page gets it on END_PAGE
+            PdfFont footerFont = PdfFontFactory.createFont("Helvetica");
+            pdfDoc.addEventHandler(PdfDocumentEvent.END_PAGE, new FooterEventHandler(footerFont));
+
+            try (Document document = new Document(pdfDoc, PageSize.A4)) {
+                document.setMargins(40, 40, 50, 40); // extra bottom margin for footer
+
+                PdfFont regularFont = footerFont;
                 PdfFont boldFont = PdfFontFactory.createFont("Helvetica-Bold");
 
                 addHeader(document, report, boldFont);
@@ -65,11 +77,54 @@ public class KitchenReportPdfService {
                 addTopProductsTable(document, report.getTopProducts(), boldFont, regularFont);
 
                 addTotalBanner(document, report.getTotalEstimatedCost(), boldFont);
-                addFooter(document, regularFont);
             }
             return baos.toByteArray();
         } catch (Exception e) {
             throw new RuntimeException("Error al generar el PDF del reporte de cocina", e);
+        }
+    }
+
+    /** Draws page number + branding at the bottom of every page as it is rendered. */
+    private class FooterEventHandler implements IEventHandler {
+        private final PdfFont font;
+
+        FooterEventHandler(PdfFont font) {
+            this.font = font;
+        }
+
+        @Override
+        public void handleEvent(Event event) {
+            PdfDocumentEvent docEvent = (PdfDocumentEvent) event;
+            PdfDocument pdf = docEvent.getDocument();
+            PdfPage page = docEvent.getPage();
+            int pageNum = pdf.getPageNumber(page);
+            float pageWidth = page.getPageSize().getWidth();
+
+            try {
+                PdfCanvas canvas = new PdfCanvas(page.newContentStreamAfter(), page.getResources(), pdf);
+
+                // Page number – centered, small, black
+                try (Canvas c = new Canvas(canvas, new Rectangle(0, 18, pageWidth, 16))) {
+                    c.add(new Paragraph(String.valueOf(pageNum))
+                            .setFont(font)
+                            .setFontSize(8)
+                            .setFontColor(ColorConstants.BLACK)
+                            .setTextAlignment(TextAlignment.CENTER));
+                }
+
+                // Branding – below page number
+                try (Canvas c = new Canvas(canvas, new Rectangle(0, 4, pageWidth, 14))) {
+                    c.add(new Paragraph("Generado por Smart Economato")
+                            .setFont(font)
+                            .setFontSize(7)
+                            .setFontColor(TEXT_GRAY)
+                            .setTextAlignment(TextAlignment.CENTER));
+                }
+
+                canvas.release();
+            } catch (Exception ignored) {
+                // Never break PDF generation over a footer error
+            }
         }
     }
 
