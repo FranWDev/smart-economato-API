@@ -12,9 +12,10 @@ Bienvenidos al Backend del **Sistema de Gestión de Economato Inteligente (Smart
 
 Este proyecto va mucho más allá de un CRUD tradicional, implementando patrones de diseño avanzados y soluciones puras de grado empresarial:
 
-- 🛡️ **Stock Ledger Inmutable (Criptográfico):** Absolutamente cada movimiento de stock se registra en una cadena inmutable con hashes criptográficos entrelazados (similar a Blockchain o Git). Incluye funciones de verificación de integridad (`verify-all`) y snapshots `O(1)` para acceso ultrarrápido sin penalizar el rendimiento.
+- � **Sistema de Alertas Predictivas de Stock Bajo:** Este motor utiliza el algoritmo **Holt-Winters (Triple Exponential Smoothing)** para predecir la demanda de los próximos 14 días. Detecta anomalías mediante **Z-Score** y genera alertas categorizadas (de baja a crítica) antes de que ocurra el desabastecimiento.
+- 🚀 **Java 25 con Virtual Threads (Project Loom):** Aprovechamiento masivo de hilos virtuales nativos de la JVM para el procesamiento asíncrono de predicciones y manejo de miles de conexiones concurrentes sin agotar recursos.
+- 🛡️ **Stock Ledger Inmutable (Criptográfico):** Absolutamente cada movimiento de stock se registra en una cadena inmutable con hashes criptográficos entrelazados. Incluye funciones de verificación de integridad (`verify-all`) y snapshots `O(1)` para acceso ultrarrápido.
 - ⚛️ **Transacciones Atómicas Batch:** Modificación masiva de stock con validaciones estrictas y capacidad de *rollback* automático.
-- 🚀 **Java 21 con Virtual Threads (Project Loom):** Aprovechamiento de hilos virtuales nativos de la JVM para manejar decenas de miles de conexiones concurrentes sin agotar la CPU ni la memoria.
 - 🗄️ **Arquitectura CQRS a Nivel de Base de Datos:** Configuración real con **PostgreSQL Primario (Escritura)** y **PostgreSQL Réplica (Lectura)** balanceando la carga mediante múltiples *DataSources*.
 - ⚡ **Caché Distribuida con Redis:** Respuestas ultrarrápidas y descarga agresiva sobre la base de datos principal, ideal para catálogos y búsquedas altamente concurrentes.
 - 📨 **Event-Driven Architecture (Apache Kafka):** Los procesos pesados y las notificaciones asíncronas fluyen a través de topics de Kafka asegurando la tolerancia a fallos.
@@ -24,8 +25,8 @@ Este proyecto va mucho más allá de un CRUD tradicional, implementando patrones
 
 ## 🛠️ Stack Tecnológico
 
-- **Lenguaje:** Java 21
-- **Framework Principal:** Spring Boot 3.4.2 (Spring Web, Security, Data JPA, Cache)
+- **Lenguaje:** Java 25
+- **Framework Principal:** Spring Boot 4.0.0 (Spring Web, Security, Data JPA, Cache)
 - **Base de Datos Principal:** PostgreSQL 16 (Patrón Primary-Replica)
 - **Sistemas Distribuidos:** Apache Kafka, Apache Zookeeper
 - **Caché y Estructuras en Memoria:** Redis 7
