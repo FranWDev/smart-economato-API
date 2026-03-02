@@ -58,7 +58,8 @@ public class SecurityConfig {
                                                 .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
 
                                                 // Vistas públicas
-                                                .requestMatchers("/login", "/").permitAll()
+                                                .requestMatchers("/login", "/", "/api/kitchen-reports/export/pdf")
+                                                .permitAll()
 
                                                 // Recursos estáticos
                                                 .requestMatchers("/styles/**", "/scripts/**").permitAll()
