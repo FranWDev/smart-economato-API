@@ -86,23 +86,15 @@ public class OrderController {
         public ResponseEntity<byte[]> downloadOrderPdf(
                         @Parameter(description = "ID del pedido", example = "10") @PathVariable Integer id) {
                 return orderService.findById(id)
-                                .<ResponseEntity<byte[]>>map(order -> {
-                                        try {
-                                                byte[] pdfBytes = orderPdfService.generateOrderPdf(order);
-
-                                                HttpHeaders headers = new HttpHeaders();
-                                                headers.setContentType(MediaType.APPLICATION_PDF);
-                                                headers.setContentDisposition(ContentDisposition.attachment()
-                                                                .filename("pedido_" + order.getId() + ".pdf")
-                                                                .build());
-                                                headers.setContentLength(pdfBytes.length);
-
-                                                return ResponseEntity.ok()
-                                                                .headers(headers)
-                                                                .body(pdfBytes);
-                                        } catch (Exception e) {
-                                                return ResponseEntity.<byte[]>internalServerError().build();
-                                        }
+                                .map(order -> {
+                                        byte[] pdfBytes = orderPdfService.generateOrderPdf(order);
+                                        HttpHeaders headers = new HttpHeaders();
+                                        headers.setContentType(MediaType.APPLICATION_PDF);
+                                        headers.setContentDisposition(ContentDisposition.attachment()
+                                                        .filename("pedido_" + order.getId() + ".pdf")
+                                                        .build());
+                                        headers.setContentLength(pdfBytes.length);
+                                        return ResponseEntity.ok().headers(headers).body(pdfBytes);
                                 })
                                 .orElse(ResponseEntity.<byte[]>notFound().build());
         }

@@ -41,23 +41,27 @@ public class OrderPdfService {
 
         private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
-        public byte[] generateOrderPdf(OrderResponseDTO order) throws Exception {
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                PdfWriter writer = new PdfWriter(baos);
-                PdfDocument pdfDoc = new PdfDocument(writer);
-                try (Document document = new Document(pdfDoc, PageSize.A4)) {
-                        document.setMargins(40, 40, 40, 40);
+        public byte[] generateOrderPdf(OrderResponseDTO order) {
+                try {
+                        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                        PdfWriter writer = new PdfWriter(baos);
+                        PdfDocument pdfDoc = new PdfDocument(writer);
+                        try (Document document = new Document(pdfDoc, PageSize.A4)) {
+                                document.setMargins(40, 40, 40, 40);
 
-                        PdfFont regularFont = PdfFontFactory.createFont("Helvetica");
-                        PdfFont boldFont = PdfFontFactory.createFont("Helvetica-Bold");
+                                PdfFont regularFont = PdfFontFactory.createFont("Helvetica");
+                                PdfFont boldFont = PdfFontFactory.createFont("Helvetica-Bold");
 
-                        addHeader(document, order, boldFont);
-                        addOrderInfoSection(document, order, boldFont, regularFont);
-                        addProductsTable(document, order.getDetails(), boldFont, regularFont);
-                        addTotalBanner(document, order.getTotalPrice(), boldFont);
-                        addFooter(document, regularFont);
+                                addHeader(document, order, boldFont);
+                                addOrderInfoSection(document, order, boldFont, regularFont);
+                                addProductsTable(document, order.getDetails(), boldFont, regularFont);
+                                addTotalBanner(document, order.getTotalPrice(), boldFont);
+                                addFooter(document, regularFont);
+                        }
+                        return baos.toByteArray();
+                } catch (Exception e) {
+                        throw new RuntimeException("Error al generar el PDF del pedido " + order.getId(), e);
                 }
-                return baos.toByteArray();
         }
 
         // ===== HEADER =====

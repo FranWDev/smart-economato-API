@@ -45,39 +45,43 @@ public class RecipePdfService {
     private static final Color ALLERGEN_TEXT = new DeviceRgb(220, 38, 38);
     private static final Color GREEN_TEXT = new DeviceRgb(16, 185, 129);
 
-    public byte[] generateRecipePdf(RecipeResponseDTO recipe) throws Exception {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        PdfWriter writer = new PdfWriter(baos);
-        PdfDocument pdfDoc = new PdfDocument(writer);
-        Document document = new Document(pdfDoc, PageSize.A4);
+    public byte[] generateRecipePdf(RecipeResponseDTO recipe) {
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            PdfWriter writer = new PdfWriter(baos);
+            PdfDocument pdfDoc = new PdfDocument(writer);
+            Document document = new Document(pdfDoc, PageSize.A4);
 
-        document.setMargins(40, 40, 40, 40);
+            document.setMargins(40, 40, 40, 40);
 
-        PdfFont regularFont = PdfFontFactory.createFont("Helvetica");
-        PdfFont boldFont = PdfFontFactory.createFont("Helvetica-Bold");
+            PdfFont regularFont = PdfFontFactory.createFont("Helvetica");
+            PdfFont boldFont = PdfFontFactory.createFont("Helvetica-Bold");
 
-        addHeader(document, sanitizePdfText(recipe.getName()), boldFont);
+            addHeader(document, sanitizePdfText(recipe.getName()), boldFont);
 
-        if (recipe.getPresentation() != null && !recipe.getPresentation().isEmpty()) {
-            addSection(document, "Presentación", sanitizePdfText(recipe.getPresentation()), boldFont, regularFont);
+            if (recipe.getPresentation() != null && !recipe.getPresentation().isEmpty()) {
+                addSection(document, "Presentación", sanitizePdfText(recipe.getPresentation()), boldFont, regularFont);
+            }
+
+            if (recipe.getElaboration() != null && !recipe.getElaboration().isEmpty()) {
+                addElaborationSection(document, sanitizePdfText(recipe.getElaboration()), boldFont, regularFont);
+            }
+
+            if (recipe.getComponents() != null && !recipe.getComponents().isEmpty()) {
+                addIngredientsTable(document, recipe.getComponents(), boldFont, regularFont);
+            }
+
+            addCostBanner(document, recipe.getTotalCost(), boldFont);
+
+            addAllergensSection(document, recipe.getAllergens(), boldFont, regularFont);
+
+            addFooter(document, regularFont);
+
+            document.close();
+            return baos.toByteArray();
+        } catch (Exception e) {
+            throw new RuntimeException("Error al generar el PDF de la receta " + recipe.getId(), e);
         }
-
-        if (recipe.getElaboration() != null && !recipe.getElaboration().isEmpty()) {
-            addElaborationSection(document, sanitizePdfText(recipe.getElaboration()), boldFont, regularFont);
-        }
-
-        if (recipe.getComponents() != null && !recipe.getComponents().isEmpty()) {
-            addIngredientsTable(document, recipe.getComponents(), boldFont, regularFont);
-        }
-
-        addCostBanner(document, recipe.getTotalCost(), boldFont);
-
-        addAllergensSection(document, recipe.getAllergens(), boldFont, regularFont);
-
-        addFooter(document, regularFont);
-
-        document.close();
-        return baos.toByteArray();
     }
 
     // ===== HEADER =====

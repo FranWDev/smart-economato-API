@@ -177,23 +177,15 @@ public class RecipeController {
         public ResponseEntity<byte[]> downloadRecipePdf(
                         @Parameter(description = "ID de la receta", required = true) @PathVariable Integer id) {
                 return recipeService.findById(id)
-                                .<ResponseEntity<byte[]>>map(recipe -> {
-                                        try {
-                                                byte[] pdfBytes = recipePdfService.generateRecipePdf(recipe);
-
-                                                HttpHeaders headers = new HttpHeaders();
-                                                headers.setContentType(MediaType.APPLICATION_PDF);
-                                                headers.setContentDisposition(ContentDisposition.attachment()
-                                                                .filename(sanitizeFilename(recipe.getName()) + ".pdf")
-                                                                .build());
-                                                headers.setContentLength(pdfBytes.length);
-
-                                                return ResponseEntity.ok()
-                                                                .headers(headers)
-                                                                .body(pdfBytes);
-                                        } catch (Exception e) {
-                                                return ResponseEntity.<byte[]>internalServerError().build();
-                                        }
+                                .map(recipe -> {
+                                        byte[] pdfBytes = recipePdfService.generateRecipePdf(recipe);
+                                        HttpHeaders headers = new HttpHeaders();
+                                        headers.setContentType(MediaType.APPLICATION_PDF);
+                                        headers.setContentDisposition(ContentDisposition.attachment()
+                                                        .filename(sanitizeFilename(recipe.getName()) + ".pdf")
+                                                        .build());
+                                        headers.setContentLength(pdfBytes.length);
+                                        return ResponseEntity.ok().headers(headers).body(pdfBytes);
                                 })
                                 .orElse(ResponseEntity.<byte[]>notFound().build());
         }
