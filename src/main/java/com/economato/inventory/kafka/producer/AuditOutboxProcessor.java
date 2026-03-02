@@ -6,6 +6,8 @@ import com.economato.inventory.dto.event.RecipeAuditEvent;
 import com.economato.inventory.dto.event.RecipeCookingAuditEvent;
 import com.economato.inventory.model.AuditOutbox;
 import com.economato.inventory.repository.AuditOutboxRepository;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import tools.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -34,13 +36,20 @@ public class AuditOutboxProcessor {
             KafkaTemplate<String, InventoryAuditEvent> inventoryKafkaTemplate,
             KafkaTemplate<String, RecipeAuditEvent> recipeKafkaTemplate,
             KafkaTemplate<String, OrderAuditEvent> orderKafkaTemplate,
-            KafkaTemplate<String, RecipeCookingAuditEvent> recipeCookingKafkaTemplate) {
+            KafkaTemplate<String, RecipeCookingAuditEvent> recipeCookingKafkaTemplate,
+            MeterRegistry meterRegistry) {
         this.outboxRepository = outboxRepository;
         this.objectMapper = objectMapper;
         this.inventoryKafkaTemplate = inventoryKafkaTemplate;
         this.recipeKafkaTemplate = recipeKafkaTemplate;
         this.orderKafkaTemplate = orderKafkaTemplate;
         this.recipeCookingKafkaTemplate = recipeCookingKafkaTemplate;
+        
+        // Registrar Gauge para eventos pendientes en Outbox
+        Gauge.builder("kafka.audit.outbox.pending", 
+            () -> outboxRepository.countByProcessed(false))
+            .description("Eventos pendientes en Outbox (Lag de Integración)")
+            .register(meterRegistry);
     }
 
     @Scheduled(fixedDelay = 5000)

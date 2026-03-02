@@ -10,4 +10,6 @@ import java.util.List;
 public interface AuditOutboxRepository extends JpaRepository<AuditOutbox, Long> {
 
     List<AuditOutbox> findTop100ByOrderByCreatedAtAsc();
+    
+    long countByProcessed(boolean processed);
 }

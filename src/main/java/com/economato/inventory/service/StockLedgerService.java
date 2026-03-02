@@ -2,6 +2,9 @@ package com.economato.inventory.service;
 
 import com.economato.inventory.i18n.I18nService;
 import com.economato.inventory.i18n.MessageKey;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -43,6 +46,10 @@ public class StockLedgerService {
     private final ProductRepository productRepository;
     private final SecurityContextHelper securityContextHelper;
     private final Environment environment;
+    
+    // Métricas declaradas como final para thread-safety
+    private final Counter stockMovementsCounter;
+    private final Timer ledgerHashTimer;
 
     private static final String GENESIS_HASH = "GENESIS";
 
@@ -52,13 +59,24 @@ public class StockLedgerService {
             StockSnapshotRepository snapshotRepository,
             ProductRepository productRepository,
             SecurityContextHelper securityContextHelper,
-            Environment environment) {
+            Environment environment,
+            MeterRegistry meterRegistry) {
         this.i18nService = i18nService;
         this.ledgerRepository = ledgerRepository;
         this.snapshotRepository = snapshotRepository;
         this.productRepository = productRepository;
         this.securityContextHelper = securityContextHelper;
         this.environment = environment;
+        
+        // Inicializar métricas
+        this.stockMovementsCounter = Counter.builder("stock.ledger.movements.total")
+            .description("Total de movimientos en el ledger criptográfico")
+            .register(meterRegistry);
+
+        this.ledgerHashTimer = Timer.builder("stock.ledger.hash.duration")
+            .description("Latencia del cómputo SHA-256")
+            .publishPercentiles(0.95, 0.99) // Crítico para detectar outliers en Virtual Threads
+            .register(meterRegistry);
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
@@ -139,6 +157,9 @@ public class StockLedgerService {
                 .build();
 
         transaction = ledgerRepository.save(transaction);
+        
+        // Incrementar métrica de movimientos totales
+        stockMovementsCounter.increment();
 
         snapshot.setCurrentStock(normalizedStock);
         snapshot.setLastTransactionHash(currentHash);
@@ -163,23 +184,25 @@ public class StockLedgerService {
             String previousHash,
             Long sequenceNumber) {
 
-        try {
-            String data = String.format("%d|%s|%s|%s|%s|%d",
-                    productId,
-                    quantityDelta.toPlainString(),
-                    resultingStock.toPlainString(),
-                    timestamp.toString(),
-                    previousHash,
-                    sequenceNumber);
+        return ledgerHashTimer.record(() -> {
+            try {
+                String data = String.format("%d|%s|%s|%s|%s|%d",
+                        productId,
+                        quantityDelta.toPlainString(),
+                        resultingStock.toPlainString(),
+                        timestamp.toString(),
+                        previousHash,
+                        sequenceNumber);
 
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(data.getBytes(StandardCharsets.UTF_8));
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                byte[] hashBytes = digest.digest(data.getBytes(StandardCharsets.UTF_8));
 
-            return java.util.HexFormat.of().formatHex(hashBytes);
+                return java.util.HexFormat.of().formatHex(hashBytes);
 
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_STOCK_HASH_CALCULATION), e);
-        }
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_STOCK_HASH_CALCULATION), e);
+            }
+        });
     }
 
     @Transactional(readOnly = true)
