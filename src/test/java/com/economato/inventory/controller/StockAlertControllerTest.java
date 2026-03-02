@@ -81,4 +81,37 @@ class StockAlertControllerTest {
         assertNotNull(response.getBody());
         assertTrue(response.getBody().isEmpty());
     }
+
+    @Test
+    void getProductAlert_whenAlertExists_returnsOk() {
+        StockAlertDTO alert = criticalAlert();
+        when(stockAlertService.getAlertByProductId(1)).thenReturn(java.util.Optional.of(alert));
+
+        ResponseEntity<StockAlertDTO> response = controller.getProductAlert(1);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(alert, response.getBody());
+    }
+
+    @Test
+    void getProductAlert_whenNoAlert_returnsNoContent() {
+        when(stockAlertService.getAlertByProductId(99)).thenReturn(java.util.Optional.empty());
+
+        ResponseEntity<StockAlertDTO> response = controller.getProductAlert(99);
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+    }
+
+    @Test
+    void getBatchAlerts_returnsAlertList() {
+        StockAlertDTO alert = criticalAlert();
+        List<Integer> ids = List.of(1, 2);
+        when(stockAlertService.getAlertsByProductIds(ids)).thenReturn(List.of(alert));
+
+        ResponseEntity<List<StockAlertDTO>> response = controller.getBatchAlerts(ids);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(1, response.getBody().size());
+        assertEquals(alert, response.getBody().get(0));
+    }
 }

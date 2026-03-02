@@ -12,16 +12,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/stock-alerts")
-@Tag(name = "Alertas de Stock", description = "Alertas predictivas de stock bajo basadas en historial de cocinado (Holt-Winters). [Rol requerido: ADMIN]")
+@Tag(name = "Alertas de Stock", description = "Alertas predictivas de stock bajo basadas en historial de cocinado (Holt-Winters). [Rol requerido: CHEF]")
 public class StockAlertController {
 
     private final StockAlertService stockAlertService;
@@ -31,7 +28,7 @@ public class StockAlertController {
     }
 
     @SuppressWarnings("unused")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('CHEF')")
     @GetMapping
     @Operation(summary = "Obtener alertas de stock bajo", description = """
             Devuelve las alertas predictivas de stock bajo para todos los ingredientes
@@ -40,10 +37,10 @@ public class StockAlertController {
             - Stock actual y cantidades en pedidos activos (CREATED / PENDING / REVIEW)
             - Nivel de severidad (LOW / MEDIUM / HIGH / CRITICAL)
             - Resolución (COVERED_BY_ORDER / PARTIALLY_COVERED / UNCOVERED)
-            - Mensaje en español con el resumen de la situación
+            - Mensaje localizado con el resumen de la situación
             - Las 3 recetas que más consumen ese ingrediente
 
-            [Rol requerido: ADMIN]
+            [Rol requerido: CHEF]
             """)
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Alertas generadas correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = StockAlertDTO.class))),
@@ -57,5 +54,21 @@ public class StockAlertController {
                 : stockAlertService.getActiveAlerts();
 
         return ResponseEntity.ok(alerts);
+    }
+
+    @PreAuthorize("hasRole('CHEF')")
+    @GetMapping("/{productId}")
+    @Operation(summary = "Obtener alerta de un producto específico", description = "Calcula la alerta predictiva para un producto individual. [Rol requerido: CHEF]")
+    public ResponseEntity<StockAlertDTO> getProductAlert(@PathVariable Integer productId) {
+        return stockAlertService.getAlertByProductId(productId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.noContent().build());
+    }
+
+    @PreAuthorize("hasRole('CHEF')")
+    @PostMapping("/batch")
+    @Operation(summary = "Obtener alertas para una lista de productos", description = "Calcula las alertas predictivas para un conjunto de IDs de producto. [Rol requerido: CHEF]")
+    public ResponseEntity<List<StockAlertDTO>> getBatchAlerts(@RequestBody List<Integer> productIds) {
+        return ResponseEntity.ok(stockAlertService.getAlertsByProductIds(productIds));
     }
 }
