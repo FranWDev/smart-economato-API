@@ -1,6 +1,5 @@
 package com.economato.inventory.concurrency;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -76,71 +75,6 @@ public class ConcurrencyTest {
         executor.shutdown();
 
         assertTrue(successCount.get() > 0, "Al menos una actualización debe tener éxito");
-
-        productRepository.deleteById(productId);
-    }
-
-    @Test
-    @Disabled("Requiere PostgreSQL - H2 no soporta pessimistic locking correctamente")
-    void shouldHandlePessimisticLocking() throws InterruptedException {
-
-        Product product = new Product();
-        product.setName("Producto Test Lock Pesimista");
-        product.setType("Test");
-        product.setUnit("kg");
-        product.setUnitPrice(BigDecimal.valueOf(15.00));
-        product.setProductCode("TEST-PESSIMISTIC-001");
-        product.setCurrentStock(BigDecimal.valueOf(200));
-        product.setMinimumStock(BigDecimal.ZERO);
-        product = productRepository.save(product);
-
-        final Integer productId = product.getId();
-        final CountDownLatch startLatch = new CountDownLatch(1);
-        final CountDownLatch endLatch = new CountDownLatch(2);
-        final long[] timestamps = new long[2];
-
-        Thread thread1 = new Thread(() -> {
-            try {
-                startLatch.await();
-                timestamps[0] = System.currentTimeMillis();
-
-                Product p = productRepository.findByIdForUpdate(productId).orElseThrow();
-                Thread.sleep(1000);
-                p.setCurrentStock(BigDecimal.valueOf(150));
-                productRepository.save(p);
-
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } finally {
-                endLatch.countDown();
-            }
-        });
-
-        Thread thread2 = new Thread(() -> {
-            try {
-                startLatch.await();
-                Thread.sleep(100);
-                timestamps[1] = System.currentTimeMillis();
-
-                Product p = productRepository.findByIdForUpdate(productId).orElseThrow();
-                p.setCurrentStock(BigDecimal.valueOf(180));
-                productRepository.save(p);
-
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } finally {
-                endLatch.countDown();
-            }
-        });
-
-        thread1.start();
-        thread2.start();
-        startLatch.countDown();
-        endLatch.await();
-
-        long waitTime = timestamps[1] - timestamps[0];
-        assertTrue(waitTime >= 900,
-                "Thread 2 debería haber esperado a Thread 1. Tiempo de espera: " + waitTime + "ms");
 
         productRepository.deleteById(productId);
     }
