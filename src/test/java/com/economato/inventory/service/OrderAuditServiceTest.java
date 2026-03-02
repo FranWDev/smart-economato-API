@@ -17,6 +17,7 @@ import com.economato.inventory.dto.response.OrderAuditResponseDTO;
 import com.economato.inventory.mapper.OrderAuditMapper;
 import com.economato.inventory.model.Order;
 import com.economato.inventory.model.OrderAudit;
+import com.economato.inventory.model.OrderStatus;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.OrderAuditRepository;
 import com.economato.inventory.repository.UserRepository;
@@ -60,7 +61,7 @@ class OrderAuditServiceTest {
 
         testOrder = new Order();
         testOrder.setId(1);
-        testOrder.setStatus("PENDING");
+        testOrder.setStatus(OrderStatus.PENDING);
 
         testOrderAudit = new OrderAudit();
         testOrderAudit.setId(1);

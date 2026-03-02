@@ -13,6 +13,7 @@ import com.economato.inventory.dto.event.OrderAuditEvent;
 import com.economato.inventory.dto.request.OrderReceptionRequestDTO;
 import com.economato.inventory.kafka.producer.AuditEventProducer;
 import com.economato.inventory.model.Order;
+import com.economato.inventory.model.OrderStatus;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.OrderRepository;
 import tools.jackson.databind.ObjectMapper;
@@ -57,12 +58,12 @@ public class OrderAuditAspect {
             if (arg instanceof OrderReceptionRequestDTO) {
                 receptionDto = (OrderReceptionRequestDTO) arg;
                 orderId = receptionDto.getOrderId();
-                newStatus = receptionDto.getStatus();
+                newStatus = receptionDto.getStatus().name();
             } else if (arg instanceof Integer) {
-                orderId = (Integer) arg;
-            } else if (arg instanceof String && orderId != null) {
-
-                newStatus = (String) arg;
+                newStatus = (receptionDto != null && receptionDto.getStatus() != null) ? receptionDto.getStatus().name()
+                        : null;
+            } else if (arg instanceof OrderStatus && orderId != null) {
+                newStatus = ((OrderStatus) arg).name();
             }
         }
 

@@ -13,6 +13,7 @@ import com.economato.inventory.dto.response.OrderDetailResponseDTO;
 import com.economato.inventory.mapper.OrderDetailMapper;
 import com.economato.inventory.model.Order;
 import com.economato.inventory.model.OrderDetail;
+import com.economato.inventory.model.OrderStatus;
 import com.economato.inventory.model.Product;
 import com.economato.inventory.repository.OrderDetailRepository;
 import com.economato.inventory.repository.OrderRepository;
@@ -55,7 +56,7 @@ class OrderDetailServiceTest {
     void setUp() {
         testOrder = new Order();
         testOrder.setId(1);
-        testOrder.setStatus("CREATED");
+        testOrder.setStatus(OrderStatus.CREATED);
         testOrder.setDetails(new ArrayList<>());
 
         testProduct = new Product();

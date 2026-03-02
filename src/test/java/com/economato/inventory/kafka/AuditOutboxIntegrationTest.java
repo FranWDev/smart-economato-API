@@ -20,6 +20,7 @@ import com.economato.inventory.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.repository.OrderAuditRepository;
 import com.economato.inventory.model.User;
 import com.economato.inventory.model.Order;
+import com.economato.inventory.model.OrderStatus;
 import com.economato.inventory.model.Recipe;
 import com.economato.inventory.dto.event.RecipeAuditEvent;
 import com.economato.inventory.dto.event.OrderAuditEvent;
@@ -130,7 +131,7 @@ public class AuditOutboxIntegrationTest extends BaseIntegrationTest {
         testOrder = new Order();
         testOrder.setUser(testUser);
         testOrder.setOrderDate(LocalDateTime.now());
-        testOrder.setStatus("PENDING");
+        testOrder.setStatus(OrderStatus.PENDING);
         testOrder = orderRepository.save(testOrder);
 
         testRecipe = new Recipe();

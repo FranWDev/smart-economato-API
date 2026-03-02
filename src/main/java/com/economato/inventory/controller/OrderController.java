@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.economato.inventory.dto.request.OrderReceptionRequestDTO;
 import com.economato.inventory.dto.request.OrderRequestDTO;
 import com.economato.inventory.dto.response.OrderResponseDTO;
+import com.economato.inventory.model.OrderStatus;
 import com.economato.inventory.service.OrderPdfService;
 import com.economato.inventory.service.OrderService;
 import com.economato.inventory.service.UserService;
@@ -173,7 +174,7 @@ public class OrderController {
         @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/status/{status}")
         public List<OrderResponseDTO> getByStatus(
-                        @Parameter(description = "Estado del pedido", example = "PENDIENTE") @PathVariable String status) {
+                        @Parameter(description = "Estado del pedido", example = "CREATED") @PathVariable OrderStatus status) {
                 return orderService.findByStatus(status);
         }
 
@@ -240,20 +241,20 @@ public class OrderController {
          * DTO para actualizar estado de orden
          */
         public static class UpdateStatusRequest {
-                private String status;
+                private OrderStatus status;
 
                 public UpdateStatusRequest() {
                 }
 
-                public UpdateStatusRequest(String status) {
+                public UpdateStatusRequest(OrderStatus status) {
                         this.status = status;
                 }
 
-                public String getStatus() {
+                public OrderStatus getStatus() {
                         return status;
                 }
 
-                public void setStatus(String status) {
+                public void setStatus(OrderStatus status) {
                         this.status = status;
                 }
         }

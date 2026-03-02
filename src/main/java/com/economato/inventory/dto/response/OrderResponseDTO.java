@@ -1,5 +1,6 @@
 package com.economato.inventory.dto.response;
 
+import com.economato.inventory.model.OrderStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -27,7 +28,7 @@ public class OrderResponseDTO {
     private LocalDateTime orderDate;
 
     @Schema(description = "Estado actual del pedido", example = "CREATED")
-    private String status;
+    private OrderStatus status;
 
     @Schema(description = "Precio total del pedido (suma de todos los detalles)", example = "150.50")
     private BigDecimal totalPrice;
@@ -38,7 +39,8 @@ public class OrderResponseDTO {
     /**
      * Constructor alternativo sin totalPrice (para compatibilidad)
      */
-    public OrderResponseDTO(Integer id, Integer userId, String userName, LocalDateTime orderDate, String status, List<OrderDetailResponseDTO> details) {
+    public OrderResponseDTO(Integer id, Integer userId, String userName, LocalDateTime orderDate, OrderStatus status,
+            List<OrderDetailResponseDTO> details) {
         this.id = id;
         this.userId = userId;
         this.userName = userName;

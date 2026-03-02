@@ -287,7 +287,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
                 var receptionData = new java.util.HashMap<String, Object>();
                 receptionData.put("orderId", orderId);
-                receptionData.put("status", "IN_REVIEW");
+                receptionData.put("status", "REVIEW");
                 var items = new java.util.ArrayList<java.util.Map<String, Object>>();
                 var item = new java.util.HashMap<String, Object>();
                 item.put("productId", testProduct1.getId());
@@ -300,7 +300,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(receptionData)))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.status").value("IN_REVIEW"))
+                                .andExpect(jsonPath("$.status").value("REVIEW"))
                                 .andExpect(jsonPath("$.id").value(orderId));
         }
 

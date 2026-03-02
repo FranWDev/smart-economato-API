@@ -11,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.economato.inventory.dto.request.*;
 import com.economato.inventory.model.*;
+import com.economato.inventory.model.OrderStatus;
 
 public class TestDataUtil {
 
@@ -142,7 +143,7 @@ public class TestDataUtil {
         return component;
     }
 
-    public static Order createOrder(User user, String status) {
+    public static Order createOrder(User user, OrderStatus status) {
         Order order = new Order();
         order.setUser(user);
         order.setOrderDate(LocalDateTime.now());
@@ -194,7 +195,7 @@ public class TestDataUtil {
     }
 
     public static Order createCompleteOrder(User user) {
-        Order order = createOrder(user, "PENDING");
+        Order order = createOrder(user, OrderStatus.PENDING);
 
         Product flour = createFlour();
         Product sugar = createSugar();

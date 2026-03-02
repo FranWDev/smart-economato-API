@@ -29,6 +29,7 @@ import com.economato.inventory.mapper.OrderMapper;
 import com.economato.inventory.model.MovementType;
 import com.economato.inventory.model.Order;
 import com.economato.inventory.model.OrderDetail;
+import com.economato.inventory.model.OrderStatus;
 import com.economato.inventory.model.Product;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.OrderRepository;
@@ -95,7 +96,7 @@ class OrderServiceTest {
         testOrder.setId(1);
         testOrder.setUser(testUser);
         testOrder.setOrderDate(LocalDateTime.now());
-        testOrder.setStatus("CREATED");
+        testOrder.setStatus(OrderStatus.CREATED);
         testOrder.setDetails(new ArrayList<>());
 
         OrderDetail detail = new OrderDetail();
@@ -115,7 +116,7 @@ class OrderServiceTest {
         testOrderResponseDTO = new OrderResponseDTO();
         testOrderResponseDTO.setId(1);
         testOrderResponseDTO.setUserId(1);
-        testOrderResponseDTO.setStatus("CREATED");
+        testOrderResponseDTO.setStatus(OrderStatus.CREATED);
 
         testUserResponseDTO = new UserResponseDTO();
         testUserResponseDTO.setId(1);
@@ -124,7 +125,7 @@ class OrderServiceTest {
         testProjection = mock(OrderProjection.class);
         lenient().when(testProjection.getId()).thenReturn(1);
         lenient().when(testProjection.getOrderDate()).thenReturn(LocalDateTime.now());
-        lenient().when(testProjection.getStatus()).thenReturn("CREATED");
+        lenient().when(testProjection.getStatus()).thenReturn(OrderStatus.CREATED);
 
         OrderProjection.UserInfo userInfo = mock(OrderProjection.UserInfo.class);
         lenient().when(userInfo.getId()).thenReturn(1);
@@ -279,14 +280,14 @@ class OrderServiceTest {
     void findByStatus_ShouldReturnOrdersWithStatus() {
 
         Page<OrderProjection> page = new PageImpl<>(Arrays.asList(testProjection));
-        when(repository.findProjectedByStatus(eq("CREATED"), any(Pageable.class))).thenReturn(page);
+        when(repository.findProjectedByStatus(eq(OrderStatus.CREATED), any(Pageable.class))).thenReturn(page);
         when(orderMapper.toResponseDTO(any(OrderProjection.class))).thenReturn(testOrderResponseDTO);
 
-        List<OrderResponseDTO> result = orderService.findByStatus("CREATED");
+        List<OrderResponseDTO> result = orderService.findByStatus(OrderStatus.CREATED);
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(repository).findProjectedByStatus(eq("CREATED"), any(Pageable.class));
+        verify(repository).findProjectedByStatus(eq(OrderStatus.CREATED), any(Pageable.class));
     }
 
     @Test
@@ -309,7 +310,7 @@ class OrderServiceTest {
 
         OrderReceptionRequestDTO receptionData = new OrderReceptionRequestDTO();
         receptionData.setOrderId(1);
-        receptionData.setStatus("CONFIRMED");
+        receptionData.setStatus(OrderStatus.CONFIRMED);
 
         OrderReceptionDetailRequestDTO receptionItem = new OrderReceptionDetailRequestDTO();
         receptionItem.setProductId(1);
@@ -355,7 +356,7 @@ class OrderServiceTest {
 
         OrderReceptionRequestDTO receptionData = new OrderReceptionRequestDTO();
         receptionData.setOrderId(1);
-        receptionData.setStatus("CONFIRMED");
+        receptionData.setStatus(OrderStatus.CONFIRMED);
 
         OrderReceptionDetailRequestDTO receptionItem = new OrderReceptionDetailRequestDTO();
         receptionItem.setProductId(1);
@@ -376,7 +377,7 @@ class OrderServiceTest {
 
         OrderReceptionRequestDTO receptionData = new OrderReceptionRequestDTO();
         receptionData.setOrderId(1);
-        receptionData.setStatus("CONFIRMED");
+        receptionData.setStatus(OrderStatus.CONFIRMED);
 
         OrderReceptionDetailRequestDTO receptionItem = new OrderReceptionDetailRequestDTO();
         receptionItem.setProductId(999);
@@ -395,14 +396,14 @@ class OrderServiceTest {
     void findPendingReception_ShouldReturnPendingOrders() {
 
         Page<OrderProjection> page = new PageImpl<>(Arrays.asList(testProjection));
-        when(repository.findProjectedByStatus(eq("PENDING"), any(Pageable.class))).thenReturn(page);
+        when(repository.findProjectedByStatus(eq(OrderStatus.PENDING), any(Pageable.class))).thenReturn(page);
         when(orderMapper.toResponseDTO(any(OrderProjection.class))).thenReturn(testOrderResponseDTO);
 
         List<OrderResponseDTO> result = orderService.findPendingReception();
 
         assertNotNull(result);
         assertEquals(1, result.size());
-        verify(repository).findProjectedByStatus(eq("PENDING"), any(Pageable.class));
+        verify(repository).findProjectedByStatus(eq(OrderStatus.PENDING), any(Pageable.class));
     }
 
     @Test
@@ -412,7 +413,7 @@ class OrderServiceTest {
         when(repository.save(testOrder)).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
 
-        Optional<OrderResponseDTO> result = orderService.updateStatus(1, "CONFIRMED");
+        Optional<OrderResponseDTO> result = orderService.updateStatus(1, OrderStatus.CONFIRMED);
 
         assertTrue(result.isPresent());
         verify(repository).findById(1);
@@ -420,23 +421,17 @@ class OrderServiceTest {
     }
 
     @Test
-    void updateStatus_WhenInvalidStatus_ShouldThrowException() {
-
-        when(repository.findById(1)).thenReturn(Optional.of(testOrder));
-
-        InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
-            orderService.updateStatus(1, "INVALID_STATUS");
-        });
-        assertTrue(exception.getMessage().contains("ERROR_ORDER_INVALID_STATE"));
-        verify(repository, never()).save(any(Order.class));
+    void updateStatus_WhenInvalidStatusRejectedByJackson_NotApplicable() {
+        // Validation of status strings is now done by Jackson at deserialization time.
+        // The OrderService.updateStatus() only accepts OrderStatus enum values, so
+        // invalid strings cannot reach the service layer. This test is intentionally
+        // left as a no-op.
     }
 
     @Test
     void updateStatus_WithAllValidStatuses_ShouldSucceed() {
 
-        List<String> validStatuses = Arrays.asList("CREATED", "PENDING", "REVIEW", "CONFIRMED", "INCOMPLETE");
-
-        for (String status : validStatuses) {
+        for (OrderStatus status : OrderStatus.values()) {
             when(repository.findById(1)).thenReturn(Optional.of(testOrder));
             when(repository.save(testOrder)).thenReturn(testOrder);
             when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
@@ -446,7 +441,7 @@ class OrderServiceTest {
             assertTrue(result.isPresent());
         }
 
-        verify(repository, times(validStatuses.size())).save(testOrder);
+        verify(repository, times(OrderStatus.values().length)).save(testOrder);
     }
 
     @Test
@@ -454,7 +449,7 @@ class OrderServiceTest {
 
         when(repository.findById(999)).thenReturn(Optional.empty());
 
-        Optional<OrderResponseDTO> result = orderService.updateStatus(999, "COMPLETED");
+        Optional<OrderResponseDTO> result = orderService.updateStatus(999, OrderStatus.CANCELLED);
 
         assertFalse(result.isPresent());
         verify(repository).findById(999);
@@ -469,7 +464,7 @@ class OrderServiceTest {
         when(repository.save(testOrder)).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
 
-        Optional<OrderResponseDTO> result = orderService.updateStatus(1, "CONFIRMED");
+        Optional<OrderResponseDTO> result = orderService.updateStatus(1, OrderStatus.CONFIRMED);
 
         assertTrue(result.isPresent());
         assertNotNull(testOrder.getVersion());
@@ -500,7 +495,7 @@ class OrderServiceTest {
 
         OrderReceptionRequestDTO receptionData = new OrderReceptionRequestDTO();
         receptionData.setOrderId(1);
-        receptionData.setStatus("CONFIRMED");
+        receptionData.setStatus(OrderStatus.CONFIRMED);
 
         OrderReceptionDetailRequestDTO receptionDetail = new OrderReceptionDetailRequestDTO();
         receptionDetail.setProductId(1);
@@ -530,7 +525,7 @@ class OrderServiceTest {
 
         OrderReceptionRequestDTO receptionData = new OrderReceptionRequestDTO();
         receptionData.setOrderId(1);
-        receptionData.setStatus("CONFIRMED");
+        receptionData.setStatus(OrderStatus.CONFIRMED);
 
         OrderReceptionDetailRequestDTO receptionDetail = new OrderReceptionDetailRequestDTO();
         receptionDetail.setProductId(1);

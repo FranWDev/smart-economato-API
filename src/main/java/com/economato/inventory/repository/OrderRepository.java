@@ -12,6 +12,7 @@ import org.springframework.data.repository.query.Param;
 import com.economato.inventory.dto.response.OrderDetailResponseDTO;
 import com.economato.inventory.dto.response.OrderResponseDTO;
 import com.economato.inventory.model.Order;
+import com.economato.inventory.model.OrderStatus;
 import com.economato.inventory.model.User;
 
 import java.time.LocalDateTime;
@@ -22,7 +23,7 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
 
        List<Order> findByUser(User user);
 
-       List<Order> findByStatus(String status);
+       List<Order> findByStatus(OrderStatus status);
 
        List<Order> findByOrderDateBetween(LocalDateTime start, LocalDateTime end);
 
@@ -55,7 +56,7 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
                      "LEFT JOIN FETCH d.product " +
                      "LEFT JOIN FETCH o.user " +
                      "WHERE o.status = :status")
-       List<Order> findByStatusWithDetails(@Param("status") String status);
+       List<Order> findByStatusWithDetails(@Param("status") OrderStatus status);
 
        @Query("SELECT DISTINCT o FROM Order o " +
                      "LEFT JOIN FETCH o.details d " +
@@ -75,7 +76,7 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
 
        @EntityGraph(attributePaths = { "details", "details.product", "user" })
        @Query("SELECT o FROM Order o WHERE o.status = :status")
-       Page<Order> findByStatusWithDetailsPageable(@Param("status") String status, Pageable pageable);
+       Page<Order> findByStatusWithDetailsPageable(@Param("status") OrderStatus status, Pageable pageable);
 
        @EntityGraph(attributePaths = { "details", "details.product", "user" })
        Page<Order> findAll(Pageable pageable);
@@ -89,7 +90,7 @@ public interface OrderRepository extends JpaRepository<Order, Integer> {
        Optional<com.economato.inventory.dto.projection.OrderProjection> findProjectedById(Integer id);
 
        @EntityGraph(attributePaths = { "details", "details.product", "user" })
-       Page<com.economato.inventory.dto.projection.OrderProjection> findProjectedByStatus(String status,
+       Page<com.economato.inventory.dto.projection.OrderProjection> findProjectedByStatus(OrderStatus status,
                      Pageable pageable);
 
        @EntityGraph(attributePaths = { "details", "details.product", "user" })

@@ -26,6 +26,7 @@ import com.economato.inventory.mapper.OrderMapper;
 import com.economato.inventory.model.MovementType;
 import com.economato.inventory.model.Order;
 import com.economato.inventory.model.OrderDetail;
+import com.economato.inventory.model.OrderStatus;
 import com.economato.inventory.model.Product;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.OrderRepository;
@@ -77,7 +78,7 @@ public class OrderService {
         public OrderResponseDTO save(OrderRequestDTO requestDTO) {
                 Order order = new Order();
                 order.setOrderDate(LocalDateTime.now());
-                order.setStatus("CREATED");
+                order.setStatus(OrderStatus.CREATED);
 
                 User user = userRepository.findById(requestDTO.getUserId())
                                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -158,7 +159,7 @@ public class OrderService {
         }
 
         @Transactional(readOnly = true)
-        public List<OrderResponseDTO> findByStatus(String status) {
+        public List<OrderResponseDTO> findByStatus(OrderStatus status) {
                 return repository.findProjectedByStatus(status, Pageable.unpaged()).getContent().stream()
                                 .map(orderMapper::toResponseDTO)
                                 .toList();
@@ -186,7 +187,7 @@ public class OrderService {
                                 .orElseThrow(() -> new ResourceNotFoundException(
                                                 i18nService.getMessage(MessageKey.ERROR_ORDER_NOT_FOUND)));
 
-                order.setStatus("REVIEW");
+                order.setStatus(OrderStatus.REVIEW);
 
                 for (var receptionItem : receptionData.getItems()) {
                         OrderDetail detail = order.getDetails().stream()
@@ -208,7 +209,7 @@ public class OrderService {
 
                 order.setStatus(receptionData.getStatus());
 
-                if ("CONFIRMED".equals(receptionData.getStatus())) {
+                if (OrderStatus.CONFIRMED == receptionData.getStatus()) {
                         log.info("Confirmando orden {} - Registrando en ledger inmutable", order.getId());
 
                         for (OrderDetail detail : order.getDetails()) {
@@ -237,7 +238,7 @@ public class OrderService {
 
         @Transactional(readOnly = true)
         public List<OrderResponseDTO> findPendingReception() {
-                return repository.findProjectedByStatus("PENDING", Pageable.unpaged()).getContent().stream()
+                return repository.findProjectedByStatus(OrderStatus.PENDING, Pageable.unpaged()).getContent().stream()
                                 .map(orderMapper::toResponseDTO)
                                 .toList();
         }
@@ -246,28 +247,12 @@ public class OrderService {
         @Retryable(includes = {
                         org.springframework.orm.ObjectOptimisticLockingFailureException.class }, maxRetries = 3, delay = 100, multiplier = 2)
         @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
-        public Optional<OrderResponseDTO> updateStatus(Integer orderId, String newStatus) {
+        public Optional<OrderResponseDTO> updateStatus(Integer orderId, OrderStatus newStatus) {
                 return repository.findById(orderId)
                                 .map(order -> {
-                                        String normalizedStatus = validateStatus(newStatus);
-                                        order.setStatus(normalizedStatus);
+                                        order.setStatus(newStatus);
                                         Order updatedOrder = repository.save(order);
                                         return orderMapper.toResponseDTO(updatedOrder);
                                 });
-        }
-
-        private String validateStatus(String status) {
-                if (status == null) {
-                        throw new InvalidOperationException(
-                                        i18nService.getMessage(MessageKey.ERROR_ORDER_INVALID_STATE));
-                }
-                String normalized = status.trim().toUpperCase();
-                List<String> validStatuses = List.of("CREATED", "PENDING", "REVIEW", "CONFIRMED", "INCOMPLETE",
-                                "CANCELLED");
-                if (!validStatuses.contains(normalized)) {
-                        throw new InvalidOperationException(
-                                        i18nService.getMessage(MessageKey.ERROR_ORDER_INVALID_STATE) + ": " + status);
-                }
-                return normalized;
         }
 }

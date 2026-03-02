@@ -1,5 +1,6 @@
 package com.economato.inventory.dto.projection;
 
+import com.economato.inventory.model.OrderStatus;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,7 +12,7 @@ public interface OrderProjection {
 
     LocalDateTime getOrderDate();
 
-    String getStatus();
+    OrderStatus getStatus();
 
     List<OrderDetailSummary> getDetails();
 

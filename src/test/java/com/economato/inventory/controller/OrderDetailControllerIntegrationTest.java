@@ -4,6 +4,7 @@ import com.economato.inventory.dto.request.LoginRequestDTO;
 import com.economato.inventory.dto.request.OrderDetailRequestDTO;
 import com.economato.inventory.dto.response.LoginResponseDTO;
 import com.economato.inventory.model.Order;
+import com.economato.inventory.model.OrderStatus;
 import com.economato.inventory.model.Product;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.OrderRepository;
@@ -75,7 +76,7 @@ public class OrderDetailControllerIntegrationTest extends BaseIntegrationTest {
                 testOrder = new Order();
                 testOrder.setUser(testUser);
                 testOrder.setOrderDate(LocalDateTime.now());
-                testOrder.setStatus("PENDING");
+                testOrder.setStatus(OrderStatus.PENDING);
                 orderRepository.save(testOrder);
         }
 

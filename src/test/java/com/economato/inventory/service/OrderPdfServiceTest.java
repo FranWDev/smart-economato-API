@@ -17,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.economato.inventory.dto.response.OrderDetailResponseDTO;
 import com.economato.inventory.dto.response.OrderResponseDTO;
+import com.economato.inventory.model.OrderStatus;
 
 @ExtendWith(MockitoExtension.class)
 class OrderPdfServiceTest {
@@ -33,7 +34,7 @@ class OrderPdfServiceTest {
         testOrder.setUserId(10);
         testOrder.setUserName("Test User");
         testOrder.setOrderDate(LocalDateTime.of(2026, 2, 10, 12, 0));
-        testOrder.setStatus("CREATED");
+        testOrder.setStatus(OrderStatus.CREATED);
         testOrder.setTotalPrice(new BigDecimal("15.50"));
 
         List<OrderDetailResponseDTO> details = new ArrayList<>();
@@ -104,7 +105,7 @@ class OrderPdfServiceTest {
     @Test
     void generateOrderPdf_WithSpecialCharacters_ShouldGeneratePdf() throws Exception {
         testOrder.setUserName("User/Name: Example #1");
-        testOrder.setStatus("IN_REVIEW");
+        testOrder.setStatus(OrderStatus.REVIEW);
 
         byte[] pdfBytes = orderPdfService.generateOrderPdf(testOrder);
 

@@ -1,5 +1,6 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.model.OrderStatus;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
@@ -309,18 +310,17 @@ public class OrderPdfService {
                 return value.replaceAll("[^\\u0009\\u000A\\u000D\\u0020-\\u00FF]", "");
         }
 
-        private String translateStatusToEs(String status) {
+        private String translateStatusToEs(OrderStatus status) {
                 if (status == null) {
                         return "";
                 }
-                return switch (status.trim().toUpperCase()) {
-                        case "CREATED" -> "CREADO";
-                        case "PENDING" -> "PENDIENTE";
-                        case "REVIEW" -> "EN REVISIÓN";
-                        case "CONFIRMED" -> "CONFIRMADO";
-                        case "INCOMPLETE" -> "INCOMPLETO";
-                        case "CANCELLED" -> "CANCELADO";
-                        default -> status;
+                return switch (status) {
+                        case CREATED -> "CREADO";
+                        case PENDING -> "PENDIENTE";
+                        case REVIEW -> "EN REVISIÓN";
+                        case CONFIRMED -> "CONFIRMADO";
+                        case INCOMPLETE -> "INCOMPLETO";
+                        case CANCELLED -> "CANCELADO";
                 };
         }
 }
