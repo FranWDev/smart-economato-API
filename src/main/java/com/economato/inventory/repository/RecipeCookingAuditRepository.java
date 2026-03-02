@@ -5,6 +5,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import java.util.stream.Stream;
 import org.springframework.stereotype.Repository;
 
 import com.economato.inventory.model.RecipeCookingAudit;
@@ -26,6 +27,14 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
 
+    @Query("SELECT rca FROM RecipeCookingAudit rca WHERE rca.cookingDate BETWEEN :startDate AND :endDate ORDER BY rca.cookingDate DESC")
+    Stream<RecipeCookingAudit> streamByDateRange(
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
+
     @Query("SELECT rca FROM RecipeCookingAudit rca ORDER BY rca.cookingDate DESC")
     Page<RecipeCookingAudit> findAllOrderByDateDesc(Pageable pageable);
+
+    @Query("SELECT rca FROM RecipeCookingAudit rca ORDER BY rca.cookingDate DESC")
+    Stream<RecipeCookingAudit> streamAllOrderByDateDesc();
 }
