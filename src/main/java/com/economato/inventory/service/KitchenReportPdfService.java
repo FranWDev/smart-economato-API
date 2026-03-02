@@ -84,7 +84,9 @@ public class KitchenReportPdfService {
         }
     }
 
-    /** Draws page number + branding at the bottom of every page as it is rendered. */
+    /**
+     * Draws page number + branding at the bottom of every page as it is rendered.
+     */
     private class FooterEventHandler implements IEventHandler {
         private final PdfFont font;
 
@@ -363,7 +365,7 @@ public class KitchenReportPdfService {
                 .setMarginBottom(20);
 
         Cell labelCell = new Cell()
-                .add(new Paragraph("Costo Estimado Producción:")
+                .add(new Paragraph("Costo Estimado de Producción:")
                         .setFont(boldFont)
                         .setFontSize(14)
                         .setFontColor(ColorConstants.WHITE))
