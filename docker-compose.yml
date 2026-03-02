@@ -293,6 +293,8 @@ services:
       GF_INSTALL_PLUGINS: "grafana-worldmap-panel,grafana-clock-panel"
       GF_SERVER_DOMAIN: economato.servehttp.com
       GF_SERVER_ROOT_URL: https://economato.servehttp.com/monitor/
+      GF_SERVER_PROTOCOL: http
+      GF_SESSION_COOKIE_SECURE: "true"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
     volumes:
       - grafana-data:/var/lib/grafana
