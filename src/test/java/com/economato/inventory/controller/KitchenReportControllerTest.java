@@ -2,6 +2,7 @@ package com.economato.inventory.controller;
 
 import com.economato.inventory.dto.request.ReportRange;
 import com.economato.inventory.dto.response.KitchenReportResponseDTO;
+import com.economato.inventory.service.KitchenReportPdfService;
 import com.economato.inventory.service.KitchenReportService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,6 +26,9 @@ class KitchenReportControllerTest {
 
     @Mock
     private KitchenReportService service;
+
+    @Mock
+    private KitchenReportPdfService pdfService;
 
     @InjectMocks
     private KitchenReportController controller;
@@ -60,12 +64,34 @@ class KitchenReportControllerTest {
 
         when(service.generateReport(eq(ReportRange.CUSTOM), eq(startDate), eq(endDate))).thenReturn(mockResponse);
 
-        ResponseEntity<KitchenReportResponseDTO> response = controller.getReport(ReportRange.CUSTOM, startDate, endDate);
+        ResponseEntity<KitchenReportResponseDTO> response = controller.getReport(ReportRange.CUSTOM, startDate,
+                endDate);
 
         assertNotNull(response);
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals("CUSTOM", response.getBody().getReportPeriod());
         assertEquals(10, response.getBody().getTotalCookingSessions());
+    }
+
+    @Test
+    void testExportPdf() {
+        KitchenReportResponseDTO mockResponse = KitchenReportResponseDTO.builder()
+                .reportPeriod("WEEKLY")
+                .build();
+        byte[] mockPdfBytes = new byte[] { 1, 2, 3 };
+
+        when(service.generateReport(eq(ReportRange.WEEKLY), any(), any())).thenReturn(mockResponse);
+        when(pdfService.generateKitchenReportPdf(any())).thenReturn(mockPdfBytes);
+
+        ResponseEntity<byte[]> response = controller.exportPdf(ReportRange.WEEKLY, null, null);
+
+        assertNotNull(response);
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(3, response.getBody().length);
+        assertEquals("application/pdf", response.getHeaders().getContentType().toString());
+        assertEquals("attachment; filename=\"reporte-cocina-weekly.pdf\"",
+                response.getHeaders().getContentDisposition().toString());
     }
 }
