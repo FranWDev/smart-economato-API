@@ -73,6 +73,15 @@ public class SecurityConfig {
                                                                 "/scalar-ui.html", "/scalar", "/scalar/**")
                                                 .permitAll()
 
+                                                // Actuator & Prometheus (Solo desde subred interna Docker 172.19.x.x)
+                                                .requestMatchers("/actuator/prometheus", "/actuator/health",
+                                                                "/actuator/health/**")
+                                                .access((authentication, request) -> {
+                                                        String clientIp = request.getRequest().getRemoteAddr();
+                                                        return new org.springframework.security.authorization.AuthorizationDecision(
+                                                                clientIp != null && clientIp.startsWith("172.19."));
+                                                })
+
                                                 // ===== RUTAS PROTEGIDAS =====
                                                 // El control de acceso específico se maneja con @PreAuthorize en los
                                                 // controladores
