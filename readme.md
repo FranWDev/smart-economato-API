@@ -1,6 +1,4 @@
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/FranWDev/turing-backend)
-
-# Turing Backend - Smart Economato API 🛒👨‍🍳
+# Smart Economato API 🛒👨‍🍳
 
 Bienvenidos al Backend del **Sistema de Gestión de Economato Inteligente (Smart Economato)**. Este proyecto esta diseñado y construido con una arquitectura moderna de alta escalabilidad, seguridad extrema y un enfoque puramente orientado a eventos.
 
