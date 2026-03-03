@@ -140,12 +140,15 @@ services:
       
       # Reducción drástica de RAM
       KAFKA_HEAP_OPTS: "-Xmx256M -Xms256M"
+      KAFKA_NUM_NETWORK_THREADS: 2
+      KAFKA_NUM_IO_THREADS: 2
+      KAFKA_LOG_CLEANER_THREADS: 1
     volumes:
       - kafka-data:/var/lib/kafka/data
     deploy:
       resources:
         limits:
-          memory: 400M
+          memory: 512M
     healthcheck:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 10s
