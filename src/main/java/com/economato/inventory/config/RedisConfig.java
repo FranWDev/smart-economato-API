@@ -68,24 +68,24 @@ public class RedisConfig {
                                 .serializeValuesWith(
                                                 RedisSerializationContext.SerializationPair.fromSerializer(serializer))
                                 .disableCachingNullValues()
-                                .entryTtl(Duration.ofMinutes(30));
+                                .entryTtl(Duration.ofHours(2));
 
                 Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
 
-                cacheConfigurations.put("products_page_v4", defaultConfig.entryTtl(Duration.ofMinutes(10)));
-                cacheConfigurations.put("recipes_page_v4", defaultConfig.entryTtl(Duration.ofMinutes(10)));
-                cacheConfigurations.put("product_v4", defaultConfig.entryTtl(Duration.ofHours(1)));
-                cacheConfigurations.put("recipe_v4", defaultConfig.entryTtl(Duration.ofHours(2)));
-                cacheConfigurations.put("users", defaultConfig.entryTtl(Duration.ofMinutes(30)));
-                cacheConfigurations.put("user", defaultConfig.entryTtl(Duration.ofMinutes(30)));
-                cacheConfigurations.put("userByEmail", defaultConfig.entryTtl(Duration.ofMinutes(30)));
-                cacheConfigurations.put("userDetails", defaultConfig.entryTtl(Duration.ofMinutes(15)));
-                cacheConfigurations.put("orders", defaultConfig.entryTtl(Duration.ofMinutes(15)));
-                cacheConfigurations.put("order", defaultConfig.entryTtl(Duration.ofMinutes(15)));
-                cacheConfigurations.put("allergens", defaultConfig.entryTtl(Duration.ofHours(24)));
-                cacheConfigurations.put("allergen", defaultConfig.entryTtl(Duration.ofHours(24)));
-                cacheConfigurations.put("recipeComponents", defaultConfig.entryTtl(Duration.ofHours(2)));
-                cacheConfigurations.put("recipeAllergens", defaultConfig.entryTtl(Duration.ofHours(2)));
+                cacheConfigurations.put("products_page", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+                cacheConfigurations.put("recipes_page", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+                cacheConfigurations.put("product", defaultConfig.entryTtl(Duration.ofHours(3)));
+                cacheConfigurations.put("recipe", defaultConfig.entryTtl(Duration.ofHours(4)));
+                cacheConfigurations.put("users", defaultConfig.entryTtl(Duration.ofHours(2)));
+                cacheConfigurations.put("user", defaultConfig.entryTtl(Duration.ofHours(2)));
+                cacheConfigurations.put("userByEmail", defaultConfig.entryTtl(Duration.ofHours(2)));
+                cacheConfigurations.put("userDetails", defaultConfig.entryTtl(Duration.ofHours(1)));
+                cacheConfigurations.put("orders", defaultConfig.entryTtl(Duration.ofHours(1)));
+                cacheConfigurations.put("order", defaultConfig.entryTtl(Duration.ofHours(1)));
+                cacheConfigurations.put("allergens", defaultConfig.entryTtl(Duration.ofHours(48)));
+                cacheConfigurations.put("allergen", defaultConfig.entryTtl(Duration.ofHours(48)));
+                cacheConfigurations.put("recipeComponents", defaultConfig.entryTtl(Duration.ofHours(6)));
+                cacheConfigurations.put("recipeAllergens", defaultConfig.entryTtl(Duration.ofHours(6)));
 
                 return RedisCacheManager.builder(connectionFactory)
                                 .cacheDefaults(defaultConfig)

@@ -69,7 +69,7 @@ public class ProductService {
         this.securityContextHelper = securityContextHelper;
     }
 
-    @Cacheable(value = "products_page_v4", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
+    @Cacheable(value = "products_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> findAll(Pageable pageable) {
         Page<ProductResponseDTO> page = repository.findByIsHiddenFalse(pageable)
@@ -78,14 +78,14 @@ public class ProductService {
                 page.getTotalElements());
     }
 
-    @Cacheable(value = "product_v4", key = "#id")
+    @Cacheable(value = "product", key = "#id")
     @Transactional(readOnly = true)
     public Optional<ProductResponseDTO> findById(Integer id) {
         return repository.findProjectedById(id)
                 .map(productMapper::toResponseDTO);
     }
 
-    @Cacheable(value = "product_v4", key = "'code:' + #codebar")
+    @Cacheable(value = "product", key = "'code:' + #codebar")
     @Transactional(readOnly = true)
     public Optional<ProductResponseDTO> findByCodebar(String codebar) {
         return repository.findProjectedByProductCode(codebar)
@@ -98,7 +98,7 @@ public class ProductService {
                 .map(productMapper::toResponseDTO);
     }
 
-    @CacheEvict(value = { "products_page_v4", "product_v4" }, allEntries = true)
+    @CacheEvict(value = { "products_page", "product" }, allEntries = true)
     @ProductAuditable(action = "CREATE_PRODUCT")
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public ProductResponseDTO save(ProductRequestDTO requestDTO) {
@@ -111,7 +111,7 @@ public class ProductService {
         return productMapper.toResponseDTO(repository.save(product));
     }
 
-    @CacheEvict(value = { "products_page_v4", "product_v4" }, allEntries = true)
+    @CacheEvict(value = { "products_page", "product" }, allEntries = true)
     @ProductAuditable(action = "UPDATE_PRODUCT")
     @Retryable(includes = { OptimisticLockingFailureException.class }, maxRetries = 3, delay = 100)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
@@ -135,7 +135,7 @@ public class ProductService {
                 });
     }
 
-    @CacheEvict(value = { "products_page_v4", "product_v4" }, allEntries = true)
+    @CacheEvict(value = { "products_page", "product" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
         Product product = repository.findById(id)
@@ -203,7 +203,7 @@ public class ProductService {
                 .toList();
     }
 
-    @CacheEvict(value = { "products_page_v4", "product_v4" }, allEntries = true)
+    @CacheEvict(value = { "products_page", "product" }, allEntries = true)
     @ProductAuditable(action = "TOGGLE_HIDDEN")
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void toggleProductHiddenStatus(Integer id, boolean hidden) {
@@ -218,7 +218,7 @@ public class ProductService {
         return unit != null && VALID_UNITS.contains(unit.toUpperCase());
     }
 
-    @CacheEvict(value = { "products_page_v4", "product_v4" }, allEntries = true)
+    @CacheEvict(value = { "products_page", "product" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
             Exception.class }, isolation = Isolation.REPEATABLE_READ)
     public Optional<ProductResponseDTO> updateStockManually(Integer id, ProductRequestDTO requestDTO) {
