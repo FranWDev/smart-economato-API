@@ -6,6 +6,7 @@ import com.economato.inventory.dto.event.RecipeAuditEvent;
 import com.economato.inventory.dto.event.RecipeCookingAuditEvent;
 import com.economato.inventory.model.AuditOutbox;
 import com.economato.inventory.repository.AuditOutboxRepository;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import tools.jackson.databind.ObjectMapper;
@@ -44,16 +45,17 @@ public class AuditOutboxProcessor {
         this.recipeKafkaTemplate = recipeKafkaTemplate;
         this.orderKafkaTemplate = orderKafkaTemplate;
         this.recipeCookingKafkaTemplate = recipeCookingKafkaTemplate;
-        
+
         // Registrar Gauge para eventos pendientes en Outbox
-        Gauge.builder("kafka.audit.outbox.pending", 
-            outboxRepository, 
-            AuditOutboxRepository::count)
-            .description("Eventos pendientes en Outbox (Lag de Integración)")
-            .register(meterRegistry);
+        Gauge.builder("kafka.audit.outbox.pending",
+                outboxRepository,
+                AuditOutboxRepository::count)
+                .description("Eventos pendientes en Outbox (Lag de Integración)")
+                .register(meterRegistry);
     }
 
     @Scheduled(fixedDelay = 5000)
+    @CircuitBreaker(name = "kafka", fallbackMethod = "kafkaFallback")
     public void processOutbox() {
         List<AuditOutbox> outboxEvents = outboxRepository.findTop100ByOrderByCreatedAtAsc();
 
@@ -95,12 +97,27 @@ public class AuditOutboxProcessor {
                         } else {
                             log.error("Error enviando evento de Outbox a Kafka: topic={}, key={}, error={}",
                                     event.getTopic(), event.getEventKey(), ex.getMessage());
+                            // Propagate Exception so Circuit Breaker can track failures
+                            throw new RuntimeException("Kafka Send Failed", ex);
                         }
                     });
                 }
             } catch (Exception e) {
                 log.error("Error procesando evento Outbox: id={}, error={}", event.getId(), e.getMessage());
+                // Rethrow to increment failure rate on CircuitBreaker
+                throw new RuntimeException(e);
             }
         }
+    }
+
+    /**
+     * Fallback method executed when the "kafka" CircuitBreaker is OPEN or a
+     * CallNotPermittedException is thrown.
+     * Prevents the @Scheduled task from throwing unhandled exceptions endlessly.
+     */
+    public void kafkaFallback(Throwable t) {
+        log.warn("Kafka Circuit Breaker OPEN or execution failed. Halting Outbox processing temporarily. Reason: {}",
+                t.getMessage());
+        // Do nothing else, events will remain safely in the DB Outbox table.
     }
 }
