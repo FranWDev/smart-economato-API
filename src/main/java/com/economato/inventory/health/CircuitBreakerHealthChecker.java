@@ -2,7 +2,7 @@ package com.economato.inventory.health;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
@@ -25,13 +25,23 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @Service
 @Profile("!test & !resilience-test")
-@RequiredArgsConstructor
 public class CircuitBreakerHealthChecker {
 
     private final CircuitBreakerRegistry circuitBreakerRegistry;
     private final DataSource dataSource;
     private final RedisConnectionFactory redisConnectionFactory;
     private final KafkaTemplate<String, ?> kafkaTemplate;
+
+    public CircuitBreakerHealthChecker(
+            CircuitBreakerRegistry circuitBreakerRegistry,
+            DataSource dataSource,
+            RedisConnectionFactory redisConnectionFactory,
+            @Qualifier("inventoryAuditKafkaTemplate") KafkaTemplate<String, ?> kafkaTemplate) {
+        this.circuitBreakerRegistry = circuitBreakerRegistry;
+        this.dataSource = dataSource;
+        this.redisConnectionFactory = redisConnectionFactory;
+        this.kafkaTemplate = kafkaTemplate;
+    }
 
     @Scheduled(fixedDelay = 10000)
     public void checkDatabaseHealth() {
