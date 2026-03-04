@@ -174,6 +174,7 @@ public class AuditOutboxProcessor {
             } catch (CallNotPermittedException e) {
                 log.warn("DB Circuit Breaker OPEN: Cannot read/write Outbox. id={}, reason: {}",
                         event.getId(), e.getMessage());
+                break;
             } catch (Exception e) {
                 log.error("Unexpected error processing event Outbox: id={}, error={}", event.getId(), e.getMessage());
                 // Don't reset Kafka failure counter here
