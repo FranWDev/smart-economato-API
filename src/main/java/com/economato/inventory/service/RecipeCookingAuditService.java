@@ -45,6 +45,12 @@ public class RecipeCookingAuditService {
                 .collect(Collectors.toList());
     }
 
+    public List<RecipeCookingAuditResponseDTO> findByRecipeNameContainingIgnoreCase(String recipeName) {
+        return repository.findByRecipeNameContainingIgnoreCase(recipeName).stream()
+                .map(mapper::toResponseDTO)
+                .collect(Collectors.toList());
+    }
+
     public List<RecipeCookingAuditResponseDTO> findByDateRange(
             LocalDateTime startDate,
             LocalDateTime endDate) {

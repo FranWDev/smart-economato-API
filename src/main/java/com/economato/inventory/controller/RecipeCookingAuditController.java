@@ -35,12 +35,9 @@ public class RecipeCookingAuditController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
-    @Operation(summary = "Obtener todas las auditorías de cocinado", 
-               description = "Devuelve una lista paginada de todas las auditorías de cocinado de recetas. [Rol requerido: ADMIN]")
+    @Operation(summary = "Obtener todas las auditorías de cocinado", description = "Devuelve una lista paginada de todas las auditorías de cocinado de recetas. [Rol requerido: ADMIN]")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Lista de auditorías",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = RecipeCookingAuditResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "Lista de auditorías", content = @Content(mediaType = "application/json", schema = @Schema(implementation = RecipeCookingAuditResponseDTO.class)))
     })
     public ResponseEntity<List<RecipeCookingAuditResponseDTO>> getAll(Pageable pageable) {
         return ResponseEntity.ok(service.findAll(pageable));
@@ -48,48 +45,46 @@ public class RecipeCookingAuditController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/recipe/{recipeId}")
-    @Operation(summary = "Obtener auditorías por receta", 
-               description = "Devuelve todas las auditorías de cocinado de una receta específica. [Rol requerido: ADMIN]")
+    @Operation(summary = "Obtener auditorías por receta", description = "Devuelve todas las auditorías de cocinado de una receta específica. [Rol requerido: ADMIN]")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Lista de auditorías de la receta",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = RecipeCookingAuditResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "Lista de auditorías de la receta", content = @Content(mediaType = "application/json", schema = @Schema(implementation = RecipeCookingAuditResponseDTO.class)))
     })
     public ResponseEntity<List<RecipeCookingAuditResponseDTO>> getByRecipeId(
-            @Parameter(description = "ID de la receta", required = true) 
-            @PathVariable Integer recipeId) {
+            @Parameter(description = "ID de la receta", required = true) @PathVariable Integer recipeId) {
         return ResponseEntity.ok(service.findByRecipeId(recipeId));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/user/{userId}")
-    @Operation(summary = "Obtener auditorías por usuario", 
-               description = "Devuelve todas las auditorías de cocinado realizadas por un usuario específico. [Rol requerido: ADMIN]")
+    @Operation(summary = "Obtener auditorías por usuario", description = "Devuelve todas las auditorías de cocinado realizadas por un usuario específico. [Rol requerido: ADMIN]")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Lista de auditorías del usuario",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = RecipeCookingAuditResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "Lista de auditorías del usuario", content = @Content(mediaType = "application/json", schema = @Schema(implementation = RecipeCookingAuditResponseDTO.class)))
     })
     public ResponseEntity<List<RecipeCookingAuditResponseDTO>> getByUserId(
-            @Parameter(description = "ID del usuario", required = true) 
-            @PathVariable Integer userId) {
+            @Parameter(description = "ID del usuario", required = true) @PathVariable Integer userId) {
         return ResponseEntity.ok(service.findByUserId(userId));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/date-range")
-    @Operation(summary = "Obtener auditorías por rango de fechas", 
-               description = "Devuelve todas las auditorías de cocinado en un rango de fechas específico. [Rol requerido: ADMIN]")
+    @Operation(summary = "Obtener auditorías por rango de fechas", description = "Devuelve todas las auditorías de cocinado en un rango de fechas específico. [Rol requerido: ADMIN]")
     @ApiResponses({
-        @ApiResponse(responseCode = "200", description = "Lista de auditorías en el rango",
-            content = @Content(mediaType = "application/json",
-                schema = @Schema(implementation = RecipeCookingAuditResponseDTO.class)))
+            @ApiResponse(responseCode = "200", description = "Lista de auditorías en el rango", content = @Content(mediaType = "application/json", schema = @Schema(implementation = RecipeCookingAuditResponseDTO.class)))
     })
     public ResponseEntity<List<RecipeCookingAuditResponseDTO>> getByDateRange(
-            @Parameter(description = "Fecha de inicio (formato: yyyy-MM-dd'T'HH:mm:ss)", required = true)
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @Parameter(description = "Fecha de fin (formato: yyyy-MM-dd'T'HH:mm:ss)", required = true)
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+            @Parameter(description = "Fecha de inicio (formato: yyyy-MM-dd'T'HH:mm:ss)", required = true) @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @Parameter(description = "Fecha de fin (formato: yyyy-MM-dd'T'HH:mm:ss)", required = true) @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
         return ResponseEntity.ok(service.findByDateRange(startDate, endDate));
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/search")
+    @Operation(summary = "Obtener auditorías por coincidencia de nombre de receta", description = "Devuelve todas las auditorías de cocinado de recetas cuyo nombre contenga el texto buscado (ignorando mayúsculas/minúsculas). [Rol requerido: ADMIN]")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Lista de auditorías coincidentes", content = @Content(mediaType = "application/json", schema = @Schema(implementation = RecipeCookingAuditResponseDTO.class)))
+    })
+    public ResponseEntity<List<RecipeCookingAuditResponseDTO>> searchByRecipeName(
+            @Parameter(description = "Texto a buscar en el nombre de la receta", required = true) @RequestParam String name) {
+        return ResponseEntity.ok(service.findByRecipeNameContainingIgnoreCase(name));
     }
 }
