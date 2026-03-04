@@ -3,22 +3,23 @@ package com.economato.inventory;
 import com.economato.inventory.kafka.producer.AuditOutboxProcessor;
 import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.security.JwtUtils;
+import com.economato.inventory.service.notification.AlertMessage;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import com.economato.inventory.service.CustomUserDetailsService;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -46,8 +47,6 @@ public class CircuitBreakerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        LocaleContextHolder.setLocale(Locale.of("es", "ES"));
-
         registry.circuitBreaker("db").transitionToClosedState();
         registry.circuitBreaker("redis").transitionToClosedState();
         registry.circuitBreaker("kafka").transitionToClosedState();
@@ -64,8 +63,11 @@ public class CircuitBreakerIntegrationTest {
 
         assert (dbCb.getState() == CircuitBreaker.State.OPEN);
 
-        String expectedMessage = "Base de datos caída. Sistema no disponible. Contacte con servicio técnico.";
-        verify(messagingTemplate, atLeastOnce()).convertAndSend(eq("/topic/alerts"), eq(expectedMessage));
+        // Verify AlertMessage with DB_FAILURE code was sent
+        verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                eq("/topic/alerts"),
+                argThat((AlertMessage msg) -> "DB_FAILURE".equals(msg.getCode()))
+        );
     }
 
     @Test
@@ -77,8 +79,11 @@ public class CircuitBreakerIntegrationTest {
 
         assert (redisCb.getState() == CircuitBreaker.State.OPEN);
 
-        String expectedMessage = "Sistema caído parcialmente pero es aún operativo, notifica al servicio técnico.";
-        verify(messagingTemplate, atLeastOnce()).convertAndSend(eq("/topic/alerts"), eq(expectedMessage));
+        // Verify AlertMessage with REDIS_FAILURE code was sent
+        verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                eq("/topic/alerts"),
+                argThat((AlertMessage msg) -> "REDIS_FAILURE".equals(msg.getCode()))
+        );
     }
 
     @Test
@@ -91,7 +96,10 @@ public class CircuitBreakerIntegrationTest {
 
         assert (kafkaCb.getState() == CircuitBreaker.State.OPEN);
 
-        String expectedMessage = "Sistema caído parcialmente pero es aún operativo, notifica al servicio técnico.";
-        verify(messagingTemplate, atLeastOnce()).convertAndSend(eq("/topic/alerts"), eq(expectedMessage));
+        // Verify AlertMessage with KAFKA_FAILURE code was sent
+        verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                eq("/topic/alerts"),
+                argThat((AlertMessage msg) -> "KAFKA_FAILURE".equals(msg.getCode()))
+        );
     }
 }
