@@ -20,6 +20,7 @@ import org.springframework.kafka.core.ProducerFactory;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 
@@ -128,50 +129,52 @@ class CircuitBreakerHealthCheckerTest {
     void testKafkaHealthCheck_WhenCircuitIsOpen_AndMetricsSucceed_ShouldCloseCircuit() {
         when(circuitBreakerRegistry.circuitBreaker("kafka")).thenReturn(kafkaCircuitBreaker);
         when(kafkaCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.OPEN);
-        
+
         @SuppressWarnings("unchecked")
         ProducerFactory<String, Object> mockProducerFactory = mock(ProducerFactory.class);
         when(kafkaTemplate.getProducerFactory()).thenReturn((ProducerFactory) mockProducerFactory);
         when(mockProducerFactory.getConfigurationProperties()).thenReturn(Collections.emptyMap());
-        
+
         AdminClient mockAdminClient = mock(AdminClient.class);
         DescribeClusterResult mockClusterResult = mock(DescribeClusterResult.class);
         @SuppressWarnings("unchecked")
         KafkaFuture<String> mockFuture = mock(KafkaFuture.class);
-        
+
         when(mockClusterResult.clusterId()).thenReturn(mockFuture);
         when(mockAdminClient.describeCluster()).thenReturn(mockClusterResult);
-        
+
         try (MockedStatic<AdminClient> adminClientMock = mockStatic(AdminClient.class)) {
             adminClientMock.when(() -> AdminClient.create((Map<String, Object>) any())).thenReturn(mockAdminClient);
             healthChecker.checkKafkaHealth();
         }
 
         verify(kafkaCircuitBreaker).transitionToClosedState();
+        verify(mockAdminClient).close(any(Duration.class));
     }
 
     @Test
     void testKafkaHealthCheck_WhenCircuitIsOpen_AndMetricsFail_ShouldStayOpen() {
         when(circuitBreakerRegistry.circuitBreaker("kafka")).thenReturn(kafkaCircuitBreaker);
         when(kafkaCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.OPEN);
-        
+
         @SuppressWarnings("unchecked")
         ProducerFactory<String, Object> mockProducerFactory = mock(ProducerFactory.class);
         when(kafkaTemplate.getProducerFactory()).thenReturn((ProducerFactory) mockProducerFactory);
         when(mockProducerFactory.getConfigurationProperties()).thenReturn(Collections.emptyMap());
-        
+
         AdminClient mockAdminClient = mock(AdminClient.class);
         DescribeClusterResult mockClusterResult = mock(DescribeClusterResult.class);
-        
+
         when(mockAdminClient.describeCluster()).thenReturn(mockClusterResult);
         when(mockClusterResult.clusterId()).thenThrow(new RuntimeException("Kafka unavailable"));
-        
+
         try (MockedStatic<AdminClient> adminClientMock = mockStatic(AdminClient.class)) {
             adminClientMock.when(() -> AdminClient.create((Map<String, Object>) any())).thenReturn(mockAdminClient);
             healthChecker.checkKafkaHealth();
         }
 
         verify(kafkaCircuitBreaker, never()).transitionToClosedState();
+        verify(mockAdminClient).close(any(Duration.class));
     }
 
     @Test

@@ -85,31 +85,53 @@ public class AuditOutboxProcessor {
 
         for (AuditOutbox event : outboxEvents) {
             try {
-                CompletableFuture<?> future = null;
+                Object auditEvent = null;
+                try {
+                    switch (event.getTopic()) {
+                        case AuditEventProducer.INVENTORY_AUDIT_TOPIC:
+                            auditEvent = objectMapper.readValue(event.getPayload(), InventoryAuditEvent.class);
+                            break;
+                        case AuditEventProducer.RECIPE_AUDIT_TOPIC:
+                            auditEvent = objectMapper.readValue(event.getPayload(), RecipeAuditEvent.class);
+                            break;
+                        case AuditEventProducer.ORDER_AUDIT_TOPIC:
+                            auditEvent = objectMapper.readValue(event.getPayload(), OrderAuditEvent.class);
+                            break;
+                        case AuditEventProducer.RECIPE_COOKING_AUDIT_TOPIC:
+                            auditEvent = objectMapper.readValue(event.getPayload(), RecipeCookingAuditEvent.class);
+                            break;
+                        default:
+                            log.warn("Topic no reconocido en Outbox: {}", event.getTopic());
+                            outboxRepository.delete(event);
+                            continue;
+                    }
+                } catch (Exception e) {
+                    log.error("Corrupted event payload in Outbox: id={}, topic={}, error={}",
+                            event.getId(), event.getTopic(), e.getMessage());
+                    outboxRepository.delete(event);
+                    continue;
+                }
 
-                switch (event.getTopic()) {
-                    case AuditEventProducer.INVENTORY_AUDIT_TOPIC:
-                        InventoryAuditEvent invEvent = objectMapper.readValue(event.getPayload(),
-                                InventoryAuditEvent.class);
-                        future = inventoryKafkaTemplate.send(event.getTopic(), event.getEventKey(), invEvent);
-                        break;
-                    case AuditEventProducer.RECIPE_AUDIT_TOPIC:
-                        RecipeAuditEvent recEvent = objectMapper.readValue(event.getPayload(), RecipeAuditEvent.class);
-                        future = recipeKafkaTemplate.send(event.getTopic(), event.getEventKey(), recEvent);
-                        break;
-                    case AuditEventProducer.ORDER_AUDIT_TOPIC:
-                        OrderAuditEvent ordEvent = objectMapper.readValue(event.getPayload(), OrderAuditEvent.class);
-                        future = orderKafkaTemplate.send(event.getTopic(), event.getEventKey(), ordEvent);
-                        break;
-                    case AuditEventProducer.RECIPE_COOKING_AUDIT_TOPIC:
-                        RecipeCookingAuditEvent recCookEvent = objectMapper.readValue(event.getPayload(),
-                                RecipeCookingAuditEvent.class);
-                        future = recipeCookingKafkaTemplate.send(event.getTopic(), event.getEventKey(), recCookEvent);
-                        break;
-                    default:
-                        log.warn("Topic no reconocido en Outbox: {}", event.getTopic());
-                        outboxRepository.delete(event);
-                        continue;
+                CompletableFuture<?> future = null;
+                if (auditEvent != null) {
+                    switch (event.getTopic()) {
+                        case AuditEventProducer.INVENTORY_AUDIT_TOPIC:
+                            future = inventoryKafkaTemplate.send(event.getTopic(), event.getEventKey(),
+                                    (InventoryAuditEvent) auditEvent);
+                            break;
+                        case AuditEventProducer.RECIPE_AUDIT_TOPIC:
+                            future = recipeKafkaTemplate.send(event.getTopic(), event.getEventKey(),
+                                    (RecipeAuditEvent) auditEvent);
+                            break;
+                        case AuditEventProducer.ORDER_AUDIT_TOPIC:
+                            future = orderKafkaTemplate.send(event.getTopic(), event.getEventKey(),
+                                    (OrderAuditEvent) auditEvent);
+                            break;
+                        case AuditEventProducer.RECIPE_COOKING_AUDIT_TOPIC:
+                            future = recipeCookingKafkaTemplate.send(event.getTopic(), event.getEventKey(),
+                                    (RecipeCookingAuditEvent) auditEvent);
+                            break;
+                    }
                 }
 
                 if (future != null) {
@@ -121,34 +143,32 @@ public class AuditOutboxProcessor {
                     } catch (ExecutionException | TimeoutException e) {
                         throw e;
                     }
-                    
+
                     outboxRepository.delete(event);
                     log.debug("Evento de Outbox enviado a Kafka con éxito: topic={}, key={}", event.getTopic(),
                             event.getEventKey());
-                    
+
                     // Reset consecutive failure counter on success
                     consecutiveKafkaFailures = 0;
                 }
             } catch (ExecutionException | TimeoutException e) {
-                log.error("Error procesando evento Outbox: id={}, error={}", event.getId(), e.getMessage());
+                log.error("Error procesando evento Outbox (Kafka): id={}, error={}", event.getId(), e.getMessage());
                 recordKafkaFailure(e);
-                
+
                 // Increment consecutive failure counter
                 consecutiveKafkaFailures++;
                 if (consecutiveKafkaFailures >= MAX_CONSECUTIVE_FAILURES) {
-                    log.warn("Detected {} consecutive Kafka failures. Kafka likely down. Breaking out of batch to fail fast. Remaining events: {}",
-                            consecutiveKafkaFailures, outboxEvents.size() - outboxEvents.indexOf(event) - 1);
-                    break; // Exit loop to avoid spending 10s × 100 events = ~17 minutes on a dead Kafka
+                    log.warn(
+                            "Detected {} consecutive Kafka failures. Kafka likely down. Breaking out of batch to fail fast.",
+                            consecutiveKafkaFailures);
+                    break;
                 }
             } catch (CallNotPermittedException e) {
-                // DB circuit breaker is OPEN - database is unavailable
-                log.warn("DB Circuit Breaker OPEN: Cannot read/write Outbox. id={}, reason: {}", 
-                    event.getId(), e.getMessage());
-                // Don't record as Kafka failure - this is a DB infrastructure issue
+                log.warn("DB Circuit Breaker OPEN: Cannot read/write Outbox. id={}, reason: {}",
+                        event.getId(), e.getMessage());
             } catch (Exception e) {
-                log.error("Error procesando evento Outbox: id={}, error={}", event.getId(), e.getMessage());
-                // Reset Kafka failure counter for non-Kafka exceptions (e.g., JSON parsing errors)
-                consecutiveKafkaFailures = 0;
+                log.error("Unexpected error processing event Outbox: id={}, error={}", event.getId(), e.getMessage());
+                // Don't reset Kafka failure counter here
             }
         }
     }
