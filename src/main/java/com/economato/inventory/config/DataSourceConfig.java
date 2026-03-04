@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 
 @Configuration
-@Profile("!test")
+@Profile("!test & !resilience-test")
 public class DataSourceConfig {
 
     @Bean

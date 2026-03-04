@@ -252,4 +252,37 @@ public class AuditOutboxIntegrationTest extends BaseIntegrationTest {
             assertThat(audits.get(0).getDetails()).isEqualTo("Test Cooking via Kafka Integration");
         });
     }
+
+    @Test
+    void testCorruptedPayloadIsDeleted() throws Exception {
+        AuditOutbox corruptedEvent = AuditOutbox.builder()
+                .topic(AuditEventProducer.INVENTORY_AUDIT_TOPIC)
+                .eventKey("corrupted-key")
+                .payload("{ \"invalid\": json }")
+                .createdAt(LocalDateTime.now())
+                .build();
+        auditOutboxRepository.save(corruptedEvent);
+
+        InventoryAuditEvent validEvent = new InventoryAuditEvent();
+        validEvent.setProductId(testProduct.getId());
+        validEvent.setMovementType("ENTRADA");
+        validEvent.setQuantity(BigDecimal.valueOf(1.0));
+        validEvent.setMovementDate(LocalDateTime.now());
+        validEvent.setActionDescription("Valid Event");
+        auditEventProducer.publishInventoryAudit(validEvent);
+
+        assertThat(auditOutboxRepository.count()).isEqualTo(2);
+
+        auditOutboxProcessor.processOutbox();
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertThat(auditOutboxRepository.findAll()).isEmpty();
+        });
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            List<InventoryAudit> audits = inventoryAuditRepository.findAll();
+            assertThat(audits).isNotEmpty();
+            assertThat(audits.stream().anyMatch(a -> "Valid Event".equals(a.getActionDescription()))).isTrue();
+        });
+    }
 }
