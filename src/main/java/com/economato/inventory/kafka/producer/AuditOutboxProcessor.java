@@ -101,8 +101,8 @@ public class AuditOutboxProcessor {
                 }
             } catch (Exception e) {
                 log.error("Error procesando evento Outbox: id={}, error={}", event.getId(), e.getMessage());
-                // Rethrow to increment failure rate on CircuitBreaker
-                throw new RuntimeException(e);
+                // Rethrow original exception to preserve type for CircuitBreaker record-exceptions filter
+                throw e;
             }
         }
     }
