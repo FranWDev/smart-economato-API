@@ -84,6 +84,9 @@ class DataSourceAspectTest {
 
         assertEquals("success from writer fallback", result);
         verify(proceedingJoinPoint, times(2)).proceed();
+        // Verify error was registered in circuit breaker
+        verify(circuitBreaker, times(1)).onError(eq(0L), eq(java.util.concurrent.TimeUnit.MILLISECONDS), 
+                any(DataAccessResourceFailureException.class));
     }
 
     @Test
@@ -101,6 +104,9 @@ class DataSourceAspectTest {
 
         assertEquals("success from writer fallback", result);
         verify(proceedingJoinPoint, times(2)).proceed();
+        // Verify error was registered in circuit breaker
+        verify(circuitBreaker, times(1)).onError(eq(0L), eq(java.util.concurrent.TimeUnit.MILLISECONDS), 
+                any(RuntimeException.class));
     }
 
     @Test

@@ -49,6 +49,15 @@ public class DataSourceAspect {
                         if (finalType == DataSourceType.READER && isConnectionException(t) && transactional.readOnly()) {
                             log.warn("Read operation failed on READER datasource, retrying with WRITER as fallback: {}", 
                                     t.getMessage());
+                            
+                            // Register the error in the circuit breaker before retrying
+                            try {
+                                circuitBreaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS, 
+                                        t instanceof Exception ? (Exception) t : new RuntimeException(t));
+                            } catch (Exception e) {
+                                log.warn("Failed to record error in circuit breaker: {}", e.getMessage());
+                            }
+                            
                             return retryWithWriter(pjp);
                         }
                         
