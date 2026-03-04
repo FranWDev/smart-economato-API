@@ -4,18 +4,23 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Active health checker that periodically tests systems when circuit breakers are OPEN.
- * When a system recovers, it manually closes the circuit breaker and triggers recovery notification.
+ * Periodically tests systems when circuit breakers are OPEN and closes them upon recovery.
  */
 @Slf4j
 @Service
@@ -28,66 +33,65 @@ public class CircuitBreakerHealthChecker {
     private final RedisConnectionFactory redisConnectionFactory;
     private final KafkaTemplate<String, ?> kafkaTemplate;
 
-    /**
-     * Check database health every 10 seconds if circuit breaker is OPEN.
-     */
     @Scheduled(fixedDelay = 10000)
     public void checkDatabaseHealth() {
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("db");
         
         if (circuitBreaker.getState() == CircuitBreaker.State.OPEN) {
-            log.debug("DB Circuit Breaker is OPEN. Testing database connection...");
-            
             try (Connection conn = dataSource.getConnection()) {
-                // Test connection with simple query
                 if (conn.isValid(5)) {
-                    log.info("Database health check PASSED. Closing circuit breaker.");
+                    log.info("Database recovered, closing circuit breaker");
                     circuitBreaker.transitionToClosedState();
                 }
             } catch (Exception e) {
-                log.warn("Database health check FAILED: {}", e.getMessage());
+                log.debug("Database still unavailable: {}", e.getMessage());
             }
         }
     }
 
-    /**
-     * Check Redis health every 15 seconds if circuit breaker is OPEN.
-     */
     @Scheduled(fixedDelay = 15000)
     public void checkRedisHealth() {
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("redis");
         
         if (circuitBreaker.getState() == CircuitBreaker.State.OPEN) {
-            log.debug("Redis Circuit Breaker is OPEN. Testing Redis connection...");
-            
             try {
-                // Test Redis connection with ping
-                redisConnectionFactory.getConnection().ping();
-                log.info("Redis health check PASSED. Closing circuit breaker.");
+                var conn = redisConnectionFactory.getConnection();
+                try {
+                    conn.ping();
+                } finally {
+                    conn.close();
+                }
+                log.info("Redis recovered, closing circuit breaker");
                 circuitBreaker.transitionToClosedState();
             } catch (Exception e) {
-                log.warn("Redis health check FAILED: {}", e.getMessage());
+                log.debug("Redis still unavailable: {}", e.getMessage());
             }
         }
     }
 
-    /**
-     * Check Kafka health every 15 seconds if circuit breaker is OPEN.
-     */
     @Scheduled(fixedDelay = 15000)
     public void checkKafkaHealth() {
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("kafka");
         
         if (circuitBreaker.getState() == CircuitBreaker.State.OPEN) {
-            log.debug("Kafka Circuit Breaker is OPEN. Testing Kafka connection...");
-            
+            AdminClient adminClient = null;
             try {
-                // Test Kafka connection by checking metrics (lightweight operation)
-                kafkaTemplate.metrics();
-                log.info("Kafka health check PASSED. Closing circuit breaker.");
+                ProducerFactory<String, ?> producerFactory = kafkaTemplate.getProducerFactory();
+                Map<String, Object> adminConfigs = new HashMap<>(producerFactory.getConfigurationProperties());
+                adminConfigs.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, 5000);
+                adminConfigs.put(AdminClientConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, 9000);
+                
+                adminClient = AdminClient.create(adminConfigs);
+                adminClient.describeCluster().clusterId().get(5, TimeUnit.SECONDS);
+                
+                log.info("Kafka recovered, closing circuit breaker");
                 circuitBreaker.transitionToClosedState();
             } catch (Exception e) {
-                log.warn("Kafka health check FAILED: {}", e.getMessage());
+                log.debug("Kafka still unavailable: {}", e.getMessage());
+            } finally {
+                if (adminClient != null) {
+                    adminClient.close();
+                }
             }
         }
     }

@@ -63,7 +63,6 @@ public class CircuitBreakerIntegrationTest {
 
         assert (dbCb.getState() == CircuitBreaker.State.OPEN);
 
-        // Verify AlertMessage with DB_FAILURE code was sent
         verify(messagingTemplate, atLeastOnce()).convertAndSend(
                 eq("/topic/alerts"),
                 argThat((AlertMessage msg) -> "DB_FAILURE".equals(msg.getCode()))
@@ -79,7 +78,6 @@ public class CircuitBreakerIntegrationTest {
 
         assert (redisCb.getState() == CircuitBreaker.State.OPEN);
 
-        // Verify AlertMessage with REDIS_FAILURE code was sent
         verify(messagingTemplate, atLeastOnce()).convertAndSend(
                 eq("/topic/alerts"),
                 argThat((AlertMessage msg) -> "REDIS_FAILURE".equals(msg.getCode()))
@@ -96,7 +94,6 @@ public class CircuitBreakerIntegrationTest {
 
         assert (kafkaCb.getState() == CircuitBreaker.State.OPEN);
 
-        // Verify AlertMessage with KAFKA_FAILURE code was sent
         verify(messagingTemplate, atLeastOnce()).convertAndSend(
                 eq("/topic/alerts"),
                 argThat((AlertMessage msg) -> "KAFKA_FAILURE".equals(msg.getCode()))
@@ -107,19 +104,16 @@ public class CircuitBreakerIntegrationTest {
     void testDbCircuitBreakerRecoveryAndSendsAlert() {
         CircuitBreaker dbCb = registry.circuitBreaker("db");
         
-        // First, open the circuit breaker
         RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException("DB Connection Refused",
                 new java.sql.SQLException());
         dbCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
         assert (dbCb.getState() == CircuitBreaker.State.OPEN);
         
-        reset(messagingTemplate); // Clear previous calls
+        reset(messagingTemplate);
         
-        // Now close it (simulating recovery)
         dbCb.transitionToClosedState();
         assert (dbCb.getState() == CircuitBreaker.State.CLOSED);
 
-        // Verify AlertMessage with DB_RECOVERED code was sent
         verify(messagingTemplate, atLeastOnce()).convertAndSend(
                 eq("/topic/alerts"),
                 argThat((AlertMessage msg) -> "DB_RECOVERED".equals(msg.getCode()))
@@ -130,18 +124,15 @@ public class CircuitBreakerIntegrationTest {
     void testRedisCircuitBreakerRecoveryAndSendsAlert() {
         CircuitBreaker redisCb = registry.circuitBreaker("redis");
         
-        // First, open the circuit breaker
         RuntimeException fakeException = new RedisConnectionFailureException("Redis is down");
         redisCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
         assert (redisCb.getState() == CircuitBreaker.State.OPEN);
         
-        reset(messagingTemplate); // Clear previous calls
+        reset(messagingTemplate);
         
-        // Now close it (simulating recovery)
         redisCb.transitionToClosedState();
         assert (redisCb.getState() == CircuitBreaker.State.CLOSED);
 
-        // Verify AlertMessage with REDIS_RECOVERED code was sent
         verify(messagingTemplate, atLeastOnce()).convertAndSend(
                 eq("/topic/alerts"),
                 argThat((AlertMessage msg) -> "REDIS_RECOVERED".equals(msg.getCode()))
@@ -152,19 +143,16 @@ public class CircuitBreakerIntegrationTest {
     void testKafkaCircuitBreakerRecoveryAndSendsAlert() {
         CircuitBreaker kafkaCb = registry.circuitBreaker("kafka");
         
-        // First, open the circuit breaker
         RuntimeException fakeException = new org.apache.kafka.common.errors.TimeoutException(
                 "Kafka broker unreachable");
         kafkaCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
         assert (kafkaCb.getState() == CircuitBreaker.State.OPEN);
         
-        reset(messagingTemplate); // Clear previous calls
+        reset(messagingTemplate);
         
-        // Now close it (simulating recovery)
         kafkaCb.transitionToClosedState();
         assert (kafkaCb.getState() == CircuitBreaker.State.CLOSED);
 
-        // Verify AlertMessage with KAFKA_RECOVERED code was sent
         verify(messagingTemplate, atLeastOnce()).convertAndSend(
                 eq("/topic/alerts"),
                 argThat((AlertMessage msg) -> "KAFKA_RECOVERED".equals(msg.getCode()))
