@@ -1,13 +1,13 @@
 package com.economato.inventory.service.notification;
 
-import com.economato.inventory.event.CircuitBreakerOpenEvent;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.MessageSource;
 import org.springframework.context.event.EventListener;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+
+import com.economato.inventory.event.CircuitBreakerOpenEvent;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 public class WebSocketNotificationService {
 
     private final SimpMessagingTemplate messagingTemplate;
-    private final MessageSource messageSource;
 
     @EventListener
     public void handleCircuitBreakerOpen(CircuitBreakerOpenEvent event) {
@@ -23,19 +22,28 @@ public class WebSocketNotificationService {
         log.info("Received CircuitBreakerOpenEvent for instance: {}", instanceName);
 
         if ("db".equals(instanceName)) {
-            sendCircuitBreakerAlert("alert.circuitbreaker.db.down");
-        } else if ("redis".equals(instanceName) || "kafka".equals(instanceName)) {
-            sendCircuitBreakerAlert("alert.circuitbreaker.partial.down");
+            sendCircuitBreakerAlert(AlertCode.DB_FAILURE);
+        } else if ("redis".equals(instanceName)) {
+            sendCircuitBreakerAlert(AlertCode.REDIS_FAILURE);
+        } else if ("kafka".equals(instanceName)) {
+            sendCircuitBreakerAlert(AlertCode.KAFKA_FAILURE);
+        } else if ("replica".equals(instanceName)) {
+            sendCircuitBreakerAlert(AlertCode.REPLICA_FAILURE);
         }
     }
 
-    public void sendCircuitBreakerAlert(String messageKey) {
+    /**
+     * Send alert with error code to frontend via WebSocket.
+     * Frontend is responsible for translating the code to user's locale.
+     */
+    public void sendCircuitBreakerAlert(AlertCode alertCode) {
         try {
-            String localizedMsg = messageSource.getMessage(messageKey, null, LocaleContextHolder.getLocale());
-            log.info("Sending System Alert via WebSocket: {}", localizedMsg);
-            messagingTemplate.convertAndSend("/topic/alerts", localizedMsg);
+            AlertMessage message = new AlertMessage(alertCode.getCode(), alertCode.getDescription());
+            log.info("Sending System Alert via WebSocket: code={}, timestamp={}", 
+                    alertCode.getCode(), message.getTimestamp());
+            messagingTemplate.convertAndSend("/topic/alerts", message);
         } catch (Exception e) {
-            log.error("Failed to send WebSocket alert for key: {}", messageKey, e);
+            log.error("Failed to send WebSocket alert for code: {}", alertCode.getCode(), e);
         }
     }
 }
