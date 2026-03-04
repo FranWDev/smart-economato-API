@@ -100,7 +100,8 @@ public class RecipeController {
 
         @PreAuthorize("hasRole('ADMIN')")
         @DeleteMapping("/{id}")
-        @Operation(summary = "Eliminar receta", description = "Elimina una receta. [Rol requerido: ADMIN]")
+        @Deprecated(since = "2026-03", forRemoval = false)
+        @Operation(summary = "Eliminar receta", description = "Elimina una receta. [Rol requerido: ADMIN]", deprecated = true)
         @ApiResponses({
                         @ApiResponse(responseCode = "204", description = "Receta eliminada"),
                         @ApiResponse(responseCode = "404", description = "Receta no encontrada")

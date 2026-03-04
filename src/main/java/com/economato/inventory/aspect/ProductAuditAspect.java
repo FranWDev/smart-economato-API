@@ -1,11 +1,14 @@
 package com.economato.inventory.aspect;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.aspectj.lang.ProceedingJoinPoint;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-import com.economato.inventory.security.SecurityContextHelper;
 
 import com.economato.inventory.annotation.ProductAuditable;
 import com.economato.inventory.dto.event.InventoryAuditEvent;
@@ -14,13 +17,10 @@ import com.economato.inventory.kafka.producer.AuditEventProducer;
 import com.economato.inventory.model.Product;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.ProductRepository;
-import tools.jackson.databind.ObjectMapper;
-
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import com.economato.inventory.security.SecurityContextHelper;
 
 import lombok.extern.slf4j.Slf4j;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Aspecto para auditoría de productos.
@@ -53,21 +53,19 @@ public class ProductAuditAspect {
         // Extraer DTO y ID del método
         ProductRequestDTO foundDto = null;
         Integer productId = null;
+        Boolean hiddenRequested = null;
 
         for (Object arg : joinPoint.getArgs()) {
             if (arg instanceof ProductRequestDTO) {
                 foundDto = (ProductRequestDTO) arg;
             } else if (arg instanceof Integer) {
                 productId = (Integer) arg;
+            } else if (arg instanceof Boolean) {
+                hiddenRequested = (Boolean) arg;
             }
         }
 
         final ProductRequestDTO dto = foundDto;
-
-        if (dto == null) {
-            log.debug("No se encontró ProductRequestDTO en los argumentos");
-            return joinPoint.proceed();
-        }
 
         // Capturar el estado ANTES del cambio y serializarlo inmediatamente
         String previousState = null;
@@ -88,7 +86,7 @@ public class ProductAuditAspect {
             }
 
             // Para CREATE, buscar por nombre
-            if (productAfter == null && dto.getName() != null) {
+            if (productAfter == null && dto != null && dto.getName() != null) {
                 productAfter = productRepository.findByNameContainingIgnoreCase(dto.getName())
                         .stream()
                         .filter(p -> p.getName().equals(dto.getName()))
@@ -97,14 +95,18 @@ public class ProductAuditAspect {
             }
 
             if (productAfter == null) {
-                log.warn("Producto no encontrado para auditoría: {}", dto.getName());
+                log.warn("Producto no encontrado para auditoría. id={}, dtoName={}",
+                        productId,
+                        dto != null ? dto.getName() : null);
                 return result;
             }
 
             User user = securityContextHelper.getCurrentUser();
 
+            String actionDescription = resolveActionDescription(auditable.action(), hiddenRequested);
+
             // Mapear acción de auditoría a tipo de movimiento válido
-            String movementType = mapActionToMovementType(auditable.action());
+            String movementType = mapActionToMovementType(actionDescription);
 
             // Construir estado posterior
             String newState = buildProductState(productAfter);
@@ -116,8 +118,9 @@ public class ProductAuditAspect {
                     .userId(user != null ? user.getId() : null)
                     .userName(user != null ? user.getName() : "Sistema")
                     .movementType(movementType)
-                    .quantity(dto.getCurrentStock() != null ? dto.getCurrentStock() : java.math.BigDecimal.ZERO)
-                    .actionDescription(auditable.action())
+                        .quantity(dto != null && dto.getCurrentStock() != null ? dto.getCurrentStock()
+                            : java.math.BigDecimal.ZERO)
+                        .actionDescription(actionDescription)
                     .previousState(previousState)
                     .newState(newState)
                     .movementDate(LocalDateTime.now())
@@ -147,11 +150,19 @@ public class ProductAuditAspect {
             state.put("precioUnitario", product.getUnitPrice());
             state.put("codigoProducto", product.getProductCode());
             state.put("stockActual", product.getCurrentStock());
+            state.put("oculto", product.isHidden());
             return objectMapper.writeValueAsString(state);
         } catch (Exception e) {
             log.error("Error al serializar estado del producto: {}", e.getMessage());
             return "Error al capturar estado";
         }
+    }
+
+    private String resolveActionDescription(String action, Boolean hiddenRequested) {
+        if ("TOGGLE_HIDDEN".equalsIgnoreCase(action) && hiddenRequested != null) {
+            return hiddenRequested ? "HIDE_PRODUCT" : "SHOW_PRODUCT";
+        }
+        return action;
     }
 
     /**
@@ -167,6 +178,7 @@ public class ProductAuditAspect {
             case "CREATE_PRODUCT", "CREATE_RECIPE" -> "PRODUCCION";
             case "UPDATE_PRODUCT", "UPDATE_RECIPE" -> "AJUSTE";
             case "DELETE_PRODUCT", "DELETE_RECIPE" -> "SALIDA";
+            case "HIDE_PRODUCT", "SHOW_PRODUCT", "TOGGLE_HIDDEN" -> "AJUSTE";
             default -> "AJUSTE";
         };
     }

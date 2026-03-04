@@ -53,21 +53,19 @@ public class RecipeAuditAspect {
         // Extraer DTO y ID del método
         RecipeRequestDTO foundDto = null;
         Integer recipeId = null;
+        Boolean hiddenRequested = null;
 
         for (Object arg : joinPoint.getArgs()) {
             if (arg instanceof RecipeRequestDTO) {
                 foundDto = (RecipeRequestDTO) arg;
             } else if (arg instanceof Integer) {
                 recipeId = (Integer) arg;
+            } else if (arg instanceof Boolean) {
+                hiddenRequested = (Boolean) arg;
             }
         }
 
         final RecipeRequestDTO dto = foundDto;
-
-        if (dto == null) {
-            log.debug("No se encontró RecipeRequestDTO en los argumentos");
-            return joinPoint.proceed();
-        }
 
         // Capturar el estado ANTES del cambio y serializarlo inmediatamente
         String previousState = null;
@@ -88,33 +86,45 @@ public class RecipeAuditAspect {
             }
 
             // Para CREATE, buscar por nombre
-            if (recipeAfter == null && dto.getName() != null) {
+                if (recipeAfter == null && dto != null && dto.getName() != null) {
                 recipeAfter = recipeRepository.findByName(dto.getName()).orElse(null);
             }
 
             if (recipeAfter == null) {
-                log.warn("Receta no encontrada para auditoría: {}", dto.getName());
+                log.warn("Receta no encontrada para auditoría. id={}, dtoName={}",
+                    recipeId,
+                    dto != null ? dto.getName() : null);
                 return result;
             }
 
             User user = securityContextHelper.getCurrentUser();
+                String action = resolveAction(auditable.action(), hiddenRequested);
 
             // Construir detalles de la auditoría
             StringBuilder details = new StringBuilder();
-            details.append("Nombre: ").append(dto.getName()).append("; ");
-            details.append("Elaboración: ")
+                if (dto != null) {
+                details.append("Nombre: ").append(dto.getName()).append("; ");
+                details.append("Elaboración: ")
                     .append(dto.getElaboration() != null
-                            ? dto.getElaboration().substring(0, Math.min(100, dto.getElaboration().length()))
-                            : "N/A")
+                        ? dto.getElaboration().substring(0, Math.min(100, dto.getElaboration().length()))
+                        : "N/A")
                     .append("; ");
-            details.append("Presentación: ")
+                details.append("Presentación: ")
                     .append(dto.getPresentation() != null
-                            ? dto.getPresentation().substring(0, Math.min(100, dto.getPresentation().length()))
-                            : "N/A")
+                        ? dto.getPresentation().substring(0, Math.min(100, dto.getPresentation().length()))
+                        : "N/A")
                     .append("; ");
-            details.append("Componentes: ").append(dto.getComponents() != null ? dto.getComponents().size() : 0);
-            if (dto.getAllergenIds() != null && !dto.getAllergenIds().isEmpty()) {
-                details.append("; Alérgenos: ").append(dto.getAllergenIds());
+                details.append("Componentes: ").append(dto.getComponents() != null ? dto.getComponents().size() : 0);
+                if (dto.getAllergenIds() != null && !dto.getAllergenIds().isEmpty()) {
+                    details.append("; Alérgenos: ").append(dto.getAllergenIds());
+                }
+                } else if (hiddenRequested != null && "TOGGLE_HIDDEN".equalsIgnoreCase(auditable.action())) {
+                details.append("Cambio de visibilidad solicitado: ")
+                    .append(hiddenRequested ? "ocultar" : "mostrar")
+                    .append("; estado final oculto=")
+                    .append(recipeAfter.isHidden());
+                } else {
+                details.append("Acción sin DTO");
             }
 
             // Construir estado posterior
@@ -126,7 +136,7 @@ public class RecipeAuditAspect {
                     .recipeName(recipeAfter.getName())
                     .userId(user != null ? user.getId() : null)
                     .userName(user != null ? user.getName() : "Sistema")
-                    .action(auditable.action())
+                    .action(action)
                     .details(details.toString())
                     .previousState(previousState)
                     .newState(newState)
@@ -155,6 +165,7 @@ public class RecipeAuditAspect {
             state.put("elaboracion", recipe.getElaboration());
             state.put("presentacion", recipe.getPresentation());
             state.put("costeTotal", recipe.getTotalCost());
+                state.put("oculta", recipe.isHidden());
             state.put("componentes", recipe.getComponents().stream()
                     .map(c -> Map.of(
                             "productoId", c.getProduct().getId(),
@@ -169,6 +180,13 @@ public class RecipeAuditAspect {
             log.error("Error al serializar estado de la receta: {}", e.getMessage());
             return "Error al capturar estado";
         }
+    }
+
+    private String resolveAction(String action, Boolean hiddenRequested) {
+        if ("TOGGLE_HIDDEN".equalsIgnoreCase(action) && hiddenRequested != null) {
+            return hiddenRequested ? "HIDE_RECIPE" : "SHOW_RECIPE";
+        }
+        return action;
     }
 
 }

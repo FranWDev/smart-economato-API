@@ -145,7 +145,8 @@ public class ProductController {
         }
 
         @PreAuthorize("hasRole('ADMIN')")
-        @Operation(summary = "Eliminar un producto", description = "Elimina un producto del inventario según su ID. [Rol requerido: ADMIN]")
+        @Deprecated(since = "2026-03", forRemoval = false)
+        @Operation(summary = "Eliminar un producto", description = "Elimina un producto del inventario según su ID. [Rol requerido: ADMIN]", deprecated = true)
         @ApiResponses({
                         @ApiResponse(responseCode = "204", description = "Producto eliminado correctamente"),
                         @ApiResponse(responseCode = "404", description = "Producto no encontrado")

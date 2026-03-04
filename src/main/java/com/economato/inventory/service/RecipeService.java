@@ -113,6 +113,7 @@ public class RecipeService {
     }
 
     @CacheEvict(value = { "recipes_page", "recipe" }, allEntries = true)
+    @Deprecated(since = "2026-03", forRemoval = false)
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {

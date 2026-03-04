@@ -1,8 +1,5 @@
 package com.economato.inventory.service;
 
-import com.economato.inventory.i18n.I18nService;
-import com.economato.inventory.i18n.MessageKey;
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -24,6 +21,8 @@ import com.economato.inventory.dto.response.ProductResponseDTO;
 import com.economato.inventory.exception.ConcurrencyException;
 import com.economato.inventory.exception.InvalidOperationException;
 import com.economato.inventory.exception.ResourceNotFoundException;
+import com.economato.inventory.i18n.I18nService;
+import com.economato.inventory.i18n.MessageKey;
 import com.economato.inventory.mapper.ProductMapper;
 import com.economato.inventory.model.MovementType;
 import com.economato.inventory.model.Product;
@@ -136,6 +135,7 @@ public class ProductService {
     }
 
     @CacheEvict(value = { "products_page", "product" }, allEntries = true)
+    @Deprecated(since = "2026-03", forRemoval = false)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
         Product product = repository.findById(id)
