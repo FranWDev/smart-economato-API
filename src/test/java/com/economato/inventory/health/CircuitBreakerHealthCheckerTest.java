@@ -43,6 +43,9 @@ class CircuitBreakerHealthCheckerTest {
     private CircuitBreaker dbCircuitBreaker;
 
     @Mock
+    private CircuitBreaker replicaCircuitBreaker;
+
+    @Mock
     private CircuitBreaker redisCircuitBreaker;
 
     @Mock
@@ -53,6 +56,7 @@ class CircuitBreakerHealthCheckerTest {
     @BeforeEach
     void setUp() {
         lenient().when(circuitBreakerRegistry.circuitBreaker("db")).thenReturn(dbCircuitBreaker);
+        lenient().when(circuitBreakerRegistry.circuitBreaker("replica")).thenReturn(replicaCircuitBreaker);
         lenient().when(circuitBreakerRegistry.circuitBreaker("redis")).thenReturn(redisCircuitBreaker);
         lenient().when(circuitBreakerRegistry.circuitBreaker("kafka")).thenReturn(kafkaCircuitBreaker);
         
@@ -129,8 +133,49 @@ class CircuitBreakerHealthCheckerTest {
     }
 
     @Test
+    void testProactiveReplicaHealthCheck_WhenReaderDown_ShouldOpenCircuitBreaker() throws SQLException {
+        lenient().when(replicaCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
+        lenient().when(readerDataSource.getConnection()).thenThrow(new SQLException("Reader is down"));
+
+        healthChecker.proactiveReplicaHealthCheck();
+
+        // Should open CB when reader is down
+        verify(replicaCircuitBreaker, times(1)).onError(anyLong(), any(), any());
+    }
+
+    @Test
+    void testProactiveReplicaHealthCheck_WhenReaderHealthy_ShouldNotOpenCircuitBreaker() throws SQLException {
+        lenient().when(replicaCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
+        
+        Connection readerConn = mock(Connection.class);
+        lenient().doNothing().when(readerConn).close();
+        lenient().when(readerConn.isValid(2)).thenReturn(true);
+        lenient().when(readerDataSource.getConnection()).thenReturn(readerConn);
+
+        healthChecker.proactiveReplicaHealthCheck();
+
+        // Should NOT open CB when reader is healthy
+        verify(replicaCircuitBreaker, never()).onError(anyLong(), any(), any());
+    }
+
+    @Test
+    void testCheckReplicaRecovery_WhenReaderHealthy_ShouldCloseCircuitBreaker() throws SQLException {
+        lenient().when(replicaCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.OPEN);
+        
+        Connection readerConn = mock(Connection.class);
+        lenient().doNothing().when(readerConn).close();
+        lenient().when(readerConn.isValid(5)).thenReturn(true);
+        lenient().when(readerDataSource.getConnection()).thenReturn(readerConn);
+
+        healthChecker.checkReplicaRecovery();
+
+        verify(replicaCircuitBreaker).transitionToClosedState();
+    }
+
+    @Test
     void testProactiveHealthChecks_ShouldExecuteWithoutErrors() throws SQLException {
         lenient().when(dbCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
+        lenient().when(replicaCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
         lenient().when(redisCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
         lenient().when(kafkaCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
         
@@ -149,6 +194,7 @@ class CircuitBreakerHealthCheckerTest {
 
         // Should execute without throwing exceptions
         healthChecker.proactiveDbHealthCheck();
+        healthChecker.proactiveReplicaHealthCheck();
         healthChecker.proactiveRedisHealthCheck();
         healthChecker.proactiveKafkaHealthCheck();
     }
