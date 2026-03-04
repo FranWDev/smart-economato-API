@@ -67,6 +67,9 @@ public class AuditOutboxProcessor {
     public void processOutbox() {
         List<AuditOutbox> outboxEvents = outboxRepository.findTop100ByOrderByCreatedAtAsc();
 
+        int consecutiveKafkaFailures = 0;
+        final int MAX_CONSECUTIVE_FAILURES = 3; // Fail fast after 3 consecutive Kafka failures
+
         for (AuditOutbox event : outboxEvents) {
             try {
                 CompletableFuture<?> future = null;
@@ -109,10 +112,21 @@ public class AuditOutboxProcessor {
                     outboxRepository.delete(event);
                     log.debug("Evento de Outbox enviado a Kafka con éxito: topic={}, key={}", event.getTopic(),
                             event.getEventKey());
+                    
+                    // Reset consecutive failure counter on success
+                    consecutiveKafkaFailures = 0;
                 }
             } catch (ExecutionException | TimeoutException e) {
                 log.error("Error procesando evento Outbox: id={}, error={}", event.getId(), e.getMessage());
                 recordKafkaFailure(e);
+                
+                // Increment consecutive failure counter
+                consecutiveKafkaFailures++;
+                if (consecutiveKafkaFailures >= MAX_CONSECUTIVE_FAILURES) {
+                    log.warn("Detected {} consecutive Kafka failures. Kafka likely down. Breaking out of batch to fail fast. Remaining events: {}",
+                            consecutiveKafkaFailures, outboxEvents.size() - outboxEvents.indexOf(event) - 1);
+                    break; // Exit loop to avoid spending 10s × 100 events = ~17 minutes on a dead Kafka
+                }
             } catch (CallNotPermittedException e) {
                 // DB circuit breaker is OPEN - database is unavailable
                 log.warn("DB Circuit Breaker OPEN: Cannot read/write Outbox. id={}, reason: {}", 
@@ -120,6 +134,8 @@ public class AuditOutboxProcessor {
                 // Don't record as Kafka failure - this is a DB infrastructure issue
             } catch (Exception e) {
                 log.error("Error procesando evento Outbox: id={}, error={}", event.getId(), e.getMessage());
+                // Reset Kafka failure counter for non-Kafka exceptions (e.g., JSON parsing errors)
+                consecutiveKafkaFailures = 0;
             }
         }
     }
@@ -127,7 +143,8 @@ public class AuditOutboxProcessor {
     private void recordKafkaFailure(Exception e) {
         try {
             var circuitBreaker = circuitBreakerRegistry.circuitBreaker("kafka");
-            circuitBreaker.onError(System.nanoTime(), TimeUnit.NANOSECONDS, e);
+            Throwable cause = (e instanceof ExecutionException && e.getCause() != null) ? e.getCause() : e;
+            circuitBreaker.onError(0, TimeUnit.MILLISECONDS, cause);
         } catch (Exception ex) {
             log.warn("Failed to record Kafka failure in circuit breaker: {}", ex.getMessage());
         }
