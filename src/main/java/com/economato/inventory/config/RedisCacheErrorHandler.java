@@ -21,49 +21,49 @@ public class RedisCacheErrorHandler implements CacheErrorHandler {
 
     @Override
     public void handleCacheGetError(RuntimeException exception, Cache cache, Object key) {
-        checkCircuitBreaker();
+        if (checkCircuitBreaker()) return;
         log.warn("Cache GET failed for '{}' key '{}': {}", cache.getName(), key, exception.getMessage());
         recordRedisFailure(exception);
     }
 
     @Override
     public void handleCachePutError(RuntimeException exception, Cache cache, Object key, Object value) {
-        checkCircuitBreaker();
+        if (checkCircuitBreaker()) return;
         log.warn("Cache PUT failed for '{}' key '{}': {}", cache.getName(), key, exception.getMessage());
         recordRedisFailure(exception);
     }
 
     @Override
     public void handleCacheEvictError(RuntimeException exception, Cache cache, Object key) {
-        checkCircuitBreaker();
+        if (checkCircuitBreaker()) return;
         log.warn("Cache EVICT failed for '{}' key '{}': {}", cache.getName(), key, exception.getMessage());
         recordRedisFailure(exception);
     }
 
     @Override
     public void handleCacheClearError(RuntimeException exception, Cache cache) {
-        checkCircuitBreaker();
+        if (checkCircuitBreaker()) return;
         log.warn("Cache CLEAR failed for '{}': {}", cache.getName(), exception.getMessage());
         recordRedisFailure(exception);
     }
 
-    private void checkCircuitBreaker() {
+    private boolean checkCircuitBreaker() {
         try {
             CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("redis");
             if (circuitBreaker.getState() == CircuitBreaker.State.OPEN) {
-                throw new RuntimeException("Redis circuit breaker OPEN");
+                log.debug("Redis circuit breaker is OPEN, skipping error recording");
+                return true;
             }
-        } catch (RuntimeException e) {
-            throw e; 
         } catch (Exception e) {
             log.warn("Error checking circuit breaker: {}", e.getMessage());
         }
+        return false;
     }
 
     private void recordRedisFailure(RuntimeException exception) {
         try {
             CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("redis");
-            circuitBreaker.onError(System.nanoTime(), TimeUnit.NANOSECONDS, exception);
+            circuitBreaker.onError(0, TimeUnit.MILLISECONDS, exception);
         } catch (Exception e) {
             log.warn("Failed to record failure: {}", e.getMessage());
         }
