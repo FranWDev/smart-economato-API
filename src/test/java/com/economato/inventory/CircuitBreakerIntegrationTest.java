@@ -47,6 +47,7 @@ public class CircuitBreakerIntegrationTest {
         @BeforeEach
         void setUp() {
                 registry.circuitBreaker("db").transitionToClosedState();
+                registry.circuitBreaker("replica").transitionToClosedState();
                 registry.circuitBreaker("redis").transitionToClosedState();
                 registry.circuitBreaker("kafka").transitionToClosedState();
                 reset(messagingTemplate);
@@ -184,6 +185,58 @@ public class CircuitBreakerIntegrationTest {
                 verify(messagingTemplate, atLeastOnce()).convertAndSend(
                                 eq("/topic/alerts"),
                                 argThat((AlertMessage msg) -> "REDIS_FAILURE".equals(msg.getCode())));
+        }
+
+        @Test
+        void testReplicaCircuitBreakerOpensAndSendsAlert() {
+                CircuitBreaker replicaCb = registry.circuitBreaker("replica");
+                RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException(
+                                "Replica Connection Refused",
+                                new java.sql.SQLException());
+
+                replicaCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
+
+                assert (replicaCb.getState() == CircuitBreaker.State.OPEN);
+
+                verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                                eq("/topic/alerts"),
+                                argThat((AlertMessage msg) -> "REPLICA_FAILURE".equals(msg.getCode())));
+        }
+
+        @Test
+        void testReplicaCircuitBreakerRecoveryAndSendsAlert() {
+                CircuitBreaker replicaCb = registry.circuitBreaker("replica");
+
+                RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException(
+                                "Replica Connection Refused",
+                                new java.sql.SQLException());
+                replicaCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
+                assert (replicaCb.getState() == CircuitBreaker.State.OPEN);
+
+                reset(messagingTemplate);
+
+                replicaCb.transitionToClosedState();
+                assert (replicaCb.getState() == CircuitBreaker.State.CLOSED);
+
+                verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                                eq("/topic/alerts"),
+                                argThat((AlertMessage msg) -> "REPLICA_RECOVERED".equals(msg.getCode())));
+        }
+
+        @Test
+        void testReplicaCircuitBreakerOpensOnUnknownHostException() {
+                CircuitBreaker replicaCb = registry.circuitBreaker("replica");
+                RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException(
+                                "Cannot resolve host postgres-replica",
+                                new java.sql.SQLException(new java.net.UnknownHostException("postgres-replica")));
+
+                replicaCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
+
+                assert (replicaCb.getState() == CircuitBreaker.State.OPEN);
+
+                verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                                eq("/topic/alerts"),
+                                argThat((AlertMessage msg) -> "REPLICA_FAILURE".equals(msg.getCode())));
         }
 
         @Test

@@ -1,6 +1,8 @@
 package com.economato.inventory.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -8,6 +10,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+
+import com.economato.inventory.repository.RevokedTokenRepository;
 
 import java.time.Duration;
 import java.util.Date;
@@ -32,9 +36,25 @@ class TokenBlacklistServiceTest {
     @Mock
     private Cache<String, Locale> tokenLocaleCache;
 
+    @Mock
+    private RevokedTokenRepository revokedTokenRepository;
+
+    @Mock
+    private CircuitBreakerRegistry circuitBreakerRegistry;
+
+    @Mock
+    private CircuitBreaker redisCircuitBreaker;
+
     @BeforeEach
     void setUp() {
-        tokenBlacklistService = new RedisTokenBlacklistService(redisTemplate, tokenLocaleCache);
+        lenient().when(circuitBreakerRegistry.circuitBreaker("redis")).thenReturn(redisCircuitBreaker);
+        lenient().when(redisCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
+
+        tokenBlacklistService = new RedisTokenBlacklistService(
+                redisTemplate,
+                revokedTokenRepository,
+                tokenLocaleCache,
+                circuitBreakerRegistry);
     }
 
     @Test
@@ -51,6 +71,7 @@ class TokenBlacklistServiceTest {
                 eq("revoked"),
                 any(Duration.class));
         verify(tokenLocaleCache).invalidate(token);
+        verify(revokedTokenRepository).save(any());
     }
 
     @Test
@@ -65,6 +86,7 @@ class TokenBlacklistServiceTest {
     void testIsBlacklistedReturnsFalse() {
         String token = "non.blacklisted.token";
         when(redisTemplate.hasKey("token_blacklist:" + token)).thenReturn(false);
+        when(revokedTokenRepository.existsByToken(token)).thenReturn(false);
 
         assertFalse(tokenBlacklistService.isBlacklisted(token));
     }

@@ -52,6 +52,7 @@ public class CircuitBreakerHealthChecker {
     /**
      * Aggressive proactive health check - runs every 3 seconds
      * Detects failures early and opens circuit breaker immediately
+     * Only opens the circuit breaker if WRITER (primary) fails.
      */
     @Scheduled(fixedDelay = 3000)
     public void proactiveDbHealthCheck() {
@@ -64,19 +65,12 @@ public class CircuitBreakerHealthChecker {
         }
 
         boolean writerHealthy = testDatabaseConnection(writerDataSource, "WRITER", 2);
-        boolean readerHealthy = testDatabaseConnection(readerDataSource, "READER", 2);
 
+        // ONLY open if WRITER (primary) is down
         if (!writerHealthy) {
-            log.warn("Writer database is DOWN! Opening circuit breaker immediately");
+            log.warn("PRIMARY DATABASE (WRITER) IS DOWN! Opening circuit breaker immediately");
             RuntimeException error = new org.hibernate.exception.JDBCConnectionException(
                     "Writer database connection failed",
-                    new java.sql.SQLException("Health check failed")
-            );
-            circuitBreaker.onError(0, TimeUnit.MILLISECONDS, error);
-        } else if (!readerHealthy) {
-            log.warn("Reader database (replica) is DOWN! Opening circuit breaker immediately");
-            RuntimeException error = new org.hibernate.exception.JDBCConnectionException(
-                    "Reader database connection failed",
                     new java.sql.SQLException("Health check failed")
             );
             circuitBreaker.onError(0, TimeUnit.MILLISECONDS, error);
@@ -84,8 +78,33 @@ public class CircuitBreakerHealthChecker {
     }
 
     /**
+     * Proactive health check for Read Replica - runs every 3 seconds
+     * Opens replica circuit breaker when READER (replica) is down to alert frontend
+     */
+    @Scheduled(fixedDelay = 3000)
+    public void proactiveReplicaHealthCheck() {
+        CircuitBreaker replicaCircuitBreaker = circuitBreakerRegistry.circuitBreaker("replica");
+        
+        // Only perform proactive checks if circuit is still CLOSED
+        if (replicaCircuitBreaker.getState() != CircuitBreaker.State.CLOSED) {
+            return;
+        }
+
+        boolean readerHealthy = testDatabaseConnection(readerDataSource, "READER", 2);
+
+        if (!readerHealthy) {
+            log.warn("REPLICA DATABASE (READER) IS DOWN! Opening replica circuit breaker to alert frontend");
+            RuntimeException error = new org.hibernate.exception.JDBCConnectionException(
+                    "Reader (replica) database connection failed",
+                    new java.sql.SQLException("Health check failed")
+            );
+            replicaCircuitBreaker.onError(0, TimeUnit.MILLISECONDS, error);
+        }
+    }
+
+    /**
      * Recovery check - runs every 10 seconds
-     * Only closes the circuit breaker when BOTH databases are healthy
+     * Only closes the circuit breaker when database is healthy
      */
     @Scheduled(fixedDelay = 10000)
     public void checkDatabaseRecovery() {
@@ -93,13 +112,32 @@ public class CircuitBreakerHealthChecker {
 
         if (circuitBreaker.getState() == CircuitBreaker.State.OPEN) {
             boolean writerHealthy = testDatabaseConnection(writerDataSource, "WRITER", 5);
-            boolean readerHealthy = testDatabaseConnection(readerDataSource, "READER", 5);
 
-            if (writerHealthy && readerHealthy) {
-                log.info("Both WRITER and READER databases recovered, closing circuit breaker");
+            if (writerHealthy) {
+                log.info("PRIMARY DATABASE (WRITER) recovered, closing circuit breaker");
                 circuitBreaker.transitionToClosedState();
             } else {
-                log.debug("Database recovery check - WRITER: {}, READER: {}", writerHealthy, readerHealthy);
+                log.debug("Primary database still unavailable");
+            }
+        }
+    }
+
+    /**
+     * Recovery check for Read Replica - runs every 10 seconds
+     * Closes replica circuit breaker when reader recovers
+     */
+    @Scheduled(fixedDelay = 10000)
+    public void checkReplicaRecovery() {
+        CircuitBreaker replicaCircuitBreaker = circuitBreakerRegistry.circuitBreaker("replica");
+
+        if (replicaCircuitBreaker.getState() == CircuitBreaker.State.OPEN) {
+            boolean readerHealthy = testDatabaseConnection(readerDataSource, "READER", 5);
+
+            if (readerHealthy) {
+                log.info("REPLICA DATABASE (READER) recovered, closing circuit breaker");
+                replicaCircuitBreaker.transitionToClosedState();
+            } else {
+                log.debug("Replica database still unavailable");
             }
         }
     }

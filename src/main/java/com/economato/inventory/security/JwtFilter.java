@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,6 +19,7 @@ import com.economato.inventory.service.TokenBlacklistService;
 import java.io.IOException;
 import java.util.Set;
 
+@Slf4j
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
@@ -62,21 +64,35 @@ public class JwtFilter extends OncePerRequestFilter {
 
         String jwt = parseJwt(request);
 
-        if (jwt != null && !tokenBlacklistService.isBlacklisted(jwt)) {
-            String username = jwtUtils.validateAndExtractUsername(jwt);
+        if (jwt != null) {
+            try {
+                // Check if token is blacklisted
+                // If Redis is down, the service will fall back to database
+                boolean isBlacklisted = tokenBlacklistService.isBlacklisted(jwt);
+                
+                if (!isBlacklisted) {
+                    String username = jwtUtils.validateAndExtractUsername(jwt);
 
-            if (username != null) {
-                // Cache username in request for audit/other components
-                request.setAttribute("jwt_username", username);
+                    if (username != null) {
+                        // Cache username in request for audit/other components
+                        request.setAttribute("jwt_username", username);
 
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities());
-                authentication.setDetails(DETAILS_SOURCE.buildDetails(request));
+                        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities());
+                        authentication.setDetails(DETAILS_SOURCE.buildDetails(request));
 
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
+                }
+            } catch (Exception e) {
+                // Log the error but don't crash the filter
+                // This can happen if there are issues with token validation or blacklist check
+                log.debug("Error during JWT validation or blacklist check: {}", e.getMessage());
+                // Token will not be authenticated, request will proceed as unauthenticated
+                // (unless endpoint requires authentication, it will be allowed)
             }
         }
 
@@ -127,3 +143,4 @@ public class JwtFilter extends OncePerRequestFilter {
         return null;
     }
 }
+
