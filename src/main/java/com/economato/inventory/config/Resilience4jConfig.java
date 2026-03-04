@@ -1,5 +1,6 @@
 package com.economato.inventory.config;
 
+import com.economato.inventory.event.CircuitBreakerClosedEvent;
 import com.economato.inventory.event.CircuitBreakerOpenEvent;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -55,6 +56,8 @@ public class Resilience4jConfig {
 
                     if (event.getStateTransition().getToState() == CircuitBreaker.State.OPEN) {
                         handleOpenCircuit(cbName);
+                    } else if (event.getStateTransition().getToState() == CircuitBreaker.State.CLOSED) {
+                        handleClosedCircuit(cbName);
                     }
                 });
     }
@@ -62,5 +65,10 @@ public class Resilience4jConfig {
     private void handleOpenCircuit(String instanceName) {
         log.warn("CircuitBreaker [{}] is OPEN! Publishing event.", instanceName);
         eventPublisher.publishEvent(new CircuitBreakerOpenEvent(instanceName));
+    }
+
+    private void handleClosedCircuit(String instanceName) {
+        log.info("CircuitBreaker [{}] is CLOSED (recovered)! Publishing event.", instanceName);
+        eventPublisher.publishEvent(new CircuitBreakerClosedEvent(instanceName));
     }
 }
