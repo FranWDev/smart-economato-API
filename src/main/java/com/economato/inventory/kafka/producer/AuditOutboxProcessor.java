@@ -1,24 +1,28 @@
 package com.economato.inventory.kafka.producer;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import org.springframework.context.annotation.Profile;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+
 import com.economato.inventory.dto.event.InventoryAuditEvent;
 import com.economato.inventory.dto.event.OrderAuditEvent;
 import com.economato.inventory.dto.event.RecipeAuditEvent;
 import com.economato.inventory.dto.event.RecipeCookingAuditEvent;
 import com.economato.inventory.model.AuditOutbox;
 import com.economato.inventory.repository.AuditOutboxRepository;
+
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
-import tools.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Profile;
-import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import tools.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Service
@@ -92,16 +96,24 @@ public class AuditOutboxProcessor {
                 if (future != null) {
                     // Block and wait for Kafka send to complete synchronously (timeout: 10 seconds)
                     // This ensures exceptions propagate to the Circuit Breaker
-                    future.get(10, TimeUnit.SECONDS);
+                    try {
+                        future.get(10, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException("Kafka send interrupted", e);
+                    } catch (ExecutionException | TimeoutException e) {
+                        throw e;
+                    }
                     
-                    // If successful, delete the event from outbox
                     outboxRepository.delete(event);
                     log.debug("Evento de Outbox enviado a Kafka con éxito: topic={}, key={}", event.getTopic(),
                             event.getEventKey());
                 }
+            } catch (ExecutionException | TimeoutException e) {
+                log.error("Error procesando evento Outbox: id={}, error={}", event.getId(), e.getMessage());
+                throw new RuntimeException(e);
             } catch (Exception e) {
                 log.error("Error procesando evento Outbox: id={}, error={}", event.getId(), e.getMessage());
-                // Rethrow original exception to preserve type for CircuitBreaker record-exceptions filter
                 throw e;
             }
         }
