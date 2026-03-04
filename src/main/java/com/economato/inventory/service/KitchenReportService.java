@@ -193,11 +193,15 @@ public class KitchenReportService {
         List<Product> products = productRepository.findAllById(productStats.keySet());
         Map<Integer, BigDecimal> productPrices = products.stream()
                 .collect(Collectors.toMap(Product::getId, Product::getUnitPrice));
+        Map<Integer, String> productUnits = products.stream()
+                .collect(Collectors.toMap(Product::getId, Product::getUnit));
 
         for (ProductStatDTO pStat : productStats.values()) {
             BigDecimal price = productPrices.getOrDefault(pStat.getProductId(), BigDecimal.ZERO);
+            String unit = productUnits.getOrDefault(pStat.getProductId(), "UND");
             BigDecimal costForProduct = pStat.getTotalQuantityUsed().multiply(price);
             pStat.setEstimatedCost(costForProduct);
+            pStat.setUnit(unit);
             totalCost = totalCost.add(costForProduct);
         }
 

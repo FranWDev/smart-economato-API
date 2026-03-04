@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 public class ProductStatDTO {
     private Integer productId;
     private String productName;
+    private String unit;
     private BigDecimal totalQuantityUsed;
     private BigDecimal estimatedCost; // Computed dynamically
 }

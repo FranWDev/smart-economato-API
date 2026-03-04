@@ -1,5 +1,13 @@
 package com.economato.inventory.service;
 
+import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
 import com.economato.inventory.dto.response.KitchenReportResponseDTO;
 import com.economato.inventory.dto.response.ProductStatDTO;
 import com.economato.inventory.dto.response.RecipeStatDTO;
@@ -28,13 +36,6 @@ import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.layout.properties.VerticalAlignment;
-import org.springframework.stereotype.Service;
-
-import java.io.ByteArrayOutputStream;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
 
 @Service
 public class KitchenReportPdfService {
@@ -304,8 +305,10 @@ public class KitchenReportPdfService {
                 Color rowBg = (i % 2 == 1) ? ROW_HOVER_BG : ColorConstants.WHITE;
 
                 table.addCell(createTableDataCell(sanitizePdfText(detail.getProductName()), boldFont, rowBg, true));
+                String quantityWithUnit = formatDecimal(detail.getTotalQuantityUsed()) + " " + 
+                        (detail.getUnit() != null ? sanitizePdfText(detail.getUnit()) : "UND");
                 table.addCell(
-                        createTableDataCell(formatDecimal(detail.getTotalQuantityUsed()), regularFont, rowBg, false));
+                        createTableDataCell(quantityWithUnit, regularFont, rowBg, false));
                 table.addCell(createTableDataCellAccent(formatCurrency(detail.getEstimatedCost()), boldFont, rowBg));
             }
         } else {

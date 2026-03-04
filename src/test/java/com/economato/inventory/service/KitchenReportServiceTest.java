@@ -1,5 +1,21 @@
 package com.economato.inventory.service;
 
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.when;
+import org.mockito.Spy;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import com.economato.inventory.dto.request.ReportRange;
 import com.economato.inventory.dto.response.KitchenReportResponseDTO;
 import com.economato.inventory.dto.response.ProductStatDTO;
@@ -12,23 +28,6 @@ import com.economato.inventory.model.RecipeCookingAudit;
 import com.economato.inventory.model.User;
 import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.RecipeCookingAuditRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Spy;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Stream;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class KitchenReportServiceTest {
@@ -69,11 +68,13 @@ class KitchenReportServiceTest {
         Product cheese = new Product();
         cheese.setId(100);
         cheese.setName("Queso Mozzarella");
+        cheese.setUnit("KG");
         cheese.setUnitPrice(BigDecimal.valueOf(5.50));
 
         Product tomato = new Product();
         tomato.setId(200);
         tomato.setName("Tomate Frito");
+        tomato.setUnit("L");
         tomato.setUnitPrice(BigDecimal.valueOf(2.00));
 
         String componentsJson = """
@@ -126,11 +127,13 @@ class KitchenReportServiceTest {
 
         ProductStatDTO cheeseStat = products.stream().filter(p -> p.getProductId() == 100).findFirst().orElseThrow();
         assertEquals("Queso Mozzarella", cheeseStat.getProductName());
+        assertEquals("KG", cheeseStat.getUnit());
         assertEquals(0, BigDecimal.valueOf(3.0).compareTo(cheeseStat.getTotalQuantityUsed()));
         assertEquals(0, BigDecimal.valueOf(16.50).compareTo(cheeseStat.getEstimatedCost()));
 
         ProductStatDTO tomatoStat = products.stream().filter(p -> p.getProductId() == 200).findFirst().orElseThrow();
         assertEquals("Tomate Frito", tomatoStat.getProductName());
+        assertEquals("L", tomatoStat.getUnit());
         assertEquals(0, BigDecimal.valueOf(1.5).compareTo(tomatoStat.getTotalQuantityUsed()));
         assertEquals(0, BigDecimal.valueOf(3.00).compareTo(tomatoStat.getEstimatedCost()));
     }
