@@ -2,9 +2,6 @@ package com.economato.inventory;
 
 import com.economato.inventory.config.EmbeddedRedisTestConfig;
 import com.economato.inventory.kafka.producer.AuditOutboxProcessor;
-import com.economato.inventory.model.AuditOutbox;
-import com.economato.inventory.repository.AuditOutboxRepository;
-import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.security.JwtUtils;
 import com.economato.inventory.service.CustomUserDetailsService;
 import com.economato.inventory.service.ProductService;
@@ -91,6 +88,7 @@ public class ResilienceEndToEndTest {
                     .doesNotThrowAnyException();
         }
     }
+
     @Nested
     @DisplayName("Kafka Resilience: Outbox processor should respect circuit breaker")
     class KafkaResilienceTests {
@@ -106,8 +104,7 @@ public class ResilienceEndToEndTest {
 
             verify(messagingTemplate, atLeastOnce()).convertAndSend(
                     eq("/topic/alerts"),
-                    argThat((AlertMessage msg) -> "KAFKA_FAILURE".equals(msg.getCode()))
-            );
+                    argThat((AlertMessage msg) -> "KAFKA_FAILURE".equals(msg.getCode())));
         }
     }
 
@@ -129,8 +126,7 @@ public class ResilienceEndToEndTest {
 
             verify(messagingTemplate, atLeastOnce()).convertAndSend(
                     eq("/topic/alerts"),
-                    argThat((AlertMessage msg) -> "DB_RECOVERED".equals(msg.getCode()))
-            );
+                    argThat((AlertMessage msg) -> "DB_RECOVERED".equals(msg.getCode())));
         }
 
         @Test
@@ -146,8 +142,7 @@ public class ResilienceEndToEndTest {
 
             verify(messagingTemplate, atLeastOnce()).convertAndSend(
                     eq("/topic/alerts"),
-                    argThat((AlertMessage msg) -> "REDIS_RECOVERED".equals(msg.getCode()))
-            );
+                    argThat((AlertMessage msg) -> "REDIS_RECOVERED".equals(msg.getCode())));
         }
 
         @Test
@@ -164,8 +159,7 @@ public class ResilienceEndToEndTest {
 
             verify(messagingTemplate, atLeastOnce()).convertAndSend(
                     eq("/topic/alerts"),
-                    argThat((AlertMessage msg) -> "KAFKA_RECOVERED".equals(msg.getCode()))
-            );
+                    argThat((AlertMessage msg) -> "KAFKA_RECOVERED".equals(msg.getCode())));
         }
     }
 
@@ -193,12 +187,10 @@ public class ResilienceEndToEndTest {
 
             verify(messagingTemplate, atLeastOnce()).convertAndSend(
                     eq("/topic/alerts"),
-                    argThat((AlertMessage msg) -> "REDIS_FAILURE".equals(msg.getCode()))
-            );
+                    argThat((AlertMessage msg) -> "REDIS_FAILURE".equals(msg.getCode())));
             verify(messagingTemplate, atLeastOnce()).convertAndSend(
                     eq("/topic/alerts"),
-                    argThat((AlertMessage msg) -> "KAFKA_FAILURE".equals(msg.getCode()))
-            );
+                    argThat((AlertMessage msg) -> "KAFKA_FAILURE".equals(msg.getCode())));
         }
     }
 }

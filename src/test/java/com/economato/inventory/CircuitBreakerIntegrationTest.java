@@ -18,7 +18,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.concurrent.TimeUnit;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -27,135 +26,179 @@ import static org.mockito.Mockito.*;
 @ActiveProfiles("test")
 public class CircuitBreakerIntegrationTest {
 
-    @Autowired
-    private CircuitBreakerRegistry registry;
+        @Autowired
+        private CircuitBreakerRegistry registry;
 
-    @MockitoBean
-    private ProductRepository productRepository;
+        @MockitoBean
+        private ProductRepository productRepository;
 
-    @MockitoBean
-    private SimpMessagingTemplate messagingTemplate;
+        @MockitoBean
+        private SimpMessagingTemplate messagingTemplate;
 
-    @MockitoBean
-    private AuditOutboxProcessor outboxProcessor;
+        @MockitoBean
+        private AuditOutboxProcessor outboxProcessor;
 
-    @MockitoBean
-    private JwtUtils jwtUtils;
+        @MockitoBean
+        private JwtUtils jwtUtils;
 
-    @MockitoBean
-    private CustomUserDetailsService userDetailsService;
+        @MockitoBean
+        private CustomUserDetailsService userDetailsService;
 
-    @BeforeEach
-    void setUp() {
-        registry.circuitBreaker("db").transitionToClosedState();
-        registry.circuitBreaker("redis").transitionToClosedState();
-        registry.circuitBreaker("kafka").transitionToClosedState();
-        reset(messagingTemplate);
-    }
+        @BeforeEach
+        void setUp() {
+                registry.circuitBreaker("db").transitionToClosedState();
+                registry.circuitBreaker("redis").transitionToClosedState();
+                registry.circuitBreaker("kafka").transitionToClosedState();
+                reset(messagingTemplate);
+        }
 
-    @Test
-    void testDbCircuitBreakerOpensAndSendsAlert() {
-        CircuitBreaker dbCb = registry.circuitBreaker("db");
-        RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException("DB Connection Refused",
-                new java.sql.SQLException());
+        @Test
+        void testDbCircuitBreakerOpensAndSendsAlert() {
+                CircuitBreaker dbCb = registry.circuitBreaker("db");
+                RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException(
+                                "DB Connection Refused",
+                                new java.sql.SQLException());
 
-        dbCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
+                dbCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
 
-        assert (dbCb.getState() == CircuitBreaker.State.OPEN);
+                assert (dbCb.getState() == CircuitBreaker.State.OPEN);
 
-        verify(messagingTemplate, atLeastOnce()).convertAndSend(
-                eq("/topic/alerts"),
-                argThat((AlertMessage msg) -> "DB_FAILURE".equals(msg.getCode()))
-        );
-    }
+                verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                                eq("/topic/alerts"),
+                                argThat((AlertMessage msg) -> "DB_FAILURE".equals(msg.getCode())));
+        }
 
-    @Test
-    void testRedisCircuitBreakerOpensAndSendsPartialAlert() {
-        CircuitBreaker redisCb = registry.circuitBreaker("redis");
-        RuntimeException fakeException = new RedisConnectionFailureException("Redis is down");
+        @Test
+        void testRedisCircuitBreakerOpensAndSendsPartialAlert() {
+                CircuitBreaker redisCb = registry.circuitBreaker("redis");
+                RuntimeException fakeException = new RedisConnectionFailureException("Redis is down");
 
-        redisCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
+                redisCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
 
-        assert (redisCb.getState() == CircuitBreaker.State.OPEN);
+                assert (redisCb.getState() == CircuitBreaker.State.OPEN);
 
-        verify(messagingTemplate, atLeastOnce()).convertAndSend(
-                eq("/topic/alerts"),
-                argThat((AlertMessage msg) -> "REDIS_FAILURE".equals(msg.getCode()))
-        );
-    }
+                verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                                eq("/topic/alerts"),
+                                argThat((AlertMessage msg) -> "REDIS_FAILURE".equals(msg.getCode())));
+        }
 
-    @Test
-    void testKafkaCircuitBreakerOpensAndSendsPartialAlert() {
-        CircuitBreaker kafkaCb = registry.circuitBreaker("kafka");
-        RuntimeException fakeException = new org.apache.kafka.common.errors.TimeoutException(
-                "Kafka broker unreachable");
+        @Test
+        void testKafkaCircuitBreakerOpensAndSendsPartialAlert() {
+                CircuitBreaker kafkaCb = registry.circuitBreaker("kafka");
+                RuntimeException fakeException = new org.apache.kafka.common.errors.TimeoutException(
+                                "Kafka broker unreachable");
 
-        kafkaCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
+                kafkaCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
 
-        assert (kafkaCb.getState() == CircuitBreaker.State.OPEN);
+                assert (kafkaCb.getState() == CircuitBreaker.State.OPEN);
 
-        verify(messagingTemplate, atLeastOnce()).convertAndSend(
-                eq("/topic/alerts"),
-                argThat((AlertMessage msg) -> "KAFKA_FAILURE".equals(msg.getCode()))
-        );
-    }
+                verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                                eq("/topic/alerts"),
+                                argThat((AlertMessage msg) -> "KAFKA_FAILURE".equals(msg.getCode())));
+        }
 
-    @Test
-    void testDbCircuitBreakerRecoveryAndSendsAlert() {
-        CircuitBreaker dbCb = registry.circuitBreaker("db");
-        
-        RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException("DB Connection Refused",
-                new java.sql.SQLException());
-        dbCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
-        assert (dbCb.getState() == CircuitBreaker.State.OPEN);
-        
-        reset(messagingTemplate);
-        
-        dbCb.transitionToClosedState();
-        assert (dbCb.getState() == CircuitBreaker.State.CLOSED);
+        @Test
+        void testDbCircuitBreakerRecoveryAndSendsAlert() {
+                CircuitBreaker dbCb = registry.circuitBreaker("db");
 
-        verify(messagingTemplate, atLeastOnce()).convertAndSend(
-                eq("/topic/alerts"),
-                argThat((AlertMessage msg) -> "DB_RECOVERED".equals(msg.getCode()))
-        );
-    }
+                RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException(
+                                "DB Connection Refused",
+                                new java.sql.SQLException());
+                dbCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
+                assert (dbCb.getState() == CircuitBreaker.State.OPEN);
 
-    @Test
-    void testRedisCircuitBreakerRecoveryAndSendsAlert() {
-        CircuitBreaker redisCb = registry.circuitBreaker("redis");
-        
-        RuntimeException fakeException = new RedisConnectionFailureException("Redis is down");
-        redisCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
-        assert (redisCb.getState() == CircuitBreaker.State.OPEN);
-        
-        reset(messagingTemplate);
-        
-        redisCb.transitionToClosedState();
-        assert (redisCb.getState() == CircuitBreaker.State.CLOSED);
+                reset(messagingTemplate);
 
-        verify(messagingTemplate, atLeastOnce()).convertAndSend(
-                eq("/topic/alerts"),
-                argThat((AlertMessage msg) -> "REDIS_RECOVERED".equals(msg.getCode()))
-        );
-    }
+                dbCb.transitionToClosedState();
+                assert (dbCb.getState() == CircuitBreaker.State.CLOSED);
 
-    @Test
-    void testKafkaCircuitBreakerRecoveryAndSendsAlert() {
-        CircuitBreaker kafkaCb = registry.circuitBreaker("kafka");
-        
-        RuntimeException fakeException = new org.apache.kafka.common.errors.TimeoutException(
-                "Kafka broker unreachable");
-        kafkaCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
-        assert (kafkaCb.getState() == CircuitBreaker.State.OPEN);
-        
-        reset(messagingTemplate);
-        
-        kafkaCb.transitionToClosedState();
-        assert (kafkaCb.getState() == CircuitBreaker.State.CLOSED);
+                verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                                eq("/topic/alerts"),
+                                argThat((AlertMessage msg) -> "DB_RECOVERED".equals(msg.getCode())));
+        }
 
-        verify(messagingTemplate, atLeastOnce()).convertAndSend(
-                eq("/topic/alerts"),
-                argThat((AlertMessage msg) -> "KAFKA_RECOVERED".equals(msg.getCode()))
-        );
-    }
+        @Test
+        void testRedisCircuitBreakerRecoveryAndSendsAlert() {
+                CircuitBreaker redisCb = registry.circuitBreaker("redis");
+
+                RuntimeException fakeException = new RedisConnectionFailureException("Redis is down");
+                redisCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
+                assert (redisCb.getState() == CircuitBreaker.State.OPEN);
+
+                reset(messagingTemplate);
+
+                redisCb.transitionToClosedState();
+                assert (redisCb.getState() == CircuitBreaker.State.CLOSED);
+
+                verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                                eq("/topic/alerts"),
+                                argThat((AlertMessage msg) -> "REDIS_RECOVERED".equals(msg.getCode())));
+        }
+
+        @Test
+        void testKafkaCircuitBreakerRecoveryAndSendsAlert() {
+                CircuitBreaker kafkaCb = registry.circuitBreaker("kafka");
+
+                RuntimeException fakeException = new org.apache.kafka.common.errors.TimeoutException(
+                                "Kafka broker unreachable");
+                kafkaCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
+                assert (kafkaCb.getState() == CircuitBreaker.State.OPEN);
+
+                reset(messagingTemplate);
+
+                kafkaCb.transitionToClosedState();
+                assert (kafkaCb.getState() == CircuitBreaker.State.CLOSED);
+
+                verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                                eq("/topic/alerts"),
+                                argThat((AlertMessage msg) -> "KAFKA_RECOVERED".equals(msg.getCode())));
+        }
+
+        @Test
+        void testDbCircuitBreakerOpensOnUnknownHostException() {
+                CircuitBreaker dbCb = registry.circuitBreaker("db");
+                RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException(
+                                "Cannot resolve host postgres-replica",
+                                new java.sql.SQLException(new java.net.UnknownHostException("postgres-replica")));
+
+                dbCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
+
+                assert (dbCb.getState() == CircuitBreaker.State.OPEN);
+
+                verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                                eq("/topic/alerts"),
+                                argThat((AlertMessage msg) -> "DB_FAILURE".equals(msg.getCode())));
+        }
+
+        @Test
+        void testRedisCircuitBreakerOpensOnUnknownHostException() {
+                CircuitBreaker redisCb = registry.circuitBreaker("redis");
+                RuntimeException fakeException = new RedisConnectionFailureException(
+                                "Cannot resolve host redis",
+                                new java.net.UnknownHostException("redis"));
+
+                redisCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
+
+                assert (redisCb.getState() == CircuitBreaker.State.OPEN);
+
+                verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                                eq("/topic/alerts"),
+                                argThat((AlertMessage msg) -> "REDIS_FAILURE".equals(msg.getCode())));
+        }
+
+        @Test
+        void testKafkaCircuitBreakerOpensOnUnknownHostException() {
+                CircuitBreaker kafkaCb = registry.circuitBreaker("kafka");
+                RuntimeException fakeException = new org.apache.kafka.common.errors.NetworkException(
+                                "Cannot resolve host kafka",
+                                new java.net.UnknownHostException("kafka"));
+
+                kafkaCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
+
+                assert (kafkaCb.getState() == CircuitBreaker.State.OPEN);
+
+                verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                                eq("/topic/alerts"),
+                                argThat((AlertMessage msg) -> "KAFKA_FAILURE".equals(msg.getCode())));
+        }
 }
