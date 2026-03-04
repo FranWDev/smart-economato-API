@@ -63,10 +63,19 @@ public class RedisCacheErrorHandler implements CacheErrorHandler {
     private void recordRedisFailure(RuntimeException exception) {
         try {
             CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("redis");
-            circuitBreaker.onError(0, TimeUnit.MILLISECONDS, exception);
+            Throwable rootCause = resolveRootCause(exception);
+            circuitBreaker.onError(0, TimeUnit.MILLISECONDS, rootCause);
         } catch (Exception e) {
             log.warn("Failed to record failure: {}", e.getMessage());
         }
+    }
+
+    private Throwable resolveRootCause(Throwable exception) {
+        Throwable current = exception;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current;
     }
 }
 

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.CacheManager;
@@ -56,7 +57,8 @@ public class RedisConfig {
          */
         @Bean
         public CacheManager cacheManager(RedisConnectionFactory connectionFactory,
-                        @Qualifier("jackson2ObjectMapper") ObjectMapper objectMapper) {
+                        @Qualifier("jackson2ObjectMapper") ObjectMapper objectMapper,
+                        CircuitBreakerRegistry circuitBreakerRegistry) {
 
                 GenericJackson2JsonRedisSerializer serializer = buildRedisSerializer(objectMapper);
 
@@ -87,12 +89,14 @@ public class RedisConfig {
                 cacheConfigurations.put("recipeComponents", defaultConfig.entryTtl(Duration.ofHours(6)));
                 cacheConfigurations.put("recipeAllergens", defaultConfig.entryTtl(Duration.ofHours(6)));
 
-                return RedisCacheManager.builder(connectionFactory)
+                RedisCacheManager redisCacheManager = RedisCacheManager.builder(connectionFactory)
                                 .cacheDefaults(defaultConfig)
                                 .withInitialCacheConfigurations(cacheConfigurations)
                                 .enableStatistics()
                                 .transactionAware()
                                 .build();
+
+                return new CircuitBreakerAwareCacheManager(redisCacheManager, circuitBreakerRegistry);
         }
 
         @Bean
