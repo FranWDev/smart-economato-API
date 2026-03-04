@@ -18,7 +18,7 @@ import com.economato.inventory.dto.event.RecipeCookingAuditEvent;
 import com.economato.inventory.model.AuditOutbox;
 import com.economato.inventory.repository.AuditOutboxRepository;
 
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +35,7 @@ public class AuditOutboxProcessor {
     private final KafkaTemplate<String, RecipeAuditEvent> recipeKafkaTemplate;
     private final KafkaTemplate<String, OrderAuditEvent> orderKafkaTemplate;
     private final KafkaTemplate<String, RecipeCookingAuditEvent> recipeCookingKafkaTemplate;
+    private final CircuitBreakerRegistry circuitBreakerRegistry;
 
     public AuditOutboxProcessor(
             AuditOutboxRepository outboxRepository,
@@ -43,13 +44,15 @@ public class AuditOutboxProcessor {
             KafkaTemplate<String, RecipeAuditEvent> recipeKafkaTemplate,
             KafkaTemplate<String, OrderAuditEvent> orderKafkaTemplate,
             KafkaTemplate<String, RecipeCookingAuditEvent> recipeCookingKafkaTemplate,
-            MeterRegistry meterRegistry) {
+            MeterRegistry meterRegistry,
+            CircuitBreakerRegistry circuitBreakerRegistry) {
         this.outboxRepository = outboxRepository;
         this.objectMapper = objectMapper;
         this.inventoryKafkaTemplate = inventoryKafkaTemplate;
         this.recipeKafkaTemplate = recipeKafkaTemplate;
         this.orderKafkaTemplate = orderKafkaTemplate;
         this.recipeCookingKafkaTemplate = recipeCookingKafkaTemplate;
+        this.circuitBreakerRegistry = circuitBreakerRegistry;
 
         // Registrar Gauge para eventos pendientes en Outbox
         Gauge.builder("kafka.audit.outbox.pending",
@@ -60,7 +63,6 @@ public class AuditOutboxProcessor {
     }
 
     @Scheduled(fixedDelay = 5000)
-    @CircuitBreaker(name = "kafka", fallbackMethod = "kafkaFallback")
     public void processOutbox() {
         List<AuditOutbox> outboxEvents = outboxRepository.findTop100ByOrderByCreatedAtAsc();
 
@@ -89,13 +91,11 @@ public class AuditOutboxProcessor {
                         break;
                     default:
                         log.warn("Topic no reconocido en Outbox: {}", event.getTopic());
-                        outboxRepository.delete(event); // Eliminar eventos inválidos
+                        outboxRepository.delete(event);
                         continue;
                 }
 
                 if (future != null) {
-                    // Block and wait for Kafka send to complete synchronously (timeout: 10 seconds)
-                    // This ensures exceptions propagate to the Circuit Breaker
                     try {
                         future.get(10, TimeUnit.SECONDS);
                     } catch (InterruptedException e) {
@@ -111,22 +111,19 @@ public class AuditOutboxProcessor {
                 }
             } catch (ExecutionException | TimeoutException e) {
                 log.error("Error procesando evento Outbox: id={}, error={}", event.getId(), e.getMessage());
-                throw new RuntimeException(e);
+                recordKafkaFailure(e);
             } catch (Exception e) {
                 log.error("Error procesando evento Outbox: id={}, error={}", event.getId(), e.getMessage());
-                throw e;
             }
         }
     }
 
-    /**
-     * Fallback method executed when the "kafka" CircuitBreaker is OPEN or a
-     * CallNotPermittedException is thrown.
-     * Prevents the @Scheduled task from throwing unhandled exceptions endlessly.
-     */
-    public void kafkaFallback(Throwable t) {
-        log.warn("Kafka Circuit Breaker OPEN or execution failed. Halting Outbox processing temporarily. Reason: {}",
-                t.getMessage());
-        // Do nothing else, events will remain safely in the DB Outbox table.
+    private void recordKafkaFailure(Exception e) {
+        try {
+            var circuitBreaker = circuitBreakerRegistry.circuitBreaker("kafka");
+            circuitBreaker.onError(System.nanoTime(), TimeUnit.NANOSECONDS, e);
+        } catch (Exception ex) {
+            log.warn("Failed to record Kafka failure in circuit breaker: {}", ex.getMessage());
+        }
     }
 }
