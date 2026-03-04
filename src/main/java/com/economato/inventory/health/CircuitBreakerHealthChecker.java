@@ -24,7 +24,7 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Service
-@Profile("!test")
+@Profile("!test & !resilience-test")
 @RequiredArgsConstructor
 public class CircuitBreakerHealthChecker {
 

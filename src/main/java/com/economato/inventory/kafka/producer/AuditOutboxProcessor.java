@@ -20,6 +20,7 @@ import com.economato.inventory.repository.AuditOutboxRepository;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
@@ -65,7 +66,19 @@ public class AuditOutboxProcessor {
 
     @Scheduled(fixedDelay = 5000)
     public void processOutbox() {
-        List<AuditOutbox> outboxEvents = outboxRepository.findTop100ByOrderByCreatedAtAsc();
+        CircuitBreaker kafkaCb = circuitBreakerRegistry.circuitBreaker("kafka");
+        if (kafkaCb.getState() == CircuitBreaker.State.OPEN) {
+            log.debug("Kafka circuit breaker OPEN, skipping outbox processing");
+            return;
+        }
+
+        List<AuditOutbox> outboxEvents;
+        try {
+            outboxEvents = outboxRepository.findTop100ByOrderByCreatedAtAsc();
+        } catch (CallNotPermittedException e) {
+            log.warn("DB circuit breaker OPEN, cannot read outbox: {}", e.getMessage());
+            return;
+        }
 
         int consecutiveKafkaFailures = 0;
         final int MAX_CONSECUTIVE_FAILURES = 3; // Fail fast after 3 consecutive Kafka failures
