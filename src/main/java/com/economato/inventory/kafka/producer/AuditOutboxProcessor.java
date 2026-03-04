@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -89,18 +90,14 @@ public class AuditOutboxProcessor {
                 }
 
                 if (future != null) {
-                    future.whenComplete((result, ex) -> {
-                        if (ex == null) {
-                            outboxRepository.delete(event);
-                            log.debug("Evento de Outbox enviado a Kafka con éxito: topic={}, key={}", event.getTopic(),
-                                    event.getEventKey());
-                        } else {
-                            log.error("Error enviando evento de Outbox a Kafka: topic={}, key={}, error={}",
-                                    event.getTopic(), event.getEventKey(), ex.getMessage());
-                            // Propagate Exception so Circuit Breaker can track failures
-                            throw new RuntimeException("Kafka Send Failed", ex);
-                        }
-                    });
+                    // Block and wait for Kafka send to complete synchronously (timeout: 10 seconds)
+                    // This ensures exceptions propagate to the Circuit Breaker
+                    future.get(10, TimeUnit.SECONDS);
+                    
+                    // If successful, delete the event from outbox
+                    outboxRepository.delete(event);
+                    log.debug("Evento de Outbox enviado a Kafka con éxito: topic={}, key={}", event.getTopic(),
+                            event.getEventKey());
                 }
             } catch (Exception e) {
                 log.error("Error procesando evento Outbox: id={}, error={}", event.getId(), e.getMessage());
