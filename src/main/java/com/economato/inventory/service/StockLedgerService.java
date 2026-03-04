@@ -20,7 +20,9 @@ import com.economato.inventory.model.Product;
 import com.economato.inventory.model.StockLedger;
 import com.economato.inventory.model.StockSnapshot;
 import com.economato.inventory.model.User;
+import com.economato.inventory.repository.OrderRepository;
 import com.economato.inventory.repository.ProductRepository;
+import com.economato.inventory.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.repository.StockLedgerRepository;
 import com.economato.inventory.repository.StockSnapshotRepository;
 import com.economato.inventory.security.SecurityContextHelper;
@@ -44,9 +46,11 @@ public class StockLedgerService {
     private final StockLedgerRepository ledgerRepository;
     private final StockSnapshotRepository snapshotRepository;
     private final ProductRepository productRepository;
+    private final OrderRepository orderRepository;
+    private final RecipeCookingAuditRepository recipeCookingAuditRepository;
     private final SecurityContextHelper securityContextHelper;
     private final Environment environment;
-    
+
     // Métricas declaradas como final para thread-safety
     private final Counter stockMovementsCounter;
     private final Timer ledgerHashTimer;
@@ -58,6 +62,8 @@ public class StockLedgerService {
             StockLedgerRepository ledgerRepository,
             StockSnapshotRepository snapshotRepository,
             ProductRepository productRepository,
+            OrderRepository orderRepository,
+            RecipeCookingAuditRepository recipeCookingAuditRepository,
             SecurityContextHelper securityContextHelper,
             Environment environment,
             MeterRegistry meterRegistry) {
@@ -65,18 +71,20 @@ public class StockLedgerService {
         this.ledgerRepository = ledgerRepository;
         this.snapshotRepository = snapshotRepository;
         this.productRepository = productRepository;
+        this.orderRepository = orderRepository;
+        this.recipeCookingAuditRepository = recipeCookingAuditRepository;
         this.securityContextHelper = securityContextHelper;
         this.environment = environment;
-        
+
         // Inicializar métricas
         this.stockMovementsCounter = Counter.builder("stock.ledger.movements.total")
-            .description("Total de movimientos en el ledger criptográfico")
-            .register(meterRegistry);
+                .description("Total de movimientos en el ledger criptográfico")
+                .register(meterRegistry);
 
         this.ledgerHashTimer = Timer.builder("stock.ledger.hash.duration")
-            .description("Latencia del cómputo SHA-256")
-            .publishPercentiles(0.95, 0.99) // Crítico para detectar outliers en Virtual Threads
-            .register(meterRegistry);
+                .description("Latencia del cómputo SHA-256")
+                .publishPercentiles(0.95, 0.99) // Crítico para detectar outliers en Virtual Threads
+                .register(meterRegistry);
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
@@ -157,7 +165,7 @@ public class StockLedgerService {
                 .build();
 
         transaction = ledgerRepository.save(transaction);
-        
+
         // Incrementar métrica de movimientos totales
         stockMovementsCounter.increment();
 
@@ -393,7 +401,21 @@ public class StockLedgerService {
                         item.getDescription() != null ? item.getDescription() : request.getReason()))
                 .collect(java.util.stream.Collectors.toList());
 
-        return recordBatchStockMovements(movements, currentUser, request.getOrderId());
+        List<StockLedger> transactions = recordBatchStockMovements(movements, currentUser, request.getOrderId());
+
+        if (request.getOrderId() != null) {
+            orderRepository.findById(request.getOrderId()).ifPresent(orderRepository::delete);
+            log.info("Operación batch: Orden eliminada ID={}", request.getOrderId());
+        }
+
+        if (request.getRecipeCookingAuditId() != null) {
+            recipeCookingAuditRepository.findById(request.getRecipeCookingAuditId())
+                    .ifPresent(recipeCookingAuditRepository::delete);
+            log.info("Operación batch: Auditoría de receta cocinada eliminada ID={}",
+                    request.getRecipeCookingAuditId());
+        }
+
+        return transactions;
     }
 
 }

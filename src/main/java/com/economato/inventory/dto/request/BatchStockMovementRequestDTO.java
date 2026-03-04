@@ -27,4 +27,7 @@ public class BatchStockMovementRequestDTO {
 
     @Schema(description = "ID de la orden asociada (opcional)", example = "456")
     private Integer orderId;
+
+    @Schema(description = "ID de la auditoría de receta cocinada (opcional)", example = "789")
+    private Long recipeCookingAuditId;
 }
