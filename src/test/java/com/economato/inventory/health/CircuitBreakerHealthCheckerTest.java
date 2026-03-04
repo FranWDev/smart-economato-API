@@ -2,17 +2,20 @@ package com.economato.inventory.health;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import org.apache.kafka.common.Metric;
-import org.apache.kafka.common.MetricName;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.DescribeClusterResult;
+import org.apache.kafka.common.KafkaFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -20,6 +23,7 @@ import java.sql.SQLException;
 import java.util.Collections;
 import java.util.Map;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -51,132 +55,133 @@ class CircuitBreakerHealthCheckerTest {
 
     @Test
     void testDatabaseHealthCheck_WhenCircuitIsOpen_AndConnectionSucceeds_ShouldCloseCircuit() throws SQLException {
-        // Given: DB circuit is OPEN and connection is healthy
         when(circuitBreakerRegistry.circuitBreaker("db")).thenReturn(dbCircuitBreaker);
         when(dbCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.OPEN);
         Connection mockConnection = mock(Connection.class);
         when(dataSource.getConnection()).thenReturn(mockConnection);
         when(mockConnection.isValid(5)).thenReturn(true);
 
-        // When: Health check runs
         healthChecker.checkDatabaseHealth();
 
-        // Then: Circuit breaker should be closed
         verify(dbCircuitBreaker).transitionToClosedState();
         verify(mockConnection).close();
     }
 
     @Test
     void testDatabaseHealthCheck_WhenCircuitIsOpen_AndConnectionFails_ShouldStayOpen() throws SQLException {
-        // Given: DB circuit is OPEN and connection fails
         when(circuitBreakerRegistry.circuitBreaker("db")).thenReturn(dbCircuitBreaker);
         when(dbCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.OPEN);
         when(dataSource.getConnection()).thenThrow(new SQLException("Connection refused"));
 
-        // When: Health check runs
         healthChecker.checkDatabaseHealth();
 
-        // Then: Circuit breaker should NOT be closed
         verify(dbCircuitBreaker, never()).transitionToClosedState();
     }
 
     @Test
     void testDatabaseHealthCheck_WhenCircuitIsClosed_ShouldNotTest() throws SQLException {
-        // Given: DB circuit is CLOSED
         when(circuitBreakerRegistry.circuitBreaker("db")).thenReturn(dbCircuitBreaker);
         when(dbCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
 
-        // When: Health check runs
         healthChecker.checkDatabaseHealth();
 
-        // Then: Should not attempt connection
         verify(dataSource, never()).getConnection();
         verify(dbCircuitBreaker, never()).transitionToClosedState();
     }
 
     @Test
     void testRedisHealthCheck_WhenCircuitIsOpen_AndPingSucceeds_ShouldCloseCircuit() {
-        // Given: Redis circuit is OPEN and ping succeeds
         when(circuitBreakerRegistry.circuitBreaker("redis")).thenReturn(redisCircuitBreaker);
         when(redisCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.OPEN);
         RedisConnection mockRedisConnection = mock(RedisConnection.class);
         when(redisConnectionFactory.getConnection()).thenReturn(mockRedisConnection);
         when(mockRedisConnection.ping()).thenReturn("PONG");
 
-        // When: Health check runs
         healthChecker.checkRedisHealth();
 
-        // Then: Circuit breaker should be closed
         verify(redisCircuitBreaker).transitionToClosedState();
     }
 
     @Test
     void testRedisHealthCheck_WhenCircuitIsOpen_AndPingFails_ShouldStayOpen() {
-        // Given: Redis circuit is OPEN and ping fails
         when(circuitBreakerRegistry.circuitBreaker("redis")).thenReturn(redisCircuitBreaker);
         when(redisCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.OPEN);
         when(redisConnectionFactory.getConnection()).thenThrow(new RuntimeException("Redis connection failed"));
 
-        // When: Health check runs
         healthChecker.checkRedisHealth();
 
-        // Then: Circuit breaker should NOT be closed
         verify(redisCircuitBreaker, never()).transitionToClosedState();
     }
 
     @Test
     void testRedisHealthCheck_WhenCircuitIsClosed_ShouldNotTest() {
-        // Given: Redis circuit is CLOSED
         when(circuitBreakerRegistry.circuitBreaker("redis")).thenReturn(redisCircuitBreaker);
         when(redisCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
 
-        // When: Health check runs
         healthChecker.checkRedisHealth();
 
-        // Then: Should not attempt connection
         verify(redisConnectionFactory, never()).getConnection();
         verify(redisCircuitBreaker, never()).transitionToClosedState();
     }
 
     @Test
     void testKafkaHealthCheck_WhenCircuitIsOpen_AndMetricsSucceed_ShouldCloseCircuit() {
-        // Given: Kafka circuit is OPEN and metrics succeed
         when(circuitBreakerRegistry.circuitBreaker("kafka")).thenReturn(kafkaCircuitBreaker);
         when(kafkaCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.OPEN);
-        doReturn(Collections.emptyMap()).when(kafkaTemplate).metrics();
+        
+        @SuppressWarnings("unchecked")
+        ProducerFactory<String, Object> mockProducerFactory = mock(ProducerFactory.class);
+        when(kafkaTemplate.getProducerFactory()).thenReturn((ProducerFactory) mockProducerFactory);
+        when(mockProducerFactory.getConfigurationProperties()).thenReturn(Collections.emptyMap());
+        
+        AdminClient mockAdminClient = mock(AdminClient.class);
+        DescribeClusterResult mockClusterResult = mock(DescribeClusterResult.class);
+        @SuppressWarnings("unchecked")
+        KafkaFuture<String> mockFuture = mock(KafkaFuture.class);
+        
+        when(mockClusterResult.clusterId()).thenReturn(mockFuture);
+        when(mockAdminClient.describeCluster()).thenReturn(mockClusterResult);
+        
+        try (MockedStatic<AdminClient> adminClientMock = mockStatic(AdminClient.class)) {
+            adminClientMock.when(() -> AdminClient.create((Map<String, Object>) any())).thenReturn(mockAdminClient);
+            healthChecker.checkKafkaHealth();
+        }
 
-        // When: Health check runs
-        healthChecker.checkKafkaHealth();
-
-        // Then: Circuit breaker should be closed
         verify(kafkaCircuitBreaker).transitionToClosedState();
     }
 
     @Test
     void testKafkaHealthCheck_WhenCircuitIsOpen_AndMetricsFail_ShouldStayOpen() {
-        // Given: Kafka circuit is OPEN and metrics fail
         when(circuitBreakerRegistry.circuitBreaker("kafka")).thenReturn(kafkaCircuitBreaker);
         when(kafkaCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.OPEN);
-        when(kafkaTemplate.metrics()).thenThrow(new RuntimeException("Kafka unavailable"));
+        
+        @SuppressWarnings("unchecked")
+        ProducerFactory<String, Object> mockProducerFactory = mock(ProducerFactory.class);
+        when(kafkaTemplate.getProducerFactory()).thenReturn((ProducerFactory) mockProducerFactory);
+        when(mockProducerFactory.getConfigurationProperties()).thenReturn(Collections.emptyMap());
+        
+        AdminClient mockAdminClient = mock(AdminClient.class);
+        DescribeClusterResult mockClusterResult = mock(DescribeClusterResult.class);
+        
+        when(mockAdminClient.describeCluster()).thenReturn(mockClusterResult);
+        when(mockClusterResult.clusterId()).thenThrow(new RuntimeException("Kafka unavailable"));
+        
+        try (MockedStatic<AdminClient> adminClientMock = mockStatic(AdminClient.class)) {
+            adminClientMock.when(() -> AdminClient.create((Map<String, Object>) any())).thenReturn(mockAdminClient);
+            healthChecker.checkKafkaHealth();
+        }
 
-        // When: Health check runs
-        healthChecker.checkKafkaHealth();
-
-        // Then: Circuit breaker should NOT be closed
         verify(kafkaCircuitBreaker, never()).transitionToClosedState();
     }
 
     @Test
     void testKafkaHealthCheck_WhenCircuitIsClosed_ShouldNotTest() {
-        // Given: Kafka circuit is CLOSED
         when(circuitBreakerRegistry.circuitBreaker("kafka")).thenReturn(kafkaCircuitBreaker);
         when(kafkaCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
 
-        // When: Health check runs
         healthChecker.checkKafkaHealth();
 
-        // Then: Should not attempt connection
-        verify(kafkaTemplate, never()).metrics();
+        verify(kafkaTemplate, never()).getProducerFactory();
         verify(kafkaCircuitBreaker, never()).transitionToClosedState();
     }
 }
