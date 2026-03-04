@@ -19,6 +19,7 @@ import com.economato.inventory.model.AuditOutbox;
 import com.economato.inventory.repository.AuditOutboxRepository;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
@@ -112,6 +113,11 @@ public class AuditOutboxProcessor {
             } catch (ExecutionException | TimeoutException e) {
                 log.error("Error procesando evento Outbox: id={}, error={}", event.getId(), e.getMessage());
                 recordKafkaFailure(e);
+            } catch (CallNotPermittedException e) {
+                // DB circuit breaker is OPEN - database is unavailable
+                log.warn("DB Circuit Breaker OPEN: Cannot read/write Outbox. id={}, reason: {}", 
+                    event.getId(), e.getMessage());
+                // Don't record as Kafka failure - this is a DB infrastructure issue
             } catch (Exception e) {
                 log.error("Error procesando evento Outbox: id={}, error={}", event.getId(), e.getMessage());
             }
