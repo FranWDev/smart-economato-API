@@ -28,13 +28,15 @@ public class DataSourceAspect {
     public Object proceed(ProceedingJoinPoint pjp, Transactional transactional) throws Throwable {
         DataSourceType type = transactional.readOnly() ? DataSourceType.READER : DataSourceType.WRITER;
         
-        // Check if DB circuit breaker is open or if we should use writer as fallback
-        CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("db");
-        boolean useWriterFallback = type == DataSourceType.READER && 
-                                   circuitBreaker.getState() == CircuitBreaker.State.OPEN;
+        // Check if DB or replica circuit breaker is open to use writer as fallback
+        CircuitBreaker dbCircuitBreaker = circuitBreakerRegistry.circuitBreaker("db");
+        CircuitBreaker replicaCircuitBreaker = circuitBreakerRegistry.circuitBreaker("replica");
+        boolean useWriterFallback = type == DataSourceType.READER
+            && (dbCircuitBreaker.getState() == CircuitBreaker.State.OPEN
+                || replicaCircuitBreaker.getState() == CircuitBreaker.State.OPEN);
         
         if (useWriterFallback) {
-            log.debug("DB circuit breaker is OPEN, using WRITER datasource as fallback for read operation");
+            log.debug("DB/REPLICA circuit breaker is OPEN, using WRITER datasource as fallback for read operation");
             type = DataSourceType.WRITER;
         }
         
@@ -49,10 +51,11 @@ public class DataSourceAspect {
                         if (finalType == DataSourceType.READER && isConnectionException(t) && transactional.readOnly()) {
                             log.warn("Read operation failed on READER datasource, retrying with WRITER as fallback: {}", 
                                     t.getMessage());
-                            
-                            // For READER failures, we do NOT register in the circuit breaker
-                            // We silently fallback to WRITER without opening the main DB circuit breaker
-                            // This allows reads to continue even if the replica is down
+
+                            // Register READER failure in replica circuit breaker to notify frontend
+                            // while still allowing graceful fallback to WRITER.
+                            replicaCircuitBreaker.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS, t);
+
                             return retryWithWriter(pjp);
                         }
                         
