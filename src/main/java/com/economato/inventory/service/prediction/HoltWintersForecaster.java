@@ -30,11 +30,11 @@ import java.util.List;
 public class HoltWintersForecaster {
 
     /** Mínimo de semanas necesarias para aplicar Holt-Winters. */
-    private static final int MIN_WEEKS_FOR_HW = 4;
+    private static final int MIN_WEEKS_FOR_HW = 1;
 
     /** Umbral de Z-score para filtrar semanas anómalas. */
     private static final double Z_SCORE_THRESHOLD = 2.5;
-
+    
     // Coeficientes por defecto (conservadores, apropiados para demanda de
     // hostelería)
     private final double alpha; // suavizado del nivel
@@ -51,23 +51,6 @@ public class HoltWintersForecaster {
         this.gamma = gamma;
     }
 
-    /**
-     * Proyecta el consumo total para los próximos {@code horizonDays} días.
-     *
-     * @param weeklyObservations consumo semanal histórico ordenado de más antiguo a
-     *                           más reciente
-     *                           (puede estar en cualquier unidad: kg·semana⁻¹,
-     *                           uds·semana⁻¹, etc.)
-     * @param seasonPeriod       longitud del ciclo estacional en semanas
-     *                           (normalmente 1,
-     *                           ya que las observaciones son semanales con
-     *                           estacionalidad diaria
-     *                           capturada por la granularidad de los datos)
-     * @param horizonDays        número de días futuros para los que proyectar el
-     *                           consumo
-     * @return consumo proyectado total en las mismas unidades que
-     *         {@code weeklyObservations}
-     */
     public double forecast(List<Double> weeklyObservations, int seasonPeriod, int horizonDays) {
         if (weeklyObservations == null || weeklyObservations.isEmpty()) {
             return 0.0;
