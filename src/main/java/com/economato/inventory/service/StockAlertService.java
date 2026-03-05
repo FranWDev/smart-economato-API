@@ -6,6 +6,7 @@ import com.economato.inventory.dto.response.AlertResolution;
 import com.economato.inventory.dto.response.AlertSeverity;
 import com.economato.inventory.dto.response.StockAlertDTO;
 import com.economato.inventory.dto.response.StockPredictionResponseDTO;
+import com.economato.inventory.model.Product;
 import com.economato.inventory.model.Recipe;
 import com.economato.inventory.model.StockPrediction;
 import com.economato.inventory.repository.OrderDetailRepository;
