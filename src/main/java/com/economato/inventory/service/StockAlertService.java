@@ -114,8 +114,7 @@ public class StockAlertService {
                 .map(prediction -> StockPredictionResponseDTO.builder()
                         .productId(prediction.getId())
                         .productName(prediction.getProduct().getName())
-                        .projectedConsumption(prediction.getProjectedConsumption())
-                        .updatedAt(prediction.getUpdatedAt())
+                        .projectedConsumption(prediction.getProjectedConsumption())                        .projectedConsumptionUnit(prediction.getProjectedConsumptionUnit())                        .updatedAt(prediction.getUpdatedAt())
                         .build());
     }
 
@@ -205,6 +204,11 @@ public class StockAlertService {
                     });
 
             prediction.setProjectedConsumption(projected);
+            // Asignar la unidad de medida del producto
+            Product product = prediction.getProduct();
+            if (product != null) {
+                prediction.setProjectedConsumptionUnit(product.getUnit());
+            }
             predictionRepository.save(prediction);
             log.debug("[Async] Predicción actualizada para producto {}: {}", productId, projected);
         }
@@ -223,6 +227,7 @@ public class StockAlertService {
         if (productOpt.isEmpty())
             return null;
         var product = productOpt.get();
+        String unit = product.getUnit();
 
         BigDecimal effective = currentStock.add(pending);
         BigDecimal gap = projected.subtract(effective).setScale(3, RoundingMode.HALF_UP);

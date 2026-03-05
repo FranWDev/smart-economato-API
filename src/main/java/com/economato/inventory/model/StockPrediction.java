@@ -31,6 +31,10 @@ public class StockPrediction {
     @Column(name = "projected_consumption", precision = 19, scale = 4)
     private BigDecimal projectedConsumption;
 
+    /** Unidad de medida del consumo proyectado (ej: kg, l, unidades). */
+    @Column(name = "projected_consumption_unit", length = 20)
+    private String projectedConsumptionUnit;
+
     /** Fecha de la última actualización del cálculo. */
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
