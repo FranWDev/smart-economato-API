@@ -31,7 +31,7 @@ public class StockAlertController {
     }
 
     @SuppressWarnings("unused")
-    @PreAuthorize("hasRole('CHEF')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @GetMapping
     @Operation(summary = "Obtener alertas de stock bajo", description = """
             Devuelve las alertas predictivas de stock bajo para todos los ingredientes
@@ -43,7 +43,7 @@ public class StockAlertController {
             - Mensaje localizado con el resumen de la situación
             - Las 3 recetas que más consumen ese ingrediente
 
-            [Rol requerido: CHEF]
+            [Rol requerido: CHEF o ADMIN]
             """)
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Alertas generadas correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = StockAlertDTO.class))),
@@ -59,25 +59,25 @@ public class StockAlertController {
         return ResponseEntity.ok(alerts);
     }
 
-    @PreAuthorize("hasRole('CHEF')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @GetMapping("/{productId}")
-    @Operation(summary = "Obtener alerta de un producto específico", description = "Calcula la alerta predictiva para un producto individual. [Rol requerido: CHEF]")
+    @Operation(summary = "Obtener alerta de un producto específico", description = "Calcula la alerta predictiva para un producto individual. [Rol requerido: CHEF o ADMIN]")
     public ResponseEntity<StockAlertDTO> getProductAlert(@PathVariable Integer productId) {
         return stockAlertService.getAlertByProductId(productId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.noContent().build());
     }
 
-    @PreAuthorize("hasRole('CHEF')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @PostMapping("/batch")
-    @Operation(summary = "Obtener alertas para una lista de productos", description = "Calcula las alertas predictivas para un conjunto de IDs de producto. [Rol requerido: CHEF]")
+    @Operation(summary = "Obtener alertas para una lista de productos", description = "Calcula las alertas predictivas para un conjunto de IDs de producto. [Rol requerido: CHEF o ADMIN]")
     public ResponseEntity<List<StockAlertDTO>> getBatchAlerts(@RequestBody List<Integer> productIds) {
         return ResponseEntity.ok(stockAlertService.getAlertsByProductIds(productIds));
     }
 
-    @PreAuthorize("hasRole('CHEF')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @GetMapping("/predictions")
-    @Operation(summary = "Obtener todas las predicciones persistidas", description = "Devuelve una lista paginada de los consumos proyectados para los próximos 14 días. [Rol requerido: CHEF]")
+    @Operation(summary = "Obtener todas las predicciones persistidas", description = "Devuelve una lista paginada de los consumos proyectados para los próximos 14 días. [Rol requerido: CHEF o ADMIN]")
     public ResponseEntity<Page<StockPredictionResponseDTO>> getPredictions(Pageable pageable) {
         return ResponseEntity.ok(stockAlertService.getAllPredictions(pageable));
     }
