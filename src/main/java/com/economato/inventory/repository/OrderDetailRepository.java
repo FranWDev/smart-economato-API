@@ -45,7 +45,7 @@ public interface OrderDetailRepository extends JpaRepository<OrderDetail, OrderD
                         SELECT od.product_id AS productId,
                                SUM(od.requested_quantity) AS pendingQuantity
                         FROM order_detail od
-                        INNER JOIN orders o ON o.order_id = od.order_id
+                        INNER JOIN order_header o ON o.order_id = od.order_id
                         WHERE o.status IN ('CREATED', 'PENDING', 'REVIEW')
                         GROUP BY od.product_id
                         """, nativeQuery = true)
