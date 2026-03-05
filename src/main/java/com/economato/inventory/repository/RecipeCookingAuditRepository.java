@@ -69,13 +69,13 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
    * en el período analizado, ordenadas por consumo total descendente.
    */
   @Query(value = """
-      SELECT r.name
+      SELECT r.recipe_name
       FROM recipe_cooking_audit rca
       INNER JOIN recipe r       ON r.recipe_id = rca.recipe_id
       INNER JOIN recipe_component rc ON rc.parent_recipe_id = rca.recipe_id
       WHERE rc.product_id = :productId
         AND rca.cooking_date >= :since
-      GROUP BY r.recipe_id, r.name
+      GROUP BY r.recipe_id, r.recipe_name
       ORDER BY SUM(rca.quantity_cooked * rc.quantity) DESC
       LIMIT 3
       """, nativeQuery = true)
