@@ -115,6 +115,7 @@ public class StockAlertService {
                         .productId(prediction.getId())
                         .productName(prediction.getProduct().getName())
                         .projectedConsumption(prediction.getProjectedConsumption())
+                        .projectedConsumptionUnit(prediction.getProduct().getUnit())
                         .updatedAt(prediction.getUpdatedAt())
                         .build());
     }
@@ -223,6 +224,7 @@ public class StockAlertService {
         if (productOpt.isEmpty())
             return null;
         var product = productOpt.get();
+        String unit = product.getUnit();
 
         BigDecimal effective = currentStock.add(pending);
         BigDecimal gap = projected.subtract(effective).setScale(3, RoundingMode.HALF_UP);
