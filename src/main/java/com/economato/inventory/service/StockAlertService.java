@@ -6,6 +6,7 @@ import com.economato.inventory.dto.response.AlertResolution;
 import com.economato.inventory.dto.response.AlertSeverity;
 import com.economato.inventory.dto.response.StockAlertDTO;
 import com.economato.inventory.dto.response.StockPredictionResponseDTO;
+import com.economato.inventory.model.Product;
 import com.economato.inventory.model.Recipe;
 import com.economato.inventory.model.StockPrediction;
 import com.economato.inventory.repository.OrderDetailRepository;
@@ -197,8 +198,8 @@ public class StockAlertService {
                     .orElseGet(() -> {
                         Product product = productRepository.findById(productId)
                                 .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado: " + productId));
+                        // Dejar que @MapsId sincronice el ID automáticamente desde product.id
                         return StockPrediction.builder()
-                                .id(productId)
                                 .product(product)
                                 .build();
                     });
