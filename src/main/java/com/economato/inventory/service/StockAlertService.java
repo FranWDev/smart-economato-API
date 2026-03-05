@@ -194,10 +194,14 @@ public class StockAlertService {
 
             // Guardar o actualizar predicción
             StockPrediction prediction = predictionRepository.findById(productId)
-                    .orElseGet(() -> StockPrediction.builder()
-                            .id(productId)
-                            .product(productRepository.getReferenceById(productId))
-                            .build());
+                    .orElseGet(() -> {
+                        Product product = productRepository.findById(productId)
+                                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado: " + productId));
+                        return StockPrediction.builder()
+                                .id(productId)
+                                .product(product)
+                                .build();
+                    });
 
             prediction.setProjectedConsumption(projected);
             predictionRepository.save(prediction);
