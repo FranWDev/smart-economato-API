@@ -51,7 +51,7 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
    *                (puede ser igual a {@code since} para empezar en índice 0)
    */
   @Query(value = """
-      SELECT CAST(TIMESTAMPDIFF(DAY, :refDate, rca.cooking_date) / 7 AS SIGNED) AS weekIndex,
+      SELECT CAST(FLOOR(EXTRACT(EPOCH FROM (rca.cooking_date - :refDate)) / 86400 / 7) AS INTEGER) AS weekIndex,
              rc.product_id                                                        AS productId,
              SUM(rca.quantity_cooked * rc.quantity)                               AS totalConsumed
       FROM recipe_cooking_audit rca
