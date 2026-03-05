@@ -198,8 +198,8 @@ public class StockAlertService {
                     .orElseGet(() -> {
                         Product product = productRepository.findById(productId)
                                 .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado: " + productId));
+                        // Dejar que @MapsId sincronice el ID automáticamente desde product.id
                         return StockPrediction.builder()
-                                .id(productId)
                                 .product(product)
                                 .build();
                     });
