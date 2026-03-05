@@ -1,0 +1,301 @@
+{
+  "repo_notes": [
+    {
+      "content": "Debes escribir la wiki en español, incluyendo la generacion de diagramas, tienes permitido usar ingles para tecnisismos (como 'circuit breaker'"
+    }
+  ],
+  "pages": [
+    {
+      "title": "Overview",
+      "purpose": "Introduce the Smart Economato API repository, summarizing its purpose as an intelligent inventory management system, listing its key architectural features (CQRS, circuit breakers, cryptographic stock ledger, Holt-Winters predictions, Kafka audit), and providing a quick-start pointer to running the stack.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Architecture Overview",
+      "purpose": "Describe the overall system architecture including the Spring Boot application, CQRS PostgreSQL setup, Redis caching, Kafka messaging, Resilience4j circuit breakers, and the monitoring stack. Include high-level system and layer diagrams.",
+      "parent": "Overview",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Deployment and Configuration",
+      "purpose": "Document how to deploy the application using Docker Compose, covering all services (postgres, postgres-replica, redis, kafka, backend, prometheus, grafana), their ports, environment variables, health checks, and JVM tuning options. Cover key application.properties settings.",
+      "parent": "Overview",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Domain Model",
+      "purpose": "Describe the core entities (Product, Recipe, RecipeComponent, Order, OrderDetail, User, Allergen, Supplier, StockLedger, StockSnapshot, AuditOutbox) and their relationships. Include the database schema ER diagram derived from sample-data.sql and migration files.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Core Services",
+      "purpose": "Introductory page for the business service layer. Briefly describe the services available (Product, Recipe, Order, User) and common patterns used across all of them: caching, optimistic locking, transactional integrity, and audit annotations.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Product Service",
+      "purpose": "Document ProductService in detail: CRUD lifecycle, stock management via updateStockManually with ledger integration, caching with cache eviction, optimistic locking with retries, hiding and showing products, and the ProductMapper. Note the deprecated deleteById method.",
+      "parent": "Core Services",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Recipe Service",
+      "purpose": "Document RecipeService: CRUD, totalCost calculation from components, cooking a recipe (cookRecipe with stock deduction via StockLedgerService and availability percentage), toggle hidden, recipe stats, and allergen associations.",
+      "parent": "Core Services",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Order Service",
+      "purpose": "Document OrderService: order lifecycle (CREATED to PENDING to REVIEW to CONFIRMED), receiveOrder with pessimistic locking, stock ledger recording on CONFIRMED reception, updateStatus with optimistic locking, caching strategy, and the OrderStatus state machine.",
+      "parent": "Core Services",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "User Service",
+      "purpose": "Document UserService: user CRUD, password management, role management, temporary role escalation to ELEVATED, teacher and student assignments, hidden status management, and CustomUserDetailsService with its 15-minute in-memory cache for Spring Security.",
+      "parent": "Core Services",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "REST API Reference",
+      "purpose": "Overview page for all REST API endpoints. Describe common patterns: pagination via Pageable and RestPage, role-based PreAuthorize annotations, optimistic locking retry in controllers, PDF and Excel export endpoints, and standard error responses via GlobalExceptionHandler.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Product API",
+      "purpose": "Document all ProductController endpoints: CRUD, search by name/type/stock/price, toggle hidden, manual stock update, Excel export using Apache POI streaming, and the ProductRequestDTO with its JSON aliases (price, stock, minStock).",
+      "parent": "REST API Reference",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Recipe API",
+      "purpose": "Document all RecipeController endpoints: CRUD, cook recipe, hidden toggle, allergen management, recipe component management, PDF export via RecipePdfService with iText, and the RecipeComponentController sub-resource.",
+      "parent": "REST API Reference",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Order API",
+      "purpose": "Document all OrderController endpoints: CRUD, filter by user/status/date range, pending reception list, receiveOrder with pessimistic lock, status update, and PDF download via OrderPdfService. Also covers the OrderDetailController sub-resource.",
+      "parent": "REST API Reference",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "User API",
+      "purpose": "Document all UserController endpoints: current user, paginated list, get by id, create, update, delete, by-role, first-login toggle, password change, hidden management, teachers and students, teacher assignment, role escalation and de-escalation.",
+      "parent": "REST API Reference",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Authentication API",
+      "purpose": "Document AuthController endpoints: POST /api/auth/login returning JWT, GET /api/auth/validate, GET /api/auth/role, and POST /api/auth/logout for token blacklisting. Cover LoginRequestDTO and the login response structure.",
+      "parent": "REST API Reference",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Inventory Intelligence",
+      "purpose": "Overview page for the three advanced inventory intelligence features: the cryptographic stock ledger, predictive stock alerts using Holt-Winters, and kitchen reports. Explain how they interconnect via cooking events feeding predictions and the ledger enforcing integrity.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Cryptographic Stock Ledger",
+      "purpose": "Document StockLedgerService: SHA-256 hash chaining, GENESIS_HASH, sequenceNumber, StockSnapshot for O(1) lookups, verifyChainIntegrity, verifyAllChains, resetProductLedger, batch movements, and the Micrometer metrics stockMovementsCounter and ledgerHashTimer. Cover the StockLedgerController REST API.",
+      "parent": "Inventory Intelligence",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Predictive Stock Alerts",
+      "purpose": "Document StockAlertService: the Holt-Winters forecasting pipeline (HISTORY_WEEKS=12, HORIZON_DAYS=14, SEASON_PERIOD=1), AlertSeverity levels, AlertResolution values, StockPrediction entity, and how updatePredictionsForRecipe is triggered asynchronously from Kafka cooking events. Cover StockAlertController endpoints.",
+      "parent": "Inventory Intelligence",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Kitchen Reports",
+      "purpose": "Document KitchenReportService aggregating RecipeCookingAudit data into RecipeStatDTO, UserStatDTO, and ProductStatDTO, and KitchenReportPdfService generating iText PDF documents with FooterEventHandler and color constants. Cover the ReportRange enum and KitchenReportController endpoints.",
+      "parent": "Inventory Intelligence",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Security",
+      "purpose": "Overview of the security architecture: stateless JWT-based authentication, RBAC with Spring Security PreAuthorize, CORS configuration, HTTP security headers including HSTS and CSP, Actuator endpoint IP restriction, and token invalidation via blacklisting.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "JWT Authentication",
+      "purpose": "Document JwtUtils (token generation, validateAndExtractUsername, getRoleFromJwtToken, getExpirationDateFromJwtToken), JwtProperties configuration for secret and expiration, JwtFilter with cookie and header extraction and shouldNotFilter exclusions, and the LoginResponseDTO structure.",
+      "parent": "Security",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Authorization and Roles",
+      "purpose": "Document the role hierarchy (ADMIN, CHEF, ELEVATED, USER), how PreAuthorize is applied across controllers, the SecurityConfig authorization rule ordering from public routes through Actuator IP restriction to authenticated, and the temporary role escalation feature in UserService.",
+      "parent": "Security",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Token Blacklist",
+      "purpose": "Document the two TokenBlacklistService implementations: RedisTokenBlacklistService with Redis primary and DB fallback and fail-secure isBlacklisted default on total failure, and InMemoryTokenBlacklistService. Cover the RevokedToken entity, RevokedTokenRepository, and the BLACKLIST_PREFIX Redis key pattern.",
+      "parent": "Security",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Event-Driven Auditing",
+      "purpose": "Overview of the complete audit pipeline: AOP aspects capture before and after state, AuditEventProducer writes to audit_outbox table transactionally, AuditOutboxProcessor relays to Kafka topics, and AuditEventConsumer persists records and triggers predictions.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Audit AOP Aspects",
+      "purpose": "Document the four audit aspects (ProductAuditAspect, RecipeAuditAspect, OrderAuditAspect, RecipeCookingAuditAspect): the custom annotations they intercept, how before and after state is captured and serialized, how the acting user is resolved via SecurityContextHelper, and the mapping to audit event DTOs.",
+      "parent": "Event-Driven Auditing",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Kafka Outbox Pattern",
+      "purpose": "Document the Outbox pattern implementation: AuditOutbox entity and audit_outbox table schema, AuditEventProducer saveToOutbox with ObjectMapper serialization, AuditOutboxProcessor with scheduled 5-second delay, findTop50, circuit breaker guard, per-event-type KafkaTemplate, ACK-then-delete, the kafka.audit.outbox.pending Gauge, and the four Kafka topics.",
+      "parent": "Event-Driven Auditing",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Recipe Cooking Audit",
+      "purpose": "Document the RecipeCookingAudit entity lifecycle: how cookRecipe triggers the audit aspect, how AuditEventConsumer persists the RecipeCookingAuditEvent and triggers updatePredictionsForRecipe, the RecipeCookingAuditRepository custom queries for weekly consumption and top consuming recipes, and the RecipeCookingAuditController query endpoints.",
+      "parent": "Event-Driven Auditing",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Infrastructure and Configuration",
+      "purpose": "Overview page for the infrastructure and configuration layer, covering all Spring configuration classes and how they wire together the CQRS data source routing, Redis caching, circuit breakers, WebSocket alerts, and resilience testing.",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Database Routing (CQRS)",
+      "purpose": "Document DataSourceAspect intercepting Transactional annotations, the DataSourceType enum with WRITER and READER values, DbContextHolder using ScopedValue, RoutingDataSource extending AbstractRoutingDataSource, DataSourceConfig defining HikariCP pools, and automatic failover from READER to WRITER when the replica circuit breaker is OPEN.",
+      "parent": "Infrastructure and Configuration",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Caching",
+      "purpose": "Document RedisConfig with LettuceConnectionFactory aggressive timeouts, 14 named cache TTLs, GenericJackson2JsonRedisSerializer with PolymorphicTypeValidator, and RedisTemplate. Cover CircuitBreakerAwareCacheManager and CircuitBreakerAwareCache fail-open behavior, RedisCacheErrorHandler, and CachingConfig.",
+      "parent": "Infrastructure and Configuration",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    }
+  ]
+}
