@@ -1,10 +1,12 @@
 package com.economato.inventory.config;
 
+import com.economato.inventory.event.WebSocketConnectedEvent;
 import com.economato.inventory.i18n.I18nService;
 import com.economato.inventory.i18n.MessageKey;
 import com.economato.inventory.security.JwtUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -36,11 +38,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final JwtUtils jwtUtils;
     private final UserDetailsService userDetailsService;
     private final I18nService i18nService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        config.enableSimpleBroker("/topic");
+        config.enableSimpleBroker("/topic", "/queue");
         config.setApplicationDestinationPrefixes("/app");
+        config.setUserDestinationPrefix("/user");
     }
 
     @Override
@@ -82,6 +86,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                                     userDetails, null, userDetails.getAuthorities());
                             accessor.setUser(authentication);
                             log.debug("WebSocket authenticated user: {} with role: {}", username, role);
+                            
+                            // Publish event for new WebSocket connection
+                            eventPublisher.publishEvent(new WebSocketConnectedEvent(username));
                         } else {
                             throw new MessageDeliveryException(
                                     i18nService.getMessage(MessageKey.ERROR_AUTH_UNAUTHORIZED));
