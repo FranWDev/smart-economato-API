@@ -26,6 +26,7 @@ public interface OrderMapper {
     @Mapping(source = "projection.user.id", target = "userId")
     @Mapping(source = "projection.user.name", target = "userName")
     @Mapping(source = "projection.details", target = "details")
+    @Mapping(source = "projection", target = "totalPrice", qualifiedByName = "calculateTotalPriceFromProjection")
     OrderResponseDTO toResponseDTO(OrderProjection projection);
 
     @Named("calculateTotalPrice")
@@ -34,6 +35,16 @@ public interface OrderMapper {
             return BigDecimal.ZERO;
         }
         return order.getDetails().stream()
+                .map(detail -> detail.getQuantity().multiply(detail.getProduct().getUnitPrice()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    @Named("calculateTotalPriceFromProjection")
+    default BigDecimal calculateTotalPriceFromProjection(OrderProjection projection) {
+        if (projection.getDetails() == null || projection.getDetails().isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        return projection.getDetails().stream()
                 .map(detail -> detail.getQuantity().multiply(detail.getProduct().getUnitPrice()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
