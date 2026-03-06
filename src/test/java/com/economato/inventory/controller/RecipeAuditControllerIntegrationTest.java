@@ -2,6 +2,8 @@ package com.economato.inventory.controller;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 
@@ -37,20 +39,19 @@ class RecipeAuditControllerIntegrationTest extends BaseControllerMockTest {
     }
 
     @Test
-    
-    void getAllRecipeAudits_ShouldReturnList() throws Exception {
-
-        when(recipeAuditService.findAll(any(Pageable.class))).thenReturn(testRecipeAudits);
+    void getAllRecipeAudits_ShouldReturnPage() throws Exception {
+        Page<RecipeAuditResponseDTO> page = new PageImpl<>(testRecipeAudits);
+        when(recipeAuditService.findAll(any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/api/recipe-audits").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .param("page", "0")
                 .param("size", "10")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].id_recipe").value(1))
-                .andExpect(jsonPath("$[0].id_user").value(1))
-                .andExpect(jsonPath("$[0].action").value("MODIFICACION"));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content[0].id_recipe").value(1))
+                .andExpect(jsonPath("$.content[0].id_user").value(1))
+                .andExpect(jsonPath("$.content[0].action").value("MODIFICACION"));
     }
 
     @Test

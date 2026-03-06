@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -31,10 +32,9 @@ public class RecipeAuditService {
     }
 
     @Transactional(readOnly = true)
-    public List<RecipeAuditResponseDTO> findAll(Pageable pageable) {
-        return repository.findAllProjectedBy(pageable).stream()
-                .map(recipeAuditMapper::toResponseDTO)
-                .collect(Collectors.toList());
+    public Page<RecipeAuditResponseDTO> findAll(Pageable pageable) {
+        return repository.findAllProjectedBy(pageable)
+                .map(recipeAuditMapper::toResponseDTO);
     }
 
     @Transactional(readOnly = true)
