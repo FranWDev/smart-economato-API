@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 
@@ -40,7 +41,8 @@ class RecipeAuditControllerIntegrationTest extends BaseControllerMockTest {
 
     @Test
     void getAllRecipeAudits_ShouldReturnPage() throws Exception {
-        Page<RecipeAuditResponseDTO> page = new PageImpl<>(testRecipeAudits);
+        PageRequest pageRequest = PageRequest.of(0, 10);
+        Page<RecipeAuditResponseDTO> page = new PageImpl<>(testRecipeAudits, pageRequest, testRecipeAudits.size());
         when(recipeAuditService.findAll(any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/api/recipe-audits").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
