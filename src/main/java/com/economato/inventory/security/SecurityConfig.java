@@ -4,6 +4,9 @@ import com.economato.inventory.i18n.I18nService;
 import com.economato.inventory.i18n.MessageKey;
 
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.DispatcherType;
+import org.springframework.security.authorization.AuthorizationDecision;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -49,7 +52,7 @@ public class SecurityConfig {
                                                 // El JwtFilter (OncePerRequestFilter) no corre en ASYNC, por lo que
                                                 // hay que permitirlos explícitamente para que StreamingResponseBody
                                                 // funcione.
-                                                .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ASYNC)
+                                                .dispatcherTypeMatchers(DispatcherType.ASYNC)
                                                 .permitAll()
 
                                                 // ===== RUTAS PÚBLICAS =====
@@ -81,7 +84,7 @@ public class SecurityConfig {
                                                                 "/actuator/health/**")
                                                 .access((authentication, request) -> {
                                                         String clientIp = request.getRequest().getRemoteAddr();
-                                                        return new org.springframework.security.authorization.AuthorizationDecision(
+                                                        return new AuthorizationDecision(
                                                                         clientIp != null && clientIp
                                                                                         .startsWith("172.19."));
                                                 })
@@ -119,7 +122,7 @@ public class SecurityConfig {
                                                 })
                                                 // Referrer-Policy
                                                 .referrerPolicy(referrer -> referrer.policy(
-                                                                org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
+                                                                ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
                                 .sessionManagement(session -> session
                                                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                                 .exceptionHandling(exceptions -> exceptions

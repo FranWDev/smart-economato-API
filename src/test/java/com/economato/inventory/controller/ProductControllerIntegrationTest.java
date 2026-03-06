@@ -19,6 +19,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.test.web.servlet.MvcResult;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 
 import com.economato.inventory.dto.request.LoginRequestDTO;
 import com.economato.inventory.dto.request.ProductRequestDTO;
@@ -419,15 +421,14 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
         void whenDownloadProductsExcel_thenReturnsExcelFile() throws Exception {
                 // StreamingResponseBody es asíncrono: hay que esperar a que el async
                 // inicie (asyncStarted) antes de hacer el dispatch final.
-                org.springframework.test.web.servlet.MvcResult mvcResult = mockMvc
+                MvcResult mvcResult = mockMvc
                                 .perform(get(BASE_URL + "/export/excel")
                                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(request().asyncStarted())
                                 .andReturn();
 
                 byte[] excelBytes = mockMvc.perform(
-                                org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                                                .asyncDispatch(mvcResult))
+                                asyncDispatch(mvcResult))
                                 .andExpect(status().isOk())
                                 .andExpect(header().string("Content-Type",
                                                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))

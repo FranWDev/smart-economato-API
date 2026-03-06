@@ -16,9 +16,13 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.economato.inventory.dto.request.UserRequestDTO;
+import com.economato.inventory.dto.request.ChangePasswordRequestDTO;
+import com.economato.inventory.dto.request.TeacherAssignmentRequestDTO;
+import com.economato.inventory.dto.request.RoleEscalationRequestDTO;
 import com.economato.inventory.dto.response.UserResponseDTO;
 import com.economato.inventory.model.Role;
 import com.economato.inventory.service.UserService;
+import org.springframework.security.core.Authentication;
 
 import java.util.List;
 
@@ -40,7 +44,7 @@ public class UserController {
                         @ApiResponse(responseCode = "401", description = "No autenticado")
         })
         public ResponseEntity<UserResponseDTO> getCurrentUser(
-                        org.springframework.security.core.Authentication authentication) {
+                        Authentication authentication) {
                 return ResponseEntity.ok(service.findCurrentUser(authentication.getName()));
         }
 
@@ -139,7 +143,7 @@ public class UserController {
         public ResponseEntity<Void> updateFirstLoginStatus(
                         @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id,
                         @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Nuevo estado (true/false)", required = true) @RequestBody boolean status,
-                        org.springframework.security.core.Authentication authentication) {
+                        Authentication authentication) {
 
                 boolean isAdmin = authentication.getAuthorities().stream()
                                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
@@ -160,8 +164,8 @@ public class UserController {
         })
         public ResponseEntity<Void> changePassword(
                         @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id,
-                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos de cambio de contraseña", required = true) @RequestBody @Valid com.economato.inventory.dto.request.ChangePasswordRequestDTO request,
-                        org.springframework.security.core.Authentication authentication) {
+                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos de cambio de contraseña", required = true) @RequestBody @Valid ChangePasswordRequestDTO request,
+                        Authentication authentication) {
 
                 boolean isAdmin = authentication.getAuthorities().stream()
                                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
@@ -218,7 +222,7 @@ public class UserController {
                         @ApiResponse(responseCode = "403", description = "Acceso denegado")
         })
         public ResponseEntity<List<UserResponseDTO>> getMyStudents(
-                        org.springframework.security.core.Authentication authentication) {
+                        Authentication authentication) {
                 List<UserResponseDTO> students = service.getMyStudents(authentication.getName());
                 return ResponseEntity.ok(students);
         }
@@ -234,7 +238,7 @@ public class UserController {
         })
         public ResponseEntity<Void> assignTeacher(
                         @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id,
-                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos de asignación de profesor", required = false) @RequestBody(required = false) com.economato.inventory.dto.request.TeacherAssignmentRequestDTO request) {
+                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos de asignación de profesor", required = false) @RequestBody(required = false) TeacherAssignmentRequestDTO request) {
                 Integer teacherId = request != null ? request.getTeacherId() : null;
                 service.assignTeacher(id, teacherId);
                 return ResponseEntity.ok().build();
@@ -251,7 +255,7 @@ public class UserController {
         })
         public ResponseEntity<Void> escalateRole(
                         @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id,
-                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Duración de los permisos en minutos", required = true) @RequestBody @Valid com.economato.inventory.dto.request.RoleEscalationRequestDTO request) {
+                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Duración de los permisos en minutos", required = true) @RequestBody @Valid RoleEscalationRequestDTO request) {
                 service.escalateRole(id, request);
                 return ResponseEntity.ok().build();
         }

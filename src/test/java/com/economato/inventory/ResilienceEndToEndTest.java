@@ -20,6 +20,10 @@ import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import com.economato.inventory.health.CircuitBreakerHealthChecker;
+import org.apache.kafka.common.errors.TimeoutException;
+import org.hibernate.exception.JDBCConnectionException;
+import java.sql.SQLException;
 
 import java.util.concurrent.TimeUnit;
 
@@ -51,7 +55,7 @@ public class ResilienceEndToEndTest {
     private AuditOutboxProcessor outboxProcessor;
 
     @MockitoBean
-    private com.economato.inventory.health.CircuitBreakerHealthChecker healthChecker;
+    private CircuitBreakerHealthChecker healthChecker;
 
     @BeforeEach
     void resetCircuitBreakers() {
@@ -99,7 +103,7 @@ public class ResilienceEndToEndTest {
             CircuitBreaker kafkaCb = registry.circuitBreaker("kafka");
 
             kafkaCb.onError(0, TimeUnit.MILLISECONDS,
-                    new org.apache.kafka.common.errors.TimeoutException("Kafka unreachable"));
+                    new TimeoutException("Kafka unreachable"));
             assertThat(kafkaCb.getState()).isEqualTo(CircuitBreaker.State.OPEN);
 
             verify(messagingTemplate, atLeastOnce()).convertAndSend(
@@ -118,7 +122,7 @@ public class ResilienceEndToEndTest {
             CircuitBreaker dbCb = registry.circuitBreaker("db");
 
             dbCb.onError(0, TimeUnit.MILLISECONDS,
-                    new org.hibernate.exception.JDBCConnectionException("down", new java.sql.SQLException()));
+                    new JDBCConnectionException("down", new SQLException()));
             assertThat(dbCb.getState()).isEqualTo(CircuitBreaker.State.OPEN);
             reset(messagingTemplate);
 
@@ -151,7 +155,7 @@ public class ResilienceEndToEndTest {
             CircuitBreaker kafkaCb = registry.circuitBreaker("kafka");
 
             kafkaCb.onError(0, TimeUnit.MILLISECONDS,
-                    new org.apache.kafka.common.errors.TimeoutException("down"));
+                    new TimeoutException("down"));
             assertThat(kafkaCb.getState()).isEqualTo(CircuitBreaker.State.OPEN);
             reset(messagingTemplate);
 
@@ -176,7 +180,7 @@ public class ResilienceEndToEndTest {
 
             CircuitBreaker kafkaCb = registry.circuitBreaker("kafka");
             kafkaCb.onError(0, TimeUnit.MILLISECONDS,
-                    new org.apache.kafka.common.errors.TimeoutException("Kafka down"));
+                    new TimeoutException("Kafka down"));
 
             assertThat(redisCb.getState()).isEqualTo(CircuitBreaker.State.OPEN);
             assertThat(kafkaCb.getState()).isEqualTo(CircuitBreaker.State.OPEN);

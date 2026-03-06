@@ -6,8 +6,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 
+import com.economato.inventory.dto.RestPage;
 import com.economato.inventory.dto.response.RecipeAuditResponseDTO;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -40,9 +42,9 @@ class RecipeAuditControllerIntegrationTest extends BaseControllerMockTest {
     @Test
     void getAllRecipeAudits_ShouldReturnPage() throws Exception {
         PageRequest pageRequest = PageRequest.of(0, 10);
-        when(recipeAuditService.findAll(any(Pageable.class))).thenReturn(new com.economato.inventory.dto.RestPage<>(testRecipeAudits, pageRequest, testRecipeAudits.size()));
+        when(recipeAuditService.findAll(any(Pageable.class))).thenReturn(new RestPage<>(testRecipeAudits, pageRequest, testRecipeAudits.size()));
 
-        mockMvc.perform(get("/api/recipe-audits").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
+        mockMvc.perform(get("/api/recipe-audits").with(user("admin").roles("ADMIN"))
                 .param("page", "0")
                 .param("size", "10")
                 .contentType(MediaType.APPLICATION_JSON))
@@ -59,7 +61,7 @@ class RecipeAuditControllerIntegrationTest extends BaseControllerMockTest {
 
         when(recipeAuditService.findById(1)).thenReturn(Optional.of(testRecipeAudit));
 
-        mockMvc.perform(get("/api/recipe-audits/1").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
+        mockMvc.perform(get("/api/recipe-audits/1").with(user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id_recipe").value(1))
@@ -73,7 +75,7 @@ class RecipeAuditControllerIntegrationTest extends BaseControllerMockTest {
 
         when(recipeAuditService.findById(anyInt())).thenReturn(Optional.empty());
 
-        mockMvc.perform(get("/api/recipe-audits/999").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
+        mockMvc.perform(get("/api/recipe-audits/999").with(user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isNotFound());
     }
@@ -84,7 +86,7 @@ class RecipeAuditControllerIntegrationTest extends BaseControllerMockTest {
 
         when(recipeAuditService.findByRecipeId(1)).thenReturn(testRecipeAudits);
 
-        mockMvc.perform(get("/api/recipe-audits/by-recipe/1").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
+        mockMvc.perform(get("/api/recipe-audits/by-recipe/1").with(user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
@@ -97,7 +99,7 @@ class RecipeAuditControllerIntegrationTest extends BaseControllerMockTest {
 
         when(recipeAuditService.findByUserId(1)).thenReturn(testRecipeAudits);
 
-        mockMvc.perform(get("/api/recipe-audits/by-user/1").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
+        mockMvc.perform(get("/api/recipe-audits/by-user/1").with(user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())

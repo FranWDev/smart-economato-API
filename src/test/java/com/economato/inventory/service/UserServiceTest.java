@@ -20,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.economato.inventory.dto.projection.UserProjection;
 import com.economato.inventory.dto.request.UserRequestDTO;
+import com.economato.inventory.dto.request.ChangePasswordRequestDTO;
 import com.economato.inventory.dto.response.UserResponseDTO;
 import com.economato.inventory.dto.response.UserStatsResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
@@ -430,7 +431,7 @@ class UserServiceTest {
     @Test
     void changePassword_WhenAdmin_ShouldUpdatePassword() {
         String newPassword = "newPassword123";
-        com.economato.inventory.dto.request.ChangePasswordRequestDTO request = new com.economato.inventory.dto.request.ChangePasswordRequestDTO();
+        ChangePasswordRequestDTO request = new ChangePasswordRequestDTO();
         request.setNewPassword(newPassword);
 
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
@@ -450,7 +451,7 @@ class UserServiceTest {
     @Test
     void changePassword_WhenUserFirstLogin_ShouldUpdatePasswordAndSetFirstLoginFalse() {
         String newPassword = "newPassword123";
-        com.economato.inventory.dto.request.ChangePasswordRequestDTO request = new com.economato.inventory.dto.request.ChangePasswordRequestDTO();
+        ChangePasswordRequestDTO request = new ChangePasswordRequestDTO();
         request.setNewPassword(newPassword);
 
         testUser.setFirstLogin(true);
@@ -469,7 +470,7 @@ class UserServiceTest {
     void changePassword_WhenUserNotFirstLoginAndCorrectOldPassword_ShouldUpdatePassword() {
         String oldPassword = "oldPassword";
         String newPassword = "newPassword123";
-        com.economato.inventory.dto.request.ChangePasswordRequestDTO request = new com.economato.inventory.dto.request.ChangePasswordRequestDTO();
+        ChangePasswordRequestDTO request = new ChangePasswordRequestDTO();
         request.setOldPassword(oldPassword);
         request.setNewPassword(newPassword);
 
@@ -491,7 +492,7 @@ class UserServiceTest {
     void changePassword_WhenUserNotFirstLoginAndIncorrectOldPassword_ShouldThrowException() {
         String oldPassword = "wrongPassword";
         String newPassword = "newPassword123";
-        com.economato.inventory.dto.request.ChangePasswordRequestDTO request = new com.economato.inventory.dto.request.ChangePasswordRequestDTO();
+        ChangePasswordRequestDTO request = new ChangePasswordRequestDTO();
         request.setOldPassword(oldPassword);
         request.setNewPassword(newPassword);
 
@@ -507,7 +508,7 @@ class UserServiceTest {
     @Test
     void changePassword_WhenUserNotFirstLoginAndMissingOldPassword_ShouldThrowException() {
         String newPassword = "newPassword123";
-        com.economato.inventory.dto.request.ChangePasswordRequestDTO request = new com.economato.inventory.dto.request.ChangePasswordRequestDTO();
+        ChangePasswordRequestDTO request = new ChangePasswordRequestDTO();
         request.setNewPassword(newPassword);
 
         testUser.setFirstLogin(false);

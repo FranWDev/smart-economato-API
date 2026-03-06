@@ -12,9 +12,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.hibernate.exception.JDBCConnectionException;
+import java.sql.SQLException;
+import java.net.UnknownHostException;
+import org.apache.kafka.common.errors.TimeoutException;
+import org.apache.kafka.common.errors.NetworkException;
 import com.economato.inventory.service.CustomUserDetailsService;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import com.economato.inventory.health.CircuitBreakerHealthChecker;
 
 import java.util.concurrent.TimeUnit;
 
@@ -56,9 +62,9 @@ public class CircuitBreakerIntegrationTest {
         @Test
         void testDbCircuitBreakerOpensAndSendsAlert() {
                 CircuitBreaker dbCb = registry.circuitBreaker("db");
-                RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException(
+                RuntimeException fakeException = new JDBCConnectionException(
                                 "DB Connection Refused",
-                                new java.sql.SQLException());
+                                new SQLException());
 
                 dbCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
 
@@ -86,7 +92,7 @@ public class CircuitBreakerIntegrationTest {
         @Test
         void testKafkaCircuitBreakerOpensAndSendsPartialAlert() {
                 CircuitBreaker kafkaCb = registry.circuitBreaker("kafka");
-                RuntimeException fakeException = new org.apache.kafka.common.errors.TimeoutException(
+                RuntimeException fakeException = new TimeoutException(
                                 "Kafka broker unreachable");
 
                 kafkaCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
@@ -102,9 +108,9 @@ public class CircuitBreakerIntegrationTest {
         void testDbCircuitBreakerRecoveryAndSendsAlert() {
                 CircuitBreaker dbCb = registry.circuitBreaker("db");
 
-                RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException(
+                RuntimeException fakeException = new JDBCConnectionException(
                                 "DB Connection Refused",
-                                new java.sql.SQLException());
+                                new SQLException());
                 dbCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
                 assert (dbCb.getState() == CircuitBreaker.State.OPEN);
 
@@ -140,7 +146,7 @@ public class CircuitBreakerIntegrationTest {
         void testKafkaCircuitBreakerRecoveryAndSendsAlert() {
                 CircuitBreaker kafkaCb = registry.circuitBreaker("kafka");
 
-                RuntimeException fakeException = new org.apache.kafka.common.errors.TimeoutException(
+                RuntimeException fakeException = new TimeoutException(
                                 "Kafka broker unreachable");
                 kafkaCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
                 assert (kafkaCb.getState() == CircuitBreaker.State.OPEN);
@@ -158,9 +164,9 @@ public class CircuitBreakerIntegrationTest {
         @Test
         void testDbCircuitBreakerOpensOnUnknownHostException() {
                 CircuitBreaker dbCb = registry.circuitBreaker("db");
-                RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException(
+                RuntimeException fakeException = new JDBCConnectionException(
                                 "Cannot resolve host postgres-replica",
-                                new java.sql.SQLException(new java.net.UnknownHostException("postgres-replica")));
+                                new SQLException(new UnknownHostException("postgres-replica")));
 
                 dbCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
 
@@ -176,7 +182,7 @@ public class CircuitBreakerIntegrationTest {
                 CircuitBreaker redisCb = registry.circuitBreaker("redis");
                 RuntimeException fakeException = new RedisConnectionFailureException(
                                 "Cannot resolve host redis",
-                                new java.net.UnknownHostException("redis"));
+                                new UnknownHostException("redis"));
 
                 redisCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
 
@@ -190,9 +196,9 @@ public class CircuitBreakerIntegrationTest {
         @Test
         void testReplicaCircuitBreakerOpensAndSendsAlert() {
                 CircuitBreaker replicaCb = registry.circuitBreaker("replica");
-                RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException(
+                RuntimeException fakeException = new JDBCConnectionException(
                                 "Replica Connection Refused",
-                                new java.sql.SQLException());
+                                new SQLException());
 
                 replicaCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
 
@@ -207,9 +213,9 @@ public class CircuitBreakerIntegrationTest {
         void testReplicaCircuitBreakerRecoveryAndSendsAlert() {
                 CircuitBreaker replicaCb = registry.circuitBreaker("replica");
 
-                RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException(
+                RuntimeException fakeException = new JDBCConnectionException(
                                 "Replica Connection Refused",
-                                new java.sql.SQLException());
+                                new SQLException());
                 replicaCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
                 assert (replicaCb.getState() == CircuitBreaker.State.OPEN);
 
@@ -226,9 +232,9 @@ public class CircuitBreakerIntegrationTest {
         @Test
         void testReplicaCircuitBreakerOpensOnUnknownHostException() {
                 CircuitBreaker replicaCb = registry.circuitBreaker("replica");
-                RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException(
+                RuntimeException fakeException = new JDBCConnectionException(
                                 "Cannot resolve host postgres-replica",
-                                new java.sql.SQLException(new java.net.UnknownHostException("postgres-replica")));
+                                new SQLException(new UnknownHostException("postgres-replica")));
 
                 replicaCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
 
@@ -242,9 +248,9 @@ public class CircuitBreakerIntegrationTest {
         @Test
         void testKafkaCircuitBreakerOpensOnUnknownHostException() {
                 CircuitBreaker kafkaCb = registry.circuitBreaker("kafka");
-                RuntimeException fakeException = new org.apache.kafka.common.errors.NetworkException(
+                RuntimeException fakeException = new NetworkException(
                                 "Cannot resolve host kafka",
-                                new java.net.UnknownHostException("kafka"));
+                                new UnknownHostException("kafka"));
 
                 kafkaCb.onError(0, TimeUnit.MILLISECONDS, fakeException);
 
