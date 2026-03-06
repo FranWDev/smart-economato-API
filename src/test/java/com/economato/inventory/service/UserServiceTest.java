@@ -592,11 +592,11 @@ class UserServiceTest {
         hiddenResponseDTO.setHidden(true);
         when(userMapper.toResponseDTO(hiddenProjection)).thenReturn(hiddenResponseDTO);
 
-        List<UserResponseDTO> result = userService.findHiddenUsers(pageable);
+        Page<UserResponseDTO> result = userService.findHiddenUsers(pageable);
 
         assertNotNull(result);
-        assertEquals(1, result.size());
-        assertTrue(result.get(0).isHidden());
+        assertEquals(1, result.getContent().size());
+        assertTrue(result.getContent().get(0).isHidden());
         verify(repository).findByIsHiddenTrue(pageable);
     }
 
@@ -606,7 +606,7 @@ class UserServiceTest {
         Page<UserProjection> page = new PageImpl<>(Arrays.asList());
         when(repository.findByIsHiddenTrue(pageable)).thenReturn(page);
 
-        List<UserResponseDTO> result = userService.findHiddenUsers(pageable);
+        Page<UserResponseDTO> result = userService.findHiddenUsers(pageable);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());

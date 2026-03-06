@@ -177,8 +177,8 @@ public class UserController {
                         @ApiResponse(responseCode = "200", description = "Lista de usuarios ocultos", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
                         @ApiResponse(responseCode = "403", description = "Acceso denegado")
         })
-        public ResponseEntity<List<UserResponseDTO>> getHiddenUsers(Pageable pageable) {
-                List<UserResponseDTO> hiddenUsers = service.findHiddenUsers(pageable);
+        public ResponseEntity<Page<UserResponseDTO>> getHiddenUsers(Pageable pageable) {
+                Page<UserResponseDTO> hiddenUsers = service.findHiddenUsers(pageable);
                 return ResponseEntity.ok(hiddenUsers);
         }
 

@@ -38,29 +38,29 @@ class InventoryAuditControllerIntegrationTest extends BaseControllerMockTest {
     
     void getAllMovements_ShouldReturnList() throws Exception {
 
-        when(inventoryAuditService.findAll(any(Pageable.class))).thenReturn(testMovements);
+        when(inventoryAuditService.findAll(any(Pageable.class))).thenReturn(new com.economato.inventory.dto.RestPage<>(testMovements));
 
         mockMvc.perform(get("/api/inventory-audits").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .param("page", "0")
                 .param("size", "10")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].movementType").value("ENTRADA"))
-                .andExpect(jsonPath("$[0].quantity").value(50));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content[0].id").value(1))
+                .andExpect(jsonPath("$.content[0].movementType").value("ENTRADA"))
+                .andExpect(jsonPath("$.content[0].quantity").value(50));
     }
 
     @Test
     
     void getAllMovements_WithAdminRole_ShouldReturnList() throws Exception {
 
-        when(inventoryAuditService.findAll(any(Pageable.class))).thenReturn(testMovements);
+        when(inventoryAuditService.findAll(any(Pageable.class))).thenReturn(new com.economato.inventory.dto.RestPage<>(testMovements));
 
         mockMvc.perform(get("/api/inventory-audits").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray());
+                .andExpect(jsonPath("$.content").isArray());
     }
 
     @Test

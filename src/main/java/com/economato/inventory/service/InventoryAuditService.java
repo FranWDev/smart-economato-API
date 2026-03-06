@@ -1,10 +1,12 @@
 package com.economato.inventory.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.economato.inventory.dto.RestPage;
 import com.economato.inventory.dto.response.InventoryMovementResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
 import com.economato.inventory.exception.ResourceNotFoundException;
@@ -31,10 +33,10 @@ public class InventoryAuditService {
     }
 
     @Transactional(readOnly = true)
-    public List<InventoryMovementResponseDTO> findAll(Pageable pageable) {
-        return repository.findAllProjectedBy(pageable).stream()
-                .map(inventoryMovementMapper::toResponseDTO)
-                .toList();
+    public Page<InventoryMovementResponseDTO> findAll(Pageable pageable) {
+        Page<InventoryMovementResponseDTO> page = repository.findAllProjectedBy(pageable)
+                .map(inventoryMovementMapper::toResponseDTO);
+        return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
     }
 
     @Transactional(readOnly = true)

@@ -2,10 +2,12 @@ package com.economato.inventory.service;
 
 import com.economato.inventory.i18n.I18nService;
 import com.economato.inventory.i18n.MessageKey;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.economato.inventory.dto.RestPage;
 import com.economato.inventory.dto.request.OrderDetailRequestDTO;
 import com.economato.inventory.dto.response.OrderDetailResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
@@ -46,10 +48,10 @@ public class OrderDetailService {
         }
 
         @Transactional(readOnly = true)
-        public List<OrderDetailResponseDTO> findAll(Pageable pageable) {
-                return repository.findAllProjectedBy(pageable).stream()
-                                .map(orderDetailMapper::toResponseDTO)
-                                .toList();
+        public Page<OrderDetailResponseDTO> findAll(Pageable pageable) {
+                Page<OrderDetailResponseDTO> page = repository.findAllProjectedBy(pageable)
+                                .map(orderDetailMapper::toResponseDTO);
+                return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
         }
 
         @Transactional(readOnly = true)

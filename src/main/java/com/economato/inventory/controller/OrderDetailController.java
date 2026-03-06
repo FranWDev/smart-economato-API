@@ -2,6 +2,7 @@ package com.economato.inventory.controller;
 
 import jakarta.validation.Valid;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +38,7 @@ public class OrderDetailController {
     @ApiResponse(responseCode = "200", description = "Lista obtenida correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OrderDetailResponseDTO.class)))
     @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping
-    public ResponseEntity<List<OrderDetailResponseDTO>> getAll(Pageable pageable) {
+    public ResponseEntity<Page<OrderDetailResponseDTO>> getAll(Pageable pageable) {
         return ResponseEntity.ok(orderDetailService.findAll(pageable));
     }
 

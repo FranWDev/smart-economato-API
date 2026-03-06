@@ -5,6 +5,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.economato.inventory.dto.RestPage;
 import com.economato.inventory.dto.response.RecipeCookingAuditResponseDTO;
 import com.economato.inventory.mapper.RecipeCookingAuditMapper;
 import com.economato.inventory.repository.RecipeCookingAuditRepository;
@@ -27,10 +28,10 @@ public class RecipeCookingAuditService {
         this.mapper = mapper;
     }
 
-    public List<RecipeCookingAuditResponseDTO> findAll(Pageable pageable) {
+    public Page<RecipeCookingAuditResponseDTO> findAll(Pageable pageable) {
         Page<RecipeCookingAuditResponseDTO> page = repository.findAllOrderByDateDesc(pageable)
                 .map(mapper::toResponseDTO);
-        return page.getContent();
+        return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
     }
 
     public List<RecipeCookingAuditResponseDTO> findByRecipeId(Integer recipeId) {

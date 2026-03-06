@@ -12,6 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.economato.inventory.dto.RestPage;
 import com.economato.inventory.dto.request.UserRequestDTO;
 import com.economato.inventory.dto.response.UserResponseDTO;
 import com.economato.inventory.dto.response.UserStatsResponseDTO;
@@ -64,7 +65,7 @@ public class UserService {
     public Page<UserResponseDTO> findAll(Pageable pageable) {
         Page<UserResponseDTO> page = repository.findByIsHiddenFalse(pageable)
                 .map(userMapper::toResponseDTO);
-        return new com.economato.inventory.dto.RestPage<>(page.getContent(), page.getPageable(),
+        return new RestPage<>(page.getContent(), page.getPageable(),
                 page.getTotalElements());
     }
 
@@ -217,10 +218,11 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public List<UserResponseDTO> findHiddenUsers(Pageable pageable) {
-        return repository.findByIsHiddenTrue(pageable).stream()
-                .map(userMapper::toResponseDTO)
-                .toList();
+    public Page<UserResponseDTO> findHiddenUsers(Pageable pageable) {
+        Page<UserResponseDTO> page = repository.findByIsHiddenTrue(pageable)
+                .map(userMapper::toResponseDTO);
+        return new RestPage<>(page.getContent(), page.getPageable(),
+                page.getTotalElements());
     }
 
     @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)

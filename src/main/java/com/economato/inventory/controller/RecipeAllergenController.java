@@ -1,5 +1,6 @@
 package com.economato.inventory.controller;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -38,8 +39,8 @@ public class RecipeAllergenController {
     @ApiResponse(responseCode = "200", description = "Lista de relaciones obtenida correctamente",
                  content = @Content(mediaType = "application/json",
                  schema = @Schema(implementation = RecipeAllergen.class)))
-    public List<RecipeAllergen> getAll(Pageable pageable) {
-        return recipeAllergenService.findAll(pageable);
+    public ResponseEntity<Page<RecipeAllergen>> getAll(Pageable pageable) {
+        return ResponseEntity.ok(recipeAllergenService.findAll(pageable));
     }
 
     @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")

@@ -3,10 +3,12 @@ package com.economato.inventory.service;
 import com.economato.inventory.i18n.I18nService;
 import com.economato.inventory.i18n.MessageKey;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.economato.inventory.dto.RestPage;
 import com.economato.inventory.dto.request.RecipeComponentRequestDTO;
 import com.economato.inventory.dto.response.RecipeComponentResponseDTO;
 import com.economato.inventory.dto.response.RecipeResponseDTO;
@@ -48,10 +50,10 @@ public class RecipeComponentService {
     }
 
     @Transactional(readOnly = true)
-    public List<RecipeComponentResponseDTO> findAll(Pageable pageable) {
-        return repository.findAllProjectedBy(pageable).stream()
-                .map(recipeComponentMapper::toResponseDTO)
-                .collect(Collectors.toList());
+    public Page<RecipeComponentResponseDTO> findAll(Pageable pageable) {
+        Page<RecipeComponentResponseDTO> page = repository.findAllProjectedBy(pageable)
+                .map(recipeComponentMapper::toResponseDTO);
+        return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
     }
 
     @Transactional(readOnly = true)

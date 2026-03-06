@@ -11,7 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
-import java.util.List;
+
 
 import com.economato.inventory.dto.request.ProductRequestDTO;
 import com.economato.inventory.dto.response.ProductResponseDTO;
@@ -162,7 +162,7 @@ public class ProductController {
         @Operation(summary = "Obtener productos ocultos", description = "Devuelve los productos que están ocultos. [Rol requerido: ADMIN]")
         @ApiResponse(responseCode = "200", description = "Lista de productos encontrados", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class)))
         @GetMapping("/hidden")
-        public ResponseEntity<List<ProductResponseDTO>> getHiddenProducts(Pageable pageable) {
+        public ResponseEntity<Page<ProductResponseDTO>> getHiddenProducts(Pageable pageable) {
                 return ResponseEntity.ok(productService.findHiddenProducts(pageable));
         }
 

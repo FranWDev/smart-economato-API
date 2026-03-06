@@ -444,14 +444,11 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk());
 
                 // Obtener usuarios ocultos
-                String hiddenResponse = mockMvc.perform(get(BASE_URL + "/hidden")
+                mockMvc.perform(get(BASE_URL + "/hidden")
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
-                                .andReturn().getResponse().getContentAsString();
-
-                UserResponseDTO[] hiddenUsers = objectMapper.readValue(hiddenResponse, UserResponseDTO[].class);
-                assert hiddenUsers.length > 0 : "Debe haber al menos un usuario oculto";
-                assert hiddenUsers[0].isHidden() : "El usuario debe estar marcado como oculto";
+                                .andExpect(jsonPath("$.content", hasSize(greaterThan(0))))
+                                .andExpect(jsonPath("$.content[0].hidden").value(true));
         }
 
         @Test
@@ -459,7 +456,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                 mockMvc.perform(get(BASE_URL + "/hidden")
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$", empty()));
+                                .andExpect(jsonPath("$.content", empty()));
         }
 
         @Test

@@ -120,7 +120,7 @@ public class RecipeController {
         @Operation(summary = "Obtener recetas ocultas", description = "Devuelve las recetas que están ocultas. [Rol requerido: ADMIN]")
         @ApiResponse(responseCode = "200", description = "Lista de recetas encontradas", content = @Content(mediaType = "application/json", schema = @Schema(implementation = RecipeResponseDTO.class)))
         @GetMapping("/hidden")
-        public ResponseEntity<List<RecipeResponseDTO>> getHiddenRecipes(Pageable pageable) {
+        public ResponseEntity<Page<RecipeResponseDTO>> getHiddenRecipes(Pageable pageable) {
                 return ResponseEntity.ok(recipeService.findHiddenRecipes(pageable));
         }
 

@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -41,7 +42,7 @@ public class InventoryAuditController {
     )
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<InventoryMovementResponseDTO>> getAll(
+    public ResponseEntity<Page<InventoryMovementResponseDTO>> getAll(
             @Parameter(description = "Información de paginación") Pageable pageable) {
         return ResponseEntity.ok(movementService.findAll(pageable));
     }

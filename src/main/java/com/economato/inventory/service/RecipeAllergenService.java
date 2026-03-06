@@ -1,9 +1,11 @@
 package com.economato.inventory.service;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.economato.inventory.dto.RestPage;
 import com.economato.inventory.dto.response.AllergenResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
 import com.economato.inventory.exception.ResourceNotFoundException;
@@ -39,8 +41,9 @@ public class RecipeAllergenService {
     }
 
     @Transactional(readOnly = true)
-    public List<RecipeAllergen> findAll(Pageable pageable) {
-        return repository.findAll(pageable).getContent();
+    public Page<RecipeAllergen> findAll(Pageable pageable) {
+        Page<RecipeAllergen> page = repository.findAll(pageable);
+        return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
     }
 
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
