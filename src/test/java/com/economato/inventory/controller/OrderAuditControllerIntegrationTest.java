@@ -42,17 +42,17 @@ class OrderAuditControllerIntegrationTest extends BaseControllerMockTest {
     
     void getAllOrderAudits_ShouldReturnList() throws Exception {
 
-        when(orderAuditService.findAll(any(Pageable.class))).thenReturn(testOrderAudits);
+        when(orderAuditService.findAll(any(Pageable.class))).thenReturn(new com.economato.inventory.dto.RestPage<>(testOrderAudits));
 
         mockMvc.perform(get("/api/order-audits").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .param("page", "0")
                 .param("size", "10")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].id").value(1))
-                .andExpect(jsonPath("$[0].orderId").value(1))
-                .andExpect(jsonPath("$[0].action").value("CAMBIO_ESTADO"));
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content[0].id").value(1))
+                .andExpect(jsonPath("$.content[0].orderId").value(1))
+                .andExpect(jsonPath("$.content[0].action").value("CAMBIO_ESTADO"));
     }
 
     @Test

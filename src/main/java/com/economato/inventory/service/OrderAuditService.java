@@ -4,11 +4,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.economato.inventory.dto.RestPage;
 import com.economato.inventory.dto.response.OrderAuditResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
 import com.economato.inventory.exception.ResourceNotFoundException;
@@ -31,10 +33,10 @@ public class OrderAuditService {
     }
 
     @Transactional(readOnly = true)
-    public List<OrderAuditResponseDTO> findAll(Pageable pageable) {
-        return repository.findAllProjectedBy(pageable).stream()
-                .map(orderAuditMapper::toResponseDTO)
-                .collect(Collectors.toList());
+    public Page<OrderAuditResponseDTO> findAll(Pageable pageable) {
+        Page<OrderAuditResponseDTO> page = repository.findAllProjectedBy(pageable)
+                .map(orderAuditMapper::toResponseDTO);
+        return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
     }
 
     @Transactional(readOnly = true)

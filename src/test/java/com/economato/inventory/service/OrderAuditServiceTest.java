@@ -149,12 +149,12 @@ class OrderAuditServiceTest {
 
         when(orderAuditRepository.findAllProjectedBy(pageable)).thenReturn(auditPage);
 
-        List<OrderAuditResponseDTO> result = orderAuditService.findAll(pageable);
+        Page<OrderAuditResponseDTO> result = orderAuditService.findAll(pageable);
 
         assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(testOrderAuditResponseDTO.getId(), result.get(0).getId());
-        assertEquals(testOrderAuditResponseDTO.getOrderId(), result.get(0).getOrderId());
+        assertEquals(1, result.getContent().size());
+        assertEquals(testOrderAuditResponseDTO.getId(), result.getContent().get(0).getId());
+        assertEquals(testOrderAuditResponseDTO.getOrderId(), result.getContent().get(0).getOrderId());
         verify(orderAuditRepository).findAllProjectedBy(pageable);
     }
 

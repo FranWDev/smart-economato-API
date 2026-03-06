@@ -1,5 +1,6 @@
 package com.economato.inventory.controller;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
@@ -40,7 +41,7 @@ public class OrderAuditController {
             content = @Content(mediaType = "application/json",
                 schema = @Schema(implementation = OrderAuditResponseDTO.class)))
     })
-    public ResponseEntity<List<OrderAuditResponseDTO>> getAll(Pageable pageable) {
+    public ResponseEntity<Page<OrderAuditResponseDTO>> getAll(Pageable pageable) {
         return ResponseEntity.ok(orderAuditService.findAll(pageable));
     }
 

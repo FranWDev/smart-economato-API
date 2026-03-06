@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.annotation.RecipeAuditable;
 import com.economato.inventory.annotation.RecipeCookingAuditable;
+import com.economato.inventory.dto.RestPage;
 import com.economato.inventory.dto.request.RecipeComponentRequestDTO;
 import com.economato.inventory.dto.request.RecipeCookingRequestDTO;
 import com.economato.inventory.dto.request.RecipeRequestDTO;
@@ -75,7 +76,7 @@ public class RecipeService {
     public Page<RecipeResponseDTO> findAll(Pageable pageable) {
         Page<RecipeResponseDTO> page = repository.findByIsHiddenFalse(pageable)
                 .map(recipeMapper::toResponseDTO);
-        return new com.economato.inventory.dto.RestPage<>(page.getContent(), page.getPageable(),
+        return new RestPage<>(page.getContent(), page.getPageable(),
                 page.getTotalElements());
     }
 
@@ -135,10 +136,11 @@ public class RecipeService {
     }
 
     @Transactional(readOnly = true)
-    public List<RecipeResponseDTO> findHiddenRecipes(Pageable pageable) {
-        return repository.findByIsHiddenTrue(pageable).stream()
-                .map(recipeMapper::toResponseDTO)
-                .toList();
+    public Page<RecipeResponseDTO> findHiddenRecipes(Pageable pageable) {
+        Page<RecipeResponseDTO> page = repository.findByIsHiddenTrue(pageable)
+                .map(recipeMapper::toResponseDTO);
+        return new RestPage<>(page.getContent(), page.getPageable(),
+                page.getTotalElements());
     }
 
     @CacheEvict(value = { "recipes_page", "recipe" }, allEntries = true)

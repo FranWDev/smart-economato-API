@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -41,7 +42,7 @@ public class RecipeComponentController {
             content = @Content(mediaType = "application/json",
                 schema = @Schema(implementation = RecipeComponentResponseDTO.class)))
     })
-    public ResponseEntity<List<RecipeComponentResponseDTO>> getAll(Pageable pageable) {
+    public ResponseEntity<Page<RecipeComponentResponseDTO>> getAll(Pageable pageable) {
         return ResponseEntity.status(200).body(componentService.findAll(pageable));
     }
 

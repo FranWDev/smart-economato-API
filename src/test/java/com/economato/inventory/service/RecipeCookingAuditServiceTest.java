@@ -80,11 +80,11 @@ class RecipeCookingAuditServiceTest {
         when(repository.findAllOrderByDateDesc(pageable)).thenReturn(page);
         when(mapper.toResponseDTO(testAudit)).thenReturn(testAuditDTO);
 
-        List<RecipeCookingAuditResponseDTO> result = service.findAll(pageable);
+        Page<RecipeCookingAuditResponseDTO> result = service.findAll(pageable);
 
         assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(testAuditDTO.getRecipeName(), result.get(0).getRecipeName());
+        assertEquals(1, result.getContent().size());
+        assertEquals(testAuditDTO.getRecipeName(), result.getContent().get(0).getRecipeName());
         verify(repository).findAllOrderByDateDesc(pageable);
         verify(mapper).toResponseDTO(testAudit);
     }

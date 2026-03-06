@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.annotation.ProductAuditable;
+import com.economato.inventory.dto.RestPage;
 import com.economato.inventory.dto.request.ProductRequestDTO;
 import com.economato.inventory.dto.response.ProductResponseDTO;
 import com.economato.inventory.exception.ConcurrencyException;
@@ -197,10 +198,11 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProductResponseDTO> findHiddenProducts(Pageable pageable) {
-        return repository.findByIsHiddenTrue(pageable).stream()
-                .map(productMapper::toResponseDTO)
-                .toList();
+    public Page<ProductResponseDTO> findHiddenProducts(Pageable pageable) {
+        Page<ProductResponseDTO> page = repository.findByIsHiddenTrue(pageable)
+                .map(productMapper::toResponseDTO);
+        return new RestPage<>(page.getContent(), page.getPageable(),
+                page.getTotalElements());
     }
 
     @CacheEvict(value = { "products_page", "product" }, allEntries = true)

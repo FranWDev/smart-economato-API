@@ -116,12 +116,12 @@ public class OrderDetailControllerIntegrationTest extends BaseIntegrationTest {
                 mockMvc.perform(get(BASE_URL)
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(1))))
-                                .andExpect(jsonPath("$[0].productId").exists())
-                                .andExpect(jsonPath("$[0].productName").exists())
-                                .andExpect(jsonPath("$[0].quantity").exists())
-                                .andExpect(jsonPath("$[0].unitPrice").exists())
-                                .andExpect(jsonPath("$[0].subtotal").exists());
+                                .andExpect(jsonPath("$.content", hasSize(greaterThanOrEqualTo(1))))
+                                .andExpect(jsonPath("$.content[0].productId").exists())
+                                .andExpect(jsonPath("$.content[0].productName").exists())
+                                .andExpect(jsonPath("$.content[0].quantity").exists())
+                                .andExpect(jsonPath("$.content[0].unitPrice").exists())
+                                .andExpect(jsonPath("$.content[0].subtotal").exists());
         }
 
         @Test

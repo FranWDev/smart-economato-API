@@ -184,7 +184,7 @@ public class RecipeComponentControllerIntegrationTest extends BaseIntegrationTes
                                 .param("size", "10")
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$").isArray());
+                                .andExpect(jsonPath("$.content").isArray());
         }
 
         @Test
