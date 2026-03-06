@@ -1,13 +1,12 @@
 package com.economato.inventory.repository;
 
+import com.economato.inventory.controller.BaseIntegrationTest;
 import com.economato.inventory.dto.projection.PendingProductQuantity;
 import com.economato.inventory.model.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -16,20 +15,15 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 
-@SpringBootTest
-@ActiveProfiles("test")
 @Transactional
 @DisplayName("OrderDetailRepository Integration Tests")
-class OrderDetailRepositoryIntegrationTest {
+class OrderDetailRepositoryIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private OrderDetailRepository orderDetailRepository;
 
     @Autowired
     private OrderRepository orderRepository;
-
-    @Autowired
-    private ProductRepository productRepository;
 
     @Autowired
     private UserRepository userRepository;

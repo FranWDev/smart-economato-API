@@ -8,6 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.economato.inventory.dto.projection.OrderProjection;
 import com.economato.inventory.dto.response.OrderResponseDTO;
@@ -24,7 +25,8 @@ class OrderMapperTest {
     @BeforeEach
     void setUp() {
         orderMapper = Mappers.getMapper(OrderMapper.class);
-        
+        ReflectionTestUtils.setField(orderMapper, "orderDetailMapper", Mappers.getMapper(OrderDetailMapper.class));
+
         // Mock OrderProjection with details
         orderProjection = new OrderProjection() {
             @Override
@@ -60,9 +62,8 @@ class OrderMapperTest {
             @Override
             public List<OrderDetailSummary> getDetails() {
                 return Arrays.asList(
-                    createDetailSummary(new BigDecimal("2"), new BigDecimal("10.00")),
-                    createDetailSummary(new BigDecimal("3"), new BigDecimal("5.50"))
-                );
+                        createDetailSummary(new BigDecimal("2"), new BigDecimal("10.00")),
+                        createDetailSummary(new BigDecimal("3"), new BigDecimal("5.50")));
             }
 
             private OrderDetailSummary createDetailSummary(BigDecimal quantity, BigDecimal unitPrice) {
@@ -109,7 +110,7 @@ class OrderMapperTest {
         // Then
         assertNotNull(result);
         assertNotNull(result.getTotalPrice());
-        
+
         // Expected: (2 * 10.00) + (3 * 5.50) = 20.00 + 16.50 = 36.50
         assertEquals(new BigDecimal("36.50"), result.getTotalPrice());
     }
