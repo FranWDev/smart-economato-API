@@ -239,7 +239,7 @@ public class StockLedgerService {
                         "TX#%d: previousHash incorrecto. Esperado: %s, Encontrado: %s",
                         tx.getSequenceNumber(),
                         expectedPreviousHash.substring(0, Math.min(8, expectedPreviousHash.length())),
-                        tx.getPreviousHash().substring(0, 8));
+                        tx.getPreviousHash().substring(0, Math.min(8, tx.getPreviousHash().length())));
                 errors.add(error);
             }
 
@@ -256,8 +256,8 @@ public class StockLedgerService {
                         "TX#%d: Hash corrupto. Esperado: %s, Encontrado: %s. " +
                                 "Datos: delta=%s, stock=%s",
                         tx.getSequenceNumber(),
-                        recalculatedHash.substring(0, 8),
-                        tx.getCurrentHash().substring(0, 8),
+                        recalculatedHash.substring(0, Math.min(8, recalculatedHash.length())),
+                        tx.getCurrentHash().substring(0, Math.min(8, tx.getCurrentHash().length())),
                         tx.getQuantityDelta(),
                         tx.getResultingStock());
                 errors.add(error);
@@ -416,6 +416,48 @@ public class StockLedgerService {
         }
 
         return transactions;
+    }
+
+    /**
+     * Obtiene la lista de IDs de productos que tienen historial de ledger.
+     * Solo devuelve productos que tienen al menos una transacción registrada.
+     * 
+     * @return Lista de IDs de productos con historial
+     */
+    @Transactional(readOnly = true)
+    public List<Integer> getProductsWithLedger() {
+        log.debug("Obteniendo productos con historial de ledger");
+        return ledgerRepository.findAll().stream()
+                .map(ledger -> ledger.getProduct().getId())
+                .distinct()
+                .sorted()
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Verifica la integridad de las cadenas de todos los productos que tienen ledger.
+     * A diferencia de verifyAllChains(), este método solo verifica productos con transacciones,
+     * evitando procesar productos sin historial.
+     * 
+     * @return Lista de resultados de verificación de integridad
+     */
+    @Transactional(readOnly = true)
+    public List<IntegrityCheckResult> verifyProductsWithLedger() {
+        log.info("Verificando integridad de productos con ledger...");
+        
+        List<Integer> productIds = getProductsWithLedger();
+        List<IntegrityCheckResult> results = new ArrayList<>();
+        
+        for (Integer productId : productIds) {
+            IntegrityCheckResult result = verifyChainIntegrity(productId);
+            results.add(result);
+        }
+        
+        long validChains = results.stream().filter(IntegrityCheckResult::isValid).count();
+        log.info("Verificación de productos con ledger completa: {}/{} cadenas íntegras", 
+                 validChains, results.size());
+        
+        return results;
     }
 
 }

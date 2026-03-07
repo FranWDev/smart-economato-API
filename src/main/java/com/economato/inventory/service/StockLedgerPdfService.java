@@ -1,5 +1,7 @@
 package com.economato.inventory.service;
 
+import com.economato.inventory.dto.response.IntegrityCheckResult;
+import com.economato.inventory.dto.response.LedgerPdfResponseDTO;
 import com.economato.inventory.exception.ResourceNotFoundException;
 import com.economato.inventory.i18n.I18nService;
 import com.economato.inventory.i18n.MessageKey;
@@ -55,13 +57,16 @@ public class StockLedgerPdfService {
     private final StockLedgerRepository stockLedgerRepository;
     private final ProductRepository productRepository;
     private final I18nService i18nService;
+    private final StockLedgerService stockLedgerService;
 
     public StockLedgerPdfService(StockLedgerRepository stockLedgerRepository,
             ProductRepository productRepository,
-            I18nService i18nService) {
+            I18nService i18nService,
+            StockLedgerService stockLedgerService) {
         this.stockLedgerRepository = stockLedgerRepository;
         this.productRepository = productRepository;
         this.i18nService = i18nService;
+        this.stockLedgerService = stockLedgerService;
     }
 
     public byte[] generateStockLedgerPdf(Integer productId) {
@@ -109,6 +114,31 @@ public class StockLedgerPdfService {
             log.error("Error al generar PDF del ledger para producto {}", productId, e);
             throw new RuntimeException("Error al generar el PDF del ledger", e);
         }
+    }
+
+    /**
+     * Genera el PDF del ledger con información adicional sobre la integridad de la cadena.
+     * Verifica automáticamente la integridad y devuelve el resultado junto con el PDF.
+     * 
+     * @param productId ID del producto
+     * @return DTO con el PDF y la información de integridad
+     */
+    public LedgerPdfResponseDTO generateStockLedgerPdfWithIntegrity(Integer productId) {
+        // Generar el PDF
+        byte[] pdfContent = generateStockLedgerPdf(productId);
+        
+        // Verificar la integridad de la cadena
+        IntegrityCheckResult integrityResult = stockLedgerService.verifyChainIntegrity(productId);
+        
+        log.info("PDF generado para producto {}: {} bytes. Integridad: {}", 
+                 productId, pdfContent.length, integrityResult.isValid() ? "VÁLIDA" : "CORRUPTA");
+        
+        return new LedgerPdfResponseDTO(
+                pdfContent,
+                integrityResult.isValid(),
+                integrityResult.getMessage(),
+                integrityResult.getErrors()
+        );
     }
 
     /**

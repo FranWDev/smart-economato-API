@@ -14,10 +14,13 @@ import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBo
 
 
 import com.economato.inventory.dto.request.ProductRequestDTO;
+import com.economato.inventory.dto.response.IntegrityCheckResult;
+import com.economato.inventory.dto.response.LedgerPdfResponseDTO;
 import com.economato.inventory.dto.response.ProductResponseDTO;
 import com.economato.inventory.service.ProductExcelService;
 import com.economato.inventory.service.ProductService;
 import com.economato.inventory.service.StockLedgerPdfService;
+import com.economato.inventory.service.StockLedgerService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -35,12 +38,14 @@ public class ProductController {
         private final ProductService productService;
         private final ProductExcelService productExcelService;
         private final StockLedgerPdfService stockLedgerPdfService;
+        private final StockLedgerService stockLedgerService;
 
         public ProductController(ProductService productService, ProductExcelService productExcelService,
-                StockLedgerPdfService stockLedgerPdfService) {
+                StockLedgerPdfService stockLedgerPdfService, StockLedgerService stockLedgerService) {
                 this.productService = productService;
                 this.productExcelService = productExcelService;
                 this.stockLedgerPdfService = stockLedgerPdfService;
+                this.stockLedgerService = stockLedgerService;
         }
 
         @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
@@ -201,11 +206,37 @@ public class ProductController {
                                 .orElse(ResponseEntity.notFound().build());
         }
 
-        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
-        @Operation(summary = "Descargar ledger de stock como PDF firmado", description = "Genera y descarga un PDF del historial de stock de un producto con firma criptográfica SHA-256 para uso como prueba forense/legal. "
-                + "El PDF incluye autenticidad verificable. [Rol requerido: CHEF]")
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
+        @Operation(summary = "Obtener productos con historial de ledger", description = "Devuelve la lista de IDs de productos que tienen al menos una transacción registrada en el ledger. "
+                + "Solo devuelve productos con historial, excluyendo productos sin transacciones. [Rol requerido: USER]")
         @ApiResponses({
-                @ApiResponse(responseCode = "200", description = "PDF generado correctamente", content = @Content(mediaType = "application/pdf")),
+                @ApiResponse(responseCode = "200", description = "Lista de IDs de productos con ledger obtenida correctamente")
+        })
+        @GetMapping("/with-ledger")
+        public ResponseEntity<java.util.List<Integer>> getProductsWithLedger() {
+                java.util.List<Integer> productIds = stockLedgerService.getProductsWithLedger();
+                return ResponseEntity.ok(productIds);
+        }
+
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @Operation(summary = "Verificar integridad de ledgers de productos con historial", description = "Verifica la integridad de las cadenas de hash de todos los productos que tienen transacciones en el ledger. "
+                + "Devuelve una lista con el estado de integridad de cada producto, identificando cuáles tienen cadenas corruptas. "
+                + "Solo verifica productos con ledger, optimizando el proceso. [Rol requerido: CHEF]")
+        @ApiResponses({
+                @ApiResponse(responseCode = "200", description = "Verificación completada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = IntegrityCheckResult.class)))
+        })
+        @GetMapping("/ledger-integrity")
+        public ResponseEntity<java.util.List<IntegrityCheckResult>> verifyLedgerIntegrity() {
+                java.util.List<IntegrityCheckResult> results = stockLedgerService.verifyProductsWithLedger();
+                return ResponseEntity.ok(results);
+        }
+
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @Operation(summary = "Descargar ledger de stock como PDF firmado con verificación de integridad", description = "Genera y descarga un PDF del historial de stock de un producto con firma criptográfica SHA-256 para uso como prueba forense/legal. "
+                + "El PDF incluye autenticidad verificable y verifica automáticamente la integridad de la cadena. "
+                + "Si se detecta corrupción, se incluye en los headers HTTP. [Rol requerido: CHEF]")
+        @ApiResponses({
+                @ApiResponse(responseCode = "200", description = "PDF generado correctamente (verifica headers para información de integridad)", content = @Content(mediaType = "application/pdf")),
                 @ApiResponse(responseCode = "404", description = "Producto o ledger no encontrado"),
                 @ApiResponse(responseCode = "500", description = "Error al generar el PDF")
         })
@@ -214,14 +245,27 @@ public class ProductController {
                 @Parameter(description = "ID del producto", required = true) @PathVariable Integer id) {
             return productService.findById(id)
                     .map(product -> {
-                        byte[] pdfBytes = stockLedgerPdfService.generateStockLedgerPdf(id);
+                        LedgerPdfResponseDTO pdfResponse = stockLedgerPdfService.generateStockLedgerPdfWithIntegrity(id);
+                        
                         HttpHeaders headers = new HttpHeaders();
                         headers.setContentType(MediaType.APPLICATION_PDF);
                         headers.setContentDisposition(ContentDisposition.attachment()
                                 .filename("ledger_stock_" + sanitizeFilename(product.getName()) + ".pdf")
                                 .build());
-                        headers.setContentLength(pdfBytes.length);
-                        return ResponseEntity.ok().headers(headers).body(pdfBytes);
+                        headers.setContentLength(pdfResponse.getPdfContent().length);
+                        
+                        // Añadir información de integridad en headers custom
+                        headers.add("X-Ledger-Integrity-Valid", String.valueOf(pdfResponse.isIntegrityValid()));
+                        headers.add("X-Ledger-Integrity-Message", pdfResponse.getIntegrityMessage());
+                        
+                        if (!pdfResponse.isIntegrityValid() && pdfResponse.getIntegrityErrors() != null) {
+                            // Añadir primer error como referencia
+                            headers.add("X-Ledger-Integrity-Error", 
+                                       pdfResponse.getIntegrityErrors().isEmpty() ? "Error desconocido" 
+                                                                                   : pdfResponse.getIntegrityErrors().get(0));
+                        }
+                        
+                        return ResponseEntity.ok().headers(headers).body(pdfResponse.getPdfContent());
                     })
                     .orElse(ResponseEntity.notFound().build());
         }
