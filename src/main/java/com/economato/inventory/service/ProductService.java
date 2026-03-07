@@ -101,8 +101,14 @@ public class ProductService {
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> findProductsWithLedger(String name, Pageable pageable) {
         String normalizedName = (name == null || name.isBlank()) ? null : name.trim();
-        Page<ProductResponseDTO> page = repository.findProductsWithLedger(normalizedName, pageable)
-                .map(productMapper::toResponseDTO);
+        Page<ProductResponseDTO> page;
+        if (normalizedName == null) {
+            page = repository.findProductsWithLedger(pageable)
+                    .map(productMapper::toResponseDTO);
+        } else {
+            page = repository.findProductsWithLedgerByName(normalizedName, pageable)
+                    .map(productMapper::toResponseDTO);
+        }
         return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
     }
 

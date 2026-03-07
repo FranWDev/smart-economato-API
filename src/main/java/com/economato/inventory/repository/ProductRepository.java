@@ -74,7 +74,11 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
                         BigDecimal max);
 
         @Query("SELECT p FROM Product p WHERE p.isHidden = false " +
+                        "AND EXISTS (SELECT 1 FROM StockLedger l WHERE l.product.id = p.id)")
+        Page<Product> findProductsWithLedger(Pageable pageable);
+
+        @Query("SELECT p FROM Product p WHERE p.isHidden = false " +
                         "AND EXISTS (SELECT 1 FROM StockLedger l WHERE l.product.id = p.id) " +
-                        "AND (:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')))")
-        Page<Product> findProductsWithLedger(@Param("name") String name, Pageable pageable);
+                        "AND LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))")
+        Page<Product> findProductsWithLedgerByName(@Param("name") String name, Pageable pageable);
 }

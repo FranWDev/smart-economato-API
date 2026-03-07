@@ -143,6 +143,16 @@ class ProductLedgerIntegrityControllerIntegrationTest extends BaseIntegrationTes
         }
 
         @Test
+        void whenGetProductsWithLedger_EmptyName_ThenReturnPaginatedProducts() throws Exception {
+                mockMvc.perform(get(BASE_URL + "/with-ledger")
+                                .param("name", "")
+                                .header("Authorization", "Bearer " + jwtToken))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.content", hasSize(2)))
+                        .andExpect(jsonPath("$.totalElements").value(2));
+        }
+
+        @Test
         void whenGetProductsWithLedger_WithoutAuth_ThenUnauthorized() throws Exception {
                 mockMvc.perform(get(BASE_URL + "/with-ledger"))
                         .andExpect(status().isUnauthorized());

@@ -235,6 +235,54 @@ class ProductServiceTest {
     }
 
     @Test
+    void findProductsWithLedger_WithoutName_ShouldUseBaseQuery() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Product> page = new PageImpl<>(List.of(testProduct), pageable, 1);
+
+        when(repository.findProductsWithLedger(pageable)).thenReturn(page);
+        when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
+
+        Page<ProductResponseDTO> result = productService.findProductsWithLedger(null, pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(repository).findProductsWithLedger(pageable);
+        verify(repository, never()).findProductsWithLedgerByName(anyString(), any());
+    }
+
+    @Test
+    void findProductsWithLedger_WithBlankName_ShouldUseBaseQuery() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Product> page = new PageImpl<>(List.of(testProduct), pageable, 1);
+
+        when(repository.findProductsWithLedger(pageable)).thenReturn(page);
+        when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
+
+        Page<ProductResponseDTO> result = productService.findProductsWithLedger("   ", pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(repository).findProductsWithLedger(pageable);
+        verify(repository, never()).findProductsWithLedgerByName(anyString(), any());
+    }
+
+    @Test
+    void findProductsWithLedger_WithName_ShouldUseFilteredQuery() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<Product> page = new PageImpl<>(List.of(testProduct), pageable, 1);
+
+        when(repository.findProductsWithLedgerByName("leche", pageable)).thenReturn(page);
+        when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
+
+        Page<ProductResponseDTO> result = productService.findProductsWithLedger("leche", pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(repository).findProductsWithLedgerByName("leche", pageable);
+        verify(repository, never()).findProductsWithLedger(any());
+    }
+
+    @Test
     void save_WhenNameDoesNotExist_ShouldCreateProduct() {
 
         when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
