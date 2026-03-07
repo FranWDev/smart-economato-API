@@ -132,20 +132,17 @@ public class AllergenController {
 
     @Operation(
         summary = "Buscar alérgeno por nombre",
-        description = "Devuelve un alérgeno que coincida exactamente con el nombre proporcionado. [Rol requerido: USER]",
+        description = "Devuelve un alérgeno que coincida exactamente con el nombre proporcionado. Si no existe, responde 200 sin contenido. [Rol requerido: USER]",
         responses = {
             @ApiResponse(responseCode = "200", description = "Alérgeno encontrado",
                 content = @Content(mediaType = "application/json",
-                    schema = @Schema(implementation = AllergenResponseDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Alérgeno no encontrado")
+                    schema = @Schema(implementation = AllergenResponseDTO.class)))
         }
     )
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/search")
     public ResponseEntity<AllergenResponseDTO> searchByName(@RequestParam String name) {
-        return allergenService.findByName(name)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.ok(allergenService.findByName(name).orElse(null));
     }
 
 }

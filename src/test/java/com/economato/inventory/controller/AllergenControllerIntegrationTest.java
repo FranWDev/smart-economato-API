@@ -180,4 +180,13 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.name", is("Lactosa")));
         }
+
+        @Test
+        void whenSearchAllergenByNameAndNoMatch_thenReturnsOkWithoutContent() throws Exception {
+                mockMvc.perform(get(BASE_URL + "/search")
+                                .param("name", "NoExiste")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(content().string(""));
+        }
 }
