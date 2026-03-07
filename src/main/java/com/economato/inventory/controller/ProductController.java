@@ -17,6 +17,7 @@ import com.economato.inventory.dto.request.ProductRequestDTO;
 import com.economato.inventory.dto.response.ProductResponseDTO;
 import com.economato.inventory.service.ProductExcelService;
 import com.economato.inventory.service.ProductService;
+import com.economato.inventory.service.StockLedgerPdfService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -33,10 +34,13 @@ public class ProductController {
 
         private final ProductService productService;
         private final ProductExcelService productExcelService;
+        private final StockLedgerPdfService stockLedgerPdfService;
 
-        public ProductController(ProductService productService, ProductExcelService productExcelService) {
+        public ProductController(ProductService productService, ProductExcelService productExcelService,
+                StockLedgerPdfService stockLedgerPdfService) {
                 this.productService = productService;
                 this.productExcelService = productExcelService;
+                this.stockLedgerPdfService = stockLedgerPdfService;
         }
 
         @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
@@ -195,5 +199,42 @@ public class ProductController {
                 return productService.updateStockManually(id, productRequest)
                                 .map(ResponseEntity::ok)
                                 .orElse(ResponseEntity.notFound().build());
+        }
+
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @Operation(summary = "Descargar ledger de stock como PDF firmado", description = "Genera y descarga un PDF del historial de stock de un producto con firma criptográfica SHA-256 para uso como prueba forense/legal. "
+                + "El PDF incluye autenticidad verificable. [Rol requerido: CHEF]")
+        @ApiResponses({
+                @ApiResponse(responseCode = "200", description = "PDF generado correctamente", content = @Content(mediaType = "application/pdf")),
+                @ApiResponse(responseCode = "404", description = "Producto o ledger no encontrado"),
+                @ApiResponse(responseCode = "500", description = "Error al generar el PDF")
+        })
+        @GetMapping("/{id}/ledger/pdf")
+        public ResponseEntity<byte[]> downloadStockLedgerPdf(
+                @Parameter(description = "ID del producto", required = true) @PathVariable Integer id) {
+            return productService.findById(id)
+                    .map(product -> {
+                        byte[] pdfBytes = stockLedgerPdfService.generateStockLedgerPdf(id);
+                        HttpHeaders headers = new HttpHeaders();
+                        headers.setContentType(MediaType.APPLICATION_PDF);
+                        headers.setContentDisposition(ContentDisposition.attachment()
+                                .filename("ledger_stock_" + sanitizeFilename(product.getName()) + ".pdf")
+                                .build());
+                        headers.setContentLength(pdfBytes.length);
+                        return ResponseEntity.ok().headers(headers).body(pdfBytes);
+                    })
+                    .orElse(ResponseEntity.notFound().build());
+        }
+
+        private String sanitizeFilename(String filename) {
+            if (filename == null || filename.isBlank()) {
+                return "producto";
+            }
+            String cleaned = filename.replaceAll("[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\\s-]", "_")
+                    .replaceAll("\\s", "_");
+            if (cleaned.isBlank()) {
+                return "producto";
+            }
+            return cleaned.substring(0, Math.min(cleaned.length(), 50));
         }
 }
