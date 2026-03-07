@@ -122,12 +122,24 @@ class ProductLedgerIntegrityControllerIntegrationTest extends BaseIntegrationTes
         }
 
         @Test
-        void whenGetProductsWithLedger_ThenReturnListOfIds() throws Exception {
+        void whenGetProductsWithLedger_ThenReturnPaginatedProducts() throws Exception {
                 mockMvc.perform(get(BASE_URL + "/with-ledger")
                                 .header("Authorization", "Bearer " + jwtToken))
                         .andExpect(status().isOk())
-                        .andExpect(jsonPath("$", hasSize(2)))
-                        .andExpect(jsonPath("$[*]", containsInAnyOrder(testProduct1.getId(), testProduct2.getId())));
+                        .andExpect(jsonPath("$.content", hasSize(2)))
+                        .andExpect(jsonPath("$.content[*].id", containsInAnyOrder(testProduct1.getId(), testProduct2.getId())))
+                        .andExpect(jsonPath("$.totalElements").value(2));
+        }
+
+        @Test
+        void whenGetProductsWithLedger_FilterByName_ThenReturnMatchingProducts() throws Exception {
+                mockMvc.perform(get(BASE_URL + "/with-ledger")
+                                .param("name", "Ledger 1")
+                                .header("Authorization", "Bearer " + jwtToken))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.content", hasSize(1)))
+                        .andExpect(jsonPath("$.content[0].id").value(testProduct1.getId()))
+                        .andExpect(jsonPath("$.content[0].name").value("Producto con Ledger 1"));
         }
 
         @Test
@@ -196,6 +208,7 @@ class ProductLedgerIntegrityControllerIntegrationTest extends BaseIntegrationTes
                 mockMvc.perform(get(BASE_URL + "/with-ledger")
                                 .header("Authorization", "Bearer " + jwtToken))
                         .andExpect(status().isOk())
-                        .andExpect(jsonPath("$", hasSize(0)));
+                        .andExpect(jsonPath("$.content", hasSize(0)))
+                        .andExpect(jsonPath("$.totalElements").value(0));
         }
 }

@@ -98,6 +98,14 @@ public class ProductService {
                 .map(productMapper::toResponseDTO);
     }
 
+    @Transactional(readOnly = true)
+    public Page<ProductResponseDTO> findProductsWithLedger(String name, Pageable pageable) {
+        String normalizedName = (name == null || name.isBlank()) ? null : name.trim();
+        Page<ProductResponseDTO> page = repository.findProductsWithLedger(normalizedName, pageable)
+                .map(productMapper::toResponseDTO);
+        return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
+    }
+
     @CacheEvict(value = { "products_page", "product" }, allEntries = true)
     @ProductAuditable(action = "CREATE_PRODUCT")
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })

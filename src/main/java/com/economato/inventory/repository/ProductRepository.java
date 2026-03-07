@@ -72,4 +72,9 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
 
         List<ProductProjection> findByUnitPriceBetweenAndIsHiddenFalse(BigDecimal min,
                         BigDecimal max);
+
+        @Query("SELECT p FROM Product p WHERE p.isHidden = false " +
+                        "AND EXISTS (SELECT 1 FROM StockLedger l WHERE l.product.id = p.id) " +
+                        "AND (:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')))")
+        Page<Product> findProductsWithLedger(@Param("name") String name, Pageable pageable);
 }

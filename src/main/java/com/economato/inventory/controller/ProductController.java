@@ -207,15 +207,17 @@ public class ProductController {
         }
 
         @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
-        @Operation(summary = "Obtener productos con historial de ledger", description = "Devuelve la lista de IDs de productos que tienen al menos una transacción registrada en el ledger. "
+        @Operation(summary = "Obtener productos con historial de ledger", description = "Devuelve una lista paginada de productos que tienen al menos una transacción registrada en el ledger. "
+                + "Permite filtrar por nombre con búsqueda parcial (igual que la búsqueda normal de productos). "
                 + "Solo devuelve productos con historial, excluyendo productos sin transacciones. [Rol requerido: USER]")
         @ApiResponses({
-                @ApiResponse(responseCode = "200", description = "Lista de IDs de productos con ledger obtenida correctamente")
+                @ApiResponse(responseCode = "200", description = "Lista paginada de productos con ledger obtenida correctamente")
         })
         @GetMapping("/with-ledger")
-        public ResponseEntity<java.util.List<Integer>> getProductsWithLedger() {
-                java.util.List<Integer> productIds = stockLedgerService.getProductsWithLedger();
-                return ResponseEntity.ok(productIds);
+        public ResponseEntity<Page<ProductResponseDTO>> getProductsWithLedger(
+                        @Parameter(description = "Nombre o parte del nombre para filtrar", example = "leche") @RequestParam(required = false) String name,
+                        Pageable pageable) {
+                return ResponseEntity.ok(productService.findProductsWithLedger(name, pageable));
         }
 
         @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
