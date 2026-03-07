@@ -324,7 +324,7 @@ public class StockLedgerService {
 
         @Transactional(readOnly = true)
         public Page<StockLedger> getProductHistory(Integer productId, Pageable pageable) {
-                return ledgerRepository.findByProductIdOrderBySequenceNumber(productId, pageable);
+                return ledgerRepository.findByProductId(productId, pageable);
         }
 
     @Transactional(readOnly = true)
