@@ -35,6 +35,9 @@ class StockLedgerPdfServiceTest {
         @Mock
         private I18nService i18nService;
 
+        @Mock
+        private StockLedgerService stockLedgerService;
+
         @InjectMocks
         private StockLedgerPdfService stockLedgerPdfService;
 
@@ -200,5 +203,52 @@ class StockLedgerPdfServiceTest {
 
                 // Should be false because our test data won't match all zeros
                 assertFalse(result);
+        }
+
+        @Test
+        void generateStockLedgerPdfWithIntegrity_ShouldReturnPdfWithIntegrityInfo() {
+                when(productRepository.findById(1)).thenReturn(java.util.Optional.of(testProduct));
+                when(stockLedgerRepository.findByProductIdOrderBySequenceNumber(1))
+                        .thenReturn(testLedgerEntries);
+                
+                // Mock IntegrityCheckResult
+                com.economato.inventory.dto.response.IntegrityCheckResult integrityResult = 
+                        new com.economato.inventory.dto.response.IntegrityCheckResult(
+                                1, "Test Product", true, "Cadena íntegra", null);
+                when(stockLedgerService.verifyChainIntegrity(1)).thenReturn(integrityResult);
+
+                com.economato.inventory.dto.response.LedgerPdfResponseDTO result = 
+                        stockLedgerPdfService.generateStockLedgerPdfWithIntegrity(1);
+
+                assertNotNull(result);
+                assertNotNull(result.getPdfContent());
+                assertTrue(result.getPdfContent().length > 0, "PDF should not be empty");
+                assertTrue(result.isIntegrityValid(), "Integrity should be valid");
+                assertEquals("Cadena íntegra", result.getIntegrityMessage());
+        }
+
+        @Test
+        void generateStockLedgerPdfWithIntegrity_WhenCorrupted_ShouldReturnErrorInfo() {
+                when(productRepository.findById(1)).thenReturn(java.util.Optional.of(testProduct));
+                when(stockLedgerRepository.findByProductIdOrderBySequenceNumber(1))
+                        .thenReturn(testLedgerEntries);
+                
+                // Mock IntegrityCheckResult with corruption
+                java.util.List<String> errors = java.util.Arrays.asList("Error 1", "Error 2");
+                com.economato.inventory.dto.response.IntegrityCheckResult integrityResult = 
+                        new com.economato.inventory.dto.response.IntegrityCheckResult(
+                                1, "Test Product", false, "Cadena corrupta", errors);
+                when(stockLedgerService.verifyChainIntegrity(1)).thenReturn(integrityResult);
+
+                com.economato.inventory.dto.response.LedgerPdfResponseDTO result = 
+                        stockLedgerPdfService.generateStockLedgerPdfWithIntegrity(1);
+
+                assertNotNull(result);
+                assertNotNull(result.getPdfContent());
+                assertTrue(result.getPdfContent().length > 0, "PDF should not be empty");
+                assertFalse(result.isIntegrityValid(), "Integrity should be invalid");
+                assertEquals("Cadena corrupta", result.getIntegrityMessage());
+                assertNotNull(result.getIntegrityErrors());
+                assertEquals(2, result.getIntegrityErrors().size());
         }
 }
