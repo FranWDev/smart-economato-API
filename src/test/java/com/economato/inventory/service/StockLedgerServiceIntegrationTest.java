@@ -232,6 +232,48 @@ class StockLedgerServiceIntegrationTest {
 
         @Test
         @Transactional
+        @DisplayName("Debe validar cadena tras round-trip de BD con decimales pequeños")
+        void testVerifyChainIntegrity_ValidAfterDatabaseRoundTripWithSmallDecimals() {
+
+                stockLedgerService.recordStockMovement(
+                                testProduct.getId(), new BigDecimal("0.005"), MovementType.AJUSTE, "TX1", testUser,
+                                null);
+
+                stockLedgerService.recordStockMovement(
+                                testProduct.getId(), new BigDecimal("0.002"), MovementType.AJUSTE, "TX2", testUser,
+                                null);
+
+                stockLedgerService.recordStockMovement(
+                                testProduct.getId(), new BigDecimal("0.003"), MovementType.AJUSTE, "TX3", testUser,
+                                null);
+
+                stockLedgerService.recordStockMovement(
+                                testProduct.getId(), new BigDecimal("0.001"), MovementType.AJUSTE, "TX4", testUser,
+                                null);
+
+                stockLedgerService.recordStockMovement(
+                                testProduct.getId(), new BigDecimal("-0.011"), MovementType.AJUSTE, "TX5", testUser,
+                                null);
+
+                stockLedgerService.recordStockMovement(
+                                testProduct.getId(), new BigDecimal("-2.000"), MovementType.SALIDA, "TX6", testUser,
+                                null);
+
+                stockLedgerService.recordStockMovement(
+                                testProduct.getId(), new BigDecimal("1.000"), MovementType.ENTRADA, "TX7", testUser,
+                                null);
+
+                entityManager.flush();
+                entityManager.clear();
+
+                IntegrityCheckResult result = stockLedgerService.verifyChainIntegrity(testProduct.getId());
+
+                assertTrue(result.isValid(), "La cadena no debe marcarse como corrupta tras persistir y releer");
+                assertNull(result.getErrors());
+        }
+
+        @Test
+        @Transactional
         @DisplayName("Debe detectar corrupción cuando se modifica la cantidad manualmente")
         void testVerifyChainIntegrity_DetectsQuantityCorruption() {
 
@@ -307,6 +349,47 @@ class StockLedgerServiceIntegrationTest {
                                 .verifyChainIntegrity(testProduct.getId());
 
                 assertFalse(result.isValid());
+        }
+
+        @Test
+        @Transactional
+        @DisplayName("Debe reparar una cadena corrupta y dejarla íntegra")
+        void testRepairProductLedger_ShouldFixCorruptedChain() {
+
+                stockLedgerService.recordStockMovement(
+                                testProduct.getId(), new BigDecimal("0.005"), MovementType.AJUSTE, "TX1", testUser,
+                                null);
+                stockLedgerService.recordStockMovement(
+                                testProduct.getId(), new BigDecimal("0.002"), MovementType.AJUSTE, "TX2", testUser,
+                                null);
+                stockLedgerService.recordStockMovement(
+                                testProduct.getId(), new BigDecimal("0.003"), MovementType.AJUSTE, "TX3", testUser,
+                                null);
+
+                List<StockLedger> historyBeforeCorruption = stockLedgerService.getProductHistory(testProduct.getId());
+                Long secondTxId = historyBeforeCorruption.get(1).getId();
+
+                jdbcTemplate.update(
+                                "UPDATE stock_ledger SET current_hash = ? WHERE transaction_id = ?",
+                                "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                                secondTxId);
+
+                IntegrityCheckResult corruptedResult = stockLedgerService.verifyChainIntegrity(testProduct.getId());
+                assertFalse(corruptedResult.isValid());
+
+                IntegrityCheckResult repaired = stockLedgerService.repairProductLedger(testProduct.getId());
+                assertTrue(repaired.isValid());
+                assertTrue(repaired.getMessage().contains("Ledger reparado"));
+
+                IntegrityCheckResult afterRepair = stockLedgerService.verifyChainIntegrity(testProduct.getId());
+                assertTrue(afterRepair.isValid());
+                assertNull(afterRepair.getErrors());
+
+                List<StockLedger> repairedHistory = stockLedgerService.getProductHistory(testProduct.getId());
+                assertEquals("GENESIS", repairedHistory.get(0).getPreviousHash());
+                for (int i = 1; i < repairedHistory.size(); i++) {
+                        assertEquals(repairedHistory.get(i - 1).getCurrentHash(), repairedHistory.get(i).getPreviousHash());
+                }
         }
 
         @Test

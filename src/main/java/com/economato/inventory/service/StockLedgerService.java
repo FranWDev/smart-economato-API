@@ -32,6 +32,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -136,7 +137,7 @@ public class StockLedgerService {
         String previousHash = lastTransaction.map(StockLedger::getCurrentHash).orElse(GENESIS_HASH);
         Long nextSequence = lastTransaction.map(t -> t.getSequenceNumber() + 1).orElse(1L);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = normalizeTimestamp(LocalDateTime.now());
 
         BigDecimal normalizedDelta = quantityDelta.setScale(3, java.math.RoundingMode.HALF_UP);
         BigDecimal normalizedStock = newStock.setScale(3, java.math.RoundingMode.HALF_UP);
@@ -247,11 +248,13 @@ public class StockLedgerService {
             BigDecimal normalizedDelta = tx.getQuantityDelta().setScale(3, java.math.RoundingMode.HALF_UP);
             BigDecimal normalizedStock = tx.getResultingStock().setScale(3, java.math.RoundingMode.HALF_UP);
 
+            LocalDateTime normalizedTimestamp = normalizeTimestamp(tx.getTransactionTimestamp());
+
             String recalculatedHash = calculateTransactionHash(
                     productId,
                     normalizedDelta,
                     normalizedStock,
-                    tx.getTransactionTimestamp(),
+                    normalizedTimestamp,
                     tx.getPreviousHash(),
                     tx.getSequenceNumber());
 
@@ -336,6 +339,13 @@ public class StockLedgerService {
                 .build();
     }
 
+        private LocalDateTime normalizeTimestamp(LocalDateTime timestamp) {
+                if (timestamp == null) {
+                        return null;
+                }
+                return timestamp.truncatedTo(ChronoUnit.MICROS);
+        }
+
     @Transactional(rollbackFor = Exception.class)
     public String resetProductLedger(Integer productId) {
         Product product = productRepository.findById(productId)
@@ -356,6 +366,77 @@ public class StockLedgerService {
         return String.format("Historial restablecido correctamente. %d transacciones eliminadas. " +
                 "El producto %s vuelve a empezar con stock limpio: %s %s",
                 deletedCount, product.getName(), product.getCurrentStock(), product.getUnit());
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public IntegrityCheckResult repairProductLedger(Integer productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new InvalidOperationException("Producto no encontrado: " + productId));
+
+        List<StockLedger> chain = ledgerRepository.findByProductIdOrderBySequenceNumber(productId);
+
+        if (chain.isEmpty()) {
+            return new IntegrityCheckResult(productId, product.getName(), true,
+                    "No hay transacciones para reparar en este producto", null);
+        }
+
+        String expectedPreviousHash = GENESIS_HASH;
+        int repairedTransactions = 0;
+
+        for (StockLedger tx : chain) {
+            BigDecimal normalizedDelta = tx.getQuantityDelta().setScale(3, java.math.RoundingMode.HALF_UP);
+            BigDecimal normalizedStock = tx.getResultingStock().setScale(3, java.math.RoundingMode.HALF_UP);
+            LocalDateTime normalizedTimestamp = normalizeTimestamp(tx.getTransactionTimestamp());
+
+            String recalculatedHash = calculateTransactionHash(
+                    productId,
+                    normalizedDelta,
+                    normalizedStock,
+                    normalizedTimestamp,
+                    expectedPreviousHash,
+                    tx.getSequenceNumber());
+
+            boolean wasModified = !expectedPreviousHash.equals(tx.getPreviousHash())
+                    || !recalculatedHash.equals(tx.getCurrentHash())
+                    || !normalizedTimestamp.equals(tx.getTransactionTimestamp());
+
+            tx.setPreviousHash(expectedPreviousHash);
+            tx.setCurrentHash(recalculatedHash);
+            tx.setTransactionTimestamp(normalizedTimestamp);
+            tx.setVerified(true);
+
+            if (wasModified) {
+                repairedTransactions++;
+            }
+
+            expectedPreviousHash = recalculatedHash;
+        }
+
+        ledgerRepository.saveAll(chain);
+
+        Optional<StockSnapshot> snapshotOptional = snapshotRepository.findById(productId);
+        if (snapshotOptional.isPresent()) {
+            StockSnapshot snapshot = snapshotOptional.get();
+            snapshot.setLastTransactionHash(expectedPreviousHash);
+            snapshot.setLastSequenceNumber(chain.get(chain.size() - 1).getSequenceNumber());
+            snapshot.setLastVerified(LocalDateTime.now());
+            snapshot.setIntegrityStatus("VALID");
+            snapshotRepository.save(snapshot);
+        }
+
+        IntegrityCheckResult verification = verifyChainIntegrity(productId);
+        String message = String.format(
+                "Ledger reparado: %d/%d transacciones actualizadas. %s",
+                repairedTransactions,
+                chain.size(),
+                verification.getMessage());
+
+        return new IntegrityCheckResult(
+                productId,
+                product.getName(),
+                verification.isValid(),
+                message,
+                verification.getErrors());
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
