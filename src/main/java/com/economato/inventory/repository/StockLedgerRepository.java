@@ -3,6 +3,8 @@ package com.economato.inventory.repository;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +19,9 @@ public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> 
 
     @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.product.id = :productId ORDER BY l.sequenceNumber ASC")
     List<StockLedger> findByProductIdOrderBySequenceNumber(@Param("productId") Integer productId);
+
+    @Query(value = "SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.product.id = :productId ORDER BY l.sequenceNumber ASC", countQuery = "SELECT COUNT(l) FROM StockLedger l WHERE l.product.id = :productId")
+    Page<StockLedger> findByProductIdOrderBySequenceNumber(@Param("productId") Integer productId, Pageable pageable);
 
     @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.product.id = :productId ORDER BY l.sequenceNumber DESC LIMIT 1")
     Optional<StockLedger> findLastTransactionByProductId(@Param("productId") Integer productId);

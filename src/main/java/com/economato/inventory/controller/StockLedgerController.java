@@ -8,6 +8,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -44,12 +47,14 @@ public class StockLedgerController {
     })
     @GetMapping("/history/{productId}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<StockLedgerResponseDTO>> getProductHistory(@PathVariable Integer productId) {
-        List<StockLedger> history = stockLedgerService.getProductHistory(productId);
+        public ResponseEntity<Page<StockLedgerResponseDTO>> getProductHistory(
+                        @PathVariable Integer productId,
+                        @RequestParam(defaultValue = "0") int page,
+                        @RequestParam(defaultValue = "20") int size) {
+                Pageable pageable = PageRequest.of(page, size);
+                Page<StockLedger> history = stockLedgerService.getProductHistory(productId, pageable);
 
-        List<StockLedgerResponseDTO> response = history.stream()
-                .map(stockLedgerMapper::toDTO)
-                .collect(Collectors.toList());
+                Page<StockLedgerResponseDTO> response = history.map(stockLedgerMapper::toDTO);
 
         return ResponseEntity.ok(response);
     }

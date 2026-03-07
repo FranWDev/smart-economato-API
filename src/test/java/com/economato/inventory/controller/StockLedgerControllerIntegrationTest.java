@@ -2,6 +2,9 @@ package com.economato.inventory.controller;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 
 import com.economato.inventory.model.Product;
@@ -15,6 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -67,27 +71,32 @@ class StockLedgerControllerIntegrationTest extends BaseControllerMockTest {
 
     void getProductHistory_ShouldReturnList() throws Exception {
 
-        when(stockLedgerService.getProductHistory(1)).thenReturn(testLedgers);
+        Page<StockLedger> page = new PageImpl<>(testLedgers, PageRequest.of(0, 20), 1);
+        when(stockLedgerService.getProductHistory(anyInt(), any())).thenReturn(page);
 
         mockMvc.perform(get("/api/stock-ledger/history/1")
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
                         .user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray());
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content[0].productId").value(1))
+                .andExpect(jsonPath("$.totalElements").value(1));
     }
 
     @Test
 
     void getProductHistory_WithAdminRole_ShouldReturnList() throws Exception {
 
-        when(stockLedgerService.getProductHistory(anyInt())).thenReturn(testLedgers);
+                Page<StockLedger> page = new PageImpl<>(testLedgers, PageRequest.of(0, 10), 1);
+        when(stockLedgerService.getProductHistory(anyInt(), any())).thenReturn(page);
 
-        mockMvc.perform(get("/api/stock-ledger/history/1")
+        mockMvc.perform(get("/api/stock-ledger/history/1?page=0&size=10")
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
                         .user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size").value(10));
     }
 
     @Test

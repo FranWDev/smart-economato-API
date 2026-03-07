@@ -37,6 +37,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Slf4j
 @Service
@@ -319,6 +321,11 @@ public class StockLedgerService {
     public List<StockLedger> getProductHistory(Integer productId) {
         return ledgerRepository.findByProductIdOrderBySequenceNumber(productId);
     }
+
+        @Transactional(readOnly = true)
+        public Page<StockLedger> getProductHistory(Integer productId, Pageable pageable) {
+                return ledgerRepository.findByProductIdOrderBySequenceNumber(productId, pageable);
+        }
 
     @Transactional(readOnly = true)
     public Optional<StockSnapshot> getCurrentStock(Integer productId) {

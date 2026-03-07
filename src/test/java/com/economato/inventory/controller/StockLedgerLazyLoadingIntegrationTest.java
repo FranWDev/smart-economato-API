@@ -88,9 +88,9 @@ class StockLedgerLazyLoadingIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/stock-ledger/history/{productId}", productId)
                         .header("Authorization", "Bearer " + jwtToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].productId").value(productId))
-                .andExpect(jsonPath("$[0].productName").value("Producto Lazy User"))
-                .andExpect(jsonPath("$[0].userName").value("Admin"));
+            .andExpect(jsonPath("$.content", hasSize(1)))
+            .andExpect(jsonPath("$.content[0].productId").value(productId))
+            .andExpect(jsonPath("$.content[0].productName").value("Producto Lazy User"))
+            .andExpect(jsonPath("$.content[0].userName").value("Admin"));
     }
 }
