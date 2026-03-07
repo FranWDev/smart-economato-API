@@ -168,4 +168,29 @@ class StockLedgerControllerIntegrationTest extends BaseControllerMockTest {
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isForbidden());
     }
+
+    @Test
+    void repairChain_WithAdminRole_ShouldReturnOk() throws Exception {
+
+        when(stockLedgerService.repairProductLedger(1)).thenReturn(testIntegrityResult);
+        when(stockLedgerService.getProductHistory(1)).thenReturn(testLedgers);
+
+        mockMvc.perform(post("/api/stock-ledger/repair/1")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                        .user("admin").roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(true))
+                .andExpect(jsonPath("$.totalTransactions").value(1));
+    }
+
+    @Test
+    void repairChain_WithChefRole_ShouldReturnForbidden() throws Exception {
+
+        mockMvc.perform(post("/api/stock-ledger/repair/1")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                        .user("chef").roles("CHEF"))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
+    }
 }
