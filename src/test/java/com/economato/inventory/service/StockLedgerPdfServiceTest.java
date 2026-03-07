@@ -62,6 +62,14 @@ class StockLedgerPdfServiceTest {
                 testUser.setUser("testuser");
 
                 testLedgerEntries = createTestLedgerEntries();
+
+                lenient().when(stockLedgerService.verifyChainIntegrity(1))
+                                .thenReturn(new com.economato.inventory.dto.response.IntegrityCheckResult(
+                                                1,
+                                                "Test Product",
+                                                true,
+                                                "Cadena íntegra",
+                                                null));
         }
 
         private List<StockLedger> createTestLedgerEntries() {

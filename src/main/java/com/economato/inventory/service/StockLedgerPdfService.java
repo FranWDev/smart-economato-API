@@ -22,10 +22,12 @@ import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Canvas;
 import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.AreaBreak;
 import com.itextpdf.layout.borders.SolidBorder;
 import com.itextpdf.layout.element.Cell;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
+import com.itextpdf.layout.properties.AreaBreakType;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.layout.properties.VerticalAlignment;
@@ -38,7 +40,11 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -78,6 +84,9 @@ public class StockLedgerPdfService {
             List<StockLedger> ledgerEntries = stockLedgerRepository
                     .findByProductIdOrderBySequenceNumber(productId);
 
+            IntegrityCheckResult integrityResult = stockLedgerService.verifyChainIntegrity(productId);
+            Set<Long> corruptedSequences = extractCorruptedSequences(integrityResult);
+
             if (ledgerEntries.isEmpty()) {
                 throw new ResourceNotFoundException("No hay registros de ledger para este producto");
             }
@@ -102,11 +111,12 @@ public class StockLedgerPdfService {
             addProductInfoSection(document, product, boldFont, regularFont);
 
             // Ledger table
-            addLedgerTable(document, ledgerEntries, boldFont, regularFont);
+            addLedgerTable(document, ledgerEntries, corruptedSequences, boldFont, regularFont);
 
             // Signature & authentication section
             String contentHash = generateContentHash(ledgerEntries);
-            addAuthenticationSignature(document, ledgerEntries, contentHash, boldFont, regularFont);
+            addAuthenticationSignature(document, ledgerEntries, integrityResult, corruptedSequences, contentHash,
+                    boldFont, regularFont);
 
             document.close();
             return baos.toByteArray();
@@ -253,7 +263,8 @@ public class StockLedgerPdfService {
         table.addCell(valueCell);
     }
 
-    private void addLedgerTable(Document document, List<StockLedger> ledgerEntries, PdfFont boldFont,
+    private void addLedgerTable(Document document, List<StockLedger> ledgerEntries, Set<Long> corruptedSequences,
+            PdfFont boldFont,
             PdfFont regularFont) {
         Paragraph tableTitle = new Paragraph("HISTORIAL DE TRANSACCIONES")
                 .setFont(boldFont)
@@ -264,7 +275,7 @@ public class StockLedgerPdfService {
                 .setBorderBottom(new SolidBorder(PRIMARY_COLOR, 2));
         document.add(tableTitle);
 
-        float[] columnWidths = { 1.2f, 1.5f, 1.5f, 1.5f, 1.5f, 1.8f };
+        float[] columnWidths = { 0.9f, 1.4f, 1.1f, 1.3f, 1.6f, 3.0f, 1.0f };
         Table table = new Table(columnWidths);
         table.setWidth(UnitValue.createPercentValue(100));
         table.setMarginBottom(20);
@@ -275,14 +286,16 @@ public class StockLedgerPdfService {
         addHeaderCell(table, "Cantidad", boldFont);
         addHeaderCell(table, "Stock Resultado", boldFont);
         addHeaderCell(table, "Fecha/Hora", boldFont);
-        addHeaderCell(table, "Descripción", boldFont);
+        addHeaderCell(table, "Descripción / Usuario", boldFont);
+        addHeaderCell(table, "Verif.", boldFont);
 
         // Data rows
         for (int i = 0; i < ledgerEntries.size(); i++) {
             StockLedger entry = ledgerEntries.get(i);
             boolean isEven = i % 2 == 0;
+            boolean isCorrupted = corruptedSequences.contains(entry.getSequenceNumber());
 
-            addDataCell(table, entry.getSequenceNumber().toString(), regularFont, isEven);
+            addDataCell(table, "#" + entry.getSequenceNumber(), regularFont, isEven);
             addDataCell(table, entry.getMovementType().toString(), regularFont, isEven);
             addDataCell(table, entry.getQuantityDelta().toString(), regularFont, isEven);
             addDataCell(table, entry.getResultingStock().toString(), regularFont, isEven);
@@ -290,10 +303,16 @@ public class StockLedgerPdfService {
                     entry.getTransactionTimestamp().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")),
                     regularFont, isEven);
 
-            String description = entry.getDescription() != null && entry.getDescription().length() > 50
-                    ? entry.getDescription().substring(0, 47) + "..."
-                    : entry.getDescription() != null ? entry.getDescription() : "-";
-            addDataCell(table, description, regularFont, isEven);
+            String description = entry.getDescription() != null && !entry.getDescription().isBlank()
+                    ? entry.getDescription()
+                    : "-";
+            String userName = entry.getUser() != null && entry.getUser().getName() != null
+                    ? entry.getUser().getName()
+                    : "Sistema";
+
+            addDataCell(table, description + "\npor " + userName, regularFont, isEven);
+            addDataCell(table, isCorrupted ? "CORRUPTA" : "OK", regularFont, isEven,
+                    isCorrupted ? UNVERIFIED_COLOR : VERIFIED_COLOR);
         }
 
         document.add(table);
@@ -318,8 +337,20 @@ public class StockLedgerPdfService {
         table.addCell(cell);
     }
 
-    private void addAuthenticationSignature(Document document, List<StockLedger> ledgerEntries, String contentHash,
-            PdfFont boldFont, PdfFont regularFont) {
+        private void addDataCell(Table table, String text, PdfFont font, boolean isEven, DeviceRgb textColor) {
+                Cell cell = new Cell()
+                                .add(new Paragraph(text).setFont(font).setFontSize(8).setFontColor(textColor))
+                                .setBackgroundColor(isEven ? ColorConstants.WHITE : SIGNATURE_BG)
+                                .setPadding(6)
+                                .setBorder(new SolidBorder(BORDER_COLOR, 1));
+                table.addCell(cell);
+        }
+
+        private void addAuthenticationSignature(Document document, List<StockLedger> ledgerEntries,
+                        IntegrityCheckResult integrityResult, Set<Long> corruptedSequences, String contentHash,
+                        PdfFont boldFont, PdfFont regularFont) {
+                document.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+
         Paragraph signatureTitle = new Paragraph("FIRMA DE AUTENTICIDAD")
                 .setFont(boldFont)
                 .setFontSize(12)
@@ -335,20 +366,40 @@ public class StockLedgerPdfService {
 
         // Hash verification status
         StockLedger lastEntry = ledgerEntries.get(ledgerEntries.size() - 1);
-        boolean allVerified = ledgerEntries.stream().allMatch(l -> Boolean.TRUE.equals(l.getVerified()));
+        boolean chainValid = integrityResult != null && integrityResult.isValid();
 
         Cell statusCell = new Cell()
-                .add(new Paragraph("Estado de Verificación: ")
+                .add(new Paragraph("Estado de Integridad de Cadena: ")
                         .setFont(boldFont)
                         .setFontSize(10)
                         .setFontColor(TEXT_DARK)
-                        .add(new com.itextpdf.layout.element.Text(allVerified ? "✓ VERIFICADO" : "⚠ SIN VERIFICAR")
-                                .setFontColor(allVerified ? VERIFIED_COLOR : UNVERIFIED_COLOR)
+                        .add(new com.itextpdf.layout.element.Text(chainValid ? "✓ ÍNTEGRA" : "⚠ CORRUPTA")
+                                .setFontColor(chainValid ? VERIFIED_COLOR : UNVERIFIED_COLOR)
                                 .setFont(boldFont)))
                 .setPadding(12)
                 .setBorder(new SolidBorder(BORDER_COLOR, 1))
                 .setBackgroundColor(new DeviceRgb(245, 245, 245));
         signatureTable.addCell(statusCell);
+
+        String corruptedSummary = corruptedSequences.isEmpty()
+                ? "Ninguna"
+                : corruptedSequences.stream()
+                        .sorted()
+                        .map(seq -> "#" + seq)
+                        .collect(java.util.stream.Collectors.joining(", "));
+
+        Cell corruptedCell = new Cell()
+                .add(new Paragraph("Transacciones corruptas detectadas: ")
+                        .setFont(boldFont)
+                        .setFontSize(9)
+                        .setFontColor(TEXT_GRAY)
+                        .add(new com.itextpdf.layout.element.Text(corruptedSummary)
+                                .setFont(chainValid ? regularFont : boldFont)
+                                .setFontColor(chainValid ? TEXT_DARK : UNVERIFIED_COLOR)))
+                .setPadding(8)
+                .setBorder(new SolidBorder(BORDER_COLOR, 1))
+                .setBackgroundColor(SIGNATURE_BG);
+        signatureTable.addCell(corruptedCell);
 
         // Hash details
         Cell hashLabelCell = new Cell()
@@ -400,7 +451,7 @@ public class StockLedgerPdfService {
 
         // Legal notice
         Paragraph legalNotice = new Paragraph(
-                "Este documento es una prueba de integridad de datos con fines legales/forenses. "
+                "Este documento es una prueba de integridad de datos. "
                         +
                         "La verificación se puede validar calculando el hash SHA-256 del contenido y comparando con el valor mostrado. "
                         +
@@ -415,6 +466,25 @@ public class StockLedgerPdfService {
                 .setBorder(new SolidBorder(new DeviceRgb(217, 119, 6), 1));
         document.add(legalNotice);
     }
+
+        private Set<Long> extractCorruptedSequences(IntegrityCheckResult integrityResult) {
+                Set<Long> sequences = new HashSet<>();
+                if (integrityResult == null || integrityResult.getErrors() == null) {
+                        return sequences;
+                }
+
+                Pattern txPattern = Pattern.compile("TX#(\\d+)");
+                for (String error : integrityResult.getErrors()) {
+                        if (error == null) {
+                                continue;
+                        }
+                        Matcher matcher = txPattern.matcher(error);
+                        if (matcher.find()) {
+                                sequences.add(Long.parseLong(matcher.group(1)));
+                        }
+                }
+                return sequences;
+        }
 
     /**
      * Footer handler para mostrar número de página y datos de auditoría.
