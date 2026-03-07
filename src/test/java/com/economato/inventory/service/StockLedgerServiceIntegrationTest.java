@@ -374,6 +374,9 @@ class StockLedgerServiceIntegrationTest {
                                 "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
                                 secondTxId);
 
+                entityManager.flush();
+                entityManager.clear();
+
                 IntegrityCheckResult corruptedResult = stockLedgerService.verifyChainIntegrity(testProduct.getId());
                 assertFalse(corruptedResult.isValid());
 
