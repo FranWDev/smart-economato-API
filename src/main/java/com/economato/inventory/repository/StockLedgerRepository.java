@@ -15,19 +15,20 @@ import java.util.Optional;
 @Repository
 public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> {
 
-    @Query("SELECT l FROM StockLedger l WHERE l.product.id = :productId ORDER BY l.sequenceNumber ASC")
+    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product WHERE l.product.id = :productId ORDER BY l.sequenceNumber ASC")
     List<StockLedger> findByProductIdOrderBySequenceNumber(@Param("productId") Integer productId);
 
-    @Query("SELECT l FROM StockLedger l WHERE l.product.id = :productId ORDER BY l.sequenceNumber DESC LIMIT 1")
+    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product WHERE l.product.id = :productId ORDER BY l.sequenceNumber DESC LIMIT 1")
     Optional<StockLedger> findLastTransactionByProductId(@Param("productId") Integer productId);
 
     long countByProductId(Integer productId);
 
     boolean existsByCurrentHash(String currentHash);
 
+    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product WHERE l.verified = false")
     List<StockLedger> findByVerifiedFalse();
 
-    @Query("SELECT l FROM StockLedger l WHERE l.product.id = :productId AND l.sequenceNumber BETWEEN :startSeq AND :endSeq ORDER BY l.sequenceNumber ASC")
+    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product WHERE l.product.id = :productId AND l.sequenceNumber BETWEEN :startSeq AND :endSeq ORDER BY l.sequenceNumber ASC")
     List<StockLedger> findByProductIdAndSequenceRange(
             @Param("productId") Integer productId,
             @Param("startSeq") Long startSeq,

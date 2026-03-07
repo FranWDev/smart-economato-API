@@ -315,7 +315,7 @@ public class StockLedgerService {
 
     @Transactional(readOnly = true)
     public Optional<StockSnapshot> getCurrentStock(Integer productId) {
-        return snapshotRepository.findById(productId);
+        return snapshotRepository.findByIdWithProduct(productId);
     }
 
     private StockSnapshot createInitialSnapshot(Product product) {
