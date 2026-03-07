@@ -2,6 +2,9 @@ package com.economato.inventory.controller;
 
 import com.economato.inventory.model.Role;
 import com.economato.inventory.model.User;
+import com.economato.inventory.model.Allergen;
+import com.economato.inventory.model.Recipe;
+import com.economato.inventory.repository.AllergenRepository;
 import com.economato.inventory.repository.RecipeRepository;
 import com.economato.inventory.repository.UserRepository;
 import com.economato.inventory.util.TestDataUtil;
@@ -22,12 +25,16 @@ class StatsControllerIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private RecipeRepository recipeRepository;
 
+        @Autowired
+        private AllergenRepository allergenRepository;
+
     @Autowired
     private UserRepository userRepository;
 
     @BeforeEach
     void setUp() {
         recipeRepository.deleteAll();
+                allergenRepository.deleteAll();
         userRepository.deleteAll();
 
         User admin = TestDataUtil.createAdminUser();
@@ -51,6 +58,60 @@ class StatsControllerIntegrationTest extends BaseIntegrationTest {
         response.andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalRecipes", is(2)))
                 .andExpect(jsonPath("$.averagePrice", is(15.0)));
+    }
+
+    @Test
+    void getRecipesWithAllergensCount_WhenAdmin_ShouldReturnCount() throws Exception {
+        String token = loginAsAdmin();
+
+        Allergen gluten = allergenRepository.save(TestDataUtil.createGlutenAllergen());
+        Recipe recipeWithAllergen = TestDataUtil.createRecipe("Recipe With Allergen", "Elaboration", "Presentation",
+                new BigDecimal("12.00"));
+        recipeWithAllergen.getAllergens().add(gluten);
+
+        Recipe recipeWithoutAllergen = TestDataUtil.createRecipe("Recipe Without Allergen", "Elaboration",
+                "Presentation", new BigDecimal("8.00"));
+
+        recipeRepository.save(recipeWithAllergen);
+        recipeRepository.save(recipeWithoutAllergen);
+
+        mockMvc.perform(get("/api/stats/recipes/with-allergens/count")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count", is(1)));
+    }
+
+    @Test
+    void getRecipesWithoutAllergensCount_WhenAdmin_ShouldReturnCount() throws Exception {
+        String token = loginAsAdmin();
+
+        recipeRepository
+                .save(TestDataUtil.createRecipe("Recipe 1", "Elaboration", "Presentation", new BigDecimal("10.00")));
+        recipeRepository
+                .save(TestDataUtil.createRecipe("Recipe 2", "Elaboration", "Presentation", new BigDecimal("20.00")));
+
+        mockMvc.perform(get("/api/stats/recipes/without-allergens/count")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.count", is(2)));
+    }
+
+    @Test
+    void getRecipesAverageCost_WhenAdmin_ShouldReturnAverageCost() throws Exception {
+        String token = loginAsAdmin();
+
+        recipeRepository
+                .save(TestDataUtil.createRecipe("Recipe 1", "Elaboration", "Presentation", new BigDecimal("10.00")));
+        recipeRepository
+                .save(TestDataUtil.createRecipe("Recipe 2", "Elaboration", "Presentation", new BigDecimal("20.00")));
+
+        mockMvc.perform(get("/api/stats/recipes/average-cost")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.averageCost", is(15.0)));
     }
 
     @Test
@@ -83,6 +144,18 @@ class StatsControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(get("/api/stats/users")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/stats/recipes/with-allergens/count")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/stats/recipes/without-allergens/count")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/stats/recipes/average-cost")
                 .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
     }

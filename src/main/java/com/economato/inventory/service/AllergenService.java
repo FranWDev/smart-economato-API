@@ -60,8 +60,7 @@ public class AllergenService {
 
     @Transactional(readOnly = true)
     public Optional<AllergenResponseDTO> findByName(String namePart) {
-        return repository.findProjectedByNameContainingIgnoreCase(namePart).stream()
-                .findFirst()
+        return repository.findProjectedByNameIgnoreCase(namePart)
                 .map(allergenMapper::toResponseDTO);
     }
 

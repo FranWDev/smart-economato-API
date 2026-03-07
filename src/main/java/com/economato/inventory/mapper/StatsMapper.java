@@ -1,6 +1,8 @@
 package com.economato.inventory.mapper;
 
 import com.economato.inventory.dto.projection.RoleCountProjection;
+import com.economato.inventory.dto.response.RecipeAverageCostResponseDTO;
+import com.economato.inventory.dto.response.RecipeCountResponseDTO;
 import com.economato.inventory.dto.response.RecipeStatsResponseDTO;
 import com.economato.inventory.dto.response.UserStatsResponseDTO;
 import org.mapstruct.Mapper;
@@ -22,6 +24,18 @@ public interface StatsMapper {
                 .averagePrice(averagePrice != null ? averagePrice : BigDecimal.ZERO)
                 .build();
     }
+
+        default RecipeCountResponseDTO toRecipeCountDTO(long count) {
+                return RecipeCountResponseDTO.builder()
+                                .count(count)
+                                .build();
+        }
+
+        default RecipeAverageCostResponseDTO toRecipeAverageCostDTO(BigDecimal averageCost) {
+                return RecipeAverageCostResponseDTO.builder()
+                                .averageCost(averageCost != null ? averageCost : BigDecimal.ZERO)
+                                .build();
+        }
 
     default UserStatsResponseDTO toUserStatsDTO(long total, List<RoleCountProjection> counts) {
         Map<String, Long> usersByRole = counts.stream()

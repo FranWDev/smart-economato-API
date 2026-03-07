@@ -169,9 +169,13 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
         void whenSearchSuppliersByName_thenReturnsMatchingSuppliers() throws Exception {
                 SupplierRequestDTO supplier1 = new SupplierRequestDTO();
                 supplier1.setName("Distribuidora ABC");
+                supplier1.setEmail("abc@dist.com");
+                supplier1.setPhone("111111111");
 
                 SupplierRequestDTO supplier2 = new SupplierRequestDTO();
                 supplier2.setName("Distribuidora XYZ");
+                supplier2.setEmail("xyz@dist.com");
+                supplier2.setPhone("222222222");
 
                 mockMvc.perform(post(BASE_URL)
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -187,9 +191,51 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
 
                 mockMvc.perform(get(BASE_URL + "/search")
                                 .header("Authorization", "Bearer " + jwtToken)
-                                .param("name", "Distribuidora"))
+                                .param("term", "Distribuidora"))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$", hasSize(2)));
+        }
+
+        @Test
+        void whenSearchSuppliersByEmail_thenReturnsMatchingSupplier() throws Exception {
+                SupplierRequestDTO supplier = new SupplierRequestDTO();
+                supplier.setName("Proveedor Email");
+                supplier.setEmail("contacto@emailmatch.com");
+                supplier.setPhone("333333333");
+
+                mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(supplier)))
+                                .andExpect(status().isCreated());
+
+                mockMvc.perform(get(BASE_URL + "/search")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .param("term", "emailmatch.com"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$", hasSize(1)))
+                                .andExpect(jsonPath("$[0].email", is("contacto@emailmatch.com")));
+        }
+
+        @Test
+        void whenSearchSuppliersByPhone_thenReturnsMatchingSupplier() throws Exception {
+                SupplierRequestDTO supplier = new SupplierRequestDTO();
+                supplier.setName("Proveedor Telefono");
+                supplier.setEmail("tel@proveedor.com");
+                supplier.setPhone("987654321");
+
+                mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(supplier)))
+                                .andExpect(status().isCreated());
+
+                mockMvc.perform(get(BASE_URL + "/search")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .param("term", "987654"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$", hasSize(1)))
+                                .andExpect(jsonPath("$[0].phone", is("987654321")));
         }
 
         @Test

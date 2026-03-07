@@ -1,5 +1,7 @@
 package com.economato.inventory.controller;
 
+import com.economato.inventory.dto.response.RecipeAverageCostResponseDTO;
+import com.economato.inventory.dto.response.RecipeCountResponseDTO;
 import com.economato.inventory.dto.response.RecipeStatsResponseDTO;
 import com.economato.inventory.dto.response.UserStatsResponseDTO;
 import com.economato.inventory.service.RecipeService;
@@ -28,6 +30,24 @@ public class StatsController {
             + "cantidad de recetas con alérgenos y sin alérgenos, y la cantidad total de recetas [Rol requerido: ADMIN]")
     public ResponseEntity<RecipeStatsResponseDTO> getRecipeStats() {
         return ResponseEntity.ok(recipeService.getRecipeStats());
+    }
+
+    @GetMapping("/recipes/with-allergens/count")
+    @Operation(summary = "Obtener cantidad de recetas con alérgenos", description = "Devuelve la cantidad total de recetas visibles que tienen alérgenos [Rol requerido: ADMIN]")
+    public ResponseEntity<RecipeCountResponseDTO> getRecipesWithAllergensCount() {
+        return ResponseEntity.ok(recipeService.getRecipesWithAllergensCount());
+    }
+
+    @GetMapping("/recipes/without-allergens/count")
+    @Operation(summary = "Obtener cantidad de recetas sin alérgenos", description = "Devuelve la cantidad total de recetas visibles que no tienen alérgenos [Rol requerido: ADMIN]")
+    public ResponseEntity<RecipeCountResponseDTO> getRecipesWithoutAllergensCount() {
+        return ResponseEntity.ok(recipeService.getRecipesWithoutAllergensCount());
+    }
+
+    @GetMapping("/recipes/average-cost")
+    @Operation(summary = "Obtener costo promedio de recetas", description = "Devuelve el costo promedio de las recetas visibles [Rol requerido: ADMIN]")
+    public ResponseEntity<RecipeAverageCostResponseDTO> getRecipesAverageCost() {
+        return ResponseEntity.ok(recipeService.getRecipesAverageCost());
     }
 
     @GetMapping("/users")
