@@ -243,10 +243,14 @@ public class StockLedgerService {
                 errors.add(error);
             }
 
+            // Normalizar los BigDecimal con la misma escala usada en la creación
+            BigDecimal normalizedDelta = tx.getQuantityDelta().setScale(3, java.math.RoundingMode.HALF_UP);
+            BigDecimal normalizedStock = tx.getResultingStock().setScale(3, java.math.RoundingMode.HALF_UP);
+
             String recalculatedHash = calculateTransactionHash(
                     productId,
-                    tx.getQuantityDelta(),
-                    tx.getResultingStock(),
+                    normalizedDelta,
+                    normalizedStock,
                     tx.getTransactionTimestamp(),
                     tx.getPreviousHash(),
                     tx.getSequenceNumber());
@@ -258,8 +262,8 @@ public class StockLedgerService {
                         tx.getSequenceNumber(),
                         recalculatedHash.substring(0, Math.min(8, recalculatedHash.length())),
                         tx.getCurrentHash().substring(0, Math.min(8, tx.getCurrentHash().length())),
-                        tx.getQuantityDelta(),
-                        tx.getResultingStock());
+                        normalizedDelta,
+                        normalizedStock);
                 errors.add(error);
             }
 
