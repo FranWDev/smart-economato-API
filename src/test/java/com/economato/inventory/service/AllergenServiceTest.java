@@ -19,7 +19,6 @@ import com.economato.inventory.model.Allergen;
 import com.economato.inventory.repository.AllergenRepository;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -155,26 +154,25 @@ class AllergenServiceTest {
     }
 
     @Test
-    void findByName_WhenAllergenExists_ShouldReturnFirst() {
+    void findByName_WhenAllergenExists_ShouldReturnMatch() {
 
-        List<AllergenProjection> allergens = Arrays.asList(testProjection);
-        when(repository.findProjectedByNameContainingIgnoreCase("Test")).thenReturn(allergens);
+        when(repository.findProjectedByNameIgnoreCase("Test")).thenReturn(Optional.of(testProjection));
 
         Optional<AllergenResponseDTO> result = allergenService.findByName("Test");
 
         assertTrue(result.isPresent());
         assertEquals(testAllergenResponseDTO.getName(), result.get().getName());
-        verify(repository).findProjectedByNameContainingIgnoreCase("Test");
+        verify(repository).findProjectedByNameIgnoreCase("Test");
     }
 
     @Test
     void findByName_WhenNoAllergenFound_ShouldReturnEmpty() {
 
-        when(repository.findProjectedByNameContainingIgnoreCase("NonExistent")).thenReturn(Arrays.asList());
+        when(repository.findProjectedByNameIgnoreCase("NonExistent")).thenReturn(Optional.empty());
 
         Optional<AllergenResponseDTO> result = allergenService.findByName("NonExistent");
 
         assertFalse(result.isPresent());
-        verify(repository).findProjectedByNameContainingIgnoreCase("NonExistent");
+        verify(repository).findProjectedByNameIgnoreCase("NonExistent");
     }
 }

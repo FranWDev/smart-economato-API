@@ -92,4 +92,14 @@ public class SupplierService {
                 .map(supplierMapper::toResponseDTO)
                 .toList();
     }
+
+    @Transactional(readOnly = true)
+    public List<SupplierResponseDTO> findByNameOrEmailOrPhoneContaining(String term) {
+        return repository
+                .findProjectedByNameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrPhoneContainingIgnoreCase(
+                        term, term, term)
+                .stream()
+                .map(supplierMapper::toResponseDTO)
+                .toList();
+    }
 }

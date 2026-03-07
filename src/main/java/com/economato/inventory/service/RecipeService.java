@@ -17,6 +17,8 @@ import com.economato.inventory.dto.RestPage;
 import com.economato.inventory.dto.request.RecipeComponentRequestDTO;
 import com.economato.inventory.dto.request.RecipeCookingRequestDTO;
 import com.economato.inventory.dto.request.RecipeRequestDTO;
+import com.economato.inventory.dto.response.RecipeAverageCostResponseDTO;
+import com.economato.inventory.dto.response.RecipeCountResponseDTO;
 import com.economato.inventory.dto.response.RecipeResponseDTO;
 import com.economato.inventory.dto.response.RecipeStatsResponseDTO;
 import com.economato.inventory.exception.InvalidOperationException;
@@ -238,6 +240,21 @@ public class RecipeService {
         BigDecimal averagePrice = repository.getAveragePrice();
 
         return statsMapper.toRecipeStatsDTO(total, withAllergens, withoutAllergens, averagePrice);
+    }
+
+    @Transactional(readOnly = true)
+    public RecipeCountResponseDTO getRecipesWithAllergensCount() {
+        return statsMapper.toRecipeCountDTO(repository.countWithAllergens());
+    }
+
+    @Transactional(readOnly = true)
+    public RecipeCountResponseDTO getRecipesWithoutAllergensCount() {
+        return statsMapper.toRecipeCountDTO(repository.countWithoutAllergens());
+    }
+
+    @Transactional(readOnly = true)
+    public RecipeAverageCostResponseDTO getRecipesAverageCost() {
+        return statsMapper.toRecipeAverageCostDTO(repository.getAveragePrice());
     }
 
     private void calculateTotalCost(Recipe recipe) {

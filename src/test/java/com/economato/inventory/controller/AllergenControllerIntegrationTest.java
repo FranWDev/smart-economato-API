@@ -162,4 +162,22 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.name", is(allergen.getName())));
         }
+
+        @Test
+        void whenSearchAllergenByNameWithDifferentCase_thenReturnsAllergen() throws Exception {
+                AllergenRequestDTO allergen = new AllergenRequestDTO();
+                allergen.setName("Lactosa");
+
+                mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(allergen)))
+                                .andExpect(status().isCreated());
+
+                mockMvc.perform(get(BASE_URL + "/search")
+                                .param("name", "lAcToSa")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.name", is("Lactosa")));
+        }
 }

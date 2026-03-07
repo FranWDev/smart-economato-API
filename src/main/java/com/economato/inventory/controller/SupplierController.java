@@ -133,8 +133,8 @@ public class SupplierController {
     }
 
     @Operation(
-        summary = "Buscar proveedores por nombre",
-        description = "Busca proveedores cuyo nombre contenga el texto especificado (no sensible a mayúsculas). [Rol requerido: CHEF]",
+        summary = "Buscar proveedores por nombre, email o teléfono",
+        description = "Busca proveedores cuyo nombre, email o teléfono contenga el texto especificado (no sensible a mayúsculas). [Rol requerido: CHEF]",
         responses = {
             @ApiResponse(responseCode = "200", description = "Lista de proveedores que coinciden con la búsqueda",
                 content = @Content(mediaType = "application/json",
@@ -143,7 +143,7 @@ public class SupplierController {
     )
     @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/search")
-    public ResponseEntity<List<SupplierResponseDTO>> searchByName(@RequestParam String name) {
-        return ResponseEntity.ok(supplierService.findByNameContaining(name));
+    public ResponseEntity<List<SupplierResponseDTO>> searchByNameEmailOrPhone(@RequestParam String term) {
+        return ResponseEntity.ok(supplierService.findByNameOrEmailOrPhoneContaining(term));
     }
 }
