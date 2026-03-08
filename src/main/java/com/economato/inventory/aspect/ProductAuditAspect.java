@@ -150,6 +150,8 @@ public class ProductAuditAspect {
             state.put("precioUnitario", product.getUnitPrice());
             state.put("codigoProducto", product.getProductCode());
             state.put("stockActual", product.getCurrentStock());
+            state.put("stockMinimo", product.getMinimumStock());
+            state.put("disponibilidad", product.getAvailabilityPercentage());
             state.put("oculto", product.isHidden());
             return objectMapper.writeValueAsString(state);
         } catch (Exception e) {
