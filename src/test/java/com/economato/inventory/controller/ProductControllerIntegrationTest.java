@@ -462,4 +462,29 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(jsonPath("$.currentStock").value(100.0))
                                 .andExpect(jsonPath("$.minimumStock").value(10.0));
         }
+
+        @Test
+        void whenCreateProductWithAvailability_thenReturnsAvailabilityPercentage() throws Exception {
+                ProductRequestDTO productRequest = TestDataUtil.createProductRequestDTO();
+                productRequest.setName("Producto con Disponibilidad");
+                productRequest.setProductCode("PROD-AVAIL-1");
+                productRequest.setAvailabilityPercentage(new BigDecimal("95.50"));
+
+                mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(productRequest)))
+                                .andExpect(status().isCreated())
+                                .andExpect(jsonPath("$.name").value(productRequest.getName()))
+                                .andExpect(jsonPath("$.availabilityPercentage").value(95.50));
+
+                // Verificar que también se recupera por ID (que usa proyección)
+                MvcResult result = mockMvc.perform(get(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andReturn();
+
+                String content = result.getResponse().getContentAsString();
+                assertTrue(content.contains("95.5"));
+        }
 }

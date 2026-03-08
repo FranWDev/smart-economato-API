@@ -81,4 +81,13 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
                         "AND EXISTS (SELECT 1 FROM StockLedger l WHERE l.product.id = p.id) " +
                         "AND LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))")
         Page<Product> findProductsWithLedgerByName(@Param("name") String name, Pageable pageable);
+
+        @Query("SELECT COUNT(p) FROM Product p WHERE p.isHidden = false")
+        long countTotalProducts();
+
+        @Query("SELECT COALESCE(SUM(p.unitPrice * p.currentStock), 0) FROM Product p WHERE p.isHidden = false")
+        BigDecimal calculateTotalInventoryValue();
+
+        @Query("SELECT COALESCE(AVG(p.unitPrice), 0) FROM Product p WHERE p.isHidden = false")
+        BigDecimal calculateAveragePrice();
 }
