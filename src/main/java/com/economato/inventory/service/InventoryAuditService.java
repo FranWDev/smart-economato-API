@@ -65,4 +65,12 @@ public class InventoryAuditService {
                 .map(inventoryMovementMapper::toResponseDTO)
                 .toList();
     }
+
+    @Transactional(readOnly = true)
+    public Page<InventoryMovementResponseDTO> findFiltered(
+            java.time.LocalDateTime start, java.time.LocalDateTime end, String type, String productName, Pageable pageable) {
+        Page<InventoryMovementResponseDTO> page = repository.findFilteredProjected(start, end, type, productName, pageable)
+                .map(inventoryMovementMapper::toResponseDTO);
+        return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
+    }
 }

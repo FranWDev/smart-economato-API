@@ -43,8 +43,12 @@ public class InventoryAuditController {
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<InventoryMovementResponseDTO>> getAll(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String productName,
             @Parameter(description = "Información de paginación") Pageable pageable) {
-        return ResponseEntity.ok(movementService.findAll(pageable));
+        return ResponseEntity.ok(movementService.findFiltered(startDate, endDate, type, productName, pageable));
     }
 
     @Operation(

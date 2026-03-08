@@ -55,4 +55,16 @@ public interface InventoryAuditRepository extends JpaRepository<InventoryAudit, 
        List<com.economato.inventory.dto.projection.InventoryAuditProjection> findProjectedByMovementDateBetween(
                      @Param("start") LocalDateTime start,
                      @Param("end") LocalDateTime end);
+
+       @Query("SELECT ia FROM InventoryAudit ia WHERE " +
+                     "(:startDate IS NULL OR ia.movementDate >= :startDate) AND " +
+                     "(:endDate IS NULL OR ia.movementDate <= :endDate) AND " +
+                     "(:type IS NULL OR ia.movementType = :type) AND " +
+                     "(:productName IS NULL OR LOWER(ia.product.name) LIKE LOWER(CONCAT('%', :productName, '%')))")
+       org.springframework.data.domain.Page<com.economato.inventory.dto.projection.InventoryAuditProjection> findFilteredProjected(
+                     @Param("startDate") LocalDateTime startDate,
+                     @Param("endDate") LocalDateTime endDate,
+                     @Param("type") String type,
+                     @Param("productName") String productName,
+                     org.springframework.data.domain.Pageable pageable);
 }
