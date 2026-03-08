@@ -213,9 +213,15 @@ public class ProductService {
     }
 
     @Transactional(readOnly = true)
-    public Page<ProductResponseDTO> findHiddenProducts(Pageable pageable) {
-        Page<ProductResponseDTO> page = repository.findByIsHiddenTrue(pageable)
-                .map(productMapper::toResponseDTO);
+    public Page<ProductResponseDTO> findHiddenProducts(String name, Pageable pageable) {
+        Page<ProductResponseDTO> page;
+        if (name != null && !name.isBlank()) {
+            page = repository.findByNameContainingIgnoreCaseAndIsHiddenTrue(name, pageable)
+                    .map(productMapper::toResponseDTO);
+        } else {
+            page = repository.findByIsHiddenTrue(pageable)
+                    .map(productMapper::toResponseDTO);
+        }
         return new RestPage<>(page.getContent(), page.getPageable(),
                 page.getTotalElements());
     }

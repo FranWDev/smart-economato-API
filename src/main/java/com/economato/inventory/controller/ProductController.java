@@ -168,11 +168,13 @@ public class ProductController {
         }
 
         @PreAuthorize("hasRole('ADMIN')")
-        @Operation(summary = "Obtener productos ocultos", description = "Devuelve los productos que están ocultos. [Rol requerido: ADMIN]")
+        @Operation(summary = "Obtener productos ocultos", description = "Devuelve los productos que están ocultos. Permite filtrar por nombre. [Rol requerido: ADMIN]")
         @ApiResponse(responseCode = "200", description = "Lista de productos encontrados", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class)))
         @GetMapping("/hidden")
-        public ResponseEntity<Page<ProductResponseDTO>> getHiddenProducts(Pageable pageable) {
-                return ResponseEntity.ok(productService.findHiddenProducts(pageable));
+        public ResponseEntity<Page<ProductResponseDTO>> getHiddenProducts(
+                        @Parameter(description = "Nombre o parte del nombre para filtrar", example = "leche") @RequestParam(required = false) String name,
+                        Pageable pageable) {
+                return ResponseEntity.ok(productService.findHiddenProducts(name, pageable));
         }
 
         @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
