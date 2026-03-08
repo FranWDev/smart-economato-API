@@ -18,10 +18,9 @@ public interface ProductMapper {
 
     ProductResponseDTO toResponseDTO(Product product);
 
-    @Mapping(source = "projection.supplier.id", target = "supplier.id")
-    @Mapping(source = "projection.supplier.name", target = "supplier.name")
-    @Mapping(source = "projection.isHidden", target = "hidden")
-    @Mapping(source = "projection.availabilityPercentage", target = "availabilityPercentage")
+    @Mapping(source = "supplier.id", target = "supplier.id")
+    @Mapping(source = "supplier.name", target = "supplier.name")
+    @Mapping(source = "isHidden", target = "hidden")
     ProductResponseDTO toResponseDTO(ProductProjection projection);
 
     @Mapping(target = "id", ignore = true)
@@ -29,8 +28,6 @@ public interface ProductMapper {
     @Mapping(target = "orderDetails", ignore = true)
     @Mapping(target = "hidden", ignore = true)
     @Mapping(target = "supplier", source = "supplierId", qualifiedByName = "supplierIdToSupplier")
-    @Mapping(target = "availabilityPercentage", source = "availabilityPercentage")
-    @Mapping(target = "minimumStock", source = "minimumStock")
     Product toEntity(ProductRequestDTO requestDTO);
 
     @Mapping(target = "id", ignore = true)
@@ -39,8 +36,6 @@ public interface ProductMapper {
     @Mapping(target = "currentStock", ignore = true)
     @Mapping(target = "hidden", ignore = true)
     @Mapping(target = "supplier", source = "supplierId", qualifiedByName = "supplierIdToSupplier")
-    @Mapping(target = "availabilityPercentage", source = "availabilityPercentage")
-    @Mapping(target = "minimumStock", source = "minimumStock")
     void updateEntity(ProductRequestDTO requestDTO, @MappingTarget Product product);
 
     @Named("supplierIdToSupplier")

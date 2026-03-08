@@ -3,8 +3,10 @@ package com.economato.inventory.controller;
 import com.economato.inventory.model.Role;
 import com.economato.inventory.model.User;
 import com.economato.inventory.model.Allergen;
+import com.economato.inventory.model.Product;
 import com.economato.inventory.model.Recipe;
 import com.economato.inventory.repository.AllergenRepository;
+import com.economato.inventory.repository.ProductRepository;
 import com.economato.inventory.repository.RecipeRepository;
 import com.economato.inventory.repository.UserRepository;
 import com.economato.inventory.util.TestDataUtil;
@@ -31,10 +33,14 @@ class StatsControllerIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private ProductRepository productRepository;
+
     @BeforeEach
     void setUp() {
         recipeRepository.deleteAll();
-                allergenRepository.deleteAll();
+        allergenRepository.deleteAll();
+        productRepository.deleteAll();
         userRepository.deleteAll();
 
         User admin = TestDataUtil.createAdminUser();
@@ -132,6 +138,27 @@ class StatsControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.usersByRole.ADMIN", is(1)))
                 .andExpect(jsonPath("$.usersByRole.USER", is(2)))
                 .andExpect(jsonPath("$.usersByRole.CHEF", is(1)));
+    }
+
+    @Test
+    void getProductStats_WhenAdmin_ShouldReturnStats() throws Exception {
+        String token = loginAsAdmin();
+
+        // Create some products
+        // total inventory value = (10.00 * 5.0) + (20.00 * 2.0) = 50 + 40 = 90
+        // average price = (10 + 20) / 2 = 15
+        Product p1 = TestDataUtil.createProduct("Product 1", "Ingrediente", "KG", new BigDecimal("10.00"), "P1", new BigDecimal("5.0"));
+        Product p2 = TestDataUtil.createProduct("Product 2", "Ingrediente", "KG", new BigDecimal("20.00"), "P2", new BigDecimal("2.0"));
+        
+        productRepository.saveAllAndFlush(java.util.Arrays.asList(p1, p2));
+
+        mockMvc.perform(get("/api/stats/products")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalProducts", is(2)))
+                .andExpect(jsonPath("$.totalInventoryValue", is(90.0)))
+                .andExpect(jsonPath("$.averagePrice", is(15.0)));
     }
 
     @Test

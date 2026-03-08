@@ -19,6 +19,7 @@ import com.economato.inventory.annotation.ProductAuditable;
 import com.economato.inventory.dto.RestPage;
 import com.economato.inventory.dto.request.ProductRequestDTO;
 import com.economato.inventory.dto.response.ProductResponseDTO;
+import com.economato.inventory.dto.response.ProductStatsResponseDTO;
 import com.economato.inventory.exception.ConcurrencyException;
 import com.economato.inventory.exception.InvalidOperationException;
 import com.economato.inventory.exception.ResourceNotFoundException;
@@ -291,4 +292,13 @@ public class ProductService {
                 });
     }
 
+
+    @Transactional(readOnly = true)
+    public ProductStatsResponseDTO getProductStats() {
+        return ProductStatsResponseDTO.builder()
+                .totalProducts(repository.countTotalProducts())
+                .totalInventoryValue(repository.calculateTotalInventoryValue())
+                .averagePrice(repository.calculateAveragePrice())
+                .build();
+    }
 }

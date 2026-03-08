@@ -4,8 +4,10 @@ import com.economato.inventory.dto.response.RecipeAverageCostResponseDTO;
 import com.economato.inventory.dto.response.RecipeCountResponseDTO;
 import com.economato.inventory.dto.response.RecipeStatsResponseDTO;
 import com.economato.inventory.dto.response.UserStatsResponseDTO;
+import com.economato.inventory.dto.response.ProductStatsResponseDTO;
 import com.economato.inventory.service.RecipeService;
 import com.economato.inventory.service.UserService;
+import com.economato.inventory.service.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class StatsController {
 
     private final RecipeService recipeService;
     private final UserService userService;
+    private final ProductService productService;
 
     @GetMapping("/recipes")
     @Operation(summary = "Obtener estadísticas de las recetas", description = "Devuelve estadísticas de las recetas como el precio promedio, "
@@ -55,5 +58,11 @@ public class StatsController {
             + "de usuarios y la cantidad de usuarios por rol [Rol requerido: ADMIN]")
     public ResponseEntity<UserStatsResponseDTO> getUserStats() {
         return ResponseEntity.ok(userService.getUserStats());
+    }
+
+    @GetMapping("/products")
+    @Operation(summary = "Obtener estadísticas de los productos", description = "Devuelve estadísticas de los productos como el valor total del inventario y el precio promedio [Rol requerido: ADMIN]")
+    public ResponseEntity<ProductStatsResponseDTO> getProductStats() {
+        return ResponseEntity.ok(productService.getProductStats());
     }
 }
