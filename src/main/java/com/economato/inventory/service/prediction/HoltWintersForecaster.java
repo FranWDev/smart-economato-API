@@ -76,14 +76,12 @@ public class HoltWintersForecaster {
     }
 
     // -------------------------------------------------------------------------
-    // Holt-Winters Triple Exponential Smoothing
+    // Holt-Winters 
     // -------------------------------------------------------------------------
 
     private double holtwinters(List<Double> y, int m) {
         int n = y.size();
 
-        // Inicialización del nivel y la tendencia (regresión lineal de la primera
-        // temporada)
         double level = initialLevel(y, m);
         double trend = initialTrend(y, m);
         List<Double> seasonal = initialSeasonals(y, m);
@@ -96,7 +94,6 @@ public class HoltWintersForecaster {
             double prevTrend = trend;
             int seasonIdx = i % m;
 
-            // Actualización de componentes
             level = alpha * (obs / seasonal.get(seasonIdx)) + (1 - alpha) * (prevLevel + prevTrend);
             trend = beta * (level - prevLevel) + (1 - beta) * prevTrend;
             double newSeasonal = gamma * (obs / level) + (1 - gamma) * seasonal.get(seasonIdx);
@@ -109,14 +106,12 @@ public class HoltWintersForecaster {
     }
 
     private double initialLevel(List<Double> y, int m) {
-        // Media del primer ciclo completo
         int end = Math.min(m, y.size());
         return y.subList(0, end).stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
     }
 
     private double initialTrend(List<Double> y, int m) {
         if (y.size() < 2 * m) {
-            // No hay dos ciclos completos: usar pendiente simple
             return (y.get(y.size() - 1) - y.get(0)) / Math.max(1, y.size() - 1);
         }
         double sum = 0.0;
