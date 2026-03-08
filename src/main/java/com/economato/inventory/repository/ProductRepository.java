@@ -64,6 +64,9 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
         Page<ProductProjection> findByNameContainingIgnoreCaseAndIsHiddenFalse(String namePart,
                         Pageable pageable);
 
+        Page<ProductProjection> findByNameContainingIgnoreCaseAndIsHiddenTrue(String namePart,
+                        Pageable pageable);
+
         List<ProductProjection> findByNameContainingIgnoreCaseAndIsHiddenFalse(String namePart);
 
         List<ProductProjection> findByTypeAndIsHiddenFalse(String type);
