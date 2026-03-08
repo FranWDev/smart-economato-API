@@ -1,6 +1,7 @@
 package com.economato.inventory.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -11,7 +12,7 @@ import com.economato.inventory.model.User;
 import java.time.LocalDateTime;
 import java.util.List;
 
-public interface InventoryAuditRepository extends JpaRepository<InventoryAudit, Integer> {
+public interface InventoryAuditRepository extends JpaRepository<InventoryAudit, Integer>, JpaSpecificationExecutor<InventoryAudit> {
 
        boolean existsByProductId(Integer productId);
 
@@ -56,15 +57,4 @@ public interface InventoryAuditRepository extends JpaRepository<InventoryAudit, 
                      @Param("start") LocalDateTime start,
                      @Param("end") LocalDateTime end);
 
-       @Query("SELECT ia FROM InventoryAudit ia WHERE " +
-                     "(:startDate IS NULL OR ia.movementDate >= :startDate) AND " +
-                     "(:endDate IS NULL OR ia.movementDate <= :endDate) AND " +
-                     "(:type IS NULL OR ia.movementType = :type) AND " +
-                     "(:productName IS NULL OR LOWER(ia.product.name) LIKE :productName)")
-       org.springframework.data.domain.Page<com.economato.inventory.dto.projection.InventoryAuditProjection> findFilteredProjected(
-                     @Param("startDate") LocalDateTime startDate,
-                     @Param("endDate") LocalDateTime endDate,
-                     @Param("type") String type,
-                     @Param("productName") String productName,
-                     org.springframework.data.domain.Pageable pageable);
 }

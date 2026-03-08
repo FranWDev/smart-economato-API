@@ -80,9 +80,9 @@ class InventoryAuditFilteringIntegrationTest extends BaseIntegrationTest {
                 .header("Authorization", "Bearer " + token)
                 .param("productName", "Harina")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content", hasSize(2)))
-                .andExpect(jsonPath("$.content[0].productName").value("Harina de Trigo"));
+                .andExpect(jsonPath("$.content[0].productName").value("Harina de Trigo"))
+                .andExpect(jsonPath("$.content[1].productName").value("Harina de Trigo"));
     }
 
     @Test
