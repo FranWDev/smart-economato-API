@@ -256,6 +256,12 @@ public class ProductService {
                     existing.setUnit(requestDTO.getUnit());
                     existing.setUnitPrice(requestDTO.getUnitPrice());
                     existing.setProductCode(requestDTO.getProductCode());
+                    if (requestDTO.getAvailabilityPercentage() != null) {
+                        existing.setAvailabilityPercentage(requestDTO.getAvailabilityPercentage());
+                    }
+                    if (requestDTO.getMinimumStock() != null) {
+                        existing.setMinimumStock(requestDTO.getMinimumStock());
+                    }
                     if (requestDTO.getSupplierId() != null) {
                         existing.setSupplier(supplierRepository.findById(requestDTO.getSupplierId()).orElse(null));
                     }

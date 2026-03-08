@@ -21,6 +21,7 @@ public interface ProductMapper {
     @Mapping(source = "projection.supplier.id", target = "supplier.id")
     @Mapping(source = "projection.supplier.name", target = "supplier.name")
     @Mapping(source = "projection.isHidden", target = "hidden")
+    @Mapping(source = "projection.availabilityPercentage", target = "availabilityPercentage")
     ProductResponseDTO toResponseDTO(ProductProjection projection);
 
     @Mapping(target = "id", ignore = true)
