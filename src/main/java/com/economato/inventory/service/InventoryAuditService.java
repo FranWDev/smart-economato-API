@@ -14,6 +14,9 @@ import com.economato.inventory.mapper.InventoryMovementMapper;
 import com.economato.inventory.model.InventoryAudit;
 import com.economato.inventory.repository.InventoryAuditRepository;
 
+import com.economato.inventory.specification.InventoryAuditSpecifications;
+import org.springframework.data.jpa.domain.Specification;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -69,11 +72,25 @@ public class InventoryAuditService {
     @Transactional(readOnly = true)
     public Page<InventoryMovementResponseDTO> findFiltered(
             java.time.LocalDateTime start, java.time.LocalDateTime end, String type, String productName, Pageable pageable) {
-        String namePattern = (productName != null && !productName.isBlank()) 
-                ? "%" + productName.toLowerCase() + "%" 
-                : null;
-        Page<InventoryMovementResponseDTO> page = repository.findFilteredProjected(start, end, type, namePattern, pageable)
+        
+        Specification<InventoryAudit> spec = (root, query, cb) -> cb.conjunction();
+        
+        if (start != null) {
+            spec = spec.and(InventoryAuditSpecifications.hasMovementDateAfter(start));
+        }
+        if (end != null) {
+            spec = spec.and(InventoryAuditSpecifications.hasMovementDateBefore(end));
+        }
+        if (type != null && !type.isBlank()) {
+            spec = spec.and(InventoryAuditSpecifications.hasMovementType(type));
+        }
+        if (productName != null && !productName.isBlank()) {
+            spec = spec.and(InventoryAuditSpecifications.productNameContains(productName));
+        }
+
+        Page<InventoryMovementResponseDTO> page = repository.findAll(spec, pageable)
                 .map(inventoryMovementMapper::toResponseDTO);
+                
         return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
     }
 }
