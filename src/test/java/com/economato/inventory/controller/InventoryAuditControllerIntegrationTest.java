@@ -39,10 +39,9 @@ class InventoryAuditControllerIntegrationTest extends BaseControllerMockTest {
     }
 
     @Test
-    
     void getAllMovements_ShouldReturnList() throws Exception {
-
-        when(inventoryAuditService.findAll(any(Pageable.class))).thenReturn(new RestPage<>(testMovements));
+        when(inventoryAuditService.findFiltered(any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(new RestPage<>(testMovements));
 
         mockMvc.perform(get("/api/inventory-audits").with(user("admin").roles("ADMIN"))
                 .param("page", "0")
@@ -56,10 +55,9 @@ class InventoryAuditControllerIntegrationTest extends BaseControllerMockTest {
     }
 
     @Test
-    
     void getAllMovements_WithAdminRole_ShouldReturnList() throws Exception {
-
-        when(inventoryAuditService.findAll(any(Pageable.class))).thenReturn(new RestPage<>(testMovements));
+        when(inventoryAuditService.findFiltered(any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(new RestPage<>(testMovements));
 
         mockMvc.perform(get("/api/inventory-audits").with(user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
