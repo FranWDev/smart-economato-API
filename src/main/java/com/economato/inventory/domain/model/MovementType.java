@@ -1,0 +1,19 @@
+package com.economato.inventory.domain.model;
+
+public enum MovementType {
+    ENTRADA("Entrada de stock"),
+    SALIDA("Salida de stock"),
+    AJUSTE("Ajuste de inventario"),
+    RECEPCION("Recepción de mercancía"),
+    PRODUCCION("Producción propia");
+
+    private final String description;
+
+    MovementType(String description) {
+        this.description = description;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+}

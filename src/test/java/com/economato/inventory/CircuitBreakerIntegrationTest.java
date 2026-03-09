@@ -1,9 +1,9 @@
 package com.economato.inventory;
 
-import com.economato.inventory.kafka.producer.AuditOutboxProcessor;
-import com.economato.inventory.repository.ProductRepository;
-import com.economato.inventory.security.JwtUtils;
-import com.economato.inventory.service.notification.AlertMessage;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditOutboxProcessor;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
+import com.economato.inventory.infrastructure.config.security.JwtUtils;
+import com.economato.inventory.application.usecase.AlertMessage;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,10 +17,10 @@ import java.sql.SQLException;
 import java.net.UnknownHostException;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.NetworkException;
-import com.economato.inventory.service.CustomUserDetailsService;
+import com.economato.inventory.application.usecase.CustomUserDetailsService;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import com.economato.inventory.health.CircuitBreakerHealthChecker;
+import com.economato.inventory.infrastructure.CircuitBreakerHealthChecker;
 
 import java.util.concurrent.TimeUnit;
 

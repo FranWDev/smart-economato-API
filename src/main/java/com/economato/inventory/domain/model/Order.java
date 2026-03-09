@@ -1,0 +1,53 @@
+package com.economato.inventory.domain.model;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.validation.constraints.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Table(name = "order_header", indexes = {
+        @Index(name = "idx_order_status", columnList = "status"),
+        @Index(name = "idx_order_date", columnList = "order_date"),
+        @Index(name = "idx_order_user", columnList = "user_id")
+})
+public class Order {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "order_id")
+    private Integer id;
+
+    @JsonIgnore
+    @NotNull(message = "{validation.order.user.notNull}")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false, foreignKey = @ForeignKey(name = "fk_order_user"))
+    private User user;
+
+    @NotNull(message = "{validation.order.orderDate.notNull}")
+    @PastOrPresent(message = "{validation.order.orderDate.pastOrPresent}")
+    @Column(name = "order_date", nullable = false)
+    private LocalDateTime orderDate;
+
+    @NotNull(message = "{validation.order.status.notNull}")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20)
+    private OrderStatus status;
+
+    @Version
+    @Column(name = "version")
+    private Long version;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderDetail> details = new ArrayList<>();
+}
