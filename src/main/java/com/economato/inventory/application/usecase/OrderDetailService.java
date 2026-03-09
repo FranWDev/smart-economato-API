@@ -1,0 +1,133 @@
+package com.economato.inventory.application.usecase;
+
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.economato.inventory.application.dto.RestPage;
+import com.economato.inventory.application.dto.request.OrderDetailRequestDTO;
+import com.economato.inventory.application.dto.response.OrderDetailResponseDTO;
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
+import com.economato.inventory.application.mapper.OrderDetailMapper;
+import com.economato.inventory.domain.model.Order;
+import com.economato.inventory.domain.model.OrderDetail;
+import com.economato.inventory.domain.model.OrderDetailId;
+import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderDetailRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Service
+@Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
+                Exception.class })
+public class OrderDetailService {
+
+        private final I18nService i18nService;
+        private final OrderDetailRepository repository;
+        private final OrderRepository orderRepository;
+        private final ProductRepository productRepository;
+        private final OrderDetailMapper orderDetailMapper;
+
+        public OrderDetailService(I18nService i18nService,
+                        OrderDetailRepository repository,
+                        OrderRepository orderRepository,
+                        ProductRepository productRepository,
+                        OrderDetailMapper orderDetailMapper) {
+                this.i18nService = i18nService;
+                this.repository = repository;
+                this.orderRepository = orderRepository;
+                this.productRepository = productRepository;
+                this.orderDetailMapper = orderDetailMapper;
+        }
+
+        @Transactional(readOnly = true)
+        public Page<OrderDetailResponseDTO> findAll(Pageable pageable) {
+                Page<OrderDetailResponseDTO> page = repository.findAllProjectedBy(pageable)
+                                .map(orderDetailMapper::toResponseDTO);
+                return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
+        }
+
+        @Transactional(readOnly = true)
+        public Optional<OrderDetailResponseDTO> findById(Integer orderId, Integer productId) {
+                return repository.findProjectedById(orderId, productId)
+                                .map(orderDetailMapper::toResponseDTO);
+        }
+
+        @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
+                        RuntimeException.class, Exception.class })
+        public OrderDetailResponseDTO save(OrderDetailRequestDTO requestDTO) {
+                Order order = orderRepository.findById(requestDTO.getOrderId())
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                i18nService.getMessage(MessageKey.ERROR_ORDER_NOT_FOUND_GENERAL)));
+
+                Product product = productRepository.findById(requestDTO.getProductId())
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND)));
+
+                OrderDetail orderDetail = orderDetailMapper.toEntity(requestDTO);
+                orderDetail.setOrder(order);
+                orderDetail.setProduct(product);
+                orderDetail.setId(new OrderDetailId(order.getId(), product.getId()));
+
+                repository.save(orderDetail);
+
+                return repository.findProjectedById(orderDetail.getOrder().getId(), orderDetail.getProduct().getId())
+                                .map(orderDetailMapper::toResponseDTO)
+                                .orElseThrow(() -> new RuntimeException(
+                                                i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
+        }
+
+        @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
+                        RuntimeException.class, Exception.class })
+        public Optional<OrderDetailResponseDTO> update(Integer orderId, Integer productId,
+                        OrderDetailRequestDTO requestDTO) {
+                return repository.findById(new OrderDetailId(orderId, productId))
+                                .map(existing -> {
+                                        orderDetailMapper.updateEntityFromDto(requestDTO, existing);
+                                        repository.save(existing);
+
+                                        return repository.findProjectedById(orderId, productId)
+                                                        .map(orderDetailMapper::toResponseDTO)
+                                                        .orElseThrow(() -> new RuntimeException(
+                                                                        "Updated detail not found"));
+                                });
+        }
+
+        @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
+                        RuntimeException.class, Exception.class })
+        public void deleteById(Integer orderId, Integer productId) {
+                repository.deleteById(new OrderDetailId(orderId, productId));
+        }
+
+        @Transactional(readOnly = true)
+        public List<OrderDetailResponseDTO> findByOrder(Order order) {
+                return findByOrderId(order.getId());
+        }
+
+        @Transactional(readOnly = true)
+        public List<OrderDetailResponseDTO> findByOrderId(Integer orderId) {
+                return repository.findProjectedByOrderId(orderId).stream()
+                                .map(orderDetailMapper::toResponseDTO)
+                                .toList();
+        }
+
+        @Transactional(readOnly = true)
+        public List<OrderDetailResponseDTO> findByProduct(Product product) {
+                return findByProductId(product.getId());
+        }
+
+        @Transactional(readOnly = true)
+        public List<OrderDetailResponseDTO> findByProductId(Integer productId) {
+                return repository.findProjectedByProductId(productId).stream()
+                                .map(orderDetailMapper::toResponseDTO)
+                                .toList();
+        }
+
+}
