@@ -1,11 +1,11 @@
 package com.economato.inventory;
 
-import com.economato.inventory.config.EmbeddedRedisTestConfig;
-import com.economato.inventory.kafka.producer.AuditOutboxProcessor;
-import com.economato.inventory.security.JwtUtils;
-import com.economato.inventory.service.CustomUserDetailsService;
-import com.economato.inventory.service.ProductService;
-import com.economato.inventory.service.notification.AlertMessage;
+import com.economato.inventory.infrastructure.config.database.EmbeddedRedisTestConfig;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditOutboxProcessor;
+import com.economato.inventory.infrastructure.config.security.JwtUtils;
+import com.economato.inventory.application.usecase.CustomUserDetailsService;
+import com.economato.inventory.application.usecase.ProductService;
+import com.economato.inventory.application.usecase.AlertMessage;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,7 +20,7 @@ import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import com.economato.inventory.health.CircuitBreakerHealthChecker;
+import com.economato.inventory.infrastructure.CircuitBreakerHealthChecker;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.hibernate.exception.JDBCConnectionException;
 import java.sql.SQLException;
