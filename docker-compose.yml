@@ -261,9 +261,47 @@ services:
       - inventory-network
     restart: unless-stopped
 
+
+  # ===================================
+  # Predictor Service (Python - Prophet)
+  # ===================================
+  predictor-service:
+    build:
+      context: ./predictor-service
+      dockerfile: Dockerfile
+    container_name: inventory-predictor
+    depends_on:
+      kafka:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    ports:
+      - "8084:8000"
+    environment:
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      INVENTORY_SERVICE_URL: http://api-gateway:8080
+      JWT_SECRET: ${JWT_SECRET}
+      INSTANCE_HOST: inventory-predictor
+      INSTANCE_PORT: 8000
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - inventory-network
+    restart: unless-stopped
+
   # ===================================
   # Prometheus (Metrics Collection)
   # ===================================
+
   prometheus:
     image: prom/prometheus:v2.51.0
     container_name: inventory-prometheus
