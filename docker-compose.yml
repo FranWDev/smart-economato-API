@@ -275,6 +275,8 @@ services:
         condition: service_healthy
       eureka-server:
         condition: service_started
+      backend:
+        condition: service_healthy
     ports:
       - "8084:8000"
     environment:
@@ -282,10 +284,10 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       INVENTORY_SERVICE_URL: http://api-gateway:8080
       JWT_SECRET: ${JWT_SECRET}
-      INSTANCE_HOST: inventory-predictor
+      INSTANCE_HOST: inventory-predictor6
       INSTANCE_PORT: 8000
       # Must match an existing ADMIN username in the DB (used as JWT sub)
-      PREDICTOR_USERNAME: ${PREDICTOR_USERNAME:-Admin}
+      PREDICTOR_USERNAME: ${PREDICTOR_USERNAME:Admin}
     deploy:
       resources:
         limits:

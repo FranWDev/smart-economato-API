@@ -53,20 +53,27 @@ class ForecastingService:
     # ------------------------------------------------------------------
     def _signing_key(self) -> bytes:
         """
-        Java's JwtUtils (line 33) does:
-            keyBytes = Decoders.BASE64.decode(secret)   ← tries Base64 first
-            then BASE64URL, then raw bytes
-        We must replicate this exactly so signature validation passes.
+        Java's JwtUtils uses Apache Commons Codec Base64 which is LENIENT about
+        padding — it decodes strings whose length is not a multiple of 4 without
+        throwing an error.  Python's base64.b64decode() is STRICT by default.
+
+        We replicate Java's lenient behaviour by adding the exact padding chars
+        needed before decoding:  padding = (4 - len(s) % 4) % 4
+
+        Example: 43-char secret → 43%4=3 → add 1 '=' → 44 chars → decodes OK.
         """
         import base64 as _b64
         raw = settings.JWT_SECRET
+        # Add just enough '=' padding to make the length a multiple of 4
+        padding = (4 - len(raw) % 4) % 4
+        padded = raw + "=" * padding
         try:
-            return _b64.b64decode(raw)
-        except Exception:
-            try:
-                return _b64.urlsafe_b64decode(raw + "==")
-            except Exception:
-                return raw.encode("utf-8")
+            key = _b64.b64decode(padded)
+            logger.debug(f"JWT key: decoded {len(raw)}-char Base64 → {len(key)} bytes")
+            return key
+        except Exception as exc:
+            logger.warning(f"Base64 decode failed ({exc}), using raw UTF-8 bytes")
+            return raw.encode("utf-8")
 
     def _generate_token(self) -> str:
         """
@@ -89,8 +96,12 @@ class ForecastingService:
     # ------------------------------------------------------------------
     async def fetch_history(self, product_id: int) -> dict | None:
         """
-        Fetches 90-day consumption history for a product from the inventory API.
-        Returns None on any error so the caller can skip gracefully.
+        Fetches 90-day consumption history from the inventory-service directly.
+
+        We call the backend container directly (bypassing the gateway) because:
+        1. Avoids gateway/Eureka discovery latency after restarts.
+        2. Reduces one network hop for internal service-to-service calls.
+        The JWT is still required because the backend's JwtFilter is active.
         """
         token = self._generate_token()
         url = (
