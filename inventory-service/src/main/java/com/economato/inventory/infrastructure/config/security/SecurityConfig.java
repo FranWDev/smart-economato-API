@@ -79,14 +79,20 @@ public class SecurityConfig {
                                                 // WebSocket handshake
                                                 .requestMatchers("/ws-alerts/**").permitAll()
 
-                                                // Actuator & Prometheus (Solo desde subred interna Docker 172.19.x.x)
-                                                .requestMatchers("/actuator/prometheus", "/actuator/health",
-                                                                "/actuator/health/**")
+                                                // Health endpoint: público para el healthcheck de Docker
+                                                // (viene de 127.0.0.1, no de 172.19.x.x)
+                                                .requestMatchers("/actuator/health", "/actuator/health/**")
+                                                .permitAll()
+
+                                                // Prometheus: solo desde la subred interna Docker
+                                                .requestMatchers("/actuator/prometheus")
                                                 .access((authentication, request) -> {
                                                         String clientIp = request.getRequest().getRemoteAddr();
                                                         return new AuthorizationDecision(
-                                                                        clientIp != null && clientIp
-                                                                                        .startsWith("172.19."));
+                                                                        clientIp != null && (
+                                                                                clientIp.startsWith("172.") ||
+                                                                                clientIp.startsWith("10.") ||
+                                                                                clientIp.equals("127.0.0.1")));
                                                 })
 
                                                 // ===== RUTAS PROTEGIDAS =====
