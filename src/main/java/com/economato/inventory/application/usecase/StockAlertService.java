@@ -140,6 +140,7 @@ public class StockAlertService {
                         .productName(prediction.getProduct().getName())
                         .projectedConsumption(prediction.getProjectedConsumption())
                         .projectedConsumptionUnit(prediction.getProduct().getUnit())
+                        .currentStock(prediction.getProduct().getCurrentStock())
                         .updatedAt(prediction.getUpdatedAt())
                         .build());
     }
