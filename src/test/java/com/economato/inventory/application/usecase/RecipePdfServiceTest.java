@@ -9,8 +9,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,6 +25,9 @@ import static org.junit.jupiter.api.Assertions.*;
 @ExtendWith(MockitoExtension.class)
 class RecipePdfServiceTest {
 
+    @Mock
+    private I18nService i18nService;
+
     @InjectMocks
     private RecipePdfService recipePdfService;
 
@@ -28,6 +35,14 @@ class RecipePdfServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(i18nService.getMessage(any(MessageKey.class)))
+                .thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
+        lenient().when(i18nService.getMessage(any(MessageKey.class), any(Object[].class)))
+            .thenAnswer(invocation -> {
+                Object arg = invocation.getArgument(1);
+                String argsStr = arg instanceof Object[] ? Arrays.toString((Object[]) arg) : String.valueOf(arg);
+                return ((MessageKey) invocation.getArgument(0)).name() + " " + (argsStr != null ? argsStr : "[]");
+            });
         testRecipe = new RecipeResponseDTO();
         testRecipe.setId(1);
         testRecipe.setName("Paella Valenciana");

@@ -1,7 +1,7 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
+import java.util.List;
+import java.util.Optional;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -13,25 +13,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.RestPage;
+import com.economato.inventory.application.dto.request.ChangePasswordRequestDTO;
+import com.economato.inventory.application.dto.request.RoleEscalationRequestDTO;
 import com.economato.inventory.application.dto.request.UserRequestDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
 import com.economato.inventory.application.dto.response.UserStatsResponseDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.application.mapper.StatsMapper;
 import com.economato.inventory.application.mapper.TemporaryRoleEscalationMapper;
 import com.economato.inventory.application.mapper.UserMapper;
 import com.economato.inventory.domain.model.Role;
-import com.economato.inventory.domain.model.User;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
-
-import java.util.List;
-import java.util.Optional;
-
-import com.economato.inventory.application.dto.request.ChangePasswordRequestDTO;
-import com.economato.inventory.application.dto.request.RoleEscalationRequestDTO;
 import com.economato.inventory.domain.model.TemporaryRoleEscalation;
+import com.economato.inventory.domain.model.User;
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.TemporaryRoleEscalationRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 @Service
 @Transactional(rollbackFor = { RuntimeException.class, Exception.class })
@@ -156,7 +154,7 @@ public class UserService {
 
         User user = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND) + ": " + id));
+                        i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { id })));
 
         if (Role.ADMIN.equals(user.getRole())) {
             long adminCount = repository.countByRole(Role.ADMIN);
@@ -174,14 +172,14 @@ public class UserService {
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void updateFirstLoginStatus(Integer id, boolean status, boolean isAdmin) {
         User user = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { id })));
 
         // Validación de seguridad: solo un admin puede cambiar firstLogin de false a
         // true
         // Un usuario normal solo puede marcarlo como false (completar primer login)
         if (!isAdmin && status && !user.isFirstLogin()) {
             throw new InvalidOperationException(
-                    "No se permite reactivar el estado de primer login. Solo los administradores pueden realizar esta acción.");
+                    i18nService.getMessage(MessageKey.ERROR_USER_FIRST_LOGIN_REACTIVATE_DENIED));
         }
 
         user.setFirstLogin(status);
@@ -195,7 +193,7 @@ public class UserService {
     public void changePassword(Integer id, ChangePasswordRequestDTO request,
             boolean isAdmin) {
         User user = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { id })));
 
         if (isAdmin) {
             user.setPassword(passwordEncoder.encode(request.getNewPassword()));
@@ -216,8 +214,7 @@ public class UserService {
         }
 
         repository.save(user);
-        customUserDetailsService.evictUser(user.getName());
-        customUserDetailsService.evictUser(user.getUser());
+        customUserDetailsService.clearCache();
     }
 
     @Transactional(readOnly = true)
@@ -239,7 +236,7 @@ public class UserService {
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void toggleUserHiddenStatus(Integer id, boolean hidden) {
         User user = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { id })));
 
         // Validación de seguridad: no se puede ocultar el último admin
         if (hidden && Role.ADMIN.equals(user.getRole())) {
@@ -264,7 +261,7 @@ public class UserService {
             }
             User teacher = repository.findById(teacherId)
                     .orElseThrow(
-                            () -> new InvalidOperationException("El profesor asignado no existe con ID: " + teacherId));
+                            () -> new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_TEACHER_NOT_FOUND, new Object[] { teacherId })));
             // El profesor debe tener rol CHEF
             if (!Role.CHEF.equals(teacher.getRole())) {
                 throw new InvalidOperationException(
@@ -277,14 +274,14 @@ public class UserService {
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void assignTeacher(Integer userId, Integer teacherId) {
         User user = repository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { userId })));
 
         if (teacherId == null) {
             user.setTeacher(null);
         } else {
             validateTeacherAssignment(user.getRole(), teacherId);
             User teacher = repository.findById(teacherId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Profesor no encontrado con ID: " + teacherId));
+                    .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_USER_TEACHER_NOT_FOUND, new Object[] { teacherId })));
             user.setTeacher(teacher);
         }
 
@@ -313,7 +310,7 @@ public class UserService {
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void escalateRole(Integer userId, RoleEscalationRequestDTO request) {
         User user = repository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { userId })));
 
         if (Role.ELEVATED.equals(user.getRole())) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_ALREADY_ELEVATED));
@@ -342,7 +339,7 @@ public class UserService {
     @Transactional(rollbackFor = { ResourceNotFoundException.class })
     public void deescalateRole(Integer userId) {
         User user = repository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con ID: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { userId })));
 
         if (!Role.ELEVATED.equals(user.getRole())) {
             // Already de-escalated or not a ELEVATED

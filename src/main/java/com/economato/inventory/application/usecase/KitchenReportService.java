@@ -10,6 +10,8 @@ import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.RecipeCookingAudit;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,12 +34,14 @@ import java.util.stream.Stream;
 @Service
 public class KitchenReportService {
 
+    private final I18nService i18nService;
     private final RecipeCookingAuditRepository auditRepository;
     private final ProductRepository productRepository;
     private final KitchenReportMapper mapper;
     private final ObjectMapper objectMapper;
 
-    public KitchenReportService(RecipeCookingAuditRepository auditRepository, ProductRepository productRepository, KitchenReportMapper mapper) {
+    public KitchenReportService(I18nService i18nService, RecipeCookingAuditRepository auditRepository, ProductRepository productRepository, KitchenReportMapper mapper) {
+        this.i18nService = i18nService;
         this.auditRepository = auditRepository;
         this.productRepository = productRepository;
         this.mapper = mapper;
@@ -73,7 +77,7 @@ public class KitchenReportService {
                 break;
             case CUSTOM:
                 if (startDate == null || endDate == null) {
-                    throw new IllegalArgumentException("Para CUSTOM se requieren fechas de inicio y fin.");
+                    throw new IllegalArgumentException(i18nService.getMessage(MessageKey.ERROR_REPORT_CUSTOM_DATES_REQUIRED));
                 }
                 start = startDate.atStartOfDay();
                 end = endDate.atTime(LocalTime.MAX);
@@ -87,7 +91,7 @@ public class KitchenReportService {
 
         String reportPeriodText;
         if (range == ReportRange.ALL_TIME) {
-            reportPeriodText = "Histórico (Todos los tiempos)";
+            reportPeriodText = i18nService.getMessage(MessageKey.REPORT_PERIOD_ALL_TIME);
         } else {
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
             reportPeriodText = start.toLocalDate().format(formatter) + " - " + end.toLocalDate().format(formatter);

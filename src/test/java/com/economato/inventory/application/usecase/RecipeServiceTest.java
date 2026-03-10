@@ -1,15 +1,38 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.infrastructure.config.web.I18nService;
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -22,8 +45,6 @@ import com.economato.inventory.application.dto.request.RecipeCookingRequestDTO;
 import com.economato.inventory.application.dto.request.RecipeRequestDTO;
 import com.economato.inventory.application.dto.response.RecipeResponseDTO;
 import com.economato.inventory.application.dto.response.RecipeStatsResponseDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.application.mapper.RecipeMapper;
 import com.economato.inventory.application.mapper.StatsMapper;
 import com.economato.inventory.domain.model.Allergen;
@@ -31,24 +52,16 @@ import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.Recipe;
 import com.economato.inventory.domain.model.RecipeComponent;
+import com.economato.inventory.domain.model.User;
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.AllergenRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
-import com.economato.inventory.domain.model.User;
-
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 @ExtendWith(MockitoExtension.class)
 class RecipeServiceTest {
@@ -91,8 +104,18 @@ class RecipeServiceTest {
 
     @BeforeEach
     void setUp() {
-        Mockito.lenient().when(i18nService.getMessage(ArgumentMatchers.any(MessageKey.class)))
+        Mockito.lenient().when(i18nService.getMessage(any(MessageKey.class)))
                 .thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
+        Mockito.lenient().when(i18nService.getMessage(eq(MessageKey.ERROR_RECIPE_NOT_FOUND), any(Object[].class)))
+                .thenAnswer(invocation -> "ERROR_RECIPE_NOT_FOUND " + Arrays.toString((Object[]) invocation.getArgument(1)));
+        Mockito.lenient().when(i18nService.getMessage(eq(MessageKey.ERROR_PRODUCT_NOT_FOUND), any(Object[].class)))
+                .thenAnswer(invocation -> "ERROR_PRODUCT_NOT_FOUND " + Arrays.toString((Object[]) invocation.getArgument(1)));
+        Mockito.lenient().when(i18nService.getMessage(any(MessageKey.class), any(Object[].class)))
+            .thenAnswer(invocation -> {
+                Object arg = invocation.getArgument(1);
+                String argsStr = arg instanceof Object[] ? Arrays.toString((Object[]) arg) : String.valueOf(arg);
+                return ((MessageKey) invocation.getArgument(0)).name() + " " + (argsStr != null ? argsStr : "[]");
+            });
         testProduct = new Product();
         testProduct.setId(1);
         testProduct.setName("Test Product");
@@ -453,7 +476,7 @@ class RecipeServiceTest {
                 eq(1),
                 argThat(amount -> amount.compareTo(new BigDecimal("4.0").negate()) == 0),
                 eq(MovementType.SALIDA),
-                anyString(),
+                any(),
                 any(),
                 isNull());
     }
@@ -568,7 +591,7 @@ class RecipeServiceTest {
                 anyInt(),
                 any(BigDecimal.class),
                 eq(MovementType.SALIDA),
-                anyString(),
+                any(),
                 any(),
                 isNull());
     }
@@ -595,7 +618,7 @@ class RecipeServiceTest {
                 eq(1),
                 argThat(amount -> amount.compareTo(new BigDecimal("3.0").negate()) == 0),
                 eq(MovementType.SALIDA),
-                anyString(),
+                any(),
                 any(),
                 isNull());
     }

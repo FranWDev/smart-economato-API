@@ -13,7 +13,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 
 import com.economato.inventory.application.dto.response.OrderDetailResponseDTO;
 import com.economato.inventory.application.dto.response.OrderResponseDTO;
@@ -23,6 +29,9 @@ import com.economato.inventory.infrastructure.adapter.out.external.reports.Order
 @ExtendWith(MockitoExtension.class)
 class OrderPdfServiceTest {
 
+    @Mock
+    private I18nService i18nService;
+
     @InjectMocks
     private OrderPdfService orderPdfService;
 
@@ -30,6 +39,18 @@ class OrderPdfServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().when(i18nService.getMessage(any(MessageKey.class)))
+                .thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
+        lenient().when(i18nService.getMessage(eq(MessageKey.REPORT_ORDER_TITLE_PREFIX), any(Object[].class)))
+                .thenAnswer(invocation -> "REPORT_ORDER_TITLE_PREFIX " + Arrays.toString((Object[]) invocation.getArgument(1)));
+        lenient().when(i18nService.getMessage(eq(MessageKey.REPORT_SECTION_PRODUCTS_TITLE_PREFIX), any(Object[].class)))
+                .thenAnswer(invocation -> "REPORT_SECTION_PRODUCTS_TITLE_PREFIX " + Arrays.toString((Object[]) invocation.getArgument(1)));
+        lenient().when(i18nService.getMessage(any(MessageKey.class), any(Object[].class)))
+            .thenAnswer(invocation -> {
+                Object arg = invocation.getArgument(1);
+                String argsStr = arg instanceof Object[] ? Arrays.toString((Object[]) arg) : String.valueOf(arg);
+                return ((MessageKey) invocation.getArgument(0)).name() + " " + argsStr;
+            });
         testOrder = new OrderResponseDTO();
         testOrder.setId(1);
         testOrder.setUserId(10);

@@ -1,5 +1,7 @@
 package com.economato.inventory.infrastructure.adapter.out.external.reports;
 
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -50,6 +52,12 @@ public class KitchenReportPdfService {
 
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
+    private final I18nService i18nService;
+
+    public KitchenReportPdfService(I18nService i18nService) {
+        this.i18nService = i18nService;
+    }
+
     public byte[] generateKitchenReportPdf(KitchenReportResponseDTO report) {
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -81,7 +89,7 @@ public class KitchenReportPdfService {
             }
             return baos.toByteArray();
         } catch (Exception e) {
-            throw new RuntimeException("Error al generar el PDF del reporte de cocina", e);
+            throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_REPORT_KITCHEN_PDF_GENERATION, new Object[] { report.getReportPeriod() }), e);
         }
     }
 
@@ -117,7 +125,7 @@ public class KitchenReportPdfService {
 
                 // Branding – below page number
                 try (Canvas c = new Canvas(canvas, new Rectangle(0, 4, pageWidth, 14))) {
-                    c.add(new Paragraph("Generado por Smart Economato")
+                    c.add(new Paragraph(i18nService.getMessage(MessageKey.GENERAL_POWERED_BY))
                             .setFont(font)
                             .setFontSize(7)
                             .setFontColor(TEXT_GRAY)
@@ -138,7 +146,7 @@ public class KitchenReportPdfService {
                 .setMarginBottom(0);
 
         Cell titleCell = new Cell()
-                .add(new Paragraph(sanitizePdfText("Reporte de Cocina"))
+                .add(new Paragraph(sanitizePdfText(i18nService.getMessage(MessageKey.REPORT_KITCHEN_TITLE)))
                         .setFont(boldFont)
                         .setFontSize(20)
                         .setFontColor(ColorConstants.WHITE))
@@ -147,7 +155,7 @@ public class KitchenReportPdfService {
                 .setVerticalAlignment(VerticalAlignment.MIDDLE);
 
         Cell statusCell = new Cell()
-                .add(new Paragraph(sanitizePdfText("Periodo: " + report.getReportPeriod()))
+                .add(new Paragraph(sanitizePdfText(i18nService.getMessage(MessageKey.REPORT_PERIOD_LABEL, new Object[] { report.getReportPeriod() })))
                         .setFont(boldFont)
                         .setFontSize(9)
                         .setFontColor(ColorConstants.WHITE)
@@ -170,23 +178,23 @@ public class KitchenReportPdfService {
 
     private void addReportInfoSection(Document document, KitchenReportResponseDTO report, PdfFont boldFont,
             PdfFont regularFont) {
-        addSectionTitle(document, "Información General", boldFont);
+        addSectionTitle(document, i18nService.getMessage(MessageKey.REPORT_SECTION_GENERAL_INFO), boldFont);
 
         Table infoTable = new Table(UnitValue.createPercentArray(new float[] { 1, 1, 1, 1 }))
                 .setWidth(UnitValue.createPercentValue(100))
                 .setMarginBottom(16);
 
-        addInfoPair(infoTable, "ELABORACIONES REGISTRADAS:", String.valueOf(report.getTotalCookingSessions()), boldFont,
+        addInfoPair(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_SESSIONS), String.valueOf(report.getTotalCookingSessions()), boldFont,
                 regularFont);
-        addInfoPair(infoTable, "PORCIONES PREPARADAS:", formatDecimal(report.getTotalPortionsCooked()), boldFont,
+        addInfoPair(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_PORTIONS), formatDecimal(report.getTotalPortionsCooked()), boldFont,
                 regularFont);
-        addInfoPair(infoTable, "DIVERSIDAD DE RECETAS:", String.valueOf(report.getDistinctRecipesCooked()), boldFont,
+        addInfoPair(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_DISTINCT_RECIPES), String.valueOf(report.getDistinctRecipesCooked()), boldFont,
                 regularFont);
-        addInfoPair(infoTable, "DIVERSIDAD DE PRODUCTOS:", String.valueOf(report.getDistinctProductsUsed()), boldFont,
+        addInfoPair(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_DISTINCT_PRODUCTS), String.valueOf(report.getDistinctProductsUsed()), boldFont,
                 regularFont);
-        addInfoPair(infoTable, "USUARIOS PARTICIPANTES:", String.valueOf(report.getDistinctUsersCooking()), boldFont,
+        addInfoPair(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_DISTINCT_USERS), String.valueOf(report.getDistinctUsersCooking()), boldFont,
                 regularFont);
-        addInfoPair(infoTable, "FECHA DE EMISIÓN:", LocalDateTime.now().format(DATE_FORMAT), boldFont, regularFont);
+        addInfoPair(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_EMISSION_DATE), LocalDateTime.now().format(DATE_FORMAT), boldFont, regularFont);
 
         document.add(infoTable);
     }
@@ -229,16 +237,16 @@ public class KitchenReportPdfService {
     // RECIPES
     private void addTopRecipesTable(Document document, List<RecipeStatDTO> details, PdfFont boldFont,
             PdfFont regularFont) {
-        addSectionTitle(document, "Recetas Más Elaboradas", boldFont);
+        addSectionTitle(document, i18nService.getMessage(MessageKey.REPORT_SECTION_TOP_RECIPES), boldFont);
 
         Table table = new Table(UnitValue.createPercentArray(new float[] { 3, 1, 1 }))
                 .setWidth(UnitValue.createPercentValue(100))
                 .setMarginTop(8)
                 .setMarginBottom(8);
 
-        table.addHeaderCell(createTableHeaderCell("Receta", boldFont));
-        table.addHeaderCell(createTableHeaderCell("Veces Preparada", boldFont));
-        table.addHeaderCell(createTableHeaderCell("Porciones Totales", boldFont));
+        table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_RECIPE), boldFont));
+        table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_TIMES_COOKED), boldFont));
+        table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_TOTAL_PORTIONS), boldFont));
 
         if (details != null && !details.isEmpty()) {
             for (int i = 0; i < details.size(); i++) {
@@ -251,7 +259,7 @@ public class KitchenReportPdfService {
                         createTableDataCell(formatDecimal(detail.getTotalQuantityCooked()), regularFont, rowBg, false));
             }
         } else {
-            table.addCell(createTableDataCell("Sin datos", regularFont, ColorConstants.WHITE, false));
+            table.addCell(createTableDataCell(i18nService.getMessage(MessageKey.GENERAL_NO_DATA), regularFont, ColorConstants.WHITE, false));
             table.addCell(createTableDataCell("-", regularFont, ColorConstants.WHITE, false));
             table.addCell(createTableDataCell("-", regularFont, ColorConstants.WHITE, false));
         }
@@ -260,15 +268,15 @@ public class KitchenReportPdfService {
 
     // USERS
     private void addTopUsersTable(Document document, List<UserStatDTO> details, PdfFont boldFont, PdfFont regularFont) {
-        addSectionTitle(document, "Usuarios con Mayor Actividad", boldFont);
+        addSectionTitle(document, i18nService.getMessage(MessageKey.REPORT_SECTION_TOP_USERS), boldFont);
 
         Table table = new Table(UnitValue.createPercentArray(new float[] { 3, 1 }))
                 .setWidth(UnitValue.createPercentValue(100))
                 .setMarginTop(8)
                 .setMarginBottom(8);
 
-        table.addHeaderCell(createTableHeaderCell("Usuario", boldFont));
-        table.addHeaderCell(createTableHeaderCell("Número de Elaboraciones", boldFont));
+        table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_USER), boldFont));
+        table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_SESSIONS_COUNT), boldFont));
 
         if (details != null && !details.isEmpty()) {
             for (int i = 0; i < details.size(); i++) {
@@ -279,7 +287,7 @@ public class KitchenReportPdfService {
                 table.addCell(createTableDataCell(String.valueOf(detail.getTimesCooked()), regularFont, rowBg, false));
             }
         } else {
-            table.addCell(createTableDataCell("Sin datos", regularFont, ColorConstants.WHITE, false));
+            table.addCell(createTableDataCell(i18nService.getMessage(MessageKey.GENERAL_NO_DATA), regularFont, ColorConstants.WHITE, false));
             table.addCell(createTableDataCell("-", regularFont, ColorConstants.WHITE, false));
         }
         document.add(table);
@@ -288,16 +296,16 @@ public class KitchenReportPdfService {
     // PRODUCTS
     private void addTopProductsTable(Document document, List<ProductStatDTO> details, PdfFont boldFont,
             PdfFont regularFont) {
-        addSectionTitle(document, "Análisis de Consumo de Inventario", boldFont);
+        addSectionTitle(document, i18nService.getMessage(MessageKey.REPORT_SECTION_CONSUMPTION_ANALYSIS), boldFont);
 
         Table table = new Table(UnitValue.createPercentArray(new float[] { 3, 1, 1 }))
                 .setWidth(UnitValue.createPercentValue(100))
                 .setMarginTop(8)
                 .setMarginBottom(8);
 
-        table.addHeaderCell(createTableHeaderCell("Producto", boldFont));
-        table.addHeaderCell(createTableHeaderCell("Cantidad Consumida", boldFont));
-        table.addHeaderCell(createTableHeaderCell("Coste Estimado", boldFont));
+        table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_PRODUCT), boldFont));
+        table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_QUANTITY_CONSUMED), boldFont));
+        table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_ESTIMATED_COST), boldFont));
 
         if (details != null && !details.isEmpty()) {
             for (int i = 0; i < details.size(); i++) {
@@ -306,13 +314,13 @@ public class KitchenReportPdfService {
 
                 table.addCell(createTableDataCell(sanitizePdfText(detail.getProductName()), boldFont, rowBg, true));
                 String quantityWithUnit = formatDecimal(detail.getTotalQuantityUsed()) + " " + 
-                        (detail.getUnit() != null ? sanitizePdfText(detail.getUnit()) : "UND");
+                        (detail.getUnit() != null ? sanitizePdfText(detail.getUnit()) : i18nService.getMessage(MessageKey.GENERAL_SYSTEM));
                 table.addCell(
                         createTableDataCell(quantityWithUnit, regularFont, rowBg, false));
                 table.addCell(createTableDataCellAccent(formatCurrency(detail.getEstimatedCost()), boldFont, rowBg));
             }
         } else {
-            table.addCell(createTableDataCell("Sin datos", regularFont, ColorConstants.WHITE, false));
+            table.addCell(createTableDataCell(i18nService.getMessage(MessageKey.GENERAL_NO_DATA), regularFont, ColorConstants.WHITE, false));
             table.addCell(createTableDataCell("-", regularFont, ColorConstants.WHITE, false));
             table.addCell(createTableDataCell("-", regularFont, ColorConstants.WHITE, false));
         }
@@ -368,7 +376,7 @@ public class KitchenReportPdfService {
                 .setMarginBottom(20);
 
         Cell labelCell = new Cell()
-                .add(new Paragraph("Costo Estimado de Producción:")
+                .add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_TOTAL_ESTIMATED_COST))
                         .setFont(boldFont)
                         .setFontSize(14)
                         .setFontColor(ColorConstants.WHITE))
@@ -402,7 +410,7 @@ public class KitchenReportPdfService {
                     TextAlignment.CENTER,
                     VerticalAlignment.BOTTOM, 0);
 
-            document.showTextAligned(new Paragraph("Generado por Smart Economato")
+            document.showTextAligned(new Paragraph(i18nService.getMessage(MessageKey.GENERAL_POWERED_BY))
                     .setFont(regularFont)
                     .setFontSize(7)
                     .setFontColor(TEXT_GRAY),

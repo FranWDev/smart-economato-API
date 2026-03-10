@@ -24,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.projection.ProductProjection;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 @Service
 public class ProductExcelService {
@@ -31,9 +33,11 @@ public class ProductExcelService {
     private static final int CHUNK_SIZE = 100;
 
     private final ProductRepository productRepository;
+    private final I18nService i18nService;
 
-    public ProductExcelService(ProductRepository productRepository) {
+    public ProductExcelService(ProductRepository productRepository, I18nService i18nService) {
         this.productRepository = productRepository;
+        this.i18nService = i18nService;
     }
 
     /**
@@ -50,7 +54,7 @@ public class ProductExcelService {
         try (SXSSFWorkbook workbook = new SXSSFWorkbook(CHUNK_SIZE)) {
             workbook.setCompressTempFiles(true);
 
-            Sheet sheet = workbook.createSheet("Productos");
+            Sheet sheet = workbook.createSheet(i18nService.getMessage(MessageKey.EXCEL_SHEET_PRODUCTS));
             sheet.createFreezePane(0, 1);
 
             CellStyle headerStyle = createHeaderStyle(workbook);
@@ -59,8 +63,16 @@ public class ProductExcelService {
 
             // Fila de cabecera
             String[] headers = {
-                    "ID", "Nombre", "Tipo", "Unidad", "Precio Unitario",
-                    "Código de Barras", "Stock Actual", "Stock Mínimo", "% Disponibilidad", "Proveedor"
+                    i18nService.getMessage(MessageKey.REPORT_COLUMN_ID),
+                    i18nService.getMessage(MessageKey.REPORT_COLUMN_NAME),
+                    i18nService.getMessage(MessageKey.REPORT_COLUMN_TYPE),
+                    i18nService.getMessage(MessageKey.REPORT_COLUMN_UNIT),
+                    i18nService.getMessage(MessageKey.REPORT_COLUMN_UNIT_PRICE),
+                    i18nService.getMessage(MessageKey.REPORT_COLUMN_BARCODE),
+                    i18nService.getMessage(MessageKey.REPORT_COLUMN_STOCK_CURRENT),
+                    i18nService.getMessage(MessageKey.REPORT_COLUMN_STOCK_MINIMUM),
+                    i18nService.getMessage(MessageKey.REPORT_COLUMN_AVAILABILITY),
+                    i18nService.getMessage(MessageKey.REPORT_COLUMN_SUPPLIER)
             };
             Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {

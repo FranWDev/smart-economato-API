@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import com.economato.inventory.application.dto.response.AllergenResponseDTO;
 import com.economato.inventory.application.dto.response.RecipeComponentResponseDTO;
 import com.economato.inventory.application.dto.response.RecipeResponseDTO;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 import com.itextpdf.kernel.colors.Color;
 import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.colors.DeviceRgb;
@@ -52,6 +54,12 @@ public class RecipePdfService {
     private static final Color ALLERGEN_TEXT = new DeviceRgb(220, 38, 38);
     private static final Color GREEN_TEXT = new DeviceRgb(16, 185, 129);
 
+    private final I18nService i18nService;
+
+    public RecipePdfService(I18nService i18nService) {
+        this.i18nService = i18nService;
+    }
+
     public byte[] generateRecipePdf(RecipeResponseDTO recipe) {
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -70,7 +78,7 @@ public class RecipePdfService {
             addHeader(document, sanitizePdfText(recipe.getName()), boldFont);
 
             if (recipe.getPresentation() != null && !recipe.getPresentation().isEmpty()) {
-                addSection(document, "Presentación", sanitizePdfText(recipe.getPresentation()), boldFont, regularFont);
+                addSection(document, i18nService.getMessage(MessageKey.REPORT_SECTION_PRESENTATION), sanitizePdfText(recipe.getPresentation()), boldFont, regularFont);
             }
 
             if (recipe.getElaboration() != null && !recipe.getElaboration().isEmpty()) {
@@ -88,7 +96,7 @@ public class RecipePdfService {
             document.close();
             return baos.toByteArray();
         } catch (Exception e) {
-            throw new RuntimeException("Error al generar el PDF de la receta " + recipe.getId(), e);
+            throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_REPORT_RECIPE_PDF_GENERATION, new Object[] { recipe.getId() }), e);
         }
     }
 
@@ -148,7 +156,7 @@ public class RecipePdfService {
     // Mimics .elaboration-steps: numbered list with clean spacing
 
     private void addElaborationSection(Document document, String elaboration, PdfFont boldFont, PdfFont regularFont) {
-        addSectionTitle(document, "Elaboración", boldFont);
+        addSectionTitle(document, i18nService.getMessage(MessageKey.REPORT_SECTION_ELABORATION), boldFont);
 
         List<String> steps = parseElaborationSteps(elaboration);
 
@@ -186,7 +194,7 @@ public class RecipePdfService {
 
     private void addIngredientsTable(Document document, List<RecipeComponentResponseDTO> components,
             PdfFont boldFont, PdfFont regularFont) {
-        addSectionTitle(document, "Ingredientes", boldFont);
+        addSectionTitle(document, i18nService.getMessage(MessageKey.REPORT_SECTION_INGREDIENTS), boldFont);
 
         Table table = new Table(UnitValue.createPercentArray(new float[] { 3, 1, 1 }))
                 .setWidth(UnitValue.createPercentValue(100))
@@ -194,9 +202,9 @@ public class RecipePdfService {
                 .setMarginBottom(8);
 
         // Header row - primary color bg, white text
-        table.addHeaderCell(createTableHeaderCell("Producto", boldFont));
-        table.addHeaderCell(createTableHeaderCell("Cantidad", boldFont));
-        table.addHeaderCell(createTableHeaderCell("Subtotal", boldFont));
+        table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_PRODUCT), boldFont));
+        table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_QUANTITY), boldFont));
+        table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_SUBTOTAL), boldFont));
 
         for (int i = 0; i < components.size(); i++) {
             RecipeComponentResponseDTO comp = components.get(i);
@@ -263,7 +271,7 @@ public class RecipePdfService {
                 .setMarginBottom(24);
 
         Cell labelCell = new Cell()
-                .add(new Paragraph("Coste Total")
+                .add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_TOTAL_COST))
                         .setFont(boldFont)
                         .setFontSize(14)
                         .setFontColor(PRIMARY_COLOR))
@@ -291,10 +299,10 @@ public class RecipePdfService {
 
     private void addAllergensSection(Document document, List<AllergenResponseDTO> allergens,
             PdfFont boldFont, PdfFont regularFont) {
-        addSectionTitle(document, "Alérgenos", boldFont);
+        addSectionTitle(document, i18nService.getMessage(MessageKey.REPORT_SECTION_ALLERGENS), boldFont);
 
         if (allergens == null || allergens.isEmpty()) {
-            Paragraph noAllergens = new Paragraph("Esta receta no contiene alérgenos conocidos.")
+            Paragraph noAllergens = new Paragraph(i18nService.getMessage(MessageKey.REPORT_MESSAGE_NO_ALLERGENS))
                     .setFont(regularFont)
                     .setFontSize(10)
                     .setFontColor(GREEN_TEXT)
@@ -350,7 +358,7 @@ public class RecipePdfService {
                 }
 
                 try (Canvas c = new Canvas(canvas, new Rectangle(0, 4, pageWidth, 14))) {
-                    c.add(new Paragraph("Generado por Smart Economato")
+                    c.add(new Paragraph(i18nService.getMessage(MessageKey.GENERAL_POWERED_BY))
                             .setFont(font)
                             .setFontSize(7)
                             .setFontColor(TEXT_GRAY)

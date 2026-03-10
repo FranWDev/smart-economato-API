@@ -231,7 +231,7 @@ public class ProductService {
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void toggleProductHiddenStatus(Integer id, boolean hidden) {
         Product product = repository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND, new Object[] { id })));
 
         product.setHidden(hidden);
         repository.save(product);
@@ -280,7 +280,7 @@ public class ProductService {
                                 existing.getId(),
                                 stockDelta,
                                 MovementType.AJUSTE,
-                                String.format("Modificación manual del stock de %s", existing.getName()),
+                                i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_MANUAL_ADJUSTMENT, new Object[] { existing.getName() }),
                                 currentUser,
                                 null);
 

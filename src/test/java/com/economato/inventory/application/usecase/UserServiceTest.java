@@ -85,8 +85,14 @@ class UserServiceTest {
 
     @BeforeEach
     void setUp() {
-        Mockito.lenient().when(i18nService.getMessage(ArgumentMatchers.any(MessageKey.class)))
+        Mockito.lenient().when(i18nService.getMessage(any(MessageKey.class)))
                 .thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
+        Mockito.lenient().when(i18nService.getMessage(any(MessageKey.class), any(Object[].class)))
+            .thenAnswer(invocation -> {
+                Object arg = invocation.getArgument(1);
+                String argsStr = arg instanceof Object[] ? java.util.Arrays.toString((Object[]) arg) : String.valueOf(arg);
+                return ((MessageKey) invocation.getArgument(0)).name() + " " + (argsStr != null ? argsStr : "[]");
+            });
         testUser = new User();
         testUser.setId(1);
         testUser.setName("Test User");

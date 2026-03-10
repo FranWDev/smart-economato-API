@@ -1,15 +1,34 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.infrastructure.config.web.I18nService;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -23,8 +42,6 @@ import com.economato.inventory.application.dto.request.OrderReceptionRequestDTO;
 import com.economato.inventory.application.dto.request.OrderRequestDTO;
 import com.economato.inventory.application.dto.response.OrderResponseDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.application.mapper.OrderMapper;
 import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Order;
@@ -32,20 +49,13 @@ import com.economato.inventory.domain.model.OrderDetail;
 import com.economato.inventory.domain.model.OrderStatus;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.User;
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 @ExtendWith(MockitoExtension.class)
 class OrderServiceTest {
@@ -80,8 +90,18 @@ class OrderServiceTest {
 
     @BeforeEach
     void setUp() {
-        Mockito.lenient().when(i18nService.getMessage(ArgumentMatchers.any(MessageKey.class)))
+        Mockito.lenient().when(i18nService.getMessage(any(MessageKey.class)))
                 .thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
+        Mockito.lenient().when(i18nService.getMessage(eq(MessageKey.ERROR_ORDER_CANNOT_RECEIVE_LESS_DETAIL), any(Object[].class)))
+                .thenAnswer(invocation -> "ERROR_ORDER_CANNOT_RECEIVE_LESS_DETAIL " + Arrays.toString((Object[]) invocation.getArgument(1)));
+        Mockito.lenient().when(i18nService.getMessage(eq(MessageKey.LEDGER_DESCRIPTION_RECEPTION), any(Object[].class)))
+                .thenAnswer(invocation -> "LEDGER_DESCRIPTION_RECEPTION " + Arrays.toString((Object[]) invocation.getArgument(1)));
+        Mockito.lenient().when(i18nService.getMessage(any(MessageKey.class), any(Object[].class)))
+            .thenAnswer(invocation -> {
+                Object arg = invocation.getArgument(1);
+                String argsStr = arg instanceof Object[] ? Arrays.toString((Object[]) arg) : String.valueOf(arg);
+                return ((MessageKey) invocation.getArgument(0)).name() + " " + (argsStr != null ? argsStr : "[]");
+            });
         testUser = new User();
         testUser.setId(1);
         testUser.setName("Test User");
@@ -322,7 +342,7 @@ class OrderServiceTest {
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
         when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
         when(stockLedgerService.recordStockMovement(
-                anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt()))
+                anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt()))
                 .thenReturn(null);
         when(repository.save(testOrder)).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
@@ -505,7 +525,7 @@ class OrderServiceTest {
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
         when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
         when(stockLedgerService.recordStockMovement(
-                anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt()))
+                anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt()))
                 .thenReturn(null);
         when(repository.save(any(Order.class))).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(any(Order.class))).thenReturn(testOrderResponseDTO);

@@ -15,6 +15,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockPredictionRepository;
 import com.economato.inventory.infrastructure.adapter.out.external.prediction.HoltWintersForecaster;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
@@ -198,7 +199,7 @@ public class StockAlertService {
             StockPrediction prediction = predictionRepository.findById(productId)
                     .orElseGet(() -> {
                         Product product = productRepository.findById(productId)
-                                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado: " + productId));
+                                .orElseThrow(() -> new IllegalArgumentException(messageSource.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND.getKey(), null, LocaleContextHolder.getLocale()) + ": " + productId));
                         // Dejar que @MapsId sincronice el ID automáticamente desde product.id
                         return StockPrediction.builder()
                                 .product(product)
