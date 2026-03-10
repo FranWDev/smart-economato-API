@@ -1,5 +1,30 @@
 package com.economato.inventory.application.usecase;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.economato.inventory.application.dto.projection.PendingProductQuantity;
 import com.economato.inventory.application.dto.projection.WeeklyIngredientConsumption;
 import com.economato.inventory.application.dto.response.AlertResolution;
@@ -11,29 +36,16 @@ import com.economato.inventory.application.dto.response.WeeklyConsumptionRespons
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.Recipe;
 import com.economato.inventory.domain.model.StockPrediction;
+import com.economato.inventory.infrastructure.adapter.out.external.prediction.HoltWintersForecaster;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockPredictionRepository;
-import com.economato.inventory.infrastructure.adapter.out.external.prediction.HoltWintersForecaster;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.MessageSource;
-import org.springframework.context.i18n.LocaleContextHolder;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Genera alertas predictivas de stock bajo combinando:
@@ -161,6 +173,21 @@ public class StockAlertService {
     @Transactional(readOnly = true)
     public List<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistoryAll() {
         return getWeeklyConsumptionHistory(null);
+    }
+
+    /**
+     * Devuelve el historial semanal de consumo para todos los productos en formato
+     * paginado.
+     */
+    @Transactional(readOnly = true)
+    public Page<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistoryAll(Pageable pageable) {
+        List<WeeklyConsumptionResponseDTO> all = getWeeklyConsumptionHistoryAll();
+        int start = (int) pageable.getOffset();
+        if (start >= all.size()) {
+            return new PageImpl<>(List.of(), pageable, all.size());
+        }
+        int end = Math.min(start + pageable.getPageSize(), all.size());
+        return new PageImpl<>(all.subList(start, end), pageable, all.size());
     }
 
         /**
