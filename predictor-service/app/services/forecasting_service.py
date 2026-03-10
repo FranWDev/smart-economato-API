@@ -51,17 +51,37 @@ class ForecastingService:
     # ------------------------------------------------------------------
     # Internal auth helpers
     # ------------------------------------------------------------------
+    def _signing_key(self) -> bytes:
+        """
+        Java's JwtUtils (line 33) does:
+            keyBytes = Decoders.BASE64.decode(secret)   ← tries Base64 first
+            then BASE64URL, then raw bytes
+        We must replicate this exactly so signature validation passes.
+        """
+        import base64 as _b64
+        raw = settings.JWT_SECRET
+        try:
+            return _b64.b64decode(raw)
+        except Exception:
+            try:
+                return _b64.urlsafe_b64decode(raw + "==")
+            except Exception:
+                return raw.encode("utf-8")
+
     def _generate_token(self) -> str:
+        """
+        Generates a JWT compatible with Java's JwtFilter.
+        sub must be a real DB username so loadUserByUsername() succeeds.
+        """
         now = datetime.now(tz=timezone.utc)
         payload = {
-            # sub MUST be a real username in the inventory DB — JwtFilter calls
-            # userDetailsService.loadUserByUsername(sub) to authenticate the request.
             "sub": settings.PREDICTOR_USERNAME,
             "role": "ADMIN",
             "iat": now,
             "exp": now + timedelta(hours=1),
         }
-        return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
+        return jwt.encode(payload, self._signing_key(), algorithm="HS256")
+
 
 
     # ------------------------------------------------------------------

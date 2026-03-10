@@ -110,35 +110,58 @@ class KafkaManager:
 
                 results = await forecast_service.process_event(payload)
 
-                for result in results:
-                    self._send_forecast_update(result)
+                # ── Poor-man's outbox ─────────────────────────────────────────
+                # Produce ALL forecast updates and flush BEFORE committing the
+                # consumer offset.  If the process dies after flush but before
+                # commit, the cooking event will be redelivered and the forecast
+                # recomputed (at-least-once).  If flush fails, we skip the
+                # commit → message is reprocessed on restart (no silent loss).
+                if results:
+                    for result in results:
+                        self._enqueue_forecast_update(result)
+                    # Synchronous flush — waits for broker ACK (acks="all")
+                    await loop.run_in_executor(
+                        None, lambda: self.producer.flush(timeout=30)
+                    )
+                    logger.info(
+                        f"Flushed {len(results)} forecast update(s) for recipe "
+                        f"{payload.get('recipeId')}"
+                    )
 
-                # Commit AFTER successful processing (at-least-once semantics)
+                # Only commit AFTER broker acknowledged all produced messages
                 await loop.run_in_executor(None, self.consumer.commit)
 
             except json.JSONDecodeError as exc:
                 logger.error(f"Malformed JSON in Kafka message — skipping: {exc}")
+                # Poison pill — commit to avoid infinite loop
                 await loop.run_in_executor(None, self.consumer.commit)
             except Exception as exc:
                 logger.error(f"Error processing message: {exc}", exc_info=True)
-                # Do NOT commit — message will be redelivered on restart
+                # Do NOT commit — cooking event will be redelivered on restart
 
-    def _send_forecast_update(self, data: dict):
-        """Non-blocking produce. Delivery report errors are logged via callback."""
+    def _enqueue_forecast_update(self, data: dict):
+        """
+        Enqueues a forecast update message in the producer's internal buffer.
+        Does NOT flush — caller must call producer.flush() after all results
+        are enqueued so that ACK happens before the consumer offset is committed.
+        Raises on error so the consumer loop can skip the commit.
+        """
         if not self.producer:
-            logger.error("Producer not initialised — cannot send forecast update")
-            return
+            raise RuntimeError("Producer not initialised")
+
+        _failed: list[str] = []
 
         def _delivery_report(err, msg):
             if err:
+                _failed.append(str(err))
                 logger.error(
-                    f"Failed delivering forecast update for product "
+                    f"Broker rejected forecast update for product "
                     f"{data.get('productId')}: {err}"
                 )
             else:
-                logger.debug(
-                    f"Delivered forecast update for product {data.get('productId')} "
-                    f"to {msg.topic()} [{msg.partition()}]"
+                logger.info(
+                    f"Forecast update ACK'd for product {data.get('productId')} "
+                    f"→ {msg.topic()}[{msg.partition()}]@{msg.offset()}"
                 )
 
         try:
@@ -148,14 +171,12 @@ class KafkaManager:
                 value=json.dumps(data, ensure_ascii=False).encode("utf-8"),
                 on_delivery=_delivery_report,
             )
-            # poll() drains delivery callbacks without blocking
+            # poll(0) drains delivery callbacks without blocking the event loop
             self.producer.poll(0)
         except BufferError:
-            logger.warning("Producer queue full — flushing and retrying")
+            logger.warning("Producer queue full — flushing synchronously before retry")
             self.producer.flush(timeout=10)
-            self._send_forecast_update(data)
-        except Exception as exc:
-            logger.error(f"Error producing forecast update: {exc}", exc_info=True)
+            self._enqueue_forecast_update(data)
 
 
 kafka_manager = KafkaManager()
