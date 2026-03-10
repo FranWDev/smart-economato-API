@@ -284,7 +284,7 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       INVENTORY_SERVICE_URL: http://api-gateway:8080
       JWT_SECRET: ${JWT_SECRET}
-      INSTANCE_HOST: inventory-predictor6
+      INSTANCE_HOST: inventory-predictor
       INSTANCE_PORT: 8000
       # Must match an existing ADMIN username in the DB (used as JWT sub)
       PREDICTOR_USERNAME: ${PREDICTOR_USERNAME:-Admin}
