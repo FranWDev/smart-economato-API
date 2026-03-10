@@ -41,11 +41,13 @@ public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> 
             @Param("startSeq") Long startSeq,
             @Param("endSeq") Long endSeq);
 
-    @Query("SELECT SUM(ABS(l.quantityDelta)) FROM StockLedger l " +
+    @Query("SELECT CAST(l.transactionTimestamp AS date), SUM(ABS(l.quantityDelta)) FROM StockLedger l " +
            "WHERE l.product.id = :productId " +
            "AND l.transactionTimestamp BETWEEN :startDate AND :endDate " +
-           "AND (l.movementType = 'SALIDA' OR (l.movementType = 'AJUSTE' AND l.quantityDelta < 0))")
-    BigDecimal getConsumptionByProductIdAndDateRange(
+           "AND (l.movementType = 'SALIDA' OR (l.movementType = 'AJUSTE' AND l.quantityDelta < 0)) " +
+           "GROUP BY CAST(l.transactionTimestamp AS date) " +
+           "ORDER BY CAST(l.transactionTimestamp AS date) ASC")
+    List<Object[]> getConsumptionByProductIdAndDateRange(
             @Param("productId") Integer productId,
             @Param("startDate") java.time.LocalDateTime startDate,
             @Param("endDate") java.time.LocalDateTime endDate);

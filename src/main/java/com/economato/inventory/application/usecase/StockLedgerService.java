@@ -561,16 +561,20 @@ public class StockLedgerService {
                     i18nService.getMessage(MessageKey.ERROR_CONSUMPTION_INVALID_DATE_RANGE));
         }
 
-        BigDecimal totalConsumed = ledgerRepository.getConsumptionByProductIdAndDateRange(productId, startDate, endDate);
+        List<Object[]> results = ledgerRepository.getConsumptionByProductIdAndDateRange(productId, startDate, endDate);
         
-        if (totalConsumed == null) {
-            totalConsumed = BigDecimal.ZERO;
-        }
+        List<ProductConsumptionResponseDTO.DailyConsumptionDTO> breakdown = results.stream()
+                .map(row -> {
+                    java.sql.Date sqlDate = (java.sql.Date) row[0];
+                    BigDecimal consumed = (BigDecimal) row[1];
+                    return new ProductConsumptionResponseDTO.DailyConsumptionDTO(sqlDate.toLocalDate(), consumed);
+                })
+                .collect(Collectors.toList());
 
         return ProductConsumptionResponseDTO.builder()
                 .productId(productId)
                 .productName(product.getName())
-                .totalConsumed(totalConsumed)
+                .breakdown(breakdown)
                 .unit(product.getUnit())
                 .startDate(startDate)
                 .endDate(endDate)
