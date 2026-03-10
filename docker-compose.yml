@@ -287,7 +287,7 @@ services:
       INSTANCE_HOST: inventory-predictor6
       INSTANCE_PORT: 8000
       # Must match an existing ADMIN username in the DB (used as JWT sub)
-      PREDICTOR_USERNAME: ${PREDICTOR_USERNAME:Admin}
+      PREDICTOR_USERNAME: ${PREDICTOR_USERNAME:-Admin}
     deploy:
       resources:
         limits:
