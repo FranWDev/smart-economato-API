@@ -1,11 +1,26 @@
 package com.economato.inventory.infrastructure.adapter.in.web;
 
+import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.economato.inventory.application.dto.response.AlertSeverity;
 import com.economato.inventory.application.dto.response.DailyForecastResponseDTO;
 import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.StockPredictionResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyConsumptionResponseDTO;
 import com.economato.inventory.application.usecase.StockAlertService;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -13,13 +28,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/stock-alerts")
@@ -86,13 +94,13 @@ public class StockAlertController {
 
     @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @GetMapping("/history")
-    @Operation(summary = "Obtener historial semanal de consumo", description = "Devuelve el historial semanal de consumo (últimas 12 semanas) para todos los productos con historial. [Rol requerido: CHEF o ADMIN]")
+    @Operation(summary = "Obtener historial semanal de consumo", description = "Devuelve una lista paginada del historial semanal de consumo (últimas 12 semanas) para todos los productos con historial. [Rol requerido: CHEF o ADMIN]")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Historial semanal obtenido correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = WeeklyConsumptionResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
-    public ResponseEntity<List<WeeklyConsumptionResponseDTO>> getWeeklyConsumptionHistoryAll() {
-        return ResponseEntity.ok(stockAlertService.getWeeklyConsumptionHistoryAll());
+    public ResponseEntity<Page<WeeklyConsumptionResponseDTO>> getWeeklyConsumptionHistoryAll(Pageable pageable) {
+        return ResponseEntity.ok(stockAlertService.getWeeklyConsumptionHistoryAll(pageable));
     }
 
     @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")

@@ -1,5 +1,29 @@
 package com.economato.inventory.infrastructure.adapter.in.web;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
 import com.economato.inventory.application.dto.response.AlertResolution;
 import com.economato.inventory.application.dto.response.AlertSeverity;
 import com.economato.inventory.application.dto.response.DailyForecastResponseDTO;
@@ -7,24 +31,6 @@ import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.StockPredictionResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyConsumptionResponseDTO;
 import com.economato.inventory.application.usecase.StockAlertService;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class StockAlertControllerTest {
@@ -151,15 +157,17 @@ class StockAlertControllerTest {
                 .weeklyConsumption(List.of(BigDecimal.valueOf(1.5), BigDecimal.ZERO))
                 .weeksOfHistory(12)
                 .build();
-        when(stockAlertService.getWeeklyConsumptionHistoryAll()).thenReturn(List.of(dto));
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<WeeklyConsumptionResponseDTO> page = new PageImpl<>(List.of(dto), pageable, 1);
+        when(stockAlertService.getWeeklyConsumptionHistoryAll(pageable)).thenReturn(page);
 
-        ResponseEntity<List<WeeklyConsumptionResponseDTO>> response = controller.getWeeklyConsumptionHistoryAll();
+        ResponseEntity<Page<WeeklyConsumptionResponseDTO>> response = controller.getWeeklyConsumptionHistoryAll(pageable);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
-        assertEquals(1, response.getBody().size());
-        assertEquals(dto, response.getBody().get(0));
-        verify(stockAlertService).getWeeklyConsumptionHistoryAll();
+        assertEquals(1, response.getBody().getTotalElements());
+        assertEquals(dto, response.getBody().getContent().get(0));
+        verify(stockAlertService).getWeeklyConsumptionHistoryAll(pageable);
     }
 
     @Test
