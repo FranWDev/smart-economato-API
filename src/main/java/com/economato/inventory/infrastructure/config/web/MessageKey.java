@@ -158,7 +158,9 @@ public enum MessageKey {
     LEDGER_INTEGRITY_CORRUPTED("ledger.integrity.corrupted"),
     LEDGER_REPAIR_STATUS("ledger.repair.status"),
     LEDGER_REPAIR_NO_TRANSACTIONS("ledger.repair.no.transactions"),
-    LEDGER_RESET_SUCCESS("ledger.reset.success");
+    LEDGER_RESET_SUCCESS("ledger.reset.success"),
+    ERROR_CONSUMPTION_INVALID_DATE_RANGE("error.consumption.invalid.date.range"),
+    ERROR_CONSUMPTION_PRODUCT_NOT_FOUND("error.consumption.product.not.found");
 
     private final String key;
 

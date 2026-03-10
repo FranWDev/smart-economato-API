@@ -2,6 +2,7 @@ package com.economato.inventory.infrastructure.adapter.out.persistence.repositor
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
+import java.math.BigDecimal;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -39,6 +40,15 @@ public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> 
             @Param("productId") Integer productId,
             @Param("startSeq") Long startSeq,
             @Param("endSeq") Long endSeq);
+
+    @Query("SELECT SUM(ABS(l.quantityDelta)) FROM StockLedger l " +
+           "WHERE l.product.id = :productId " +
+           "AND l.transactionTimestamp BETWEEN :startDate AND :endDate " +
+           "AND (l.movementType = 'SALIDA' OR (l.movementType = 'AJUSTE' AND l.quantityDelta < 0))")
+    BigDecimal getConsumptionByProductIdAndDateRange(
+            @Param("productId") Integer productId,
+            @Param("startDate") java.time.LocalDateTime startDate,
+            @Param("endDate") java.time.LocalDateTime endDate);
 
     @Modifying
     @Transactional

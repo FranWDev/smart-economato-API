@@ -112,7 +112,7 @@ class StockLedgerServiceIntegrationTest {
                 stockLedgerService.recordStockMovement(
                                 testProduct.getId(),
                                 delta,
-                                MovementType.AJUSTE,
+                                MovementType.MODIFICACION,
                                 "Test",
                                 testUser,
                                 null);
@@ -180,7 +180,7 @@ class StockLedgerServiceIntegrationTest {
                         stockLedgerService.recordStockMovement(
                                         testProduct.getId(),
                                         new BigDecimal(i * 10),
-                                        MovementType.AJUSTE,
+                                        MovementType.MODIFICACION,
                                         "TX" + i,
                                         testUser,
                                         null);
@@ -236,23 +236,23 @@ class StockLedgerServiceIntegrationTest {
         void testVerifyChainIntegrity_ValidAfterDatabaseRoundTripWithSmallDecimals() {
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.005"), MovementType.AJUSTE, "TX1", testUser,
+                                testProduct.getId(), new BigDecimal("0.005"), MovementType.MODIFICACION, "TX1", testUser,
                                 null);
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.002"), MovementType.AJUSTE, "TX2", testUser,
+                                testProduct.getId(), new BigDecimal("0.002"), MovementType.MODIFICACION, "TX2", testUser,
                                 null);
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.003"), MovementType.AJUSTE, "TX3", testUser,
+                                testProduct.getId(), new BigDecimal("0.003"), MovementType.MODIFICACION, "TX3", testUser,
                                 null);
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.001"), MovementType.AJUSTE, "TX4", testUser,
+                                testProduct.getId(), new BigDecimal("0.001"), MovementType.MODIFICACION, "TX4", testUser,
                                 null);
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("-0.011"), MovementType.AJUSTE, "TX5", testUser,
+                                testProduct.getId(), new BigDecimal("-0.011"), MovementType.MODIFICACION, "TX5", testUser,
                                 null);
 
                 stockLedgerService.recordStockMovement(
@@ -357,13 +357,13 @@ class StockLedgerServiceIntegrationTest {
         void testRepairProductLedger_ShouldFixCorruptedChain() {
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.005"), MovementType.AJUSTE, "TX1", testUser,
+                                testProduct.getId(), new BigDecimal("0.005"), MovementType.MODIFICACION, "TX1", testUser,
                                 null);
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.002"), MovementType.AJUSTE, "TX2", testUser,
+                                testProduct.getId(), new BigDecimal("0.002"), MovementType.MODIFICACION, "TX2", testUser,
                                 null);
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.003"), MovementType.AJUSTE, "TX3", testUser,
+                                testProduct.getId(), new BigDecimal("0.003"), MovementType.MODIFICACION, "TX3", testUser,
                                 null);
 
                 List<StockLedger> historyBeforeCorruption = stockLedgerService.getProductHistory(testProduct.getId());
@@ -447,7 +447,7 @@ class StockLedgerServiceIntegrationTest {
                 BigDecimal delta = new BigDecimal("33.5");
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), delta, MovementType.AJUSTE, "Test", testUser, null);
+                                testProduct.getId(), delta, MovementType.MODIFICACION, "Test", testUser, null);
 
                 Product updatedProduct = productRepository.findById(testProduct.getId()).orElseThrow();
                 assertEquals(0, initialStock.add(delta).compareTo(updatedProduct.getCurrentStock()));

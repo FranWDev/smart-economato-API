@@ -169,19 +169,20 @@ public class ProductAuditAspect {
 
     /**
      * Mapea acciones de auditoría a tipos de movimiento válidos.
-     * Valores válidos: IN, OUT, ADJUSTMENT, RECEPTION, PRODUCTION
+     * Valores válidos: ENTRADA, SALIDA, MODIFICACION, RECEPCION, CREACION, OCULTAR, MOSTRAR
      */
     private String mapActionToMovementType(String action) {
         if (action == null) {
-            return "ADJUSTMENT";
+            return "MODIFICACION";
         }
 
         return switch (action.toUpperCase()) {
-            case "CREATE_PRODUCT", "CREATE_RECIPE" -> "PRODUCCION";
-            case "UPDATE_PRODUCT", "UPDATE_RECIPE" -> "AJUSTE";
+            case "CREATE_PRODUCT", "CREATE_RECIPE" -> "CREACION";
+            case "UPDATE_PRODUCT", "UPDATE_RECIPE" -> "MODIFICACION";
             case "DELETE_PRODUCT", "DELETE_RECIPE" -> "SALIDA";
-            case "HIDE_PRODUCT", "SHOW_PRODUCT", "TOGGLE_HIDDEN" -> "AJUSTE";
-            default -> "AJUSTE";
+            case "HIDE_PRODUCT", "TOGGLE_HIDDEN" -> "OCULTAR";
+            case "SHOW_PRODUCT" -> "MOSTRAR";
+            default -> "MODIFICACION";
         };
     }
 }

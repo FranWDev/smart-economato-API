@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.economato.inventory.application.dto.request.BatchStockMovementRequestDTO;
 import com.economato.inventory.application.dto.request.BatchMovementItem;
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
+import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Product;
@@ -547,6 +548,33 @@ public class StockLedgerService {
                  validChains, results.size());
         
         return results;
+    }
+
+    @Transactional(readOnly = true)
+    public ProductConsumptionResponseDTO getProductConsumption(Integer productId, LocalDateTime startDate, LocalDateTime endDate) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new InvalidOperationException(
+                        i18nService.getMessage(MessageKey.ERROR_CONSUMPTION_PRODUCT_NOT_FOUND, new Object[]{productId})));
+
+        if (startDate.isAfter(endDate)) {
+            throw new InvalidOperationException(
+                    i18nService.getMessage(MessageKey.ERROR_CONSUMPTION_INVALID_DATE_RANGE));
+        }
+
+        BigDecimal totalConsumed = ledgerRepository.getConsumptionByProductIdAndDateRange(productId, startDate, endDate);
+        
+        if (totalConsumed == null) {
+            totalConsumed = BigDecimal.ZERO;
+        }
+
+        return ProductConsumptionResponseDTO.builder()
+                .productId(productId)
+                .productName(product.getName())
+                .totalConsumed(totalConsumed)
+                .unit(product.getUnit())
+                .startDate(startDate)
+                .endDate(endDate)
+                .build();
     }
 
 }
