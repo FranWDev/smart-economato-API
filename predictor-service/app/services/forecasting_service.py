@@ -1,84 +1,170 @@
-import pandas as pd
-from prophet import Prophet
+import asyncio
 import logging
 import json
-import jwt
+from datetime import datetime, timezone, timedelta
+
 import httpx
-from datetime import datetime, timedelta
+import jwt
+import pandas as pd
+from prophet import Prophet
+
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Prophet is CPU-heavy — run in a thread pool to avoid blocking uvicorn
+_EXECUTOR = None  # uses default ThreadPoolExecutor
+
+
+def _run_prophet(df: pd.DataFrame) -> tuple[float, float]:
+    """
+    Trains Prophet model and returns (mean_predicted_14d, confidence_score).
+    Executed in a thread executor — NEVER call from the event loop directly.
+    """
+    model = Prophet(
+        yearly_seasonality=False,
+        weekly_seasonality=True,
+        daily_seasonality=False,
+        interval_width=0.80,
+    )
+    model.fit(df)
+
+    future = model.make_future_dataframe(periods=14)
+    forecast = model.predict(future)
+
+    last_14 = forecast.iloc[-14:]
+
+    mean_yhat = float(last_14["yhat"].mean())
+    # Derive a confidence score from the mean width of the 80% interval
+    interval_width = float((last_14["yhat_upper"] - last_14["yhat_lower"]).mean())
+    # Narrower interval relative to prediction → higher confidence (clamp 0–1)
+    if mean_yhat > 0:
+        relative_uncertainty = min(interval_width / (abs(mean_yhat) + 1e-9), 1.0)
+        confidence = round(1.0 - relative_uncertainty * 0.5, 4)
+    else:
+        confidence = 0.5
+
+    return max(0.0, mean_yhat), confidence
+
+
 class ForecastingService:
-    def _generate_token(self):
+    # ------------------------------------------------------------------
+    # Internal auth helpers
+    # ------------------------------------------------------------------
+    def _generate_token(self) -> str:
+        now = datetime.now(tz=timezone.utc)
         payload = {
-            "sub": "predictor-service",
+            # sub MUST be a real username in the inventory DB — JwtFilter calls
+            # userDetailsService.loadUserByUsername(sub) to authenticate the request.
+            "sub": settings.PREDICTOR_USERNAME,
             "role": "ADMIN",
-            "iat": datetime.utcnow(),
-            "exp": datetime.utcnow() + timedelta(hours=1)
+            "iat": now,
+            "exp": now + timedelta(hours=1),
         }
         return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
 
-    async def fetch_history(self, product_id: int):
+
+    # ------------------------------------------------------------------
+    # Data fetching
+    # ------------------------------------------------------------------
+    async def fetch_history(self, product_id: int) -> dict | None:
+        """
+        Fetches 90-day consumption history for a product from the inventory API.
+        Returns None on any error so the caller can skip gracefully.
+        """
         token = self._generate_token()
+        url = (
+            f"{settings.INVENTORY_SERVICE_URL}"
+            f"/api/stock-ledger/consumption/{product_id}?lastDays=90"
+        )
         headers = {"Authorization": f"Bearer {token}"}
-        url = f"{settings.INVENTORY_SERVICE_URL}/api/stock-ledger/consumption/{product_id}?lastDays=90"
-        
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(url, headers=headers, timeout=10.0)
-                if response.status_code == 200:
-                    return response.json()
-                logger.error(f"Error fetching history for {product_id}: {response.status_code}")
-            except Exception as e:
-                logger.error(f"Exception fetching history for {product_id}: {e}")
+
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(10.0)) as client:
+                response = await client.get(url, headers=headers)
+                response.raise_for_status()
+                return response.json()
+        except httpx.HTTPStatusError as exc:
+            logger.error(
+                f"HTTP {exc.response.status_code} fetching history for product {product_id}"
+            )
+        except httpx.RequestError as exc:
+            logger.error(f"Network error fetching history for product {product_id}: {exc}")
+        except Exception as exc:
+            logger.error(f"Unexpected error fetching history for product {product_id}: {exc}")
         return None
 
-    async def process_event(self, event_data):
-        components_str = event_data.get("componentsState", "{}")
+    # ------------------------------------------------------------------
+    # Core forecast logic
+    # ------------------------------------------------------------------
+    async def process_event(self, event_data: dict) -> list[dict]:
+        """
+        Processes a recipe-cooking event and returns a list of forecast result dicts,
+        one per ingredient that had enough historical data.
+        """
+        components_raw = event_data.get("componentsState", "{}")
         try:
-            components_data = json.loads(components_str)
+            components_data = json.loads(components_raw) if isinstance(components_raw, str) else components_raw
             components = components_data.get("components", [])
-        except Exception:
-            logger.error("Failed to parse componentsState")
+        except (json.JSONDecodeError, AttributeError):
+            logger.error("Failed to parse componentsState — skipping event")
+            return []
+
+        if not components:
+            logger.warning(f"No components found in event for recipe {event_data.get('recipeId')}")
             return []
 
         results = []
+        loop = asyncio.get_running_loop()
+
         for comp in components:
             p_id = comp.get("productId")
-            if not p_id: continue
-            
-            history = await self.fetch_history(p_id)
-            if not history or not history.get("breakdown"):
+            if not p_id:
                 continue
 
-            df = pd.DataFrame(history["breakdown"])
+            history = await self.fetch_history(p_id)
+            if not history or not history.get("breakdown"):
+                logger.warning(f"No history for product {p_id} — skipping")
+                continue
+
+            breakdown = history["breakdown"]
+            df = pd.DataFrame(breakdown)
+
+            # Validate required columns
+            if "date" not in df.columns or "consumed" not in df.columns:
+                logger.error(f"Unexpected history schema for product {p_id}: {df.columns.tolist()}")
+                continue
+
             df = df.rename(columns={"date": "ds", "consumed": "y"})
-            
+            df["ds"] = pd.to_datetime(df["ds"], errors="coerce")
+            df = df.dropna(subset=["ds", "y"])
+
             if len(df) < 2:
-                logger.warning(f"Not enough data for product {p_id}")
+                logger.warning(f"Not enough data points for product {p_id} ({len(df)} rows) — skipping")
                 continue
 
             try:
-                model = Prophet(yearly_seasonality=False, weekly_seasonality=True, daily_seasonality=False)
-                model.fit(df)
-                
-                future = model.make_future_dataframe(periods=14)
-                forecast = model.predict(future)
-                
-                prediction_val = float(forecast.iloc[-14:]["yhat"].mean())
-                
+                # Run blocking Prophet in thread pool so uvicorn stays responsive
+                prediction, confidence = await loop.run_in_executor(
+                    _EXECUTOR, _run_prophet, df
+                )
+
                 results.append({
                     "productId": p_id,
-                    "projectedConsumption": round(max(0.0, prediction_val), 2),
-                    "calculatedAt": datetime.now().isoformat(),
+                    "projectedConsumption": round(prediction, 2),
+                    "calculatedAt": datetime.now(tz=timezone.utc).isoformat(),
                     "modelUsed": "Meta Prophet v1.1",
-                    "confidenceScore": "0.85"
+                    "confidenceScore": confidence,
+                    "forecastHorizonDays": 14,
                 })
-                logger.info(f"Forecast generated for product {p_id}: {prediction_val}")
-            except Exception as e:
-                logger.error(f"Error running Prophet for {p_id}: {e}")
+                logger.info(
+                    f"Forecast ready for product {p_id}: "
+                    f"consumption={round(prediction, 2)}, confidence={confidence}"
+                )
+            except Exception as exc:
+                logger.error(f"Prophet failed for product {p_id}: {exc}", exc_info=True)
 
         return results
+
 
 forecast_service = ForecastingService()
