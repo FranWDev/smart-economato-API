@@ -50,7 +50,6 @@ class HoltWintersForecasterTest {
     void forecast_withGrowingHistory_forecastsHigherThanMean() {
         // Consumo creciente: el forecast debe superar la media histórica
         List<Double> obs = Arrays.asList(2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0);
-        double mean = obs.stream().mapToDouble(Double::doubleValue).average().orElse(0);
         double dailyForecast = forecaster.forecast(obs, 1, 7); // 1 semana
         assertTrue(dailyForecast > 0,
                 "Growing series should produce non-zero forecast, got: " + dailyForecast);
@@ -87,5 +86,56 @@ class HoltWintersForecasterTest {
         List<Double> obs = Arrays.asList(1.0, 1000.0, 2.0, 999.0);
         double result = forecaster.forecast(obs, 1, 14);
         assertTrue(result >= 0.0, "Should return non-negative value: " + result);
+    }
+
+    @Test
+    void forecastDaily_withEmptyHistory_returnsZeros() {
+        List<Double> result = forecaster.forecastDaily(Collections.emptyList(), 1, 14);
+        assertEquals(14, result.size());
+        assertTrue(result.stream().allMatch(v -> v == 0.0));
+    }
+
+    @Test
+    void forecastDaily_withNullHistory_returnsZeros() {
+        List<Double> result = forecaster.forecastDaily(null, 1, 14);
+        assertEquals(14, result.size());
+        assertTrue(result.stream().allMatch(v -> v == 0.0));
+    }
+
+    @Test
+    void forecastDaily_withStableSeries_returnsPlateauAroundFiveOverSeven() {
+        List<Double> obs = Arrays.asList(5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0);
+
+        List<Double> result = forecaster.forecastDaily(obs, 1, 14);
+
+        assertEquals(14, result.size());
+        double expected = 5.0 / 7.0;
+        assertTrue(result.stream().allMatch(v -> Math.abs(v - expected) < 0.05),
+                "All values should be close to " + expected + ", got: " + result);
+    }
+
+    @Test
+    void forecastDaily_withGrowingSeries_secondWeekIsNotLowerThanFirstWeek() {
+        List<Double> obs = Arrays.asList(2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0);
+
+        List<Double> result = forecaster.forecastDaily(obs, 1, 14);
+
+        assertEquals(14, result.size());
+        double firstWeek = result.get(0);
+        double secondWeek = result.get(7);
+        assertTrue(secondWeek >= firstWeek,
+                "Second week daily rate should be >= first week. first=" + firstWeek + ", second=" + secondWeek);
+    }
+
+    @Test
+    void forecastDaily_sumFor14Days_isCloseToForecastFor14Days() {
+        List<Double> obs = Arrays.asList(3.0, 3.5, 4.0, 4.5, 4.8, 5.1, 5.4, 5.8);
+
+        List<Double> daily = forecaster.forecastDaily(obs, 1, 14);
+        double sumDaily = daily.stream().mapToDouble(Double::doubleValue).sum();
+        double projected14 = forecaster.forecast(obs, 1, 14);
+
+        assertEquals(projected14, sumDaily, 0.5,
+                "Sum of daily forecasts for 14 days should be close to forecast() result");
     }
 }

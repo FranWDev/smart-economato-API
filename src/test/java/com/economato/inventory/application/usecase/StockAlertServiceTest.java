@@ -4,6 +4,7 @@ import com.economato.inventory.application.dto.projection.PendingProductQuantity
 import com.economato.inventory.application.dto.projection.WeeklyIngredientConsumption;
 import com.economato.inventory.application.dto.response.AlertResolution;
 import com.economato.inventory.application.dto.response.AlertSeverity;
+import com.economato.inventory.application.dto.response.DailyForecastResponseDTO;
 import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.WeeklyConsumptionResponseDTO;
 import com.economato.inventory.domain.model.Product;
@@ -321,5 +322,83 @@ class StockAlertServiceTest {
         assertEquals(1, result.size());
         assertEquals(p1, result.get(0).getProductId());
         verify(productRepository, never()).findById(p2);
+    }
+
+    @Test
+    void getDailyForecast_whenProductHasHistory_returnsForecastDto() {
+        Integer productId = 50;
+
+        WeeklyIngredientConsumption row = mock(WeeklyIngredientConsumption.class);
+        when(row.getProductId()).thenReturn(productId);
+        when(row.getWeekIndex()).thenReturn(0);
+        when(row.getTotalConsumed()).thenReturn(BigDecimal.valueOf(7.0));
+
+        Product product = new Product();
+        product.setId(productId);
+        product.setName("Leche");
+        product.setUnit("L");
+
+        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any())).thenReturn(List.of(row));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(forecaster.forecastDaily(anyList(), eq(1), eq(14)))
+                .thenReturn(List.of(1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3));
+
+        Optional<DailyForecastResponseDTO> result = stockAlertService.getDailyForecast(productId);
+
+        assertTrue(result.isPresent());
+        assertEquals(productId, result.get().getProductId());
+        assertEquals("Leche", result.get().getProductName());
+        assertEquals("L", result.get().getUnit());
+        assertEquals(14, result.get().getHorizonDays());
+        assertEquals(14, result.get().getDailyForecast().size());
+    }
+
+    @Test
+    void getDailyForecast_whenNoHistory_returnsEmpty() {
+        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any())).thenReturn(List.of());
+
+        Optional<DailyForecastResponseDTO> result = stockAlertService.getDailyForecast(999);
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void getDailyForecastAll_returnsDtosForAllProductsWithHistory() {
+        Integer p1 = 70;
+        Integer p2 = 80;
+
+        WeeklyIngredientConsumption row1 = mock(WeeklyIngredientConsumption.class);
+        when(row1.getProductId()).thenReturn(p1);
+        when(row1.getWeekIndex()).thenReturn(0);
+        when(row1.getTotalConsumed()).thenReturn(BigDecimal.valueOf(5.0));
+
+        WeeklyIngredientConsumption row2 = mock(WeeklyIngredientConsumption.class);
+        when(row2.getProductId()).thenReturn(p2);
+        when(row2.getWeekIndex()).thenReturn(0);
+        when(row2.getTotalConsumed()).thenReturn(BigDecimal.valueOf(9.0));
+
+        Product product1 = new Product();
+        product1.setId(p1);
+        product1.setName("Harina");
+        product1.setUnit("kg");
+
+        Product product2 = new Product();
+        product2.setId(p2);
+        product2.setName("Aceite");
+        product2.setUnit("L");
+
+        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any()))
+                .thenReturn(List.of(row1, row2));
+        when(productRepository.findById(p1)).thenReturn(Optional.of(product1));
+        when(productRepository.findById(p2)).thenReturn(Optional.of(product2));
+        when(forecaster.forecastDaily(anyList(), eq(1), eq(14)))
+                .thenReturn(List.of(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5));
+
+        List<DailyForecastResponseDTO> result = stockAlertService.getDailyForecastAll();
+
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(r -> r.getProductId().equals(p1)));
+        assertTrue(result.stream().anyMatch(r -> r.getProductId().equals(p2)));
+        assertTrue(result.stream().allMatch(r -> r.getDailyForecast().size() == 14));
     }
 }

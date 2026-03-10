@@ -75,6 +75,53 @@ public class HoltWintersForecaster {
         return weeklyForecast * (horizonDays / daysPerWeek);
     }
 
+    /**
+     * Genera una serie de forecasts diarios para los próximos horizonDays.
+     * El modelo trabaja a nivel semanal, por lo que proyecta semana a semana
+     * y divide entre 7 para obtener el consumo diario.
+     */
+    public List<Double> forecastDaily(List<Double> weeklyObservations, int seasonPeriod, int horizonDays) {
+        if (horizonDays <= 0) {
+            return List.of();
+        }
+
+        if (weeklyObservations == null || weeklyObservations.isEmpty()) {
+            return new ArrayList<>(java.util.Collections.nCopies(horizonDays, 0.0));
+        }
+
+        List<Double> cleaned = filterAnomalies(weeklyObservations);
+        if (cleaned.isEmpty()) {
+            cleaned = weeklyObservations;
+        }
+
+        int m = Math.max(1, seasonPeriod);
+        double fallbackDaily = simpleMean(cleaned) / 7.0;
+
+        if (cleaned.size() < MIN_WEEKS_FOR_HW) {
+            return new ArrayList<>(java.util.Collections.nCopies(horizonDays, Math.max(0.0, fallbackDaily)));
+        }
+
+        HoltWintersState state = holtwintersFull(cleaned, m);
+        int n = cleaned.size();
+        int weeksToForecast = (int) Math.ceil(horizonDays / 7.0);
+
+        List<Double> weekDailyRates = new ArrayList<>(weeksToForecast);
+        for (int week = 0; week < weeksToForecast; week++) {
+            int k = week + 1;
+            int seasonIdx = (n + k) % m;
+            double weekForecast = (state.level() + k * state.trend()) * state.seasonal().get(seasonIdx);
+            weekForecast = Math.max(0.0, weekForecast);
+            weekDailyRates.add(weekForecast / 7.0);
+        }
+
+        List<Double> daily = new ArrayList<>(horizonDays);
+        for (int day = 0; day < horizonDays; day++) {
+            int weekBucket = day / 7;
+            daily.add(weekDailyRates.get(weekBucket));
+        }
+        return daily;
+    }
+
     // -------------------------------------------------------------------------
     // Holt-Winters 
     // -------------------------------------------------------------------------
@@ -103,6 +150,31 @@ public class HoltWintersForecaster {
         }
 
         return Math.max(0.0, lastForecast);
+    }
+
+    private HoltWintersState holtwintersFull(List<Double> y, int m) {
+        int n = y.size();
+
+        double level = initialLevel(y, m);
+        double trend = initialTrend(y, m);
+        List<Double> seasonal = initialSeasonals(y, m);
+
+        for (int i = 0; i < n; i++) {
+            double obs = y.get(i);
+            double prevLevel = level;
+            double prevTrend = trend;
+            int seasonIdx = i % m;
+
+            level = alpha * (obs / seasonal.get(seasonIdx)) + (1 - alpha) * (prevLevel + prevTrend);
+            trend = beta * (level - prevLevel) + (1 - beta) * prevTrend;
+            double newSeasonal = gamma * (obs / level) + (1 - gamma) * seasonal.get(seasonIdx);
+            seasonal.set(seasonIdx, newSeasonal);
+        }
+
+        return new HoltWintersState(level, trend, seasonal);
+    }
+
+    private record HoltWintersState(double level, double trend, List<Double> seasonal) {
     }
 
     private double initialLevel(List<Double> y, int m) {
