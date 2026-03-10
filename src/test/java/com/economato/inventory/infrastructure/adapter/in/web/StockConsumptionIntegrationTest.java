@@ -5,6 +5,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO;
@@ -33,10 +36,13 @@ class StockConsumptionIntegrationTest extends BaseControllerMockTest {
         testProduct.setName("Test Product");
         testProduct.setUnit("kg");
 
+        List<ProductConsumptionResponseDTO.DailyConsumptionDTO> breakdown = new ArrayList<>();
+        breakdown.add(new ProductConsumptionResponseDTO.DailyConsumptionDTO(LocalDate.of(2024, 5, 3), new BigDecimal("15.500")));
+
         testResponse = ProductConsumptionResponseDTO.builder()
                 .productId(1)
                 .productName("Test Product")
-                .totalConsumed(new BigDecimal("15.500"))
+                .breakdown(breakdown)
                 .unit("kg")
                 .startDate(LocalDateTime.now().minusDays(1))
                 .endDate(LocalDateTime.now())
@@ -55,7 +61,8 @@ class StockConsumptionIntegrationTest extends BaseControllerMockTest {
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.productId").value(1))
-                .andExpect(jsonPath("$.totalConsumed").value(15.5));
+                .andExpect(jsonPath("$.breakdown[0].date").value("2024-05-03"))
+                .andExpect(jsonPath("$.breakdown[0].consumed").value(15.5));
     }
 
     @Test
