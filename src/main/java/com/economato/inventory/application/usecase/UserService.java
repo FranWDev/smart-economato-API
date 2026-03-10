@@ -214,7 +214,8 @@ public class UserService {
         }
 
         repository.save(user);
-        customUserDetailsService.clearCache();
+        customUserDetailsService.evictUser(user.getName());
+        customUserDetailsService.evictUser(user.getUser());
     }
 
     @Transactional(readOnly = true)
