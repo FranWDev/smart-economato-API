@@ -142,7 +142,10 @@ public class UserService {
 
                     validateTeacherAssignment(existing.getRole(), requestDTO.getTeacherId());
 
-                    return userMapper.toResponseDTO(repository.save(existing));
+                    User updatedUser = repository.save(existing);
+                    customUserDetailsService.evictUser(updatedUser.getName());
+                    customUserDetailsService.evictUser(updatedUser.getUser());
+                    return userMapper.toResponseDTO(updatedUser);
                 });
     }
 
@@ -162,6 +165,8 @@ public class UserService {
             }
         }
 
+        customUserDetailsService.evictUser(user.getName());
+        customUserDetailsService.evictUser(user.getUser());
         repository.delete(user);
     }
 
@@ -181,6 +186,8 @@ public class UserService {
 
         user.setFirstLogin(status);
         repository.save(user);
+        customUserDetailsService.evictUser(user.getName());
+        customUserDetailsService.evictUser(user.getUser());
     }
 
     @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
@@ -209,6 +216,8 @@ public class UserService {
         }
 
         repository.save(user);
+        customUserDetailsService.evictUser(user.getName());
+        customUserDetailsService.evictUser(user.getUser());
     }
 
     @Transactional(readOnly = true)
@@ -242,6 +251,8 @@ public class UserService {
 
         user.setHidden(hidden);
         repository.save(user);
+        customUserDetailsService.evictUser(user.getName());
+        customUserDetailsService.evictUser(user.getUser());
     }
 
     private void validateTeacherAssignment(Role userRole, Integer teacherId) {

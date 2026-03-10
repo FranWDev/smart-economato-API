@@ -4,6 +4,7 @@ import com.economato.inventory.application.dto.request.LoginRequestDTO;
 import com.economato.inventory.application.dto.response.LoginResponseDTO;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.application.usecase.UserService;
 import com.economato.inventory.infrastructure.TestDataUtil;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +23,9 @@ class AuthControllerEdgeCasesTest extends BaseIntegrationTest {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private UserService userService;
 
     private User testUser;
 
@@ -173,5 +177,73 @@ class AuthControllerEdgeCasesTest extends BaseIntegrationTest {
 
         assertNotNull(login1.getToken());
         assertNotNull(login2.getToken());
+    }
+
+    @Test
+    void login_WithHiddenUser_ShouldReturnUnauthorized() throws Exception {
+        // Crear un usuario oculto
+        User hiddenUser = TestDataUtil.createChefUser();
+        hiddenUser.setName("HiddenChef");
+        hiddenUser.setUser("hiddenChef");
+        hiddenUser.setHidden(true); // Marcar como oculto
+        userRepository.saveAndFlush(hiddenUser);
+
+        LoginRequestDTO loginRequest = new LoginRequestDTO();
+        loginRequest.setName("HiddenChef");
+        loginRequest.setPassword("chef123");
+
+        mockMvc.perform(post(AUTH_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(loginRequest)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void login_WithHiddenUserByUserField_ShouldReturnUnauthorized() throws Exception {
+        // Crear un usuario oculto
+        User hiddenUser = TestDataUtil.createRegularUser();
+        hiddenUser.setName("HiddenUser");
+        hiddenUser.setUser("hiddenUserAlias");
+        hiddenUser.setHidden(true); // Marcar como oculto
+        userRepository.saveAndFlush(hiddenUser);
+
+        LoginRequestDTO loginRequest = new LoginRequestDTO();
+        loginRequest.setName("hiddenUserAlias");
+        loginRequest.setPassword("user123");
+
+        mockMvc.perform(post(AUTH_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(loginRequest)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void login_WithNormalUserThenHidden_ShouldFailAfterHidden() throws Exception {
+        // Crear un usuario normal
+        User normalUser = TestDataUtil.createChefUser();
+        normalUser.setName("NormalChef");
+        normalUser.setUser("normalChef");
+        normalUser.setHidden(false); // No oculto
+        userRepository.saveAndFlush(normalUser);
+
+        // Primer login debe funcionar
+        LoginRequestDTO loginRequest = new LoginRequestDTO();
+        loginRequest.setName("NormalChef");
+        loginRequest.setPassword("chef123");
+
+        mockMvc.perform(post(AUTH_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(loginRequest)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token", notNullValue()));
+
+        // Ocultar el usuario (Usando el service para evicción de caché)
+        userService.toggleUserHiddenStatus(normalUser.getId(), true);
+
+        // Segundo login debe fallar
+        mockMvc.perform(post(AUTH_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(loginRequest)))
+                .andExpect(status().isUnauthorized());
     }
 }
