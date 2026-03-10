@@ -1,19 +1,24 @@
 package com.economato.inventory.application.usecase;
 
 import com.economato.inventory.application.dto.projection.PendingProductQuantity;
-import com.economato.inventory.application.dto.projection.WeeklyIngredientConsumption;
 import com.economato.inventory.application.dto.response.AlertResolution;
 import com.economato.inventory.application.dto.response.AlertSeverity;
 import com.economato.inventory.application.dto.response.DailyForecastResponseDTO;
 import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.WeeklyConsumptionResponseDTO;
+import com.economato.inventory.application.mapper.StockDailyForecastMapper;
+import com.economato.inventory.application.mapper.StockWeeklyConsumptionHistoryMapper;
 import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.domain.model.StockDailyForecast;
 import com.economato.inventory.domain.model.StockPrediction;
+import com.economato.inventory.domain.model.StockWeeklyConsumptionHistory;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockDailyForecastRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockPredictionRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockWeeklyConsumptionHistoryRepository;
 import com.economato.inventory.infrastructure.adapter.out.external.prediction.HoltWintersForecaster;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,8 +34,6 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,10 +46,20 @@ class StockAlertServiceTest {
     @Mock
     private ProductRepository productRepository;
     @Mock
+    @SuppressWarnings("unused")
     private RecipeRepository recipeRepository;
     @Mock
     private StockPredictionRepository predictionRepository;
     @Mock
+    private StockDailyForecastRepository dailyForecastRepository;
+    @Mock
+    private StockWeeklyConsumptionHistoryRepository weeklyHistoryRepository;
+    @Mock
+    private StockDailyForecastMapper stockDailyForecastMapper;
+    @Mock
+    private StockWeeklyConsumptionHistoryMapper stockWeeklyConsumptionHistoryMapper;
+    @Mock
+    @SuppressWarnings("unused")
     private HoltWintersForecaster forecaster;
     @Mock
     private MessageSource messageSource;
@@ -55,6 +68,7 @@ class StockAlertServiceTest {
     private StockAlertService stockAlertService;
 
     @org.junit.jupiter.api.BeforeEach
+    @SuppressWarnings("unused")
     void setUp() {
         org.mockito.Mockito.lenient().when(messageSource.getMessage(anyString(), any(), any()))
                 .thenAnswer(invocation -> {
@@ -244,35 +258,20 @@ class StockAlertServiceTest {
         Integer p1 = 1;
         Integer p2 = 2;
 
-        WeeklyIngredientConsumption row1 = mock(WeeklyIngredientConsumption.class);
-        when(row1.getProductId()).thenReturn(p1);
-        when(row1.getWeekIndex()).thenReturn(0);
-        when(row1.getTotalConsumed()).thenReturn(BigDecimal.valueOf(2.5));
+        StockWeeklyConsumptionHistory h1 = StockWeeklyConsumptionHistory.builder().id(p1).build();
+        StockWeeklyConsumptionHistory h2 = StockWeeklyConsumptionHistory.builder().id(p2).build();
+        WeeklyConsumptionResponseDTO dto1 = WeeklyConsumptionResponseDTO.builder().productId(p1).productName("Tomate").unit("kg")
+            .weeklyConsumption(List.of(BigDecimal.valueOf(2.5).setScale(3), BigDecimal.ZERO.setScale(3), BigDecimal.ONE.setScale(3)))
+            .weeksOfHistory(12)
+            .build();
+        WeeklyConsumptionResponseDTO dto2 = WeeklyConsumptionResponseDTO.builder().productId(p2).productName("Aceite").unit("L")
+            .weeklyConsumption(List.of(BigDecimal.valueOf(4.0).setScale(3)))
+            .weeksOfHistory(12)
+            .build();
 
-        WeeklyIngredientConsumption row2 = mock(WeeklyIngredientConsumption.class);
-        when(row2.getProductId()).thenReturn(p1);
-        when(row2.getWeekIndex()).thenReturn(2);
-        when(row2.getTotalConsumed()).thenReturn(BigDecimal.valueOf(1.0));
-
-        WeeklyIngredientConsumption row3 = mock(WeeklyIngredientConsumption.class);
-        when(row3.getProductId()).thenReturn(p2);
-        when(row3.getWeekIndex()).thenReturn(1);
-        when(row3.getTotalConsumed()).thenReturn(BigDecimal.valueOf(4.0));
-
-        Product product1 = new Product();
-        product1.setId(p1);
-        product1.setName("Tomate");
-        product1.setUnit("kg");
-
-        Product product2 = new Product();
-        product2.setId(p2);
-        product2.setName("Aceite");
-        product2.setUnit("L");
-
-        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any()))
-                .thenReturn(List.of(row1, row2, row3));
-        when(productRepository.findById(p1)).thenReturn(Optional.of(product1));
-        when(productRepository.findById(p2)).thenReturn(Optional.of(product2));
+        when(weeklyHistoryRepository.findAll()).thenReturn(List.of(h1, h2));
+        when(stockWeeklyConsumptionHistoryMapper.toDTO(h1)).thenReturn(dto1);
+        when(stockWeeklyConsumptionHistoryMapper.toDTO(h2)).thenReturn(dto2);
 
         List<WeeklyConsumptionResponseDTO> result = stockAlertService.getWeeklyConsumptionHistoryAll();
 
@@ -287,61 +286,42 @@ class StockAlertServiceTest {
         assertEquals("Tomate", tomato.getProductName());
         assertEquals("kg", tomato.getUnit());
         assertEquals(12, tomato.getWeeksOfHistory());
-        assertEquals(List.of(
-                BigDecimal.valueOf(2.5).setScale(3),
-                BigDecimal.ZERO.setScale(3),
-                BigDecimal.ONE.setScale(3)), tomato.getWeeklyConsumption());
+        assertEquals(List.of(BigDecimal.valueOf(2.5).setScale(3), BigDecimal.ZERO.setScale(3), BigDecimal.ONE.setScale(3)),
+            tomato.getWeeklyConsumption());
     }
 
     @Test
     void getWeeklyConsumptionHistory_withProductId_filtersByProduct() {
         Integer p1 = 10;
-        Integer p2 = 20;
+        StockWeeklyConsumptionHistory h1 = StockWeeklyConsumptionHistory.builder().id(p1).build();
+        WeeklyConsumptionResponseDTO dto = WeeklyConsumptionResponseDTO.builder().productId(p1).productName("Harina").unit("kg")
+            .weeklyConsumption(List.of(BigDecimal.valueOf(3.0).setScale(3)))
+            .weeksOfHistory(12)
+            .build();
 
-        WeeklyIngredientConsumption row1 = mock(WeeklyIngredientConsumption.class);
-        when(row1.getProductId()).thenReturn(p1);
-        when(row1.getWeekIndex()).thenReturn(0);
-        when(row1.getTotalConsumed()).thenReturn(BigDecimal.valueOf(3.0));
-
-        WeeklyIngredientConsumption row2 = mock(WeeklyIngredientConsumption.class);
-        when(row2.getProductId()).thenReturn(p2);
-        when(row2.getWeekIndex()).thenReturn(0);
-        when(row2.getTotalConsumed()).thenReturn(BigDecimal.valueOf(5.0));
-
-        Product product1 = new Product();
-        product1.setId(p1);
-        product1.setName("Harina");
-        product1.setUnit("kg");
-
-        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any()))
-                .thenReturn(List.of(row1, row2));
-        when(productRepository.findById(p1)).thenReturn(Optional.of(product1));
+        when(weeklyHistoryRepository.findOneById(p1)).thenReturn(Optional.of(h1));
+        when(stockWeeklyConsumptionHistoryMapper.toDTO(h1)).thenReturn(dto);
 
         List<WeeklyConsumptionResponseDTO> result = stockAlertService.getWeeklyConsumptionHistory(p1);
 
         assertEquals(1, result.size());
         assertEquals(p1, result.get(0).getProductId());
-        verify(productRepository, never()).findById(p2);
     }
 
     @Test
     void getDailyForecast_whenProductHasHistory_returnsForecastDto() {
         Integer productId = 50;
+        StockDailyForecast entity = StockDailyForecast.builder().id(productId).build();
+        DailyForecastResponseDTO dto = DailyForecastResponseDTO.builder()
+            .productId(productId)
+            .productName("Leche")
+            .unit("L")
+            .dailyForecast(List.of(BigDecimal.valueOf(1.0), BigDecimal.valueOf(1.1)))
+            .horizonDays(14)
+            .build();
 
-        WeeklyIngredientConsumption row = mock(WeeklyIngredientConsumption.class);
-        when(row.getProductId()).thenReturn(productId);
-        when(row.getWeekIndex()).thenReturn(0);
-        when(row.getTotalConsumed()).thenReturn(BigDecimal.valueOf(7.0));
-
-        Product product = new Product();
-        product.setId(productId);
-        product.setName("Leche");
-        product.setUnit("L");
-
-        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any())).thenReturn(List.of(row));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
-        when(forecaster.forecastDaily(anyList(), eq(1), eq(14)))
-                .thenReturn(List.of(1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3));
+        when(dailyForecastRepository.findOneById(productId)).thenReturn(Optional.of(entity));
+        when(stockDailyForecastMapper.toDTO(entity)).thenReturn(dto);
 
         Optional<DailyForecastResponseDTO> result = stockAlertService.getDailyForecast(productId);
 
@@ -350,12 +330,12 @@ class StockAlertServiceTest {
         assertEquals("Leche", result.get().getProductName());
         assertEquals("L", result.get().getUnit());
         assertEquals(14, result.get().getHorizonDays());
-        assertEquals(14, result.get().getDailyForecast().size());
+        assertEquals(2, result.get().getDailyForecast().size());
     }
 
     @Test
     void getDailyForecast_whenNoHistory_returnsEmpty() {
-        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any())).thenReturn(List.of());
+        when(dailyForecastRepository.findOneById(999)).thenReturn(Optional.empty());
 
         Optional<DailyForecastResponseDTO> result = stockAlertService.getDailyForecast(999);
 
@@ -367,38 +347,26 @@ class StockAlertServiceTest {
         Integer p1 = 70;
         Integer p2 = 80;
 
-        WeeklyIngredientConsumption row1 = mock(WeeklyIngredientConsumption.class);
-        when(row1.getProductId()).thenReturn(p1);
-        when(row1.getWeekIndex()).thenReturn(0);
-        when(row1.getTotalConsumed()).thenReturn(BigDecimal.valueOf(5.0));
+        StockDailyForecast f1 = StockDailyForecast.builder().id(p1).build();
+        StockDailyForecast f2 = StockDailyForecast.builder().id(p2).build();
+        DailyForecastResponseDTO dto1 = DailyForecastResponseDTO.builder().productId(p1)
+            .dailyForecast(List.of(BigDecimal.valueOf(0.5), BigDecimal.valueOf(0.5)))
+            .horizonDays(14)
+            .build();
+        DailyForecastResponseDTO dto2 = DailyForecastResponseDTO.builder().productId(p2)
+            .dailyForecast(List.of(BigDecimal.valueOf(0.7), BigDecimal.valueOf(0.7)))
+            .horizonDays(14)
+            .build();
 
-        WeeklyIngredientConsumption row2 = mock(WeeklyIngredientConsumption.class);
-        when(row2.getProductId()).thenReturn(p2);
-        when(row2.getWeekIndex()).thenReturn(0);
-        when(row2.getTotalConsumed()).thenReturn(BigDecimal.valueOf(9.0));
-
-        Product product1 = new Product();
-        product1.setId(p1);
-        product1.setName("Harina");
-        product1.setUnit("kg");
-
-        Product product2 = new Product();
-        product2.setId(p2);
-        product2.setName("Aceite");
-        product2.setUnit("L");
-
-        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any()))
-                .thenReturn(List.of(row1, row2));
-        when(productRepository.findById(p1)).thenReturn(Optional.of(product1));
-        when(productRepository.findById(p2)).thenReturn(Optional.of(product2));
-        when(forecaster.forecastDaily(anyList(), eq(1), eq(14)))
-                .thenReturn(List.of(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5));
+        when(dailyForecastRepository.findAll()).thenReturn(List.of(f1, f2));
+        when(stockDailyForecastMapper.toDTO(f1)).thenReturn(dto1);
+        when(stockDailyForecastMapper.toDTO(f2)).thenReturn(dto2);
 
         List<DailyForecastResponseDTO> result = stockAlertService.getDailyForecastAll();
 
         assertEquals(2, result.size());
         assertTrue(result.stream().anyMatch(r -> r.getProductId().equals(p1)));
         assertTrue(result.stream().anyMatch(r -> r.getProductId().equals(p2)));
-        assertTrue(result.stream().allMatch(r -> r.getDailyForecast().size() == 14));
+        assertTrue(result.stream().allMatch(r -> r.getDailyForecast().size() == 2));
     }
 }

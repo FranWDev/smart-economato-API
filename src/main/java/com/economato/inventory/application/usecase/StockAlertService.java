@@ -11,7 +11,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -19,7 +18,6 @@ import java.util.stream.Collectors;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -33,15 +31,21 @@ import com.economato.inventory.application.dto.response.DailyForecastResponseDTO
 import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.StockPredictionResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyConsumptionResponseDTO;
+import com.economato.inventory.application.mapper.StockDailyForecastMapper;
+import com.economato.inventory.application.mapper.StockWeeklyConsumptionHistoryMapper;
+import com.economato.inventory.domain.model.StockDailyForecast;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.Recipe;
 import com.economato.inventory.domain.model.StockPrediction;
+import com.economato.inventory.domain.model.StockWeeklyConsumptionHistory;
 import com.economato.inventory.infrastructure.adapter.out.external.prediction.HoltWintersForecaster;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockDailyForecastRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockPredictionRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockWeeklyConsumptionHistoryRepository;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 import lombok.RequiredArgsConstructor;
@@ -70,6 +74,10 @@ public class StockAlertService {
     private final ProductRepository productRepository;
     private final RecipeRepository recipeRepository;
     private final StockPredictionRepository predictionRepository;
+    private final StockDailyForecastRepository dailyForecastRepository;
+    private final StockWeeklyConsumptionHistoryRepository weeklyHistoryRepository;
+    private final StockDailyForecastMapper stockDailyForecastMapper;
+    private final StockWeeklyConsumptionHistoryMapper stockWeeklyConsumptionHistoryMapper;
     private final HoltWintersForecaster forecaster;
     private final MessageSource messageSource;
 
@@ -143,27 +151,13 @@ public class StockAlertService {
      */
     @Transactional(readOnly = true)
     public List<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistory(Integer productId) {
-        LocalDateTime since = LocalDateTime.now().minusWeeks(HISTORY_WEEKS);
-        List<WeeklyIngredientConsumption> weeklyData = cookingAuditRepository.findWeeklyConsumptionPerIngredient(since,
-                since);
-
-        Map<Integer, List<Double>> consumptionByProduct = groupByProduct(weeklyData);
-
-        return consumptionByProduct.entrySet().stream()
-                .filter(entry -> productId == null || Objects.equals(entry.getKey(), productId))
-                .map(entry -> productRepository.findById(entry.getKey())
-                        .map(product -> WeeklyConsumptionResponseDTO.builder()
-                                .productId(product.getId())
-                                .productName(product.getName())
-                                .unit(product.getUnit())
-                                .weeklyConsumption(entry.getValue().stream()
-                                        .map(value -> BigDecimal.valueOf(value).setScale(3, RoundingMode.HALF_UP))
-                                        .collect(Collectors.toList()))
-                                .weeksOfHistory(HISTORY_WEEKS)
-                                .build())
-                        .orElse(null))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+        if (productId == null) {
+            return getWeeklyConsumptionHistoryAll();
+        }
+        return weeklyHistoryRepository.findOneById(productId)
+            .map(stockWeeklyConsumptionHistoryMapper::toDTO)
+            .map(List::of)
+            .orElseGet(List::of);
     }
 
     /**
@@ -172,7 +166,10 @@ public class StockAlertService {
      */
     @Transactional(readOnly = true)
     public List<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistoryAll() {
-        return getWeeklyConsumptionHistory(null);
+        return weeklyHistoryRepository.findAll().stream()
+                .sorted(Comparator.comparing(StockWeeklyConsumptionHistory::getId))
+                .map(stockWeeklyConsumptionHistoryMapper::toDTO)
+                .collect(Collectors.toList());
     }
 
     /**
@@ -181,91 +178,38 @@ public class StockAlertService {
      */
     @Transactional(readOnly = true)
     public Page<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistoryAll(Pageable pageable) {
-        List<WeeklyConsumptionResponseDTO> all = getWeeklyConsumptionHistoryAll();
-        int start = (int) pageable.getOffset();
-        if (start >= all.size()) {
-            return new PageImpl<>(List.of(), pageable, all.size());
-        }
-        int end = Math.min(start + pageable.getPageSize(), all.size());
-        return new PageImpl<>(all.subList(start, end), pageable, all.size());
+        return weeklyHistoryRepository.findAll(pageable)
+                .map(stockWeeklyConsumptionHistoryMapper::toDTO);
     }
 
         /**
          * Devuelve la proyección diaria de consumo para un producto concreto.
          */
-        @Transactional(readOnly = true)
-        public Optional<DailyForecastResponseDTO> getDailyForecast(Integer productId) {
-        LocalDateTime since = LocalDateTime.now().minusWeeks(HISTORY_WEEKS);
-        List<WeeklyIngredientConsumption> weeklyData = cookingAuditRepository.findWeeklyConsumptionPerIngredient(since,
-            since);
-        Map<Integer, List<Double>> consumptionByProduct = groupByProduct(weeklyData);
-
-        List<Double> series = consumptionByProduct.get(productId);
-        if (series == null || series.isEmpty()) {
-            return Optional.empty();
-        }
-
-        return productRepository.findById(productId)
-            .map(product -> {
-                List<Double> daily = forecaster.forecastDaily(series, SEASON_PERIOD, HORIZON_DAYS);
-                return DailyForecastResponseDTO.builder()
-                    .productId(product.getId())
-                    .productName(product.getName())
-                    .unit(product.getUnit())
-                    .dailyForecast(daily.stream()
-                        .map(v -> BigDecimal.valueOf(v).setScale(4, RoundingMode.HALF_UP))
-                        .collect(Collectors.toList()))
-                    .horizonDays(HORIZON_DAYS)
-                    .calculatedAt(LocalDateTime.now())
-                    .build();
-            });
-        }
+    @Transactional(readOnly = true)
+    public Optional<DailyForecastResponseDTO> getDailyForecast(Integer productId) {
+        return dailyForecastRepository.findOneById(productId)
+                .map(stockDailyForecastMapper::toDTO);
+    }
 
             /**
              * Devuelve la proyección diaria de consumo para todos los productos con
              * historial en el período analizado.
              */
-            @Transactional(readOnly = true)
-            public List<DailyForecastResponseDTO> getDailyForecastAll() {
-        LocalDateTime since = LocalDateTime.now().minusWeeks(HISTORY_WEEKS);
-        List<WeeklyIngredientConsumption> weeklyData = cookingAuditRepository.findWeeklyConsumptionPerIngredient(since,
-            since);
-        Map<Integer, List<Double>> consumptionByProduct = groupByProduct(weeklyData);
-        LocalDateTime calculatedAt = LocalDateTime.now();
-
-        return consumptionByProduct.entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-            .map(entry -> productRepository.findById(entry.getKey())
-                .map(product -> {
-                    List<Double> daily = forecaster.forecastDaily(entry.getValue(), SEASON_PERIOD, HORIZON_DAYS);
-                    return DailyForecastResponseDTO.builder()
-                        .productId(product.getId())
-                        .productName(product.getName())
-                        .unit(product.getUnit())
-                        .dailyForecast(daily.stream()
-                            .map(v -> BigDecimal.valueOf(v).setScale(4, RoundingMode.HALF_UP))
-                            .collect(Collectors.toList()))
-                        .horizonDays(HORIZON_DAYS)
-                        .calculatedAt(calculatedAt)
-                        .build();
-                })
-                .orElse(null))
-            .filter(Objects::nonNull)
-            .collect(Collectors.toList());
-        }
+    @Transactional(readOnly = true)
+    public List<DailyForecastResponseDTO> getDailyForecastAll() {
+        return dailyForecastRepository.findAll().stream()
+                .sorted(Comparator.comparing(StockDailyForecast::getId))
+                .map(stockDailyForecastMapper::toDTO)
+                .collect(Collectors.toList());
+    }
 
     /**
      * Devuelve la proyección diaria de consumo en formato paginado.
      */
     @Transactional(readOnly = true)
     public Page<DailyForecastResponseDTO> getDailyForecastAll(Pageable pageable) {
-        List<DailyForecastResponseDTO> all = getDailyForecastAll();
-        int start = (int) pageable.getOffset();
-        if (start >= all.size()) {
-            return new PageImpl<>(List.of(), pageable, all.size());
-        }
-        int end = Math.min(start + pageable.getPageSize(), all.size());
-        return new PageImpl<>(all.subList(start, end), pageable, all.size());
+        return dailyForecastRepository.findAll(pageable)
+                .map(stockDailyForecastMapper::toDTO);
     }
 
     private List<StockAlertDTO> computeAlerts() {
@@ -333,25 +277,52 @@ public class StockAlertService {
                 since);
 
         Map<Integer, List<Double>> consumptionByProduct = groupByProduct(weeklyData);
+        LocalDateTime calculatedAt = LocalDateTime.now();
 
         for (Integer productId : productIds) {
             List<Double> consumption = consumptionByProduct.get(productId);
             if (consumption == null || consumption.isEmpty())
                 continue;
 
+            Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                    messageSource.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND.getKey(), null,
+                        LocaleContextHolder.getLocale()) + ": " + productId));
+
+            List<BigDecimal> weeklySeries = consumption.stream()
+                .map(value -> BigDecimal.valueOf(value).setScale(3, RoundingMode.HALF_UP))
+                .collect(Collectors.toList());
+
+            List<BigDecimal> dailySeries = forecaster.forecastDaily(consumption, SEASON_PERIOD, HORIZON_DAYS).stream()
+                .map(value -> BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP))
+                .collect(Collectors.toList());
+
+            StockWeeklyConsumptionHistory weeklyHistory = weeklyHistoryRepository.findById(productId)
+                .orElseGet(() -> StockWeeklyConsumptionHistory.builder()
+                    .product(product)
+                    .build());
+            weeklyHistory.setWeeklyConsumption(weeklySeries);
+            weeklyHistory.setWeeksOfHistory(HISTORY_WEEKS);
+            weeklyHistory.setCalculatedAt(calculatedAt);
+            weeklyHistoryRepository.save(weeklyHistory);
+
+            StockDailyForecast dailyForecast = dailyForecastRepository.findById(productId)
+                .orElseGet(() -> StockDailyForecast.builder()
+                    .product(product)
+                    .build());
+            dailyForecast.setDailyForecast(dailySeries);
+            dailyForecast.setHorizonDays(HORIZON_DAYS);
+            dailyForecast.setCalculatedAt(calculatedAt);
+            dailyForecastRepository.save(dailyForecast);
+
             double projectedRaw = forecaster.forecast(consumption, SEASON_PERIOD, HORIZON_DAYS);
             BigDecimal projected = BigDecimal.valueOf(projectedRaw).setScale(4, RoundingMode.HALF_UP);
 
             // Guardar o actualizar predicción
             StockPrediction prediction = predictionRepository.findById(productId)
-                    .orElseGet(() -> {
-                        Product product = productRepository.findById(productId)
-                                .orElseThrow(() -> new IllegalArgumentException(messageSource.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND.getKey(), null, LocaleContextHolder.getLocale()) + ": " + productId));
-                        // Dejar que @MapsId sincronice el ID automáticamente desde product.id
-                        return StockPrediction.builder()
-                                .product(product)
-                                .build();
-                    });
+                .orElseGet(() -> StockPrediction.builder()
+                    .product(product)
+                    .build());
 
             prediction.setProjectedConsumption(projected);
             predictionRepository.save(prediction);
