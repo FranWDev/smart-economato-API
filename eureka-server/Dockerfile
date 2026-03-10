@@ -1,9 +1,11 @@
 FROM mirror.gcr.io/library/eclipse-temurin:25-jdk-alpine AS builder
 RUN apk add --no-cache maven
 WORKDIR /build
-# Copy the parent pom and then the module
+# Copy the parent pom and all module poms to satisfy Maven reactor
 COPY pom.xml .
 COPY eureka-server/pom.xml eureka-server/
+COPY api-gateway/pom.xml api-gateway/
+COPY inventory-service/pom.xml inventory-service/
 RUN mvn dependency:go-offline -B -pl eureka-server -am
 COPY eureka-server/src eureka-server/src
 RUN mvn clean package -DskipTests -B -pl eureka-server -am
