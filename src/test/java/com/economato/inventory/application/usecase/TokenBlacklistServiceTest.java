@@ -12,6 +12,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RevokedTokenRepository;
+import com.economato.inventory.infrastructure.config.web.I18nService;
 
 import java.time.Duration;
 import java.util.Date;
@@ -45,6 +46,9 @@ class TokenBlacklistServiceTest {
     @Mock
     private CircuitBreaker redisCircuitBreaker;
 
+    @Mock
+    private I18nService i18nService;
+
     @BeforeEach
     void setUp() {
         lenient().when(circuitBreakerRegistry.circuitBreaker("redis")).thenReturn(redisCircuitBreaker);
@@ -54,7 +58,8 @@ class TokenBlacklistServiceTest {
                 redisTemplate,
                 revokedTokenRepository,
                 tokenLocaleCache,
-                circuitBreakerRegistry);
+                circuitBreakerRegistry,
+                i18nService);
     }
 
     @Test

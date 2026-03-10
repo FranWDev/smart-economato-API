@@ -44,12 +44,13 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         User user = userRepository.findByName(username)
                 .or(() -> userRepository.findByUser(username))
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+                .orElseThrow(() -> new UsernameNotFoundException(
+                        i18nService.getMessage(MessageKey.ERROR_AUTH_USER_NOT_FOUND, new Object[] { username })));
 
         // Validar que el usuario no esté oculto
         if (user.isHidden()) {
             throw new UsernameNotFoundException(
-                    i18nService.getMessage(MessageKey.ERROR_AUTH_USER_HIDDEN) + ": " + username);
+                    i18nService.getMessage(MessageKey.ERROR_AUTH_USER_HIDDEN, new Object[] { username }));
         }
 
         CachedEntry entry = new CachedEntry(user.getName(), user.getPassword(), "ROLE_" + user.getRole());

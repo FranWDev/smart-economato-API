@@ -82,7 +82,7 @@ public class StockLedgerPdfService {
         try {
             var product = productRepository.findById(productId)
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND)));
+                            i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND, new Object[] { productId })));
 
             List<StockLedger> ledgerEntries = stockLedgerRepository
                     .findByProductIdOrderBySequenceNumber(productId);
@@ -91,7 +91,7 @@ public class StockLedgerPdfService {
             Set<Long> corruptedSequences = extractCorruptedSequences(integrityResult);
 
             if (ledgerEntries.isEmpty()) {
-                throw new ResourceNotFoundException("No hay registros de ledger para este producto");
+                throw new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_LEDGER_NO_ENTRIES));
             }
 
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -99,7 +99,7 @@ public class StockLedgerPdfService {
             PdfDocument pdfDoc = new PdfDocument(writer);
 
             PdfFont footerFont = PdfFontFactory.createFont("Helvetica");
-            pdfDoc.addEventHandler(PdfDocumentEvent.END_PAGE, new LedgerFooterEventHandler(footerFont));
+            pdfDoc.addEventHandler(PdfDocumentEvent.END_PAGE, new LedgerFooterEventHandler(footerFont, i18nService));
 
             Document document = new Document(pdfDoc, PageSize.A4);
             document.setMargins(40, 40, 50, 40);
@@ -108,7 +108,7 @@ public class StockLedgerPdfService {
             PdfFont regularFont = footerFont;
 
             // Header
-            addHeader(document, "LEDGER DE STOCK - " + product.getName(), boldFont);
+            addHeader(document, i18nService.getMessage(MessageKey.REPORT_LEDGER_TITLE_PREFIX, new Object[] { product.getName() }), boldFont);
 
             // Product info
             addProductInfoSection(document, product, boldFont, regularFont);
@@ -125,7 +125,7 @@ public class StockLedgerPdfService {
             return baos.toByteArray();
         } catch (Exception e) {
             log.error("Error al generar PDF del ledger para producto {}", productId, e);
-            throw new RuntimeException("Error al generar el PDF del ledger", e);
+            throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_REPORT_LEDGER_PDF_GENERATION, new Object[] { productId }), e);
         }
     }
 
@@ -144,7 +144,7 @@ public class StockLedgerPdfService {
         IntegrityCheckResult integrityResult = stockLedgerService.verifyChainIntegrity(productId);
         
         log.info("PDF generado para producto {}: {} bytes. Integridad: {}", 
-                 productId, pdfContent.length, integrityResult.isValid() ? "VÁLIDA" : "CORRUPTA");
+                 productId, pdfContent.length, integrityResult.isValid() ? i18nService.getMessage(MessageKey.STATUS_OK) : i18nService.getMessage(MessageKey.STATUS_CORRUPT));
         
         return new LedgerPdfResponseDTO(
                 pdfContent,
@@ -170,7 +170,7 @@ public class StockLedgerPdfService {
         boolean isValid = computedHash.equalsIgnoreCase(providedHash);
         
         log.info("Verificación de integridad para producto {}: {} (hash proporcionado: {}, calculado: {})",
-                productId, isValid ? "VÁLIDO" : "INVÁLIDO", providedHash, computedHash);
+                productId, isValid ? i18nService.getMessage(MessageKey.STATUS_OK) : i18nService.getMessage(MessageKey.STATUS_CORRUPT), providedHash, computedHash);
 
         return isValid;
     }
@@ -227,7 +227,7 @@ public class StockLedgerPdfService {
 
     private void addProductInfoSection(Document document, Product product,
             PdfFont boldFont, PdfFont regularFont) {
-        Paragraph productTitle = new Paragraph("INFORMACIÓN DEL PRODUCTO")
+        Paragraph productTitle = new Paragraph(i18nService.getMessage(MessageKey.REPORT_SECTION_PRODUCT_INFO))
                 .setFont(boldFont)
                 .setFontSize(12)
                 .setFontColor(TEXT_DARK)
@@ -240,12 +240,12 @@ public class StockLedgerPdfService {
         infoTable.setWidth(UnitValue.createPercentValue(100));
         infoTable.setMarginBottom(20);
 
-        addInfoRow(infoTable, "Nombre", product.getName(), boldFont, regularFont);
-        addInfoRow(infoTable, "Código", product.getProductCode(), boldFont, regularFont);
-        addInfoRow(infoTable, "Tipo", product.getType(), boldFont, regularFont);
-        addInfoRow(infoTable, "Stock Actual", product.getCurrentStock().toString() + " " + product.getUnit(),
+        addInfoRow(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_NAME), product.getName(), boldFont, regularFont);
+        addInfoRow(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_CODE), product.getProductCode(), boldFont, regularFont);
+        addInfoRow(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_TYPE), product.getType(), boldFont, regularFont);
+        addInfoRow(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_CURRENT_STOCK), product.getCurrentStock().toString() + " " + product.getUnit(),
                 boldFont, regularFont);
-        addInfoRow(infoTable, "Precio Unitario", "$" + product.getUnitPrice().toString(), boldFont, regularFont);
+        addInfoRow(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_UNIT_PRICE), "$" + product.getUnitPrice().toString(), boldFont, regularFont);
 
         document.add(infoTable);
     }
@@ -269,7 +269,7 @@ public class StockLedgerPdfService {
     private void addLedgerTable(Document document, List<StockLedger> ledgerEntries, Set<Long> corruptedSequences,
             PdfFont boldFont,
             PdfFont regularFont) {
-        Paragraph tableTitle = new Paragraph("HISTORIAL DE TRANSACCIONES")
+        Paragraph tableTitle = new Paragraph(i18nService.getMessage(MessageKey.REPORT_SECTION_TRANSACTIONS))
                 .setFont(boldFont)
                 .setFontSize(12)
                 .setFontColor(TEXT_DARK)
@@ -285,12 +285,12 @@ public class StockLedgerPdfService {
 
         // Header row
         addHeaderCell(table, "#", boldFont);
-        addHeaderCell(table, "Tipo", boldFont);
-        addHeaderCell(table, "Cantidad", boldFont);
-        addHeaderCell(table, "Stock Resultado", boldFont);
-        addHeaderCell(table, "Fecha/Hora", boldFont);
-        addHeaderCell(table, "Descripción / Usuario", boldFont);
-        addHeaderCell(table, "Verif.", boldFont);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_LABEL_TYPE), boldFont);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_QUANTITY), boldFont);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_RESULTING_STOCK), boldFont);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_DATETIME), boldFont);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_DESCRIPTION_USER), boldFont);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_VERIFICATION), boldFont);
 
         // Data rows
         for (int i = 0; i < ledgerEntries.size(); i++) {
@@ -311,10 +311,10 @@ public class StockLedgerPdfService {
                     : "-";
             String userName = entry.getUser() != null && entry.getUser().getName() != null
                     ? entry.getUser().getName()
-                    : "Sistema";
+                    : i18nService.getMessage(MessageKey.GENERAL_SYSTEM);
 
-            addDataCell(table, description + "\npor " + userName, regularFont, isEven);
-            addDataCell(table, isCorrupted ? "CORRUPTA" : "OK", regularFont, isEven,
+            addDataCell(table, description + "\n" + i18nService.getMessage(MessageKey.REPORT_BY_PREFIX, new Object[] { userName }), regularFont, isEven);
+            addDataCell(table, isCorrupted ? i18nService.getMessage(MessageKey.STATUS_CORRUPT) : i18nService.getMessage(MessageKey.STATUS_OK), regularFont, isEven,
                     isCorrupted ? UNVERIFIED_COLOR : VERIFIED_COLOR);
         }
 
@@ -354,7 +354,7 @@ public class StockLedgerPdfService {
                         PdfFont boldFont, PdfFont regularFont) {
                 document.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
 
-        Paragraph signatureTitle = new Paragraph("FIRMA DE AUTENTICIDAD")
+        Paragraph signatureTitle = new Paragraph(i18nService.getMessage(MessageKey.REPORT_SECTION_SIGNATURE))
                 .setFont(boldFont)
                 .setFontSize(12)
                 .setFontColor(TEXT_DARK)
@@ -372,11 +372,11 @@ public class StockLedgerPdfService {
         boolean chainValid = integrityResult != null && integrityResult.isValid();
 
         Cell statusCell = new Cell()
-                .add(new Paragraph("Estado de Integridad de Cadena: ")
+                .add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_INTEGRITY_STATUS))
                         .setFont(boldFont)
                         .setFontSize(10)
                         .setFontColor(TEXT_DARK)
-                        .add(new com.itextpdf.layout.element.Text(chainValid ? "✓ ÍNTEGRA" : "⚠ CORRUPTA")
+                        .add(new com.itextpdf.layout.element.Text(chainValid ? "✓ " + i18nService.getMessage(MessageKey.STATUS_INTEGRAL) : "⚠ " + i18nService.getMessage(MessageKey.STATUS_CORRUPT))
                                 .setFontColor(chainValid ? VERIFIED_COLOR : UNVERIFIED_COLOR)
                                 .setFont(boldFont)))
                 .setPadding(12)
@@ -385,14 +385,14 @@ public class StockLedgerPdfService {
         signatureTable.addCell(statusCell);
 
         String corruptedSummary = corruptedSequences.isEmpty()
-                ? "Ninguna"
+                ? i18nService.getMessage(MessageKey.GENERAL_NONE)
                 : corruptedSequences.stream()
                         .sorted()
                         .map(seq -> "#" + seq)
                         .collect(Collectors.joining(", "));
 
         Cell corruptedCell = new Cell()
-                .add(new Paragraph("Transacciones corruptas detectadas: ")
+                .add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_CORRUPTED_TXS))
                         .setFont(boldFont)
                         .setFontSize(9)
                         .setFontColor(TEXT_GRAY)
@@ -406,7 +406,7 @@ public class StockLedgerPdfService {
 
         // Hash details
         Cell hashLabelCell = new Cell()
-                .add(new Paragraph("SHA-256 Hash del Contenido:")
+                .add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_CONTENT_HASH))
                         .setFont(boldFont)
                         .setFontSize(9)
                         .setFontColor(TEXT_GRAY))
@@ -430,7 +430,7 @@ public class StockLedgerPdfService {
         String formattedTimestamp = generatedAt.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
 
         Cell timestampCell = new Cell()
-                .add(new Paragraph("Generado: ").setFont(boldFont).setFontSize(9).setFontColor(TEXT_GRAY)
+                .add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_GENERATED)).setFont(boldFont).setFontSize(9).setFontColor(TEXT_GRAY)
                         .add(new com.itextpdf.layout.element.Text(formattedTimestamp).setFont(regularFont)))
                 .setPadding(8)
                 .setBorder(new SolidBorder(BORDER_COLOR, 1))
@@ -439,7 +439,7 @@ public class StockLedgerPdfService {
 
         // Last hash reference
         Cell lastHashCell = new Cell()
-                .add(new Paragraph("Hash Último Registro: ")
+                .add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_LAST_HASH))
                         .setFont(boldFont)
                         .setFontSize(8)
                         .setFontColor(TEXT_GRAY)
@@ -454,11 +454,7 @@ public class StockLedgerPdfService {
 
         // Legal notice
         Paragraph legalNotice = new Paragraph(
-                "Este documento es una prueba de integridad de datos. "
-                        +
-                        "La verificación se puede validar calculando el hash SHA-256 del contenido y comparando con el valor mostrado. "
-                        +
-                        "Cualquier alteración de los datos resultará en un hash diferente.")
+                i18nService.getMessage(MessageKey.REPORT_LEGAL_NOTICE))
                 .setFont(regularFont)
                 .setFontSize(7)
                 .setFontColor(TEXT_GRAY)
@@ -494,9 +490,11 @@ public class StockLedgerPdfService {
      */
     private static class LedgerFooterEventHandler implements IEventHandler {
         private PdfFont footerFont;
+        private final I18nService i18nService;
 
-        public LedgerFooterEventHandler(PdfFont font) {
+        public LedgerFooterEventHandler(PdfFont font, I18nService i18nService) {
             this.footerFont = font;
+            this.i18nService = i18nService;
         }
 
         @Override
@@ -509,7 +507,7 @@ public class StockLedgerPdfService {
             Canvas canvas = new Canvas(new com.itextpdf.kernel.pdf.canvas.PdfCanvas(page), pageSize);
 
             int pageNum = pdfDoc.getPageNumber(page);
-            String footer = "Página " + pageNum + " | Documento confidencial - Ledger de Stock";
+            String footer = i18nService.getMessage(MessageKey.REPORT_FOOTER_PAGE, new Object[] { pageNum }) + " | " + i18nService.getMessage(MessageKey.REPORT_FOOTER_CONFIDENTIAL);
 
             canvas.showTextAligned(new Paragraph(footer)
                     .setFont(footerFont)

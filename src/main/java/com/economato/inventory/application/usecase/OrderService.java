@@ -200,10 +200,13 @@ public class OrderService {
 
                         if (receptionItem.getQuantityReceived().compareTo(detail.getQuantity()) < 0) {
                                 throw new InvalidOperationException(
-                                                i18nService.getMessage(MessageKey.ERROR_ORDER_CANNOT_RECEIVE_LESS) + " "
-                                                                + detail.getProduct().getName() +
-                                                                ". Solicitado: " + detail.getQuantity() + ", Recibido: "
-                                                                + receptionItem.getQuantityReceived());
+                                                i18nService.getMessage(MessageKey.ERROR_ORDER_CANNOT_RECEIVE_LESS_DETAIL,
+                                                                new Object[] {
+                                                                                i18nService.getMessage(
+                                                                                                MessageKey.ERROR_ORDER_CANNOT_RECEIVE_LESS),
+                                                                                detail.getQuantity(),
+                                                                                receptionItem.getQuantityReceived()
+                                                                }));
                         }
                         detail.setQuantityReceived(receptionItem.getQuantityReceived());
                 }
@@ -223,8 +226,8 @@ public class OrderService {
                                                 product.getId(),
                                                 detail.getQuantityReceived(),
                                                 MovementType.ENTRADA,
-                                                String.format("Recepción de pedido #%d - %s", order.getId(),
-                                                                product.getName()),
+                                                  i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_RECEPTION,
+                                                                  new Object[] { order.getId(), product.getName() }),
                                                 order.getUser(),
                                                 order.getId());
                         }

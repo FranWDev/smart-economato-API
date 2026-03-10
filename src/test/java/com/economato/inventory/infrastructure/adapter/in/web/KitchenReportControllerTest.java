@@ -4,11 +4,12 @@ import com.economato.inventory.application.dto.request.ReportRange;
 import com.economato.inventory.application.dto.response.KitchenReportResponseDTO;
 import com.economato.inventory.infrastructure.adapter.out.external.reports.KitchenReportPdfService;
 import com.economato.inventory.application.usecase.KitchenReportService;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -21,6 +22,7 @@ import java.util.Collections;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,13 +30,20 @@ class KitchenReportControllerTest {
 
     @Mock
     private KitchenReportService service;
+    @Mock
+    private I18nService i18nService;
 
-    /** Real instance - not mocked. iText runs for real so PDF errors are caught here. */
-    @Spy
-    private KitchenReportPdfService pdfService = new KitchenReportPdfService();
+    private KitchenReportPdfService pdfService;
 
     @InjectMocks
     private KitchenReportController controller;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(i18nService.getMessage(any())).thenAnswer(invocation -> "Dummy text for " + invocation.getArgument(0));
+        pdfService = new KitchenReportPdfService(i18nService);
+        controller = new KitchenReportController(service, pdfService);
+    }
 
     @Test
     void testGetReport_Daily() {

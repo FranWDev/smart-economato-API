@@ -133,8 +133,8 @@ public class StockLedgerService {
 
         if (newStock.compareTo(BigDecimal.ZERO) < 0) {
             throw new InvalidOperationException(
-                    String.format("Stock insuficiente. Actual: %s, Solicitado: %s",
-                            snapshot.getCurrentStock(), quantityDelta.abs()));
+                    i18nService.getMessage(MessageKey.ERROR_RECIPE_STOCK_INSUFFICIENT,
+                            new Object[] { product.getName(), quantityDelta.abs(), snapshot.getCurrentStock() }));
         }
 
         Optional<StockLedger> lastTransaction = ledgerRepository.findLastTransactionByProductId(productId);
@@ -229,7 +229,7 @@ public class StockLedgerService {
         List<StockLedger> chain = ledgerRepository.findByProductIdOrderBySequenceNumber(productId);
 
         if (chain.isEmpty()) {
-            return new IntegrityCheckResult(productId, productName, true, "No hay transacciones para este producto",
+            return new IntegrityCheckResult(productId, productName, true, i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_NO_TRANSACTIONS),
                     null);
         }
 
@@ -240,11 +240,12 @@ public class StockLedgerService {
             StockLedger tx = chain.get(i);
 
             if (!tx.getPreviousHash().equals(expectedPreviousHash)) {
-                String error = String.format(
-                        "TX#%d: previousHash incorrecto. Esperado: %s, Encontrado: %s",
+                String error = i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_PREVIOUS_HASH_MISMATCH, 
+                    new Object[] {
                         tx.getSequenceNumber(),
                         expectedPreviousHash.substring(0, Math.min(8, expectedPreviousHash.length())),
-                        tx.getPreviousHash().substring(0, Math.min(8, tx.getPreviousHash().length())));
+                        tx.getPreviousHash().substring(0, Math.min(8, tx.getPreviousHash().length()))
+                    });
                 errors.add(error);
             }
 
@@ -263,21 +264,20 @@ public class StockLedgerService {
                     tx.getSequenceNumber());
 
             if (!recalculatedHash.equals(tx.getCurrentHash())) {
-                String error = String.format(
-                        "TX#%d: Hash corrupto. Esperado: %s, Encontrado: %s. " +
-                                "Datos: delta=%s, stock=%s",
+                String error = i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_HASH_CORRUPT, 
+                    new Object[] {
                         tx.getSequenceNumber(),
                         recalculatedHash.substring(0, Math.min(8, recalculatedHash.length())),
                         tx.getCurrentHash().substring(0, Math.min(8, tx.getCurrentHash().length())),
                         normalizedDelta,
-                        normalizedStock);
+                        normalizedStock
+                    });
                 errors.add(error);
             }
 
             if (tx.getSequenceNumber() != (i + 1L)) {
-                String error = String.format(
-                        "TX#%d: Secuencia rota. Esperado: %d",
-                        tx.getSequenceNumber(), (i + 1L));
+                String error = i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_SEQUENCE_BROKEN, 
+                    new Object[] { tx.getSequenceNumber(), (i + 1L) });
                 errors.add(error);
             }
 
@@ -287,12 +287,12 @@ public class StockLedgerService {
         if (errors.isEmpty()) {
             log.info("Cadena íntegra: {} transacciones verificadas", chain.size());
             return new IntegrityCheckResult(productId, productName, true,
-                    String.format("Cadena íntegra: %d transacciones verificadas", chain.size()),
+                    i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_VALID, new Object[] { chain.size() }),
                     null);
         } else {
             log.debug("CORRUPCIÓN DETECTADA: {} errores encontrados", errors.size());
             return new IntegrityCheckResult(productId, productName, false,
-                    String.format("CORRUPCIÓN DETECTADA: %d errores", errors.size()),
+                    i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_CORRUPTED, new Object[] { errors.size() }),
                     errors);
         }
     }
@@ -372,9 +372,8 @@ public class StockLedgerService {
         log.info("Historial restablecido: Producto {} - {} transacciones eliminadas. Stock actual: {}",
                 productId, deletedCount, product.getCurrentStock());
 
-        return String.format("Historial restablecido correctamente. %d transacciones eliminadas. " +
-                "El producto %s vuelve a empezar con stock limpio: %s %s",
-                deletedCount, product.getName(), product.getCurrentStock(), product.getUnit());
+        return i18nService.getMessage(MessageKey.LEDGER_RESET_SUCCESS, 
+                new Object[] { deletedCount, product.getName(), product.getCurrentStock(), product.getUnit() });
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -386,7 +385,7 @@ public class StockLedgerService {
 
         if (chain.isEmpty()) {
             return new IntegrityCheckResult(productId, product.getName(), true,
-                    "No hay transacciones para reparar en este producto", null);
+                    i18nService.getMessage(MessageKey.LEDGER_REPAIR_NO_TRANSACTIONS), null);
         }
 
         String expectedPreviousHash = GENESIS_HASH;
@@ -434,11 +433,8 @@ public class StockLedgerService {
         }
 
         IntegrityCheckResult verification = verifyChainIntegrity(productId);
-        String message = String.format(
-                "Ledger reparado: %d/%d transacciones actualizadas. %s",
-                repairedTransactions,
-                chain.size(),
-                verification.getMessage());
+        String message = i18nService.getMessage(MessageKey.LEDGER_REPAIR_STATUS, 
+            new Object[] { repairedTransactions, chain.size(), verification.getMessage() });
 
         return new IntegrityCheckResult(
                 productId,
@@ -478,8 +474,7 @@ public class StockLedgerService {
         } catch (Exception e) {
             log.debug("Error en operación batch. Revertiendo {} transacciones", transactions.size(), e);
             throw new InvalidOperationException(
-                    "Error en operación batch: " + e.getMessage() +
-                            ". Se han revertido todos los cambios.");
+                    i18nService.getMessage(MessageKey.ERROR_BATCH_OPERATION_FAILED, new Object[] { e.getMessage() }));
         }
     }
 

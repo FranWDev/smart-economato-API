@@ -9,17 +9,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.economato.inventory.domain.model.RevokedToken;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RevokedTokenRepository;
 import com.economato.inventory.application.usecase.RedisTokenBlacklistService;
-import com.economato.inventory.application.usecase.TokenBlacklistService;
+import com.economato.inventory.infrastructure.config.web.I18nService;
 
-import java.time.Duration;
 import java.util.Date;
 import java.util.Locale;
 
@@ -57,6 +53,9 @@ class JwtFilterRedisFailoverTest {
     private JwtFilter jwtFilter;
 
     @Mock
+    private I18nService i18nService;
+
+    @Mock
     private JwtUtils jwtUtils;
 
     @BeforeEach
@@ -68,7 +67,8 @@ class JwtFilterRedisFailoverTest {
                 redisTemplate,
                 revokedTokenRepository,
                 tokenLocaleCache,
-                circuitBreakerRegistry);
+                circuitBreakerRegistry,
+                i18nService);
         jwtFilter = new JwtFilter(jwtUtils, userDetailsService, tokenBlacklistService);
     }
 

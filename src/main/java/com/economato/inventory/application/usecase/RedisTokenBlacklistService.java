@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 
 import com.economato.inventory.domain.model.RevokedToken;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RevokedTokenRepository;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 import java.time.Duration;
 import java.util.Date;
@@ -33,16 +35,19 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
     private final RevokedTokenRepository revokedTokenRepository;
     private final Cache<String, Locale> tokenLocaleCache;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
+    private final I18nService i18nService;
     private static final String BLACKLIST_PREFIX = "token_blacklist:";
 
     public RedisTokenBlacklistService(RedisTemplate<String, String> redisTemplate,
             RevokedTokenRepository revokedTokenRepository,
             Cache<String, Locale> tokenLocaleCache,
-            CircuitBreakerRegistry circuitBreakerRegistry) {
+            CircuitBreakerRegistry circuitBreakerRegistry,
+            I18nService i18nService) {
         this.redisTemplate = redisTemplate;
         this.revokedTokenRepository = revokedTokenRepository;
         this.tokenLocaleCache = tokenLocaleCache;
         this.circuitBreakerRegistry = circuitBreakerRegistry;
+        this.i18nService = i18nService;
     }
 
     @Override
@@ -73,7 +78,7 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
                 revokedTokenRepository.save(new RevokedToken(token, expirationDate));
             } catch (Exception e) {
                 log.error("Failed to blacklist token in database: {}", e.getMessage());
-                throw new RuntimeException("Unable to revoke token", e);
+                throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_AUTH_TOKEN_REVOKE_FAILED), e);
             }
 
             // Invalidate locale cache

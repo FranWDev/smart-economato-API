@@ -1,24 +1,30 @@
 package com.economato.inventory.application.usecase;
 
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
 import com.economato.inventory.domain.model.Role;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
-
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 @ExtendWith(MockitoExtension.class)
 class CustomUserDetailsServiceTest {
@@ -42,8 +48,14 @@ class CustomUserDetailsServiceTest {
         testUser.setPassword("encodedPassword");
         testUser.setRole(Role.USER);
         testUser.setHidden(false);
-        lenient().when(i18nService.getMessage(any(MessageKey.class)))
+            lenient().when(i18nService.getMessage(any(MessageKey.class)))
                 .thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
+            lenient().when(i18nService.getMessage(any(MessageKey.class), any(Object[].class)))
+                .thenAnswer(invocation -> {
+                    Object arg = invocation.getArgument(1);
+                    String argsStr = arg instanceof Object[] ? java.util.Arrays.toString((Object[]) arg) : String.valueOf(arg);
+                    return ((MessageKey) invocation.getArgument(0)).name() + " " + (argsStr != null ? argsStr : "[]");
+                });
     }
 
     @Test
