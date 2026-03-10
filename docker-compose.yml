@@ -284,6 +284,8 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       INSTANCE_HOST: inventory-predictor
       INSTANCE_PORT: 8000
+      # Must match an existing ADMIN username in the DB (used as JWT sub)
+      PREDICTOR_USERNAME: ${PREDICTOR_USERNAME:-Admin}
     deploy:
       resources:
         limits:

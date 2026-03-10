@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     JWT_SECRET: str = os.getenv("JWT_SECRET", "changeit")
     INVENTORY_SERVICE_URL: str = os.getenv("INVENTORY_SERVICE_URL", "http://api-gateway:8080")
     
+    # Must match a real ADMIN user in the inventory DB so JwtFilter can load it
+    PREDICTOR_USERNAME: str = os.getenv("PREDICTOR_USERNAME", "Admin")
+    
     # Topics
     RECIPE_COOKING_TOPIC: str = "recipe-cooking-audit-events"
     FORECAST_UPDATES_TOPIC: str = "forecast-updates"
