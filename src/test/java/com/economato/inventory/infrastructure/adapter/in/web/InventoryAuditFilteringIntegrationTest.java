@@ -63,7 +63,7 @@ class InventoryAuditFilteringIntegrationTest extends BaseIntegrationTest {
 
         InventoryAudit a3 = new InventoryAudit();
         a3.setProduct(p1);
-        a3.setMovementType("AJUSTE");
+        a3.setMovementType("MODIFICACION");
         a3.setQuantity(new BigDecimal("1"));
         a3.setUser(admin);
         a3.setActionDescription("Merma");
@@ -105,11 +105,11 @@ class InventoryAuditFilteringIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/inventory-audits")
                 .header("Authorization", "Bearer " + token)
                 .param("productName", "Harina")
-                .param("type", "AJUSTE")
+                .param("type", "MODIFICACION")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content", hasSize(1)))
-                .andExpect(jsonPath("$.content[0].movementType").value("AJUSTE"))
+                .andExpect(jsonPath("$.content[0].movementType").value("MODIFICACION"))
                 .andExpect(jsonPath("$.content[0].productName").value("Harina de Trigo"));
     }
 

@@ -40,7 +40,7 @@ public class InventoryAudit {
     private User user;
 
     @NotBlank(message = "{validation.inventoryAudit.unknown.notBlank}")
-    @Pattern(regexp = "ENTRADA|SALIDA|AJUSTE|RECEPCION|PRODUCCION", message = "{inventoryaudit.pattern.tipo.de.movimiento.inv.lido}")
+    @Pattern(regexp = "ENTRADA|SALIDA|MODIFICACION|RECEPCION|CREACION|OCULTAR|MOSTRAR", message = "{inventoryaudit.pattern.tipo.de.movimiento.inv.lido}")
     @Column(name = "movement_type", nullable = false, length = 20)
     private String movementType;
 

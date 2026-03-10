@@ -18,6 +18,7 @@ import com.economato.inventory.application.dto.request.BatchStockMovementRequest
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.response.BatchStockMovementResponseDTO;
 import com.economato.inventory.application.dto.response.IntegrityCheckResponseDTO;
+import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO;
 import com.economato.inventory.application.dto.response.StockLedgerResponseDTO;
 import com.economato.inventory.application.dto.response.StockSnapshotResponseDTO;
 import com.economato.inventory.application.mapper.StockLedgerMapper;
@@ -225,6 +226,45 @@ public class StockLedgerController {
 
             return ResponseEntity.badRequest().body(errorResponse);
         }
+    }
+
+    @Operation(summary = "Obtener consumo de un producto", description = "Calcula el consumo total de un producto en un periodo específico. "
+            +
+            "Se puede solicitar un día específico, los últimos X días o un rango de fechas. [Rol requerido: ADMIN]")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Consumo calculado correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductConsumptionResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Parámetros de fecha inválidos"),
+            @ApiResponse(responseCode = "404", description = "Producto no encontrado")
+    })
+    @GetMapping("/consumption/{productId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ProductConsumptionResponseDTO> getProductConsumption(
+            @PathVariable Integer productId,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate date,
+            @RequestParam(required = false) Integer lastDays,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime startDate,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME) java.time.LocalDateTime endDate) {
+
+        java.time.LocalDateTime start;
+        java.time.LocalDateTime end;
+
+        if (date != null) {
+            start = date.atStartOfDay();
+            end = date.atTime(23, 59, 59, 999999999);
+        } else if (lastDays != null) {
+            end = java.time.LocalDateTime.now();
+            start = end.minusDays(lastDays).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        } else if (startDate != null && endDate != null) {
+            start = startDate;
+            end = endDate;
+        } else {
+            // Default to today
+            start = java.time.LocalDate.now().atStartOfDay();
+            end = java.time.LocalDateTime.now();
+        }
+
+        ProductConsumptionResponseDTO consumption = stockLedgerService.getProductConsumption(productId, start, end);
+        return ResponseEntity.ok(consumption);
     }
 
 }
