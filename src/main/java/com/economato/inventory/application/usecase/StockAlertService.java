@@ -4,6 +4,7 @@ import com.economato.inventory.application.dto.projection.PendingProductQuantity
 import com.economato.inventory.application.dto.projection.WeeklyIngredientConsumption;
 import com.economato.inventory.application.dto.response.AlertResolution;
 import com.economato.inventory.application.dto.response.AlertSeverity;
+import com.economato.inventory.application.dto.response.DailyForecastResponseDTO;
 import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.StockPredictionResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyConsumptionResponseDTO;
@@ -22,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -159,6 +161,84 @@ public class StockAlertService {
     @Transactional(readOnly = true)
     public List<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistoryAll() {
         return getWeeklyConsumptionHistory(null);
+    }
+
+        /**
+         * Devuelve la proyección diaria de consumo para un producto concreto.
+         */
+        @Transactional(readOnly = true)
+        public Optional<DailyForecastResponseDTO> getDailyForecast(Integer productId) {
+        LocalDateTime since = LocalDateTime.now().minusWeeks(HISTORY_WEEKS);
+        List<WeeklyIngredientConsumption> weeklyData = cookingAuditRepository.findWeeklyConsumptionPerIngredient(since,
+            since);
+        Map<Integer, List<Double>> consumptionByProduct = groupByProduct(weeklyData);
+
+        List<Double> series = consumptionByProduct.get(productId);
+        if (series == null || series.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return productRepository.findById(productId)
+            .map(product -> {
+                List<Double> daily = forecaster.forecastDaily(series, SEASON_PERIOD, HORIZON_DAYS);
+                return DailyForecastResponseDTO.builder()
+                    .productId(product.getId())
+                    .productName(product.getName())
+                    .unit(product.getUnit())
+                    .dailyForecast(daily.stream()
+                        .map(v -> BigDecimal.valueOf(v).setScale(4, RoundingMode.HALF_UP))
+                        .collect(Collectors.toList()))
+                    .horizonDays(HORIZON_DAYS)
+                    .calculatedAt(LocalDateTime.now())
+                    .build();
+            });
+        }
+
+            /**
+             * Devuelve la proyección diaria de consumo para todos los productos con
+             * historial en el período analizado.
+             */
+            @Transactional(readOnly = true)
+            public List<DailyForecastResponseDTO> getDailyForecastAll() {
+        LocalDateTime since = LocalDateTime.now().minusWeeks(HISTORY_WEEKS);
+        List<WeeklyIngredientConsumption> weeklyData = cookingAuditRepository.findWeeklyConsumptionPerIngredient(since,
+            since);
+        Map<Integer, List<Double>> consumptionByProduct = groupByProduct(weeklyData);
+        LocalDateTime calculatedAt = LocalDateTime.now();
+
+        return consumptionByProduct.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+            .map(entry -> productRepository.findById(entry.getKey())
+                .map(product -> {
+                    List<Double> daily = forecaster.forecastDaily(entry.getValue(), SEASON_PERIOD, HORIZON_DAYS);
+                    return DailyForecastResponseDTO.builder()
+                        .productId(product.getId())
+                        .productName(product.getName())
+                        .unit(product.getUnit())
+                        .dailyForecast(daily.stream()
+                            .map(v -> BigDecimal.valueOf(v).setScale(4, RoundingMode.HALF_UP))
+                            .collect(Collectors.toList()))
+                        .horizonDays(HORIZON_DAYS)
+                        .calculatedAt(calculatedAt)
+                        .build();
+                })
+                .orElse(null))
+            .filter(Objects::nonNull)
+            .collect(Collectors.toList());
+        }
+
+    /**
+     * Devuelve la proyección diaria de consumo en formato paginado.
+     */
+    @Transactional(readOnly = true)
+    public Page<DailyForecastResponseDTO> getDailyForecastAll(Pageable pageable) {
+        List<DailyForecastResponseDTO> all = getDailyForecastAll();
+        int start = (int) pageable.getOffset();
+        if (start >= all.size()) {
+            return new PageImpl<>(List.of(), pageable, all.size());
+        }
+        int end = Math.min(start + pageable.getPageSize(), all.size());
+        return new PageImpl<>(all.subList(start, end), pageable, all.size());
     }
 
     private List<StockAlertDTO> computeAlerts() {

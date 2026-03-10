@@ -2,6 +2,7 @@ package com.economato.inventory.infrastructure.adapter.in.web;
 
 import com.economato.inventory.application.dto.response.AlertResolution;
 import com.economato.inventory.application.dto.response.AlertSeverity;
+import com.economato.inventory.application.dto.response.DailyForecastResponseDTO;
 import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.StockPredictionResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyConsumptionResponseDTO;
@@ -19,6 +20,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -187,5 +189,58 @@ class StockAlertControllerTest {
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
         assertNull(response.getBody());
         verify(stockAlertService).getWeeklyConsumptionHistory(999);
+    }
+
+    @Test
+    void getDailyForecastAll_returnsForecastList() {
+        DailyForecastResponseDTO dto = DailyForecastResponseDTO.builder()
+                .productId(1)
+                .productName("Tomate")
+                .unit("kg")
+                .dailyForecast(List.of(BigDecimal.valueOf(0.7143), BigDecimal.valueOf(0.7143)))
+                .horizonDays(14)
+                .calculatedAt(LocalDateTime.now())
+                .build();
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<DailyForecastResponseDTO> page = new PageImpl<>(List.of(dto), pageable, 1);
+        when(stockAlertService.getDailyForecastAll(pageable)).thenReturn(page);
+
+        ResponseEntity<Page<DailyForecastResponseDTO>> response = controller.getDailyForecastAll(pageable);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().getTotalElements());
+        assertEquals(dto, response.getBody().getContent().get(0));
+        verify(stockAlertService).getDailyForecastAll(pageable);
+    }
+
+    @Test
+    void getDailyForecastByProduct_whenDataExists_returnsOk() {
+        DailyForecastResponseDTO dto = DailyForecastResponseDTO.builder()
+                .productId(2)
+                .productName("Aceite")
+                .unit("L")
+                .dailyForecast(List.of(BigDecimal.valueOf(0.5000)))
+                .horizonDays(14)
+                .calculatedAt(LocalDateTime.now())
+                .build();
+        when(stockAlertService.getDailyForecast(2)).thenReturn(java.util.Optional.of(dto));
+
+        ResponseEntity<DailyForecastResponseDTO> response = controller.getDailyForecastByProduct(2);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(dto, response.getBody());
+        verify(stockAlertService).getDailyForecast(2);
+    }
+
+    @Test
+    void getDailyForecastByProduct_whenNoData_returnsNoContent() {
+        when(stockAlertService.getDailyForecast(999)).thenReturn(java.util.Optional.empty());
+
+        ResponseEntity<DailyForecastResponseDTO> response = controller.getDailyForecastByProduct(999);
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        assertNull(response.getBody());
+        verify(stockAlertService).getDailyForecast(999);
     }
 }

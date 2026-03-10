@@ -1,6 +1,7 @@
 package com.economato.inventory.infrastructure.adapter.in.web;
 
 import com.economato.inventory.application.dto.response.AlertSeverity;
+import com.economato.inventory.application.dto.response.DailyForecastResponseDTO;
 import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.StockPredictionResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyConsumptionResponseDTO;
@@ -108,5 +109,30 @@ public class StockAlertController {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.ok(history.get(0));
+    }
+
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @GetMapping("/forecast")
+    @Operation(summary = "Obtener proyección diaria de consumo", description = "Devuelve una lista paginada de series de 14 valores diarios proyectados para todos los productos con historial. [Rol requerido: CHEF o ADMIN]")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Proyección diaria obtenida correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = DailyForecastResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
+    })
+    public ResponseEntity<Page<DailyForecastResponseDTO>> getDailyForecastAll(Pageable pageable) {
+        return ResponseEntity.ok(stockAlertService.getDailyForecastAll(pageable));
+    }
+
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @GetMapping("/forecast/{productId}")
+    @Operation(summary = "Obtener proyección diaria de un producto", description = "Devuelve una serie de 14 valores diarios proyectados para un producto específico. [Rol requerido: CHEF o ADMIN]")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Proyección diaria del producto obtenida correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = DailyForecastResponseDTO.class))),
+            @ApiResponse(responseCode = "204", description = "No hay datos históricos para el producto"),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
+    })
+    public ResponseEntity<DailyForecastResponseDTO> getDailyForecastByProduct(@PathVariable Integer productId) {
+        return stockAlertService.getDailyForecast(productId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.noContent().build());
     }
 }
