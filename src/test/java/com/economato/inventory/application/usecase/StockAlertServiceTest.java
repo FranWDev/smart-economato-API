@@ -1,9 +1,11 @@
 package com.economato.inventory.application.usecase;
 
 import com.economato.inventory.application.dto.projection.PendingProductQuantity;
+import com.economato.inventory.application.dto.projection.WeeklyIngredientConsumption;
 import com.economato.inventory.application.dto.response.AlertResolution;
 import com.economato.inventory.application.dto.response.AlertSeverity;
 import com.economato.inventory.application.dto.response.StockAlertDTO;
+import com.economato.inventory.application.dto.response.WeeklyConsumptionResponseDTO;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.StockPrediction;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderDetailRepository;
@@ -26,6 +28,8 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -232,5 +236,90 @@ class StockAlertServiceTest {
             assertFalse(alerts.isEmpty());
             assertEquals(expected, alerts.get(0).getSeverity());
         }
+    }
+
+    @Test
+    void getWeeklyConsumptionHistoryAll_returnsMappedWeeklySeriesForAllProducts() {
+        Integer p1 = 1;
+        Integer p2 = 2;
+
+        WeeklyIngredientConsumption row1 = mock(WeeklyIngredientConsumption.class);
+        when(row1.getProductId()).thenReturn(p1);
+        when(row1.getWeekIndex()).thenReturn(0);
+        when(row1.getTotalConsumed()).thenReturn(BigDecimal.valueOf(2.5));
+
+        WeeklyIngredientConsumption row2 = mock(WeeklyIngredientConsumption.class);
+        when(row2.getProductId()).thenReturn(p1);
+        when(row2.getWeekIndex()).thenReturn(2);
+        when(row2.getTotalConsumed()).thenReturn(BigDecimal.valueOf(1.0));
+
+        WeeklyIngredientConsumption row3 = mock(WeeklyIngredientConsumption.class);
+        when(row3.getProductId()).thenReturn(p2);
+        when(row3.getWeekIndex()).thenReturn(1);
+        when(row3.getTotalConsumed()).thenReturn(BigDecimal.valueOf(4.0));
+
+        Product product1 = new Product();
+        product1.setId(p1);
+        product1.setName("Tomate");
+        product1.setUnit("kg");
+
+        Product product2 = new Product();
+        product2.setId(p2);
+        product2.setName("Aceite");
+        product2.setUnit("L");
+
+        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any()))
+                .thenReturn(List.of(row1, row2, row3));
+        when(productRepository.findById(p1)).thenReturn(Optional.of(product1));
+        when(productRepository.findById(p2)).thenReturn(Optional.of(product2));
+
+        List<WeeklyConsumptionResponseDTO> result = stockAlertService.getWeeklyConsumptionHistoryAll();
+
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(r -> r.getProductId().equals(p1)));
+        assertTrue(result.stream().anyMatch(r -> r.getProductId().equals(p2)));
+
+        WeeklyConsumptionResponseDTO tomato = result.stream()
+                .filter(r -> r.getProductId().equals(p1))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("Tomate", tomato.getProductName());
+        assertEquals("kg", tomato.getUnit());
+        assertEquals(12, tomato.getWeeksOfHistory());
+        assertEquals(List.of(
+                BigDecimal.valueOf(2.5).setScale(3),
+                BigDecimal.ZERO.setScale(3),
+                BigDecimal.ONE.setScale(3)), tomato.getWeeklyConsumption());
+    }
+
+    @Test
+    void getWeeklyConsumptionHistory_withProductId_filtersByProduct() {
+        Integer p1 = 10;
+        Integer p2 = 20;
+
+        WeeklyIngredientConsumption row1 = mock(WeeklyIngredientConsumption.class);
+        when(row1.getProductId()).thenReturn(p1);
+        when(row1.getWeekIndex()).thenReturn(0);
+        when(row1.getTotalConsumed()).thenReturn(BigDecimal.valueOf(3.0));
+
+        WeeklyIngredientConsumption row2 = mock(WeeklyIngredientConsumption.class);
+        when(row2.getProductId()).thenReturn(p2);
+        when(row2.getWeekIndex()).thenReturn(0);
+        when(row2.getTotalConsumed()).thenReturn(BigDecimal.valueOf(5.0));
+
+        Product product1 = new Product();
+        product1.setId(p1);
+        product1.setName("Harina");
+        product1.setUnit("kg");
+
+        when(cookingAuditRepository.findWeeklyConsumptionPerIngredient(any(), any()))
+                .thenReturn(List.of(row1, row2));
+        when(productRepository.findById(p1)).thenReturn(Optional.of(product1));
+
+        List<WeeklyConsumptionResponseDTO> result = stockAlertService.getWeeklyConsumptionHistory(p1);
+
+        assertEquals(1, result.size());
+        assertEquals(p1, result.get(0).getProductId());
+        verify(productRepository, never()).findById(p2);
     }
 }
