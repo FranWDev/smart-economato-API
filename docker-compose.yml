@@ -160,12 +160,55 @@ services:
     restart: unless-stopped
 
   # ===================================
+  # Eureka Server (Service Discovery)
+  # ===================================
+  eureka-server:
+    build:
+      context: .
+      dockerfile: eureka-server/Dockerfile
+    container_name: inventory-eureka
+    ports:
+      - "8761:8761"
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+    networks:
+      - inventory-network
+    restart: unless-stopped
+
+  # ===================================
+  # API Gateway (Router)
+  # ===================================
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: inventory-gateway
+    depends_on:
+      eureka-server:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      JWT_SECRET: ${JWT_SECRET}
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+    networks:
+      - inventory-network
+    restart: unless-stopped
+
+  # ===================================
   # Spring Boot Backend 
   # ===================================
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: inventory-service/Dockerfile
     container_name: inventory-backend
     depends_on:
       postgres:
@@ -176,6 +219,8 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
+      eureka-server:
+        condition: service_started
     ports:
       - "8081:8081"
     ulimits:
@@ -201,6 +246,7 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
       
       # Limite de RAM para el contenedor Java
       JAVA_OPTS: "-Xms128m -Xmx256m -XX:+UseZGC -XX:+ZGenerational --enable-preview -Dnet.bytebuddy.experimental=true"
