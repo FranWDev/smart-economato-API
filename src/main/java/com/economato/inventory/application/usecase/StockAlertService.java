@@ -6,6 +6,7 @@ import com.economato.inventory.application.dto.response.AlertResolution;
 import com.economato.inventory.application.dto.response.AlertSeverity;
 import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.StockPredictionResponseDTO;
+import com.economato.inventory.application.dto.response.WeeklyConsumptionResponseDTO;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.Recipe;
 import com.economato.inventory.domain.model.StockPrediction;
@@ -121,6 +122,45 @@ public class StockAlertService {
                         .build());
     }
 
+    /**
+     * Devuelve el historial semanal de consumo para un producto concreto
+     * (si se indica {@code productId}) o para todos los productos con historial
+     * (si {@code productId} es {@code null}).
+     */
+    @Transactional(readOnly = true)
+    public List<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistory(Integer productId) {
+        LocalDateTime since = LocalDateTime.now().minusWeeks(HISTORY_WEEKS);
+        List<WeeklyIngredientConsumption> weeklyData = cookingAuditRepository.findWeeklyConsumptionPerIngredient(since,
+                since);
+
+        Map<Integer, List<Double>> consumptionByProduct = groupByProduct(weeklyData);
+
+        return consumptionByProduct.entrySet().stream()
+                .filter(entry -> productId == null || Objects.equals(entry.getKey(), productId))
+                .map(entry -> productRepository.findById(entry.getKey())
+                        .map(product -> WeeklyConsumptionResponseDTO.builder()
+                                .productId(product.getId())
+                                .productName(product.getName())
+                                .unit(product.getUnit())
+                                .weeklyConsumption(entry.getValue().stream()
+                                        .map(value -> BigDecimal.valueOf(value).setScale(3, RoundingMode.HALF_UP))
+                                        .collect(Collectors.toList()))
+                                .weeksOfHistory(HISTORY_WEEKS)
+                                .build())
+                        .orElse(null))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Devuelve el historial semanal de consumo para todos los productos con
+     * historial en el período analizado.
+     */
+    @Transactional(readOnly = true)
+    public List<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistoryAll() {
+        return getWeeklyConsumptionHistory(null);
+    }
+
     private List<StockAlertDTO> computeAlerts() {
         return computeAlerts(null);
     }
@@ -225,7 +265,6 @@ public class StockAlertService {
         if (productOpt.isEmpty())
             return null;
         var product = productOpt.get();
-        String unit = product.getUnit();
 
         BigDecimal effective = currentStock.add(pending);
         BigDecimal gap = projected.subtract(effective).setScale(3, RoundingMode.HALF_UP);

@@ -4,6 +4,7 @@ import com.economato.inventory.application.dto.response.AlertResolution;
 import com.economato.inventory.application.dto.response.AlertSeverity;
 import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.StockPredictionResponseDTO;
+import com.economato.inventory.application.dto.response.WeeklyConsumptionResponseDTO;
 import com.economato.inventory.application.usecase.StockAlertService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -137,5 +138,54 @@ class StockAlertControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(page, response.getBody());
         verify(stockAlertService).getAllPredictions(pageable);
+    }
+
+    @Test
+    void getWeeklyConsumptionHistoryAll_returnsHistoryList() {
+        WeeklyConsumptionResponseDTO dto = WeeklyConsumptionResponseDTO.builder()
+                .productId(1)
+                .productName("Tomate")
+                .unit("kg")
+                .weeklyConsumption(List.of(BigDecimal.valueOf(1.5), BigDecimal.ZERO))
+                .weeksOfHistory(12)
+                .build();
+        when(stockAlertService.getWeeklyConsumptionHistoryAll()).thenReturn(List.of(dto));
+
+        ResponseEntity<List<WeeklyConsumptionResponseDTO>> response = controller.getWeeklyConsumptionHistoryAll();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(1, response.getBody().size());
+        assertEquals(dto, response.getBody().get(0));
+        verify(stockAlertService).getWeeklyConsumptionHistoryAll();
+    }
+
+    @Test
+    void getWeeklyConsumptionHistoryByProduct_whenDataExists_returnsOk() {
+        WeeklyConsumptionResponseDTO dto = WeeklyConsumptionResponseDTO.builder()
+                .productId(2)
+                .productName("Aceite")
+                .unit("L")
+                .weeklyConsumption(List.of(BigDecimal.valueOf(2.0)))
+                .weeksOfHistory(12)
+                .build();
+        when(stockAlertService.getWeeklyConsumptionHistory(2)).thenReturn(List.of(dto));
+
+        ResponseEntity<WeeklyConsumptionResponseDTO> response = controller.getWeeklyConsumptionHistoryByProduct(2);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(dto, response.getBody());
+        verify(stockAlertService).getWeeklyConsumptionHistory(2);
+    }
+
+    @Test
+    void getWeeklyConsumptionHistoryByProduct_whenNoData_returnsNoContent() {
+        when(stockAlertService.getWeeklyConsumptionHistory(999)).thenReturn(List.of());
+
+        ResponseEntity<WeeklyConsumptionResponseDTO> response = controller.getWeeklyConsumptionHistoryByProduct(999);
+
+        assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
+        assertNull(response.getBody());
+        verify(stockAlertService).getWeeklyConsumptionHistory(999);
     }
 }

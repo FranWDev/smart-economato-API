@@ -3,6 +3,7 @@ package com.economato.inventory.infrastructure.adapter.in.web;
 import com.economato.inventory.application.dto.response.AlertSeverity;
 import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.StockPredictionResponseDTO;
+import com.economato.inventory.application.dto.response.WeeklyConsumptionResponseDTO;
 import com.economato.inventory.application.usecase.StockAlertService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -80,5 +81,32 @@ public class StockAlertController {
     @Operation(summary = "Obtener todas las predicciones persistidas", description = "Devuelve una lista paginada de los consumos proyectados para los próximos 14 días. [Rol requerido: CHEF o ADMIN]")
     public ResponseEntity<Page<StockPredictionResponseDTO>> getPredictions(Pageable pageable) {
         return ResponseEntity.ok(stockAlertService.getAllPredictions(pageable));
+    }
+
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @GetMapping("/history")
+    @Operation(summary = "Obtener historial semanal de consumo", description = "Devuelve el historial semanal de consumo (últimas 12 semanas) para todos los productos con historial. [Rol requerido: CHEF o ADMIN]")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Historial semanal obtenido correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = WeeklyConsumptionResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
+    })
+    public ResponseEntity<List<WeeklyConsumptionResponseDTO>> getWeeklyConsumptionHistoryAll() {
+        return ResponseEntity.ok(stockAlertService.getWeeklyConsumptionHistoryAll());
+    }
+
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @GetMapping("/history/{productId}")
+    @Operation(summary = "Obtener historial semanal de un producto", description = "Devuelve el historial semanal de consumo (últimas 12 semanas) para un producto específico. [Rol requerido: CHEF o ADMIN]")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Historial semanal del producto obtenido correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = WeeklyConsumptionResponseDTO.class))),
+            @ApiResponse(responseCode = "204", description = "No hay datos históricos para el producto"),
+            @ApiResponse(responseCode = "403", description = "Acceso denegado")
+    })
+    public ResponseEntity<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistoryByProduct(@PathVariable Integer productId) {
+        List<WeeklyConsumptionResponseDTO> history = stockAlertService.getWeeklyConsumptionHistory(productId);
+        if (history.isEmpty()) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(history.get(0));
     }
 }
