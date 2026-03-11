@@ -16,3 +16,4 @@ class Settings(BaseSettings):
     RECIPE_COOKING_TOPIC: str = "recipe-cooking-audit-events"
     FORECAST_UPDATES_TOPIC: str = "forecast-updates"
 
+settings = Settings()
