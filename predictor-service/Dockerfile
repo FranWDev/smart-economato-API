@@ -10,18 +10,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         python3-dev \
         gcc \
         curl \
+        make \
     && rm -rf /var/lib/apt/lists/*
 
 RUN addgroup --system appgroup \
     && adduser --system --ingroup appgroup --home /home/appuser appuser \
-    && mkdir -p /home/appuser/.cmdstan \
     && chown -R appuser:appgroup /app /home/appuser
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 USER appuser
-RUN python -m cmdstanpy.install_cmdstan --dir /home/appuser/.cmdstan --cores 1
+# Install cmdstan in the standard location where Prophet expects it
+# Use --cores 1 to avoid memory issues in constrained environments
+RUN python -m cmdstanpy.install_cmdstan --cores 1
 
 COPY --chown=appuser:appgroup . .
 
