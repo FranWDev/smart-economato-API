@@ -30,13 +30,17 @@ public class ForecastResultEventJsonTest {
                 + "\"productId\":123,"
                 + "\"projectedConsumption\":45.6,"
                 + "\"calculatedAt\":\"2026-03-11T09:25:52.934665+00:00\","
-                + "\"modelUsed\":\"x\"}"
+                + "\"modelUsed\":\"x\","
+                + "\"confidenceScore\":0.91,"
+                + "\"eventType\":\"PREDICTION\"}"
                 ;
 
         ForecastResultEvent event = mapper.readValue(json, ForecastResultEvent.class);
         assertThat(event).isNotNull();
         assertThat(event.getProductId()).isEqualTo(123);
         assertThat(event.getCalculatedAt()).isEqualTo(OffsetDateTime.parse("2026-03-11T09:25:52.934665+00:00"));
+        assertThat(event.getConfidenceScore()).isEqualByComparingTo("0.91");
+        assertThat(event.getEventType()).isEqualTo(ForecastResultType.PREDICTION);
     }
 
     @Test
@@ -45,7 +49,10 @@ public class ForecastResultEventJsonTest {
                 .productId(1)
                 .projectedConsumption(new BigDecimal("10.0"))
                 .calculatedAt(OffsetDateTime.parse("2026-03-11T09:25:52.934665+00:00"))
-                .modelUsed("m").build();
+            .modelUsed("m")
+            .confidenceScore(new BigDecimal("0.85"))
+            .eventType(ForecastResultType.PREDICTION)
+            .build();
 
         String out = mapper.writeValueAsString(evt);
         // The ISO representation may use 'Z' for UTC or '+00:00'; both are acceptable

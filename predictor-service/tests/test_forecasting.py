@@ -32,6 +32,7 @@ async def test_process_event_with_array_dates():
     assert results[0]["productId"] == 402
     assert "projectedConsumption" in results[0]
     assert 0.0 <= results[0]["confidenceScore"] <= 1.0
+    assert results[0]["eventType"] == "PREDICTION"
 
 
 @pytest.mark.asyncio
@@ -56,3 +57,4 @@ async def test_fallback_when_prophet_missing(monkeypatch):
     assert results[0]["productId"] == 1
     assert "projectedConsumption" in results[0]
     assert results[0]["confidenceScore"] == 0.5
+    assert results[0]["eventType"] == "PREDICTION"
