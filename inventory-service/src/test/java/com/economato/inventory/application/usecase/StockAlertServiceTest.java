@@ -1,10 +1,34 @@
 package com.economato.inventory.application.usecase;
 
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.MessageSource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import com.economato.inventory.application.dto.projection.PendingProductQuantity;
 import com.economato.inventory.application.dto.response.AlertResolution;
 import com.economato.inventory.application.dto.response.AlertSeverity;
 import com.economato.inventory.application.dto.response.DailyForecastResponseDTO;
 import com.economato.inventory.application.dto.response.StockAlertDTO;
+import com.economato.inventory.application.dto.response.StockPredictionResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyConsumptionResponseDTO;
 import com.economato.inventory.application.mapper.StockDailyForecastMapper;
 import com.economato.inventory.application.mapper.StockWeeklyConsumptionHistoryMapper;
@@ -12,6 +36,7 @@ import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.StockDailyForecast;
 import com.economato.inventory.domain.model.StockPrediction;
 import com.economato.inventory.domain.model.StockWeeklyConsumptionHistory;
+import com.economato.inventory.infrastructure.adapter.out.external.prediction.HoltWintersForecaster;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
@@ -19,22 +44,6 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockDailyForecastRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockPredictionRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockWeeklyConsumptionHistoryRepository;
-import com.economato.inventory.infrastructure.adapter.out.external.prediction.HoltWintersForecaster;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.MessageSource;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class StockAlertServiceTest {
@@ -251,6 +260,51 @@ class StockAlertServiceTest {
             assertFalse(alerts.isEmpty());
             assertEquals(expected, alerts.get(0).getSeverity());
         }
+    }
+
+    @Test
+    void getAllPredictions_returnsAllPersistedPredictionsEvenIfThereAreAlerts() {
+        // two products, one would generate an active alert if queried via getActiveAlerts()
+        Integer p1 = 11;
+        Integer p2 = 22;
+
+        Product prod1 = new Product();
+        prod1.setId(p1);
+        prod1.setName("LowStock");
+        prod1.setUnit("kg");
+        prod1.setCurrentStock(BigDecimal.ZERO);
+        prod1.setHidden(false);
+
+        Product prod2 = new Product();
+        prod2.setId(p2);
+        prod2.setName("Plenty");
+        prod2.setUnit("kg");
+        prod2.setCurrentStock(BigDecimal.valueOf(100));
+        prod2.setHidden(false);
+
+        StockPrediction pred1 = StockPrediction.builder()
+                .id(p1)
+                .product(prod1)
+                .projectedConsumption(BigDecimal.valueOf(10))
+                .build();
+        StockPrediction pred2 = StockPrediction.builder()
+                .id(p2)
+                .product(prod2)
+                .projectedConsumption(BigDecimal.valueOf(10))
+                .build();
+
+        // page containing both predictions
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<StockPrediction> pageEntity = new PageImpl<>(List.of(pred1, pred2));
+
+        when(predictionRepository.findAll(pageable)).thenReturn(pageEntity);
+
+        Page<StockPredictionResponseDTO> result = stockAlertService.getAllPredictions(pageable);
+
+        // both persisted predictions must be returned
+        assertEquals(2, result.getContent().size());
+        assertEquals(p1, result.getContent().get(0).getProductId());
+        assertEquals(p2, result.getContent().get(1).getProductId());
     }
 
     @Test

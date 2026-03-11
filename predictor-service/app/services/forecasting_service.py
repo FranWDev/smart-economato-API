@@ -199,6 +199,7 @@ class ForecastingService:
                     "calculatedAt": datetime.now(tz=timezone.utc).isoformat(),
                     "modelUsed": "Meta Prophet v1.1",
                     "confidenceScore": confidence,
+                    "eventType": "PREDICTION",
                     "forecastHorizonDays": 14,
                 })
                 logger.info(

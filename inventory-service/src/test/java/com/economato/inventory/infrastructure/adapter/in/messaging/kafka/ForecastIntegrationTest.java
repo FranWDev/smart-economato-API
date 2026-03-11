@@ -15,6 +15,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
 
 import com.economato.inventory.application.dto.event.ForecastResultEvent;
+import com.economato.inventory.application.dto.event.ForecastResultType;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.StockPrediction;
 import com.economato.inventory.infrastructure.adapter.in.web.BaseIntegrationTest;
@@ -62,7 +63,8 @@ public class ForecastIntegrationTest extends BaseIntegrationTest {
                 .projectedConsumption(new BigDecimal("125.50"))
                 .calculatedAt(OffsetDateTime.now())
                 .modelUsed("Meta Prophet v1.1")
-                .confidenceScore("0.90")
+            .confidenceScore(new BigDecimal("0.90"))
+            .eventType(ForecastResultType.PREDICTION)
                 .build();
 
         kafkaTemplate.send("forecast-updates", String.valueOf(productId), event);

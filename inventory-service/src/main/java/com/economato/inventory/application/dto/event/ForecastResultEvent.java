@@ -24,5 +24,6 @@ public class ForecastResultEvent implements Serializable {
     private BigDecimal projectedConsumption;
     private OffsetDateTime calculatedAt;
     private String modelUsed;
-    private String confidenceScore;
+    private BigDecimal confidenceScore;
+    private ForecastResultType eventType;
 }

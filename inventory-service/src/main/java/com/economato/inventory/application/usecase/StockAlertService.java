@@ -23,6 +23,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.economato.inventory.application.dto.event.ForecastResultType;
 import com.economato.inventory.application.dto.projection.PendingProductQuantity;
 import com.economato.inventory.application.dto.projection.WeeklyIngredientConsumption;
 import com.economato.inventory.application.dto.response.AlertResolution;
@@ -255,6 +256,17 @@ public class StockAlertService {
      */
     @Transactional
     public void updatePredictionFromForecast(Integer productId, BigDecimal projectedConsumption) {
+        updatePredictionFromForecast(productId, projectedConsumption, LocalDateTime.now());
+    }
+
+    /**
+     * Actualiza la predicción oficial de un producto usando el timestamp recibido
+     * por Kafka cuando esté disponible.
+     */
+    @Transactional
+    public void updatePredictionFromForecast(Integer productId,
+            BigDecimal projectedConsumption,
+            LocalDateTime calculatedAt) {
         log.info("Actualizando predicción desde predictor externo para producto ID: {}. Nuevo valor: {}", 
             productId, projectedConsumption);
         
@@ -267,10 +279,36 @@ public class StockAlertService {
                 .build());
 
         prediction.setProjectedConsumption(projectedConsumption);
-        prediction.setUpdatedAt(LocalDateTime.now());
+        prediction.setUpdatedAt(calculatedAt != null ? calculatedAt : LocalDateTime.now());
         predictionRepository.save(prediction);
         
         log.debug("Predicción actualizada con éxito para producto {}", productId);
+    }
+
+    /**
+     * Regla de negocio para clasificar una predicción recibida por Kafka:
+     * - ALERT: el consumo proyectado a 14 días agota el stock actual en < 14 días
+     * - PREDICTION: no agota el stock en ese horizonte
+     */
+    @Transactional(readOnly = true)
+    public ForecastResultType classifyForecastResult(Integer productId, BigDecimal projectedConsumption) {
+        if (productId == null || projectedConsumption == null || projectedConsumption.signum() < 0) {
+            throw new IllegalArgumentException("Datos inválidos para clasificar forecast");
+        }
+
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado: " + productId));
+
+        BigDecimal currentStock = product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO;
+        if (projectedConsumption.signum() == 0) {
+            return ForecastResultType.PREDICTION;
+        }
+
+        // Consumo proyectado representa 14 días. Si projected > stock actual,
+        // el stock se agotará en menos de 14 días.
+        return projectedConsumption.compareTo(currentStock) > 0
+                ? ForecastResultType.ALERT
+                : ForecastResultType.PREDICTION;
     }
 
     /**
