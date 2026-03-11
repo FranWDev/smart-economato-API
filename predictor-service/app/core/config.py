@@ -16,4 +16,7 @@ class Settings(BaseSettings):
     RECIPE_COOKING_TOPIC: str = "recipe-cooking-audit-events"
     FORECAST_UPDATES_TOPIC: str = "forecast-updates"
 
+    # Outbox — SQLite database path (mounted volume in Docker)
+    SQLITE_DB_PATH: str = os.getenv("SQLITE_DB_PATH", "/data/predictor_outbox.db")
+
 settings = Settings()

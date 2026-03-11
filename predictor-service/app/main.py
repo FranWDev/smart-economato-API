@@ -20,7 +20,9 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
+from app.db.outbox import init_db
 from app.services.kafka_service import kafka_manager
+from app.services.outbox_service import outbox_service
 
 logger = logging.getLogger(__name__)
 
@@ -34,15 +36,28 @@ async def lifespan(app: FastAPI):
     # ── Startup ───────────────────────────────────────────────────────
     logger.info(f"Starting {settings.APP_NAME}...")
 
+    # Initialise the SQLite outbox schema (idempotent — safe to call every time)
+    init_db()
 
     # Launch Kafka consumer in the background (non-blocking)
     kafka_task = asyncio.create_task(kafka_manager.start(), name="kafka-consumer")
     logger.info("Kafka consumer started")
 
+    # Launch outbox relay in the background
+    # Mirrors AuditOutboxProcessor @Scheduled(fixedDelay=5000) in inventory-service
+    relay_task = asyncio.create_task(outbox_service.relay_loop(), name="outbox-relay")
+    logger.info("Outbox relay started")
+
     yield  # ← application runs here
 
     # ── Shutdown ──────────────────────────────────────────────────────
     logger.info(f"Shutting down {settings.APP_NAME}...")
+    relay_task.cancel()
+    try:
+        await relay_task
+    except asyncio.CancelledError:
+        pass
+
     kafka_task.cancel()
     try:
         await kafka_task
@@ -77,3 +92,16 @@ def ready():
     status = "READY" if consumer_ok else "NOT_READY"
     code = 200 if consumer_ok else 503
     return JSONResponse({"status": status, "service": settings.APP_NAME}, status_code=code)
+
+
+@app.get("/outbox/metrics", tags=["observability"])
+def outbox_metrics():
+    """
+    Returns the number of forecast rows still pending in the SQLite outbox.
+    Mirrors the ``kafka.audit.outbox.pending`` Micrometer Gauge in the
+    inventory-service.
+    """
+    pending = outbox_service.pending_count()
+    return JSONResponse(
+        {"outbox_pending": pending, "service": settings.APP_NAME}
+    )
