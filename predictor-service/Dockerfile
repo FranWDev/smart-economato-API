@@ -17,13 +17,15 @@ RUN addgroup --system appgroup \
     && adduser --system --ingroup appgroup --home /home/appuser appuser \
     && chown -R appuser:appgroup /app /home/appuser
 
-COPY requirements.txt .
+COPY requirements.txt install_cmdstan.py ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Install cmdstan into the exact location Prophet expects:
+# prophet/models.py hardcodes 'stan_model/cmdstan-{version}' inside the package directory.
+# Run as root so site-packages is writable.
+RUN python install_cmdstan.py
+
 USER appuser
-# Install cmdstan in the standard location where Prophet expects it
-# Use --cores 1 to avoid memory issues in constrained environments
-RUN python -m cmdstanpy.install_cmdstan --cores 1
 
 COPY --chown=appuser:appgroup . .
 
