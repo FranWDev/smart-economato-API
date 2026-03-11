@@ -16,16 +16,19 @@ services:
       -c max_replication_slots=10 
       -c hot_standby_feedback=on
       -c listen_addresses='*'
+      -c hba_file=/etc/postgresql/pg_hba.conf
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       PGDATA: /var/lib/postgresql/data/pgdata
-      POSTGRES_HOST_AUTH_METHOD: trust 
+      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./postgres-init.sh:/docker-entrypoint-initdb.d/postgres-init.sh:ro
+      - ./pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
     deploy:
       resources:
         limits:
@@ -159,13 +162,14 @@ services:
       - inventory-network
     restart: unless-stopped
 
+
   # ===================================
   # Spring Boot Backend 
   # ===================================
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: inventory-service/Dockerfile
     container_name: inventory-backend
     depends_on:
       postgres:
@@ -212,9 +216,49 @@ services:
       - inventory-network
     restart: unless-stopped
 
+
+  # ===================================
+  # Predictor Service (Python - Prophet)
+  # ===================================
+  predictor-service:
+    build:
+      context: ./predictor-service
+      dockerfile: Dockerfile
+    container_name: inventory-predictor
+    depends_on:
+      kafka:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    ports:
+      - "8084:8000"
+    environment:
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      INVENTORY_SERVICE_URL: http://inventory-backend:8081
+      JWT_SECRET: ${JWT_SECRET}
+      INSTANCE_HOST: inventory-predictor
+      INSTANCE_PORT: 8000
+      # Must match an existing ADMIN username in the DB (used as JWT sub)
+      PREDICTOR_USERNAME: ${PREDICTOR_USERNAME:-Admin}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - inventory-network
+    restart: unless-stopped
+
   # ===================================
   # Prometheus (Metrics Collection)
   # ===================================
+
   prometheus:
     image: prom/prometheus:v2.51.0
     container_name: inventory-prometheus
