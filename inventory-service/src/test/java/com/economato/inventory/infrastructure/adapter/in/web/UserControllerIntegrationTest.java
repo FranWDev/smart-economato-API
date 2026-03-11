@@ -138,6 +138,30 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         }
 
         @Test
+        void whenUpdateUserWithoutPassword_thenSuccess() throws Exception {
+                UserRequestDTO userRequest = TestDataUtil.createUserRequestDTO();
+
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(userRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                UserResponseDTO createdUser = objectMapper.readValue(response, UserResponseDTO.class);
+
+                userRequest.setName(userRequest.getName() + " Actualizado");
+                userRequest.setPassword(null); // omit password
+
+                mockMvc.perform(put(BASE_URL + "/{id}", createdUser.getId())
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(userRequest)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.name").value(userRequest.getName()));
+        }
+
+        @Test
         void whenDeleteUser_thenSuccess() throws Exception {
                 UserRequestDTO userRequest = TestDataUtil.createUserRequestDTO();
 

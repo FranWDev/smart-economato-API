@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -94,7 +95,7 @@ public class UserController {
                         @ApiResponse(responseCode = "403", description = "Acceso denegado")
         })
         public ResponseEntity<UserResponseDTO> create(
-                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos del usuario a crear", required = true, content = @Content(schema = @Schema(implementation = UserRequestDTO.class))) @Valid @RequestBody UserRequestDTO userRequest) {
+                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos del usuario a crear (contraseña obligatoria)", required = true, content = @Content(schema = @Schema(implementation = UserRequestDTO.class))) @Validated(UserRequestDTO.OnCreate.class) @RequestBody UserRequestDTO userRequest) {
                 UserResponseDTO createdUser = service.save(userRequest);
                 return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
         }
@@ -109,7 +110,7 @@ public class UserController {
         })
         public ResponseEntity<UserResponseDTO> update(
                         @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id,
-                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos del usuario a actualizar", required = true, content = @Content(schema = @Schema(implementation = UserRequestDTO.class))) @Valid @RequestBody UserRequestDTO userRequest) {
+                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos del usuario a actualizar (contraseña opcional; si se omite no se modifica)", required = true, content = @Content(schema = @Schema(implementation = UserRequestDTO.class))) @Validated(UserRequestDTO.OnUpdate.class) @RequestBody UserRequestDTO userRequest) {
                 return service.update(id, userRequest)
                                 .map(ResponseEntity::ok)
                                 .orElse(ResponseEntity.notFound().build());

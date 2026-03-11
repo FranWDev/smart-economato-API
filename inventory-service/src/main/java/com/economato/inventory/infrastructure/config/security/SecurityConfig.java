@@ -1,16 +1,14 @@
 package com.economato.inventory.infrastructure.config.security;
 
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
 
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.DispatcherType;
-import org.springframework.security.authorization.AuthorizationDecision;
-import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -18,14 +16,17 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.servlet.LocaleResolver;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
+
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 @EnableWebSecurity
@@ -162,6 +163,7 @@ public class SecurityConfig {
                                 "http://127.0.0.1:4200",
                                 "http://127.0.0.1:8080",
                                 "http://127.0.0.1:8081",
+                                "http://192.168.8.182:4200", // mi ip local para desarrollo desde otro dispositivo
                                 "https://economato.servehttp.com"));
                 configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
                 configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Origin"));
