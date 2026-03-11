@@ -3,12 +3,16 @@ import asyncio
 from contextlib import asynccontextmanager
 
 # ── LOGGING CONFIGURATION MUST BE FIRST ──────────────────────────────────
-# This is critical to fix the Prophet 'stan_backend' AttributeError bug.
+# Historically we ran into a bug during Prophet initialization where a
+# missing backend would lead to an AttributeError being emitted at DEBUG
+# log level.  We now handle that failure explicitly in the forecasting
+# service, but we keep the logger seeding here so that the package doesn’t
+# spam the console when a backend is present.
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
 )
-# Force silence for Prophet and its backend
+# Reduce noise from prophet/cmdstanpy during startup
 logging.getLogger("prophet").setLevel(logging.ERROR)
 logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
 
