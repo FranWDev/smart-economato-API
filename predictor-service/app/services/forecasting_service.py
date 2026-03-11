@@ -97,6 +97,12 @@ class ForecastingService:
             breakdown = embedded   # list of {date, consumed}
 
             # ── Build DataFrame ───────────────────────────────────────────
+            # Java/Jackson might send dates as [YYYY, MM, DD]. Convert to string if so.
+            for entry in breakdown:
+                d = entry.get("date")
+                if isinstance(d, list) and len(d) >= 3:
+                    entry["date"] = f"{d[0]}-{d[1]:02d}-{d[2]:02d}"
+
             df = pd.DataFrame(breakdown)
 
             if "date" not in df.columns or "consumed" not in df.columns:
