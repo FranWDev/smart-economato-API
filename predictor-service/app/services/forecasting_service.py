@@ -22,36 +22,50 @@ logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
 # Ensure cmdstan is installed at startup
 def _ensure_cmdstan_installed():
     """
-    Verify that cmdstan is properly installed in the path Prophet expects.
-    Prophet hardcodes its cmdstan path to: <prophet_package>/stan_model/cmdstan-X.Y.Z
-    If the makefile is missing there, we re-install into that directory.
+    Verify that the EXACT cmdstan version Prophet hardcodes in models.py is installed.
+    Prophet 1.1.5 looks for: <prophet_package>/stan_model/cmdstan-2.33.1/makefile
+    Any other version installed there will NOT be found by Prophet.
     """
     import pathlib
+    import re
     import prophet as _prophet
-    
-    # Discover the path Prophet will use
-    prophet_stan_dir = pathlib.Path(_prophet.__file__).parent / "stan_model"
-    
-    # Find any cmdstan-X.Y.Z directory inside stan_model
-    cmdstan_dirs = list(prophet_stan_dir.glob("cmdstan-*"))
-    if cmdstan_dirs:
-        cmdstan_path = cmdstan_dirs[0]
-        makefile = cmdstan_path / "makefile"
-        if makefile.exists():
-            logger.info(f"✓ CmdStan properly installed at {cmdstan_path}")
-            return
-        else:
-            logger.warning(f"CmdStan directory exists but makefile missing at {cmdstan_path}")
-    else:
-        logger.warning(f"CmdStan not found under {prophet_stan_dir}")
 
-    logger.warning("Re-installing CmdStan into Prophet's expected path... (this may take 1-2 minutes)")
+    # Discover the EXACT version Prophet will look for
+    models_file = pathlib.Path(_prophet.__file__).parent / "models.py"
+    cmdstan_version = "2.33.1"  # known default for prophet 1.1.5
+    try:
+        content = models_file.read_text()
+        match = re.search(r'cmdstan[_-]version\s*=\s*["\']([\d.]+)["\']', content)
+        if not match:
+            match = re.search(r'["\']cmdstan-(\d+\.\d+\.\d+)["\']', content)
+        if match:
+            cmdstan_version = match.group(1)
+    except Exception:
+        pass
+
+    prophet_stan_dir = pathlib.Path(_prophet.__file__).parent / "stan_model"
+    expected_path = prophet_stan_dir / f"cmdstan-{cmdstan_version}"
+    makefile = expected_path / "makefile"
+
+    if makefile.exists():
+        logger.info(f"✓ CmdStan {cmdstan_version} properly installed at {expected_path}")
+        return
+
+    logger.warning(
+        f"CmdStan {cmdstan_version} missing at {expected_path}. "
+        f"Re-installing... (this may take 1-2 minutes)"
+    )
     try:
         prophet_stan_dir.mkdir(parents=True, exist_ok=True)
-        cmdstanpy.install_cmdstan(dir=str(prophet_stan_dir), overwrite=True, cores=1)
-        logger.info("✓ CmdStan installed successfully")
+        cmdstanpy.install_cmdstan(
+            dir=str(prophet_stan_dir),
+            version=cmdstan_version,
+            overwrite=True,
+            cores=1,
+        )
+        logger.info(f"✓ CmdStan {cmdstan_version} installed successfully")
     except Exception as e:
-        logger.error(f"Failed to install CmdStan: {e}")
+        logger.error(f"Failed to install CmdStan {cmdstan_version}: {e}")
         raise
 
 # Call this at module load time
