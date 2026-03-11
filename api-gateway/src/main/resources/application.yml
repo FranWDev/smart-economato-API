@@ -26,3 +26,6 @@ eureka:
       defaultZone: http://eureka-server:8761/eureka/
     register-with-eureka: true
     fetch-registry: true
+    # Fetch Eureka registry every 5s (default 30s) so the gateway picks up
+    # new service registrations quickly after restarts.
+    registry-fetch-interval-seconds: 5

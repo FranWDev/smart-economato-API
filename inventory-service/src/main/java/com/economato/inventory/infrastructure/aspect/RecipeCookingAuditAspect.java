@@ -8,15 +8,20 @@ import org.springframework.stereotype.Component;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.domain.RecipeCookingAuditable;
 import com.economato.inventory.application.dto.event.RecipeCookingAuditEvent;
+import com.economato.inventory.application.dto.event.RecipeCookingAuditEvent.DailyConsumption;
 import com.economato.inventory.application.dto.request.RecipeCookingRequestDTO;
+import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO;
 import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
+import com.economato.inventory.application.usecase.StockLedgerService;
 import com.economato.inventory.domain.model.Recipe;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -31,16 +36,19 @@ public class RecipeCookingAuditAspect {
     private final RecipeRepository recipeRepository;
     private final SecurityContextHelper securityContextHelper;
     private final AuditEventProducer auditEventProducer;
+    private final StockLedgerService stockLedgerService;
     private final ObjectMapper objectMapper;
 
     public RecipeCookingAuditAspect(
             RecipeRepository recipeRepository,
             SecurityContextHelper securityContextHelper,
             AuditEventProducer auditEventProducer,
+            StockLedgerService stockLedgerService,
             ObjectMapper objectMapper) {
         this.recipeRepository = recipeRepository;
         this.securityContextHelper = securityContextHelper;
         this.auditEventProducer = auditEventProducer;
+        this.stockLedgerService = stockLedgerService;
         this.objectMapper = objectMapper;
     }
 
@@ -83,6 +91,9 @@ public class RecipeCookingAuditAspect {
                 details.append(" - ").append(cookingRequest.getDetails());
             }
 
+            Map<Integer, List<DailyConsumption>> productHistories =
+                    buildProductHistories(recipe);
+
             RecipeCookingAuditEvent event = RecipeCookingAuditEvent.builder()
                     .recipeId(recipe.getId())
                     .recipeName(recipe.getName())
@@ -92,6 +103,7 @@ public class RecipeCookingAuditAspect {
                     .details(details.toString())
                     .componentsState(componentsState)
                     .cookingDate(LocalDateTime.now())
+                    .productHistories(productHistories)
                     .build();
 
             auditEventProducer.publishRecipeCookingAudit(event);
@@ -130,6 +142,48 @@ public class RecipeCookingAuditAspect {
             log.error("Error al construir estado de componentes: {}", e.getMessage());
             return "{}";
         }
+    }
+
+    /**
+     * Queries the last 90 days of consumption for each recipe component and
+     * returns the daily breakdown keyed by productId.
+     *
+     * This data is embedded in the Kafka cooking event so that the predictor
+     * service can run Prophet without making any HTTP calls back to the backend.
+     */
+    private Map<Integer, List<DailyConsumption>> buildProductHistories(Recipe recipe) {
+        if (recipe.getComponents() == null || recipe.getComponents().isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        LocalDateTime end   = LocalDateTime.now();
+        LocalDateTime start = end.minusDays(90).withHour(0).withMinute(0).withSecond(0).withNano(0);
+
+        Map<Integer, List<DailyConsumption>> result = new HashMap<>();
+
+        for (var comp : recipe.getComponents()) {
+            Integer productId = comp.getProduct().getId();
+            try {
+                ProductConsumptionResponseDTO dto =
+                        stockLedgerService.getProductConsumption(productId, start, end);
+
+                List<DailyConsumption> history = dto.getBreakdown() == null
+                        ? Collections.emptyList()
+                        : dto.getBreakdown().stream()
+                                .map(d -> new DailyConsumption(d.getDate(), d.getConsumed()))
+                                .collect(Collectors.toList());
+
+                result.put(productId, history);
+                log.debug("Historial incluido en evento: producto={}, entradas={}",
+                        productId, history.size());
+            } catch (Exception e) {
+                log.warn("No se pudo obtener historial para producto {}: {}",
+                        productId, e.getMessage());
+                result.put(productId, Collections.emptyList());
+            }
+        }
+
+        return result;
     }
 
 }

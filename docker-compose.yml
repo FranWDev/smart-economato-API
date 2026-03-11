@@ -282,7 +282,7 @@ services:
     environment:
       EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      INVENTORY_SERVICE_URL: http://api-gateway:8080
+      INVENTORY_SERVICE_URL: http://inventory-backend:8081
       JWT_SECRET: ${JWT_SECRET}
       INSTANCE_HOST: inventory-predictor
       INSTANCE_PORT: 8000
