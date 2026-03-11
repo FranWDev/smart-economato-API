@@ -18,6 +18,9 @@ public class OrderRequestDTO {
     @Schema(description = "Identificador único del usuario asociado al pedido", example = "4")
     private Integer userId;
 
+    @Schema(description = "Identificador del proveedor asociado al pedido (opcional)", example = "1")
+    private Integer supplierId;
+
     @NotEmpty(message = "{validation.orderRequestDTO.details.notEmpty}")
     @Schema(description = "Lista de productos y cantidades incluidas en el pedido")
     private List<OrderDetailRequestDTO> details;

@@ -24,6 +24,12 @@ public class OrderResponseDTO {
     @Schema(description = "Nombre del usuario que realizó el pedido", example = "Carlos Pérez")
     private String userName;
 
+    @Schema(description = "Identificador del proveedor asociado al pedido", example = "1")
+    private Integer supplierId;
+
+    @Schema(description = "Nombre del proveedor asociado al pedido", example = "Distribuciones García")
+    private String supplierName;
+
     @Schema(description = "Fecha y hora en que se realizó el pedido", example = "2025-03-21T14:35:00")
     private LocalDateTime orderDate;
 
@@ -39,11 +45,13 @@ public class OrderResponseDTO {
     /**
      * Constructor alternativo sin totalPrice (para compatibilidad)
      */
-    public OrderResponseDTO(Integer id, Integer userId, String userName, LocalDateTime orderDate, OrderStatus status,
+    public OrderResponseDTO(Integer id, Integer userId, String userName, Integer supplierId, String supplierName, LocalDateTime orderDate, OrderStatus status,
             List<OrderDetailResponseDTO> details) {
         this.id = id;
         this.userId = userId;
         this.userName = userName;
+        this.supplierId = supplierId;
+        this.supplierName = supplierName;
         this.orderDate = orderDate;
         this.status = status;
         this.details = details;

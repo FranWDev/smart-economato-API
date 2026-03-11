@@ -43,6 +43,10 @@ public class Order {
     @Column(name = "status", nullable = false, length = 20)
     private OrderStatus status;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supplier_id", foreignKey = @ForeignKey(name = "fk_order_supplier"))
+    private Supplier supplier;
+
     @Version
     @Column(name = "version")
     private Long version;

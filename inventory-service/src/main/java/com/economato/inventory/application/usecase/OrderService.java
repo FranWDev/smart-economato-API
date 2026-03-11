@@ -29,9 +29,11 @@ import com.economato.inventory.domain.model.Order;
 import com.economato.inventory.domain.model.OrderDetail;
 import com.economato.inventory.domain.model.OrderStatus;
 import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.domain.model.Supplier;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 
 import lombok.extern.slf4j.Slf4j;
@@ -44,18 +46,21 @@ public class OrderService {
         private final OrderRepository repository;
         private final UserRepository userRepository;
         private final ProductRepository productRepository;
+        private final SupplierRepository supplierRepository;
         private final OrderMapper orderMapper;
         private final StockLedgerService stockLedgerService;
 
         public OrderService(I18nService i18nService, OrderRepository repository,
                         UserRepository userRepository,
                         ProductRepository productRepository,
+                        SupplierRepository supplierRepository,
                         OrderMapper orderMapper,
                         StockLedgerService stockLedgerService) {
                 this.i18nService = i18nService;
                 this.repository = repository;
                 this.userRepository = userRepository;
                 this.productRepository = productRepository;
+                this.supplierRepository = supplierRepository;
                 this.orderMapper = orderMapper;
                 this.stockLedgerService = stockLedgerService;
         }
@@ -85,6 +90,13 @@ public class OrderService {
                                 .orElseThrow(() -> new ResourceNotFoundException(
                                                 i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND)));
                 order.setUser(user);
+
+                if (requestDTO.getSupplierId() != null) {
+                        Supplier supplier = supplierRepository.findById(requestDTO.getSupplierId())
+                                        .orElseThrow(() -> new ResourceNotFoundException(
+                                                        "El proveedor especificado no existe."));
+                        order.setSupplier(supplier);
+                }
 
                 for (OrderDetailRequestDTO detailDTO : requestDTO.getDetails()) {
                         Product product = productRepository.findById(detailDTO.getProductId())
@@ -122,6 +134,15 @@ public class OrderService {
                                                                         i18nService.getMessage(
                                                                                         MessageKey.ERROR_USER_NOT_FOUND)));
                                         existing.setUser(user);
+
+                                        if (requestDTO.getSupplierId() != null) {
+                                                Supplier supplier = supplierRepository.findById(requestDTO.getSupplierId())
+                                                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                                                "El proveedor especificado no existe."));
+                                                existing.setSupplier(supplier);
+                                        } else {
+                                                existing.setSupplier(null);
+                                        }
 
                                         existing.getDetails().clear();
 
