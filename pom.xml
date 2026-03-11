@@ -18,8 +18,6 @@
     <description>Parent POM for Smart Economato Microservices</description>
 
     <modules>
-        <module>eureka-server</module>
-        <module>api-gateway</module>
         <module>inventory-service</module>
     </modules>
 

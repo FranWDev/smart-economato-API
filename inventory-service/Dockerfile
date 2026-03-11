@@ -7,8 +7,6 @@ WORKDIR /build
 
 # Copy the parent pom and all module poms to satisfy Maven reactor
 COPY pom.xml .
-COPY eureka-server/pom.xml eureka-server/
-COPY api-gateway/pom.xml api-gateway/
 COPY inventory-service/pom.xml inventory-service/
 RUN mvn dependency:go-offline -B -pl inventory-service -am
 COPY inventory-service/src inventory-service/src
