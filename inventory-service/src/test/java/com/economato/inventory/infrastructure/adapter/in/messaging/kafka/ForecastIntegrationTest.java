@@ -1,12 +1,11 @@
 package com.economato.inventory.infrastructure.adapter.in.messaging.kafka;
 
-import com.economato.inventory.infrastructure.adapter.in.web.BaseIntegrationTest;
-import com.economato.inventory.application.dto.event.ForecastResultEvent;
-import com.economato.inventory.domain.model.Product;
-import com.economato.inventory.domain.model.StockPrediction;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockPredictionRepository;
-import com.economato.inventory.infrastructure.config.KafkaTestContainerConfig;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,11 +14,13 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
 
-import java.math.BigDecimal;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import com.economato.inventory.application.dto.event.ForecastResultEvent;
+import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.domain.model.StockPrediction;
+import com.economato.inventory.infrastructure.adapter.in.web.BaseIntegrationTest;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockPredictionRepository;
+import com.economato.inventory.infrastructure.config.KafkaTestContainerConfig;
 
 /**
  * Integration Test for the Forecast flow.
@@ -59,6 +60,7 @@ public class ForecastIntegrationTest extends BaseIntegrationTest {
         ForecastResultEvent event = ForecastResultEvent.builder()
                 .productId(productId)
                 .projectedConsumption(new BigDecimal("125.50"))
+                .calculatedAt(OffsetDateTime.now())
                 .modelUsed("Meta Prophet v1.1")
                 .confidenceScore("0.90")
                 .build();
