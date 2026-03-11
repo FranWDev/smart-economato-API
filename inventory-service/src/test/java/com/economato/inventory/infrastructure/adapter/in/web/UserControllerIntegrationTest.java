@@ -1,25 +1,36 @@
 package com.economato.inventory.infrastructure.adapter.in.web;
 
-import com.economato.inventory.application.dto.request.LoginRequestDTO;
-import com.economato.inventory.application.dto.request.UserRequestDTO;
-import com.economato.inventory.application.dto.request.TeacherAssignmentRequestDTO;
-import com.economato.inventory.application.dto.response.LoginResponseDTO;
-import com.economato.inventory.application.dto.response.UserResponseDTO;
-import com.economato.inventory.domain.model.Role;
-import com.economato.inventory.domain.model.User;
-import com.economato.inventory.application.dto.request.RoleEscalationRequestDTO;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.TemporaryRoleEscalationRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
-import com.economato.inventory.infrastructure.TestDataUtil;
-
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.everyItem;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.notNullValue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static org.hamcrest.Matchers.*;
+import com.economato.inventory.application.dto.request.BatchTeacherAssignmentRequestDTO;
+import com.economato.inventory.application.dto.request.LoginRequestDTO;
+import com.economato.inventory.application.dto.request.RoleEscalationRequestDTO;
+import com.economato.inventory.application.dto.request.TeacherAssignmentRequestDTO;
+import com.economato.inventory.application.dto.request.UserRequestDTO;
+import com.economato.inventory.application.dto.response.LoginResponseDTO;
+import com.economato.inventory.application.dto.response.UserResponseDTO;
+import com.economato.inventory.domain.model.Role;
+import com.economato.inventory.domain.model.User;
+import com.economato.inventory.infrastructure.TestDataUtil;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.TemporaryRoleEscalationRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 
 class UserControllerIntegrationTest extends BaseIntegrationTest {
 
@@ -752,5 +763,281 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.role").value(Role.USER.name()));
+        }
+
+        // ==================== Tests batch asignación de profesor ====================
+
+        @Test
+        void whenBatchAssignTeacher_thenSuccess() throws Exception {
+                // Crear profesor chef
+                User chef = TestDataUtil.createChefUser();
+                userRepository.saveAndFlush(chef);
+
+                // Crear dos alumnos
+                UserRequestDTO student1Request = new UserRequestDTO();
+                student1Request.setName("Alumno Uno");
+                student1Request.setUser("alumno1@test.com");
+                student1Request.setPassword("password123");
+                student1Request.setRole(Role.USER);
+
+                UserRequestDTO student2Request = new UserRequestDTO();
+                student2Request.setName("Alumno Dos");
+                student2Request.setUser("alumno2@test.com");
+                student2Request.setPassword("password123");
+                student2Request.setRole(Role.USER);
+
+                String resp1 = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(student1Request)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                String resp2 = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(student2Request)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer student1Id = objectMapper.readValue(resp1,
+                                com.economato.inventory.application.dto.response.UserResponseDTO.class).getId();
+                Integer student2Id = objectMapper.readValue(resp2,
+                                com.economato.inventory.application.dto.response.UserResponseDTO.class).getId();
+
+                // Asignación batch
+                BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
+                                chef.getId(), java.util.List.of(student1Id, student2Id));
+
+                mockMvc.perform(patch(BASE_URL + "/batch/teacher")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(batchRequest)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.success").value(true))
+                                .andExpect(jsonPath("$.processedCount").value(2))
+                                .andExpect(jsonPath("$.totalCount").value(2))
+                                .andExpect(jsonPath("$.failedStudentIds", empty()));
+
+                // Verificar que ambos alumnos tienen el profesor asignado
+                mockMvc.perform(get(BASE_URL + "/{id}", student1Id)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.teacher.id").value(chef.getId()));
+
+                mockMvc.perform(get(BASE_URL + "/{id}", student2Id)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.teacher.id").value(chef.getId()));
+        }
+
+        @Test
+        void whenBatchUnassignTeacher_thenSuccess() throws Exception {
+                // Crear profesor chef
+                User chef = TestDataUtil.createChefUser();
+                userRepository.saveAndFlush(chef);
+
+                // Crear dos alumnos ya asignados al chef
+                UserRequestDTO student1Request = new UserRequestDTO();
+                student1Request.setName("Alumno Unassign Uno");
+                student1Request.setUser("unassign1@test.com");
+                student1Request.setPassword("password123");
+                student1Request.setRole(Role.USER);
+                student1Request.setTeacherId(chef.getId());
+
+                UserRequestDTO student2Request = new UserRequestDTO();
+                student2Request.setName("Alumno Unassign Dos");
+                student2Request.setUser("unassign2@test.com");
+                student2Request.setPassword("password123");
+                student2Request.setRole(Role.USER);
+                student2Request.setTeacherId(chef.getId());
+
+                String resp1 = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(student1Request)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                String resp2 = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(student2Request)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer student1Id = objectMapper.readValue(resp1,
+                                com.economato.inventory.application.dto.response.UserResponseDTO.class).getId();
+                Integer student2Id = objectMapper.readValue(resp2,
+                                com.economato.inventory.application.dto.response.UserResponseDTO.class).getId();
+
+                // Desasignar en batch (teacherId = null)
+                BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
+                                null, java.util.List.of(student1Id, student2Id));
+
+                mockMvc.perform(patch(BASE_URL + "/batch/teacher")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(batchRequest)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.success").value(true))
+                                .andExpect(jsonPath("$.processedCount").value(2))
+                                .andExpect(jsonPath("$.totalCount").value(2));
+
+                // Verificar que los alumnos ya no tienen profesor
+                mockMvc.perform(get(BASE_URL + "/{id}", student1Id)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.teacher").doesNotExist());
+
+                mockMvc.perform(get(BASE_URL + "/{id}", student2Id)
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.teacher").doesNotExist());
+        }
+
+        @Test
+        void whenBatchAssignTeacher_withNonExistentStudent_thenNotFound() throws Exception {
+                User chef = TestDataUtil.createChefUser();
+                userRepository.saveAndFlush(chef);
+
+                BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
+                                chef.getId(), java.util.List.of(99999));
+
+                mockMvc.perform(patch(BASE_URL + "/batch/teacher")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(batchRequest)))
+                                .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void whenBatchAssignTeacher_withNonExistentTeacher_thenNotFound() throws Exception {
+                UserRequestDTO studentRequest = new UserRequestDTO();
+                studentRequest.setName("Alumno Test Batch");
+                studentRequest.setUser("batchstudent@test.com");
+                studentRequest.setPassword("password123");
+                studentRequest.setRole(Role.USER);
+
+                String resp = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(studentRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer studentId = objectMapper.readValue(resp,
+                                com.economato.inventory.application.dto.response.UserResponseDTO.class).getId();
+
+                BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
+                                99999, java.util.List.of(studentId));
+
+                mockMvc.perform(patch(BASE_URL + "/batch/teacher")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(batchRequest)))
+                                .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void whenBatchAssignTeacher_toChef_thenBadRequest() throws Exception {
+                User chef = TestDataUtil.createChefUser();
+                userRepository.saveAndFlush(chef);
+
+                User chef2 = TestDataUtil.createUser("Chef Dos", "chef2@test.com", "chef123", Role.CHEF);
+                userRepository.saveAndFlush(chef2);
+
+                BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
+                                chef.getId(), java.util.List.of(chef2.getId()));
+
+                mockMvc.perform(patch(BASE_URL + "/batch/teacher")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(batchRequest)))
+                                .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void whenBatchAssignTeacher_withUserAsTeacher_thenBadRequest() throws Exception {
+                UserRequestDTO studentRequest = new UserRequestDTO();
+                studentRequest.setName("Alumno Batch Bad");
+                studentRequest.setUser("batchbad@test.com");
+                studentRequest.setPassword("password123");
+                studentRequest.setRole(Role.USER);
+
+                String studentResp = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(studentRequest)))
+                                .andExpect(status().isCreated())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer studentId = objectMapper.readValue(studentResp,
+                                com.economato.inventory.application.dto.response.UserResponseDTO.class).getId();
+
+                // Intentar usar un USER como profesor
+                BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
+                                studentId, java.util.List.of(studentId));
+
+                mockMvc.perform(patch(BASE_URL + "/batch/teacher")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(batchRequest)))
+                                .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void whenBatchAssignTeacher_withEmptyStudentList_thenBadRequest() throws Exception {
+                User chef = TestDataUtil.createChefUser();
+                userRepository.saveAndFlush(chef);
+
+                BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
+                                chef.getId(), java.util.List.of());
+
+                mockMvc.perform(patch(BASE_URL + "/batch/teacher")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(batchRequest)))
+                                .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void whenBatchAssignTeacher_withoutAdminRole_thenForbidden() throws Exception {
+                // Crear usuario normal y obtener su token
+                UserRequestDTO userRequest = new UserRequestDTO();
+                userRequest.setName("Usuario Normal Batch");
+                userRequest.setUser("normalbatch@test.com");
+                userRequest.setPassword("password123");
+                userRequest.setRole(Role.USER);
+
+                mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(userRequest)))
+                                .andExpect(status().isCreated());
+
+                LoginRequestDTO loginRequest = new LoginRequestDTO();
+                loginRequest.setName(userRequest.getName());
+                loginRequest.setPassword("password123");
+
+                String loginResp = mockMvc.perform(post(AUTH_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(loginRequest)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                String userToken = objectMapper.readValue(loginResp, LoginResponseDTO.class).getToken();
+
+                User chef = TestDataUtil.createUser("Chef Batch Auth", "chefbatchauth@test.com", "chef123", Role.CHEF);
+                userRepository.saveAndFlush(chef);
+
+                BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
+                                chef.getId(), java.util.List.of(1));
+
+                mockMvc.perform(patch(BASE_URL + "/batch/teacher")
+                                .header("Authorization", "Bearer " + userToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(batchRequest)))
+                                .andExpect(status().isForbidden());
         }
 }
