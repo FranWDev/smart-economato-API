@@ -170,6 +170,13 @@ class ForecastingService:
         """
         Processes a recipe-cooking event and returns a list of forecast result dicts,
         one per ingredient that had enough historical data.
+
+        New architecture: the backend embeds the 90-day consumption history for each
+        component directly in the Kafka event (productHistories field).  When that
+        field is present we use it directly — zero HTTP calls.
+
+        For backward compatibility (old events without productHistories), we fall
+        back to fetching via HTTP.
         """
         components_raw = event_data.get("componentsState", "{}")
         try:
@@ -183,6 +190,14 @@ class ForecastingService:
             logger.warning(f"No components found in event for recipe {event_data.get('recipeId')}")
             return []
 
+        # productHistories is keyed by productId (int in Java → string in JSON)
+        embedded_histories: dict = event_data.get("productHistories") or {}
+        if embedded_histories:
+            logger.info(
+                f"Using embedded history for {len(embedded_histories)} product(s) "
+                f"(recipe {event_data.get('recipeId')}) — no HTTP calls needed"
+            )
+
         results = []
         loop = asyncio.get_running_loop()
 
@@ -191,15 +206,28 @@ class ForecastingService:
             if not p_id:
                 continue
 
-            history = await self.fetch_history(p_id)
-            if not history or not history.get("breakdown"):
-                logger.warning(f"No history for product {p_id} — skipping")
-                continue
+            # ── Resolve history ───────────────────────────────────────────
+            breakdown = None
 
-            breakdown = history["breakdown"]
+            # 1. Try embedded history (new architecture, zero HTTP)
+            embedded = embedded_histories.get(str(p_id)) or embedded_histories.get(p_id)
+            if embedded is not None:
+                if len(embedded) == 0:
+                    logger.warning(f"Embedded history for product {p_id} is empty — skipping")
+                    continue
+                breakdown = embedded   # list of {date, consumed}
+
+            # 2. Fall back to HTTP fetch (old events / backward compat)
+            if breakdown is None:
+                history = await self.fetch_history(p_id)
+                if not history or not history.get("breakdown"):
+                    logger.warning(f"No history for product {p_id} — skipping")
+                    continue
+                breakdown = history["breakdown"]
+
+            # ── Build DataFrame ───────────────────────────────────────────
             df = pd.DataFrame(breakdown)
 
-            # Validate required columns
             if "date" not in df.columns or "consumed" not in df.columns:
                 logger.error(f"Unexpected history schema for product {p_id}: {df.columns.tolist()}")
                 continue
@@ -213,7 +241,6 @@ class ForecastingService:
                 continue
 
             try:
-                # Run blocking Prophet in thread pool so uvicorn stays responsive
                 prediction, confidence = await loop.run_in_executor(
                     _EXECUTOR, _run_prophet, df
                 )
@@ -234,6 +261,7 @@ class ForecastingService:
                 logger.error(f"Prophet failed for product {p_id}: {exc}", exc_info=True)
 
         return results
+
 
 
 forecast_service = ForecastingService()
