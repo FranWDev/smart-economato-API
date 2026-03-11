@@ -77,3 +77,22 @@ def ready():
     status = "READY" if consumer_ok else "NOT_READY"
     code = 200 if consumer_ok else 503
     return JSONResponse({"status": status, "service": settings.APP_NAME}, status_code=code)
+
+
+@app.get("/prophet/status", tags=["observability"])
+def prophet_status():
+    """
+    Diagnostic endpoint for Prophet backend configuration.
+    Shows whether cmdstanpy is properly initialized.
+    """
+    import os
+    from app.core.config import settings
+    
+    return JSONResponse({
+        "prophet_version": "1.1.5",
+        "stan_backend": settings.PROPHET_STAN_BACKEND,
+        "cmdstan_path": settings.CMDSTAN_PATH,
+        "cmdstan_exists": os.path.exists(settings.CMDSTAN_PATH),
+        "stan_backend_env": os.environ.get("STAN_BACKEND", "not set"),
+        "cmdstan_env": os.environ.get("CMDSTAN", "not set"),
+    })

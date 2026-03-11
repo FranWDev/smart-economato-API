@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import json
+import os
 from datetime import datetime, timezone, timedelta
 
 import pandas as pd
@@ -23,26 +24,24 @@ def _run_prophet(df: pd.DataFrame) -> tuple[float, float]:
     Trains Prophet model and returns (mean_predicted_14d, confidence_score).
     Executed in a thread executor — NEVER call from the event loop directly.
 
-    Because the Meta/`prophet` package contains a bug where initialization
-    will throw ``AttributeError: 'Prophet' object has no attribute
-    'stan_backend'`` when *no* Stan backend is available, we protect the
-    call site and fall back to a trivial forecast. In production you should
-    install a backend such as ``cmdstanpy`` (see ``requirements.txt``)
-    but the fallback allows the service to stay alive and tests to run even
-    in minimal environments.
+    Uses cmdstanpy backend (installed in Dockerfile at /home/appuser/.cmdstan).
+    If backend is unavailable, falls back to simple mean forecast.
     """
     try:
-        # allow overriding via config in case users want to pin a specific
-        # backend or experiment with PyMC3/Stan/etc.
-        backend = getattr(settings, "PROPHET_STAN_BACKEND", None)
+        # Ensure cmdstan path is available for cmdstanpy
+        cmdstan_path = settings.CMDSTAN_PATH
+        if cmdstan_path and os.path.exists(cmdstan_path):
+            os.environ["STAN_BACKEND"] = "CMDSTANPY"
+            os.environ["CMDSTAN"] = cmdstan_path
+            logger.info(f"Using cmdstan from: {cmdstan_path}")
+        
         model_kwargs = dict(
             yearly_seasonality=False,
             weekly_seasonality=True,
             daily_seasonality=False,
             interval_width=0.80,
+            stan_backend=settings.PROPHET_STAN_BACKEND,
         )
-        if backend:
-            model_kwargs["stan_backend"] = backend
 
         model = Prophet(**model_kwargs)
         model.fit(df)
@@ -64,16 +63,17 @@ def _run_prophet(df: pd.DataFrame) -> tuple[float, float]:
 
         return max(0.0, mean_yhat), confidence
 
-    except AttributeError as exc:
-        # catch the well‑known stan_backend bug; log and produce a cheap
-        # fallback so that callers don’t crash altogether.  The returned
-        # confidence is intentionally conservative.
-        if "stan_backend" in str(exc):
-            logger.warning("Prophet backend unavailable, using simple fallback: %s", exc)
-            mean_yhat = float(df["y"].mean()) if not df.empty else 0.0
-            return max(0.0, mean_yhat), 0.5
-        # re‑raise unrelated attribute errors
-        raise
+    except (AttributeError, RuntimeError, FileNotFoundError) as exc:
+        # Catch backend initialization errors (missing cmdstan, permissions, etc.)
+        # Log the error and produce a fallback forecast so the service stays alive
+        logger.error(
+            f"Prophet backend failed (stan_backend={settings.PROPHET_STAN_BACKEND}, "
+            f"cmdstan_path={settings.CMDSTAN_PATH}): {exc}",
+            exc_info=True
+        )
+        logger.warning("Falling back to simple mean forecast (confidence=0.5)")
+        mean_yhat = float(df["y"].mean()) if not df.empty else 0.0
+        return max(0.0, mean_yhat), 0.5
 
 
 class ForecastingService:
