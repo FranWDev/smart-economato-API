@@ -241,6 +241,10 @@ services:
       INSTANCE_PORT: 8000
       # Must match an existing ADMIN username in the DB (used as JWT sub)
       PREDICTOR_USERNAME: ${PREDICTOR_USERNAME:-Admin}
+      # SQLite outbox — persisted across container restarts
+      SQLITE_DB_PATH: /data/predictor_outbox.db
+    volumes:
+      - predictor-outbox-data:/data
     deploy:
       resources:
         limits:
@@ -369,6 +373,9 @@ volumes:
   prometheus-data:
     driver: local
   grafana-data:
+    driver: local
+  # SQLite outbox — persists forecast_outbox rows when predictor restarts
+  predictor-outbox-data:
     driver: local
   # Los volúmenes de zookeeper han sido borrados de la lista
 
