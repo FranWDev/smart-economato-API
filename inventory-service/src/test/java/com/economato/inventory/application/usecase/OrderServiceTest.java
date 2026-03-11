@@ -330,7 +330,7 @@ class OrderServiceTest {
 
         OrderReceptionRequestDTO receptionData = new OrderReceptionRequestDTO();
         receptionData.setOrderId(1);
-        receptionData.setStatus(OrderStatus.CONFIRMED);
+
 
         OrderReceptionDetailRequestDTO receptionItem = new OrderReceptionDetailRequestDTO();
         receptionItem.setProductId(1);
@@ -372,24 +372,40 @@ class OrderServiceTest {
     }
 
     @Test
-    void receiveOrder_WhenQuantityLessThanOrdered_ShouldThrowException() {
+    void receiveOrder_WhenQuantityLessThanOrdered_ShouldSetStatusToIncomplete() {
 
         OrderReceptionRequestDTO receptionData = new OrderReceptionRequestDTO();
         receptionData.setOrderId(1);
-        receptionData.setStatus(OrderStatus.CONFIRMED);
+
 
         OrderReceptionDetailRequestDTO receptionItem = new OrderReceptionDetailRequestDTO();
         receptionItem.setProductId(1);
         receptionItem.setQuantityReceived(new BigDecimal("3.0"));
         receptionData.setItems(Arrays.asList(receptionItem));
 
-        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+        testOrder.getDetails().get(0).setQuantityReceived(new BigDecimal("3.0"));
 
-        InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
-            orderService.receiveOrder(receptionData);
-        });
-        assertTrue(exception.getMessage().contains(MessageKey.ERROR_ORDER_CANNOT_RECEIVE_LESS.name()));
-        verify(repository, never()).save(any(Order.class));
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+        when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
+        when(stockLedgerService.recordStockMovement(
+                anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt()))
+                .thenReturn(null);
+        when(repository.save(testOrder)).thenReturn(testOrder);
+
+        OrderResponseDTO incompleteResponse = new OrderResponseDTO();
+        incompleteResponse.setId(1);
+        incompleteResponse.setStatus(OrderStatus.INCOMPLETE);
+        when(orderMapper.toResponseDTO(testOrder)).thenReturn(incompleteResponse);
+
+        OrderResponseDTO result = orderService.receiveOrder(receptionData);
+
+        assertNotNull(result);
+        assertEquals(OrderStatus.INCOMPLETE, result.getStatus());
+        verify(repository).findByIdWithDetails(1);
+        verify(productRepository).findByIdForUpdate(1);
+        verify(stockLedgerService).recordStockMovement(
+                anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt());
+        verify(repository).save(testOrder);
     }
 
     @Test
@@ -397,7 +413,7 @@ class OrderServiceTest {
 
         OrderReceptionRequestDTO receptionData = new OrderReceptionRequestDTO();
         receptionData.setOrderId(1);
-        receptionData.setStatus(OrderStatus.CONFIRMED);
+
 
         OrderReceptionDetailRequestDTO receptionItem = new OrderReceptionDetailRequestDTO();
         receptionItem.setProductId(999);
@@ -515,7 +531,7 @@ class OrderServiceTest {
 
         OrderReceptionRequestDTO receptionData = new OrderReceptionRequestDTO();
         receptionData.setOrderId(1);
-        receptionData.setStatus(OrderStatus.CONFIRMED);
+
 
         OrderReceptionDetailRequestDTO receptionDetail = new OrderReceptionDetailRequestDTO();
         receptionDetail.setProductId(1);
@@ -541,23 +557,39 @@ class OrderServiceTest {
     }
 
     @Test
-    void receiveOrder_WithQuantityValidation_ShouldThrowWhenLessThanOrdered() {
+    void receiveOrder_WithQuantityValidation_ShouldSetIncompleteWhenLessThanOrdered() {
 
         OrderReceptionRequestDTO receptionData = new OrderReceptionRequestDTO();
         receptionData.setOrderId(1);
-        receptionData.setStatus(OrderStatus.CONFIRMED);
+
 
         OrderReceptionDetailRequestDTO receptionDetail = new OrderReceptionDetailRequestDTO();
         receptionDetail.setProductId(1);
         receptionDetail.setQuantityReceived(new BigDecimal("3.0"));
         receptionData.setItems(Arrays.asList(receptionDetail));
 
-        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+        testOrder.getDetails().get(0).setQuantityReceived(new BigDecimal("3.0"));
 
-        InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
-            orderService.receiveOrder(receptionData);
-        });
-        assertTrue(exception.getMessage().contains(MessageKey.ERROR_ORDER_CANNOT_RECEIVE_LESS.name()));
-        verify(repository, never()).save(any(Order.class));
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+        when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
+        when(stockLedgerService.recordStockMovement(
+                anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt()))
+                .thenReturn(null);
+        when(repository.save(any(Order.class))).thenReturn(testOrder);
+
+        OrderResponseDTO incompleteResponse = new OrderResponseDTO();
+        incompleteResponse.setId(1);
+        incompleteResponse.setStatus(OrderStatus.INCOMPLETE);
+        when(orderMapper.toResponseDTO(any(Order.class))).thenReturn(incompleteResponse);
+
+        OrderResponseDTO result = orderService.receiveOrder(receptionData);
+
+        assertNotNull(result);
+        assertEquals(OrderStatus.INCOMPLETE, result.getStatus());
+        verify(repository).findByIdWithDetails(1);
+        verify(productRepository).findByIdForUpdate(1);
+        verify(stockLedgerService).recordStockMovement(
+                anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt());
+        verify(repository).save(any(Order.class));
     }
 }

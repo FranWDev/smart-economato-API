@@ -190,51 +190,46 @@ public class OrderService {
 
                 order.setStatus(OrderStatus.REVIEW);
 
-                for (var receptionItem : receptionData.getItems()) {
-                        OrderDetail detail = order.getDetails().stream()
-                                        .filter(d -> d.getProduct().getId().equals(receptionItem.getProductId()))
-                                        .findFirst()
+                boolean isComplete = true;
+
+        for (var receptionItem : receptionData.getItems()) {
+                OrderDetail detail = order.getDetails().stream()
+                                .filter(d -> d.getProduct().getId().equals(receptionItem.getProductId()))
+                                .findFirst()
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                i18nService.getMessage(
+                                                                MessageKey.ERROR_ORDER_PRODUCT_NOT_FOUND)));
+
+                if (receptionItem.getQuantityReceived().compareTo(detail.getQuantity()) < 0) {
+                        isComplete = false;
+                }
+                detail.setQuantityReceived(receptionItem.getQuantityReceived());
+        }
+
+        order.setStatus(isComplete ? OrderStatus.CONFIRMED : OrderStatus.INCOMPLETE);
+
+        log.info("Procesando recepción de orden {} con estado final {} - Registrando en ledger inmutable", order.getId(), order.getStatus());
+
+        for (OrderDetail detail : order.getDetails()) {
+                // If received quantity is greater than 0, register it in the ledger
+                if (detail.getQuantityReceived() != null && detail.getQuantityReceived().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                        Product product = productRepository.findByIdForUpdate(detail.getProduct().getId())
                                         .orElseThrow(() -> new ResourceNotFoundException(
                                                         i18nService.getMessage(
-                                                                        MessageKey.ERROR_ORDER_PRODUCT_NOT_FOUND)));
+                                                                        MessageKey.ERROR_PRODUCT_NOT_FOUND)));
 
-                        if (receptionItem.getQuantityReceived().compareTo(detail.getQuantity()) < 0) {
-                                throw new InvalidOperationException(
-                                                i18nService.getMessage(MessageKey.ERROR_ORDER_CANNOT_RECEIVE_LESS_DETAIL,
-                                                                new Object[] {
-                                                                                i18nService.getMessage(
-                                                                                                MessageKey.ERROR_ORDER_CANNOT_RECEIVE_LESS),
-                                                                                detail.getQuantity(),
-                                                                                receptionItem.getQuantityReceived()
-                                                                }));
-                        }
-                        detail.setQuantityReceived(receptionItem.getQuantityReceived());
+                        stockLedgerService.recordStockMovement(
+                                        product.getId(),
+                                        detail.getQuantityReceived(),
+                                        MovementType.ENTRADA,
+                                          i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_RECEPTION,
+                                                          new Object[] { order.getId(), product.getName() }),
+                                        order.getUser(),
+                                        order.getId());
                 }
+        }
 
-                order.setStatus(receptionData.getStatus());
-
-                if (OrderStatus.CONFIRMED == receptionData.getStatus()) {
-                        log.info("Confirmando orden {} - Registrando en ledger inmutable", order.getId());
-
-                        for (OrderDetail detail : order.getDetails()) {
-                                Product product = productRepository.findByIdForUpdate(detail.getProduct().getId())
-                                                .orElseThrow(() -> new ResourceNotFoundException(
-                                                                i18nService.getMessage(
-                                                                                MessageKey.ERROR_PRODUCT_NOT_FOUND)));
-
-                                stockLedgerService.recordStockMovement(
-                                                product.getId(),
-                                                detail.getQuantityReceived(),
-                                                MovementType.ENTRADA,
-                                                  i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_RECEPTION,
-                                                                  new Object[] { order.getId(), product.getName() }),
-                                                order.getUser(),
-                                                order.getId());
-                        }
-
-                        log.info("Orden {} confirmada - {} movimientos registrados en ledger",
-                                        order.getId(), order.getDetails().size());
-                }
+        log.info("Orden {} procesada - movimientos registrados en ledger", order.getId());
 
                 Order savedOrder = repository.save(order);
                 return orderMapper.toResponseDTO(savedOrder);
@@ -258,5 +253,35 @@ public class OrderService {
                                         Order updatedOrder = repository.save(order);
                                         return orderMapper.toResponseDTO(updatedOrder);
                                 });
+        }
+
+        @Transactional(readOnly = true)
+        public java.util.List<com.economato.inventory.application.dto.response.OrderDetailResponseDTO> getMissingItems(Integer orderId) {
+                Order order = repository.findByIdWithDetails(orderId)
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                i18nService.getMessage(MessageKey.ERROR_ORDER_NOT_FOUND)));
+
+                if (!OrderStatus.INCOMPLETE.equals(order.getStatus())) {
+                        throw new InvalidOperationException("Solo las ordenes incompletas tienen items faltantes.");
+                }
+
+                return order.getDetails().stream()
+                                .filter(detail -> {
+                                        java.math.BigDecimal received = detail.getQuantityReceived() != null ? detail.getQuantityReceived() : java.math.BigDecimal.ZERO;
+                                        return detail.getQuantity().compareTo(received) > 0;
+                                })
+                                .map(detail -> {
+                                        com.economato.inventory.application.dto.response.OrderDetailResponseDTO dto = new com.economato.inventory.application.dto.response.OrderDetailResponseDTO();
+                                        dto.setOrderId(order.getId());
+                                        dto.setProductId(detail.getProduct().getId());
+                                        dto.setProductName(detail.getProduct().getName());
+                                        
+                                        java.math.BigDecimal received = detail.getQuantityReceived() != null ? detail.getQuantityReceived() : java.math.BigDecimal.ZERO;
+                                        dto.setQuantity(detail.getQuantity().subtract(received)); // Faltante
+                                        dto.setQuantityReceived(java.math.BigDecimal.ZERO);
+                                        
+                                        return dto;
+                                })
+                                .toList();
         }
 }

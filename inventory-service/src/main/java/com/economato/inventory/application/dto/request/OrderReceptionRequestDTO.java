@@ -8,7 +8,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import com.economato.inventory.domain.model.OrderStatus;
 
 @Data
 @NoArgsConstructor
@@ -24,7 +23,4 @@ public class OrderReceptionRequestDTO {
     @Schema(description = "Lista de productos recibidos con sus cantidades")
     private List<OrderReceptionDetailRequestDTO> items;
 
-    @NotNull(message = "{validation.orderReceptionRequestDTO.status.notNull}")
-    @Schema(description = "Estado final de la orden (CONFIRMED o INCOMPLETE)", example = "CONFIRMED")
-    private OrderStatus status;
 }
