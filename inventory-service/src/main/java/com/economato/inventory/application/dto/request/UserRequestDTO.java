@@ -1,14 +1,13 @@
 package com.economato.inventory.application.dto.request;
 
+import com.economato.inventory.domain.model.Role;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import com.economato.inventory.domain.model.Role;
-
-import io.swagger.v3.oas.annotations.media.Schema;
 
 @Data
 @NoArgsConstructor
