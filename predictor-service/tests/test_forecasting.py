@@ -23,11 +23,36 @@ async def test_process_event_with_array_dates():
         }
     }
     
-    # This should run without AttributeError: 'Prophet' object has no attribute 'stan_backend'
+    # This should run without AttributeError from Prophet and should return at
+    # least one forecast entry using the naming from the service implementation.
     results = await forecast_service.process_event(event)
     
     assert results is not None
     assert len(results) > 0
     assert results[0]["productId"] == 402
-    assert "demandForecast14d" in results[0]
-    assert results[0]["confidenceScore"] >= 0.0
+    assert "projectedConsumption" in results[0]
+    assert 0.0 <= results[0]["confidenceScore"] <= 1.0
+
+
+@pytest.mark.asyncio
+async def test_fallback_when_prophet_missing(monkeypatch):
+    """Ensure the service does not crash when Prophet complains about
+    ``stan_backend`` being unavailable.
+    """
+    # force the constructor to raise the specific attribute error
+    class FakeProphet:
+        def __init__(self, *args, **kwargs):
+            raise AttributeError("'Prophet' object has no attribute 'stan_backend'")
+
+    monkeypatch.setattr(forecast_service, "Prophet", FakeProphet)
+
+    event = {
+        "recipeId": 99,
+        "productHistories": {"1": [{"date": [2026, 3, 1], "consumed": 10.0}]},
+    }
+    results = await forecast_service.process_event(event)
+    # fallback should still return a (very basic) prediction entry
+    assert len(results) == 1
+    assert results[0]["productId"] == 1
+    assert "projectedConsumption" in results[0]
+    assert results[0]["confidenceScore"] == 0.5

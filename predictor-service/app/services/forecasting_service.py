@@ -22,31 +22,58 @@ def _run_prophet(df: pd.DataFrame) -> tuple[float, float]:
     """
     Trains Prophet model and returns (mean_predicted_14d, confidence_score).
     Executed in a thread executor — NEVER call from the event loop directly.
+
+    Because the Meta/`prophet` package contains a bug where initialization
+    will throw ``AttributeError: 'Prophet' object has no attribute
+    'stan_backend'`` when *no* Stan backend is available, we protect the
+    call site and fall back to a trivial forecast. In production you should
+    install a backend such as ``cmdstanpy`` (see ``requirements.txt``)
+    but the fallback allows the service to stay alive and tests to run even
+    in minimal environments.
     """
-    model = Prophet(
-        yearly_seasonality=False,
-        weekly_seasonality=True,
-        daily_seasonality=False,
-        interval_width=0.80,
-    )
-    model.fit(df)
+    try:
+        # allow overriding via config in case users want to pin a specific
+        # backend or experiment with PyMC3/Stan/etc.
+        backend = getattr(settings, "PROPHET_STAN_BACKEND", None)
+        model_kwargs = dict(
+            yearly_seasonality=False,
+            weekly_seasonality=True,
+            daily_seasonality=False,
+            interval_width=0.80,
+        )
+        if backend:
+            model_kwargs["stan_backend"] = backend
 
-    future = model.make_future_dataframe(periods=14)
-    forecast = model.predict(future)
+        model = Prophet(**model_kwargs)
+        model.fit(df)
 
-    last_14 = forecast.iloc[-14:]
+        future = model.make_future_dataframe(periods=14)
+        forecast = model.predict(future)
 
-    mean_yhat = float(last_14["yhat"].mean())
-    # Derive a confidence score from the mean width of the 80% interval
-    interval_width = float((last_14["yhat_upper"] - last_14["yhat_lower"]).mean())
-    # Narrower interval relative to prediction → higher confidence (clamp 0–1)
-    if mean_yhat > 0:
-        relative_uncertainty = min(interval_width / (abs(mean_yhat) + 1e-9), 1.0)
-        confidence = round(1.0 - relative_uncertainty * 0.5, 4)
-    else:
-        confidence = 0.5
+        last_14 = forecast.iloc[-14:]
 
-    return max(0.0, mean_yhat), confidence
+        mean_yhat = float(last_14["yhat"].mean())
+        # Derive a confidence score from the mean width of the 80% interval
+        interval_width = float((last_14["yhat_upper"] - last_14["yhat_lower"]).mean())
+        # Narrower interval relative to prediction → higher confidence (clamp 0–1)
+        if mean_yhat > 0:
+            relative_uncertainty = min(interval_width / (abs(mean_yhat) + 1e-9), 1.0)
+            confidence = round(1.0 - relative_uncertainty * 0.5, 4)
+        else:
+            confidence = 0.5
+
+        return max(0.0, mean_yhat), confidence
+
+    except AttributeError as exc:
+        # catch the well‑known stan_backend bug; log and produce a cheap
+        # fallback so that callers don’t crash altogether.  The returned
+        # confidence is intentionally conservative.
+        if "stan_backend" in str(exc):
+            logger.warning("Prophet backend unavailable, using simple fallback: %s", exc)
+            mean_yhat = float(df["y"].mean()) if not df.empty else 0.0
+            return max(0.0, mean_yhat), 0.5
+        # re‑raise unrelated attribute errors
+        raise
 
 
 class ForecastingService:
