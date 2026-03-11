@@ -15,7 +15,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN addgroup --system appgroup \
     && adduser --system --ingroup appgroup --home /home/appuser appuser \
-    && chown -R appuser:appgroup /app /home/appuser
+    && mkdir -p /app/data \
+    && chown -R appuser:appgroup /app /home/appuser /app/data
 
 COPY requirements.txt install_cmdstan.py ./
 RUN pip install --no-cache-dir -r requirements.txt
