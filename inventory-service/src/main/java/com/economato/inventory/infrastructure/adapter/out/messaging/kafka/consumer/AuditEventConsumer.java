@@ -1,6 +1,5 @@
 package com.economato.inventory.infrastructure.adapter.out.messaging.kafka.consumer;
 
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
@@ -26,7 +25,8 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
-import com.economato.inventory.application.usecase.StockAlertService;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -41,7 +41,6 @@ public class AuditEventConsumer {
     private final RecipeRepository recipeRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
-    private final StockAlertService stockAlertService;
 
     public AuditEventConsumer(
             InventoryAuditRepository inventoryAuditRepository,
@@ -51,8 +50,7 @@ public class AuditEventConsumer {
             ProductRepository productRepository,
             RecipeRepository recipeRepository,
             OrderRepository orderRepository,
-            UserRepository userRepository,
-            StockAlertService stockAlertService) {
+            UserRepository userRepository) {
         this.inventoryAuditRepository = inventoryAuditRepository;
         this.recipeAuditRepository = recipeAuditRepository;
         this.recipeCookingAuditRepository = recipeCookingAuditRepository;
@@ -61,7 +59,6 @@ public class AuditEventConsumer {
         this.recipeRepository = recipeRepository;
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
-        this.stockAlertService = stockAlertService;
     }
 
     @KafkaListener(topics = "inventory-audit-events", groupId = "inventory-audit-consumer-group", containerFactory = "inventoryAuditKafkaListenerContainerFactory")
@@ -201,9 +198,10 @@ public class AuditEventConsumer {
             log.info("Auditoría de cocinado guardada: id={}, receta={}, cantidad={}, usuario={}",
                     audit.getId(), event.getRecipeId(), event.getQuantityCooked(), event.getUserName());
 
-            // Disparar recálculo asíncrono de predicciones para los productos de esta
-            // receta
-            stockAlertService.updatePredictionsForRecipe(event.getRecipeId());
+            log.info(
+                    "Evento de cocinado persistido para receta {}. " +
+                    "La predicción oficial será generada exclusivamente por el predictor de IA vía Kafka.",
+                    event.getRecipeId());
 
         } catch (Exception e) {
             log.error("Error al procesar evento de auditoría de cocinado: {}", e.getMessage(), e);

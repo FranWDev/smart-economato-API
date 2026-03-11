@@ -4,6 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
+ * @deprecated Forecaster legado conservado solo por compatibilidad histórica.
+ *             Las predicciones oficiales del sistema se generan mediante el
+ *             predictor de IA (Meta Prophet) y no deben sobrescribirse con esta implementación.
+ *
  * Implementación de Holt-Winters Triple Exponential Smoothing en Java puro.
  *
  * <p>
@@ -27,6 +31,7 @@ import java.util.List;
  * semanas completas, se aplica una media simple como fallback.
  * </p>
  */
+@Deprecated
 public class HoltWintersForecaster {
 
     /** Mínimo de semanas necesarias para aplicar Holt-Winters. */
