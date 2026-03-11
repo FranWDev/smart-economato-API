@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 # Prophet is CPU-heavy — run in a thread pool to avoid blocking uvicorn
 _EXECUTOR = None  # uses default ThreadPoolExecutor
 
+# Silence prophet logs that trigger a known bug during __init__ when logging level is low
+logging.getLogger("prophet").setLevel(logging.ERROR)
+logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
+
 
 def _run_prophet(df: pd.DataFrame) -> tuple[float, float]:
     """
