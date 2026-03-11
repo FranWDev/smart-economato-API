@@ -15,11 +15,4 @@ class Settings(BaseSettings):
     # Topics
     RECIPE_COOKING_TOPIC: str = "recipe-cooking-audit-events"
     FORECAST_UPDATES_TOPIC: str = "forecast-updates"
-    
-    # Force cmdstanpy backend for Prophet. This ensures the full Bayesian model
-    # is trained instead of falling back to simple mean. cmdstanpy is pre-compiled
-    # in the Dockerfile at /home/appuser/.cmdstan
-    PROPHET_STAN_BACKEND: str = os.getenv("PROPHET_STAN_BACKEND", "CMDSTANPY")
-    CMDSTAN_PATH: str = os.getenv("CMDSTAN_PATH", "/home/appuser/.cmdstan")
 
-settings = Settings()

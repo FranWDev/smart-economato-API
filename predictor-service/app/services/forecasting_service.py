@@ -6,6 +6,7 @@ from datetime import datetime, timezone, timedelta
 
 import pandas as pd
 from prophet import Prophet
+import cmdstanpy
 
 from app.core.config import settings
 
@@ -18,29 +19,49 @@ _EXECUTOR = None  # uses default ThreadPoolExecutor
 logging.getLogger("prophet").setLevel(logging.ERROR)
 logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
 
+# Ensure cmdstan is installed at startup
+def _ensure_cmdstan_installed():
+    """
+    Verify that cmdstan is properly installed. If not, install it.
+    Called once at module load time.
+    """
+    try:
+        from cmdstanpy.utils.cmdstan import CMDSTAN_PATH
+        if CMDSTAN_PATH and os.path.exists(CMDSTAN_PATH):
+            makefile_path = os.path.join(CMDSTAN_PATH, "makefile")
+            if os.path.exists(makefile_path):
+                logger.info(f"✓ CmdStan is properly installed at {CMDSTAN_PATH}")
+                return
+    except Exception:
+        pass
+    
+    # If we reach here, cmdstan needs to be installed
+    logger.warning("CmdStan not properly installed, installing now... (this may take 1-2 minutes)")
+    try:
+        cmdstanpy.install_cmdstan(overwrite=True, cores=1)
+        logger.info("✓ CmdStan installed successfully")
+    except Exception as e:
+        logger.error(f"Failed to install CmdStan: {e}")
+        raise
+
+# Call this at module load time
+_ensure_cmdstan_installed()
+
 
 def _run_prophet(df: pd.DataFrame) -> tuple[float, float]:
     """
     Trains Prophet model and returns (mean_predicted_14d, confidence_score).
     Executed in a thread executor — NEVER call from the event loop directly.
 
-    Uses cmdstanpy backend (installed in Dockerfile at /home/appuser/.cmdstan).
-    If backend is unavailable, falls back to simple mean forecast.
+    CmdStan backend is guaranteed to be installed by _ensure_cmdstan_installed().
     """
     try:
-        # Ensure cmdstan path is available for cmdstanpy
-        cmdstan_path = settings.CMDSTAN_PATH
-        if cmdstan_path and os.path.exists(cmdstan_path):
-            os.environ["STAN_BACKEND"] = "CMDSTANPY"
-            os.environ["CMDSTAN"] = cmdstan_path
-            logger.info(f"Using cmdstan from: {cmdstan_path}")
-        
         model_kwargs = dict(
             yearly_seasonality=False,
             weekly_seasonality=True,
             daily_seasonality=False,
             interval_width=0.80,
-            stan_backend=settings.PROPHET_STAN_BACKEND,
+            stan_backend="CMDSTANPY",
         )
 
         model = Prophet(**model_kwargs)
@@ -63,14 +84,9 @@ def _run_prophet(df: pd.DataFrame) -> tuple[float, float]:
 
         return max(0.0, mean_yhat), confidence
 
-    except (AttributeError, RuntimeError, FileNotFoundError) as exc:
-        # Catch backend initialization errors (missing cmdstan, permissions, etc.)
-        # Log the error and produce a fallback forecast so the service stays alive
-        logger.error(
-            f"Prophet backend failed (stan_backend={settings.PROPHET_STAN_BACKEND}, "
-            f"cmdstan_path={settings.CMDSTAN_PATH}): {exc}",
-            exc_info=True
-        )
+    except (AttributeError, RuntimeError, ValueError, FileNotFoundError) as exc:
+        # Catch backend initialization errors
+        logger.error(f"Prophet backend failed: {exc}", exc_info=True)
         logger.warning("Falling back to simple mean forecast (confidence=0.5)")
         mean_yhat = float(df["y"].mean()) if not df.empty else 0.0
         return max(0.0, mean_yhat), 0.5
