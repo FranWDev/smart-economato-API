@@ -17,21 +17,13 @@ RUN addgroup --system appgroup \
     && adduser --system --ingroup appgroup --home /home/appuser appuser \
     && chown -R appuser:appgroup /app /home/appuser
 
-COPY requirements.txt .
+COPY requirements.txt install_cmdstan.py ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install cmdstan into the exact location Prophet expects:
 # prophet/models.py hardcodes 'stan_model/cmdstan-{version}' inside the package directory.
-# We install as root so site-packages is writable, then lock down permissions.
-RUN python -c "
-import cmdstanpy, pathlib, prophet
-# Prophet hardcodes this path in its models.py
-prophet_stan_dir = pathlib.Path(prophet.__file__).parent / 'stan_model'
-prophet_stan_dir.mkdir(parents=True, exist_ok=True)
-print(f'Installing cmdstan into {prophet_stan_dir}')
-cmdstanpy.install_cmdstan(dir=str(prophet_stan_dir), overwrite=True, cores=1)
-print('cmdstan installed successfully')
-"
+# Run as root so site-packages is writable.
+RUN python install_cmdstan.py
 
 USER appuser
 
