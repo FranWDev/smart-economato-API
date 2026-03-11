@@ -33,9 +33,9 @@ import com.economato.inventory.application.dto.response.StockPredictionResponseD
 import com.economato.inventory.application.dto.response.WeeklyConsumptionResponseDTO;
 import com.economato.inventory.application.mapper.StockDailyForecastMapper;
 import com.economato.inventory.application.mapper.StockWeeklyConsumptionHistoryMapper;
-import com.economato.inventory.domain.model.StockDailyForecast;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.Recipe;
+import com.economato.inventory.domain.model.StockDailyForecast;
 import com.economato.inventory.domain.model.StockPrediction;
 import com.economato.inventory.domain.model.StockWeeklyConsumptionHistory;
 import com.economato.inventory.infrastructure.adapter.out.external.prediction.HoltWintersForecaster;
@@ -250,7 +250,8 @@ public class StockAlertService {
     }
 
     /**
-     * Actualiza la predicción de un producto basándose en el resultado del predictor externo (Python).
+     * Actualiza la predicción oficial de un producto basándose en el resultado del
+     * predictor externo de IA (Python/Prophet).
      */
     @Transactional
     public void updatePredictionFromForecast(Integer productId, BigDecimal projectedConsumption) {
@@ -273,12 +274,29 @@ public class StockAlertService {
     }
 
     /**
-     * Recalcula las predicciones para todos los ingredientes de una receta.
-     * Se ejecuta de forma asíncrona (Virtual Threads habilitados).
+     * @deprecated Holt-Winters ya no participa en el flujo activo de predicción.
+     *             Las predicciones oficiales se calculan exclusivamente mediante el
+     *             predictor de IA y llegan por Kafka en {@code forecast-updates}.
+     *             Se conserva solo por compatibilidad y referencia histórica.
      */
+    @Deprecated
+    public void updatePredictionsForRecipe(Integer recipeId) {
+        log.warn(
+            "[Deprecated] Recalculo Holt-Winters solicitado para receta ID: {}. " +
+            "La ruta legacy está deshabilitada y las predicciones oficiales provienen exclusivamente de IA.",
+            recipeId);
+    }
+
+    /**
+     * @deprecated Implementación legacy conservada únicamente como referencia.
+     *             No debe invocarse en producción porque sobrescribe predicciones
+     *             generadas por IA.
+     */
+    @Deprecated
+    @SuppressWarnings("unused")
     @Async
     @Transactional
-    public void updatePredictionsForRecipe(Integer recipeId) {
+    void runLegacyHoltWintersForecastForRecipe(Integer recipeId) {
         log.info("[Async] Iniciando recálculo de predicciones para receta ID: {}", recipeId);
 
         var recipeOpt = recipeRepository.findByIdWithDetails(recipeId);

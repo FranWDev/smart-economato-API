@@ -31,7 +31,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/stock-alerts")
-@Tag(name = "Alertas de Stock", description = "Alertas predictivas de stock bajo basadas en historial de cocinado (Holt-Winters). [Rol requerido: CHEF]")
+@Tag(name = "Alertas de Stock", description = "Alertas predictivas de stock bajo basadas en predicciones de IA persistidas desde el predictor Kafka (Meta Prophet). [Rol requerido: CHEF]")
 public class StockAlertController {
 
     private final StockAlertService stockAlertService;
@@ -46,7 +46,7 @@ public class StockAlertController {
     @Operation(summary = "Obtener alertas de stock bajo", description = """
             Devuelve las alertas predictivas de stock bajo para todos los ingredientes
             con historial de cocinado. Cada alerta incluye:
-            - Consumo proyectado para los próximos 14 días (modelo Holt-Winters)
+            - Consumo proyectado para los próximos 14 días calculado por el predictor de IA
             - Stock actual y cantidades en pedidos activos (CREATED / PENDING / REVIEW)
             - Nivel de severidad (LOW / MEDIUM / HIGH / CRITICAL)
             - Resolución (COVERED_BY_ORDER / PARTIALLY_COVERED / UNCOVERED)
@@ -87,7 +87,7 @@ public class StockAlertController {
 
     @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @GetMapping("/predictions")
-    @Operation(summary = "Obtener todas las predicciones persistidas", description = "Devuelve una lista paginada de los consumos proyectados para los próximos 14 días. [Rol requerido: CHEF o ADMIN]")
+    @Operation(summary = "Obtener todas las predicciones persistidas", description = "Devuelve una lista paginada de los consumos proyectados para los próximos 14 días calculados por el predictor de IA (Meta Prophet). [Rol requerido: CHEF o ADMIN]")
     public ResponseEntity<Page<StockPredictionResponseDTO>> getPredictions(Pageable pageable) {
         return ResponseEntity.ok(stockAlertService.getAllPredictions(pageable));
     }
@@ -120,8 +120,9 @@ public class StockAlertController {
     }
 
     @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @Deprecated
     @GetMapping("/forecast")
-    @Operation(summary = "Obtener proyección diaria de consumo", description = "Devuelve una lista paginada de series de 14 valores diarios proyectados para todos los productos con historial. [Rol requerido: CHEF o ADMIN]")
+    @Operation(summary = "[LEGACY] Obtener proyección diaria de consumo", description = "Endpoint legado basado en Holt-Winters. Está deprecado y ya no alimenta las alertas oficiales de stock, que usan exclusivamente predicciones de IA. [Rol requerido: CHEF o ADMIN]")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Proyección diaria obtenida correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = DailyForecastResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "Acceso denegado")
@@ -131,8 +132,9 @@ public class StockAlertController {
     }
 
     @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
+    @Deprecated
     @GetMapping("/forecast/{productId}")
-    @Operation(summary = "Obtener proyección diaria de un producto", description = "Devuelve una serie de 14 valores diarios proyectados para un producto específico. [Rol requerido: CHEF o ADMIN]")
+    @Operation(summary = "[LEGACY] Obtener proyección diaria de un producto", description = "Endpoint legado basado en Holt-Winters. Está deprecado y ya no alimenta las alertas oficiales de stock, que usan exclusivamente predicciones de IA. [Rol requerido: CHEF o ADMIN]")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Proyección diaria del producto obtenida correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = DailyForecastResponseDTO.class))),
             @ApiResponse(responseCode = "204", description = "No hay datos históricos para el producto"),
