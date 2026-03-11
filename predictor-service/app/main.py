@@ -1,6 +1,16 @@
-import asyncio
 import logging
+import asyncio
 from contextlib import asynccontextmanager
+
+# ── LOGGING CONFIGURATION MUST BE FIRST ──────────────────────────────────
+# This is critical to fix the Prophet 'stan_backend' AttributeError bug.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+)
+# Force silence for Prophet and its backend
+logging.getLogger("prophet").setLevel(logging.ERROR)
+logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -8,10 +18,6 @@ from fastapi.responses import JSONResponse
 from app.core.config import settings
 from app.services.kafka_service import kafka_manager
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
-)
 logger = logging.getLogger(__name__)
 
 
