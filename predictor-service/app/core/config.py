@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     FORECAST_UPDATES_TOPIC: str = "forecast-updates"
 
     # Outbox — SQLite database path (mounted volume in Docker)
-    SQLITE_DB_PATH: str = os.getenv("SQLITE_DB_PATH", "/data/predictor_outbox.db")
+    SQLITE_DB_PATH: str = os.getenv("SQLITE_DB_PATH", "/app/data/predictor_outbox.db")
+
 
 settings = Settings()
