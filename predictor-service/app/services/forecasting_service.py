@@ -3,8 +3,6 @@ import logging
 import json
 from datetime import datetime, timezone, timedelta
 
-import httpx
-import jwt
 import pandas as pd
 from prophet import Prophet
 
@@ -48,119 +46,6 @@ def _run_prophet(df: pd.DataFrame) -> tuple[float, float]:
 
 
 class ForecastingService:
-    # ------------------------------------------------------------------
-    # Internal auth helpers
-    # ------------------------------------------------------------------
-    def _signing_key(self) -> bytes:
-        """
-        Java's JwtUtils uses Apache Commons Codec Base64 which is LENIENT about
-        padding — it decodes strings whose length is not a multiple of 4 without
-        throwing an error.  Python's base64.b64decode() is STRICT by default.
-
-        We replicate Java's lenient behaviour by adding the exact padding chars
-        needed before decoding:  padding = (4 - len(s) % 4) % 4
-
-        Example: 43-char secret → 43%4=3 → add 1 '=' → 44 chars → decodes OK.
-        """
-        import base64 as _b64
-        raw = settings.JWT_SECRET
-        # Add just enough '=' padding to make the length a multiple of 4
-        padding = (4 - len(raw) % 4) % 4
-        padded = raw + "=" * padding
-        try:
-            key = _b64.b64decode(padded)
-            logger.debug(f"JWT key: decoded {len(raw)}-char Base64 → {len(key)} bytes")
-            return key
-        except Exception as exc:
-            logger.warning(f"Base64 decode failed ({exc}), using raw UTF-8 bytes")
-            return raw.encode("utf-8")
-
-    def _generate_token(self) -> str:
-        """
-        Generates a JWT compatible with Java's JwtFilter.
-        sub must be a real DB username so loadUserByUsername() succeeds.
-        """
-        now = datetime.now(tz=timezone.utc)
-        payload = {
-            "sub": settings.PREDICTOR_USERNAME,
-            "role": "ADMIN",
-            "iat": now,
-            "exp": now + timedelta(hours=1),
-        }
-        return jwt.encode(payload, self._signing_key(), algorithm="HS256")
-
-
-
-    # ------------------------------------------------------------------
-    # Data fetching
-    # ------------------------------------------------------------------
-    async def fetch_history(self, product_id: int) -> dict | None:
-        """
-        Fetches 90-day consumption history from the inventory-service via gateway.
-
-        Two distinct 404 cases:
-        - Gateway 404 (Eureka not synced yet): body contains 'requestId' field.
-          → Retry with exponential backoff (gateway will sync within ~30s).
-        - Backend 404 (product not found): body contains 'message' or no 'requestId'.
-          → Skip immediately, no point retrying.
-        """
-        token = self._generate_token()
-        url = (
-            f"{settings.INVENTORY_SERVICE_URL}"
-            f"/api/stock-ledger/consumption/{product_id}?lastDays=90"
-        )
-        headers = {"Authorization": f"Bearer {token}"}
-
-        max_retries   = 4
-        backoff_secs  = [5, 10, 20, 40]   # cumulative wait: up to ~75s
-
-        for attempt in range(max_retries + 1):
-            try:
-                async with httpx.AsyncClient(timeout=httpx.Timeout(15.0)) as client:
-                    response = await client.get(url, headers=headers)
-
-                    if response.status_code == 200:
-                        return response.json()
-
-                    if response.status_code == 404:
-                        try:
-                            body = response.json()
-                        except Exception:
-                            body = {}
-
-                        # Gateway 404: has 'requestId' → Eureka hasn't synced yet
-                        if "requestId" in body and attempt < max_retries:
-                            wait = backoff_secs[attempt]
-                            logger.warning(
-                                f"Gateway Eureka not ready for product {product_id} "
-                                f"(attempt {attempt+1}/{max_retries}) — retrying in {wait}s"
-                            )
-                            await asyncio.sleep(wait)
-                            continue
-
-                        # Backend 404 or exhausted retries → skip
-                        logger.warning(f"No history for product {product_id} — skipping")
-                        return None
-
-                    # Any other non-2xx
-                    response.raise_for_status()
-
-            except httpx.HTTPStatusError as exc:
-                logger.error(
-                    f"HTTP {exc.response.status_code} fetching history for product {product_id}"
-                )
-            except httpx.RequestError as exc:
-                if attempt < max_retries:
-                    wait = backoff_secs[attempt]
-                    logger.warning(f"Network error for product {product_id}, retry in {wait}s: {exc}")
-                    await asyncio.sleep(wait)
-                    continue
-                logger.error(f"Network error fetching history for product {product_id}: {exc}")
-            except Exception as exc:
-                logger.error(f"Unexpected error fetching history for product {product_id}: {exc}")
-            return None
-
-        return None
 
 
     # ------------------------------------------------------------------
@@ -172,11 +57,8 @@ class ForecastingService:
         one per ingredient that had enough historical data.
 
         New architecture: the backend embeds the 90-day consumption history for each
-        component directly in the Kafka event (productHistories field).  When that
-        field is present we use it directly — zero HTTP calls.
-
-        For backward compatibility (old events without productHistories), we fall
-        back to fetching via HTTP.
+        component directly in the Kafka event (productHistories field). The service
+        relies exclusively on this embedded data — zero HTTP calls.
         """
         components_raw = event_data.get("componentsState", "{}")
         try:
@@ -206,24 +88,13 @@ class ForecastingService:
             if not p_id:
                 continue
 
-            # ── Resolve history ───────────────────────────────────────────
-            breakdown = None
-
-            # 1. Try embedded history (new architecture, zero HTTP)
+            # Resolve history from embedded data (zero HTTP)
             embedded = embedded_histories.get(str(p_id)) or embedded_histories.get(p_id)
-            if embedded is not None:
-                if len(embedded) == 0:
-                    logger.warning(f"Embedded history for product {p_id} is empty — skipping")
-                    continue
-                breakdown = embedded   # list of {date, consumed}
-
-            # 2. Fall back to HTTP fetch (old events / backward compat)
-            if breakdown is None:
-                history = await self.fetch_history(p_id)
-                if not history or not history.get("breakdown"):
-                    logger.warning(f"No history for product {p_id} — skipping")
-                    continue
-                breakdown = history["breakdown"]
+            if not embedded:
+                logger.warning(f"No history for product {p_id} (missing in event) — skipping")
+                continue
+            
+            breakdown = embedded   # list of {date, consumed}
 
             # ── Build DataFrame ───────────────────────────────────────────
             df = pd.DataFrame(breakdown)

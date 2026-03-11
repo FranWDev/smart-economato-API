@@ -159,6 +159,8 @@ public class RecipeCookingAuditAspect {
         LocalDateTime end   = LocalDateTime.now();
         LocalDateTime start = end.minusDays(90).withHour(0).withMinute(0).withSecond(0).withNano(0);
 
+        log.info("Generando historial embebido: rango [{} - {}]", start, end);
+
         Map<Integer, List<DailyConsumption>> result = new HashMap<>();
 
         for (var comp : recipe.getComponents()) {
@@ -167,6 +169,9 @@ public class RecipeCookingAuditAspect {
                 ProductConsumptionResponseDTO dto =
                         stockLedgerService.getProductConsumption(productId, start, end);
 
+                int entriesCount = (dto.getBreakdown() != null) ? dto.getBreakdown().size() : 0;
+                log.info("Historial para producto {}: {} entradas encontradas", productId, entriesCount);
+
                 List<DailyConsumption> history = dto.getBreakdown() == null
                         ? Collections.emptyList()
                         : dto.getBreakdown().stream()
@@ -174,8 +179,6 @@ public class RecipeCookingAuditAspect {
                                 .collect(Collectors.toList());
 
                 result.put(productId, history);
-                log.debug("Historial incluido en evento: producto={}, entradas={}",
-                        productId, history.size());
             } catch (Exception e) {
                 log.warn("No se pudo obtener historial para producto {}: {}",
                         productId, e.getMessage());

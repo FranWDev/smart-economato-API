@@ -2,7 +2,6 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-import py_eureka_client.eureka_client as eureka_client
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
@@ -25,14 +24,6 @@ async def lifespan(app: FastAPI):
     # ── Startup ───────────────────────────────────────────────────────
     logger.info(f"Starting {settings.APP_NAME}...")
 
-    # Register with Eureka
-    await eureka_client.init_async(
-        eureka_server=settings.EUREKA_SERVER,
-        app_name=settings.APP_NAME,
-        instance_port=settings.INSTANCE_PORT,
-        instance_host=settings.INSTANCE_HOST,
-    )
-    logger.info("Registered with Eureka")
 
     # Launch Kafka consumer in the background (non-blocking)
     kafka_task = asyncio.create_task(kafka_manager.start(), name="kafka-consumer")
@@ -49,7 +40,6 @@ async def lifespan(app: FastAPI):
         pass
 
     await kafka_manager.stop()
-    await eureka_client.stop_async()
     logger.info("Shutdown complete")
 
 
