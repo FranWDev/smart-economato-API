@@ -96,12 +96,13 @@ class ForecastingService:
     # ------------------------------------------------------------------
     async def fetch_history(self, product_id: int) -> dict | None:
         """
-        Fetches 90-day consumption history from the inventory-service directly.
+        Fetches 90-day consumption history from the inventory-service via gateway.
 
-        We call the backend container directly (bypassing the gateway) because:
-        1. Avoids gateway/Eureka discovery latency after restarts.
-        2. Reduces one network hop for internal service-to-service calls.
-        The JWT is still required because the backend's JwtFilter is active.
+        Two distinct 404 cases:
+        - Gateway 404 (Eureka not synced yet): body contains 'requestId' field.
+          → Retry with exponential backoff (gateway will sync within ~30s).
+        - Backend 404 (product not found): body contains 'message' or no 'requestId'.
+          → Skip immediately, no point retrying.
         """
         token = self._generate_token()
         url = (
@@ -110,20 +111,57 @@ class ForecastingService:
         )
         headers = {"Authorization": f"Bearer {token}"}
 
-        try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(10.0)) as client:
-                response = await client.get(url, headers=headers)
-                response.raise_for_status()
-                return response.json()
-        except httpx.HTTPStatusError as exc:
-            logger.error(
-                f"HTTP {exc.response.status_code} fetching history for product {product_id}"
-            )
-        except httpx.RequestError as exc:
-            logger.error(f"Network error fetching history for product {product_id}: {exc}")
-        except Exception as exc:
-            logger.error(f"Unexpected error fetching history for product {product_id}: {exc}")
+        max_retries   = 4
+        backoff_secs  = [5, 10, 20, 40]   # cumulative wait: up to ~75s
+
+        for attempt in range(max_retries + 1):
+            try:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(15.0)) as client:
+                    response = await client.get(url, headers=headers)
+
+                    if response.status_code == 200:
+                        return response.json()
+
+                    if response.status_code == 404:
+                        try:
+                            body = response.json()
+                        except Exception:
+                            body = {}
+
+                        # Gateway 404: has 'requestId' → Eureka hasn't synced yet
+                        if "requestId" in body and attempt < max_retries:
+                            wait = backoff_secs[attempt]
+                            logger.warning(
+                                f"Gateway Eureka not ready for product {product_id} "
+                                f"(attempt {attempt+1}/{max_retries}) — retrying in {wait}s"
+                            )
+                            await asyncio.sleep(wait)
+                            continue
+
+                        # Backend 404 or exhausted retries → skip
+                        logger.warning(f"No history for product {product_id} — skipping")
+                        return None
+
+                    # Any other non-2xx
+                    response.raise_for_status()
+
+            except httpx.HTTPStatusError as exc:
+                logger.error(
+                    f"HTTP {exc.response.status_code} fetching history for product {product_id}"
+                )
+            except httpx.RequestError as exc:
+                if attempt < max_retries:
+                    wait = backoff_secs[attempt]
+                    logger.warning(f"Network error for product {product_id}, retry in {wait}s: {exc}")
+                    await asyncio.sleep(wait)
+                    continue
+                logger.error(f"Network error fetching history for product {product_id}: {exc}")
+            except Exception as exc:
+                logger.error(f"Unexpected error fetching history for product {product_id}: {exc}")
+            return None
+
         return None
+
 
     # ------------------------------------------------------------------
     # Core forecast logic
