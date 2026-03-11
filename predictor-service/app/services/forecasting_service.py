@@ -3,29 +3,18 @@ import logging
 import json
 import os
 from datetime import datetime, timezone, timedelta
-
 import pandas as pd
 from prophet import Prophet
 import cmdstanpy
-
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+_EXECUTOR = None
 
-# Prophet is CPU-heavy — run in a thread pool to avoid blocking uvicorn
-_EXECUTOR = None  # uses default ThreadPoolExecutor
-
-# Silence prophet logs that trigger a known bug during __init__ when logging level is low
 logging.getLogger("prophet").setLevel(logging.ERROR)
 logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
 
-# Ensure cmdstan is installed at startup
 def _ensure_cmdstan_installed():
-    """
-    Verify that the EXACT cmdstan version Prophet hardcodes in models.py is installed.
-    Prophet 1.1.5 looks for: <prophet_package>/stan_model/cmdstan-2.33.1/makefile
-    Any other version installed there will NOT be found by Prophet.
-    """
     import pathlib
     import re
     import prophet as _prophet
@@ -48,13 +37,8 @@ def _ensure_cmdstan_installed():
     makefile = expected_path / "makefile"
 
     if makefile.exists():
-        logger.info(f"✓ CmdStan {cmdstan_version} properly installed at {expected_path}")
         return
 
-    logger.warning(
-        f"CmdStan {cmdstan_version} missing at {expected_path}. "
-        f"Re-installing... (this may take 1-2 minutes)"
-    )
     try:
         prophet_stan_dir.mkdir(parents=True, exist_ok=True)
         cmdstanpy.install_cmdstan(
@@ -63,22 +47,14 @@ def _ensure_cmdstan_installed():
             overwrite=True,
             cores=1,
         )
-        logger.info(f"✓ CmdStan {cmdstan_version} installed successfully")
     except Exception as e:
         logger.error(f"Failed to install CmdStan {cmdstan_version}: {e}")
         raise
 
-# Call this at module load time
 _ensure_cmdstan_installed()
 
 
 def _run_prophet(df: pd.DataFrame) -> tuple[float, float]:
-    """
-    Trains Prophet model and returns (mean_predicted_14d, confidence_score).
-    Executed in a thread executor — NEVER call from the event loop directly.
-
-    CmdStan backend is guaranteed to be installed by _ensure_cmdstan_installed().
-    """
     try:
         model_kwargs = dict(
             yearly_seasonality=False,
@@ -117,20 +93,7 @@ def _run_prophet(df: pd.DataFrame) -> tuple[float, float]:
 
 
 class ForecastingService:
-
-
-    # ------------------------------------------------------------------
-    # Core forecast logic
-    # ------------------------------------------------------------------
     async def process_event(self, event_data: dict) -> list[dict]:
-        """
-        Processes a recipe-cooking event and returns a list of forecast result dicts,
-        one per ingredient that had enough historical data.
-
-        New architecture: the backend embeds the 90-day consumption history for each
-        component directly in the Kafka event (productHistories field). The service
-        relies exclusively on this embedded data — zero HTTP calls.
-        """
         components_raw = event_data.get("componentsState", "{}")
         try:
             components_data = json.loads(components_raw) if isinstance(components_raw, str) else components_raw

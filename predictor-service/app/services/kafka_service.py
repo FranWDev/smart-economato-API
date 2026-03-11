@@ -1,17 +1,3 @@
-"""
-Kafka Consumer for the predictor service.
-
-Responsibility: consume ``recipe-cooking-audit-events``, run Prophet
-forecasting, and **write results to the SQLite outbox**.
-
-The outbox relay (``OutboxService.relay_loop``) is responsible for
-forwarding those rows to the ``forecast-updates`` topic.  This consumer
-no longer holds a Kafka producer — it only commits its consumer offset
-**after** the outbox rows have been saved, guaranteeing at-least-once
-delivery without the tight coupling of a synchronous produce-then-commit
-dance.
-"""
-
 import json
 import logging
 import asyncio
@@ -32,44 +18,32 @@ class KafkaManager:
             "bootstrap.servers": settings.KAFKA_BOOTSTRAP_SERVERS,
             "group.id": "predictor-consumer-group",
             "auto.offset.reset": "earliest",
-            # Manual commit — we commit ONLY after outbox rows are persisted
             "enable.auto.commit": False,
         }
         self.consumer: Consumer | None = None
         self._running = False
         self._loop: asyncio.AbstractEventLoop | None = None
-
-    # ------------------------------------------------------------------
-    # Lifecycle
-    # ------------------------------------------------------------------
     async def start(self):
-        """Entry point called from FastAPI lifespan. Runs the consumer loop."""
         self._loop = asyncio.get_running_loop()
         self._running = True
 
-        # Reintentar conexión si Kafka aún no está listo
         while self._running:
             try:
                 await self._connect()
                 logger.info(f"Subscribed to topic: {settings.RECIPE_COOKING_TOPIC}")
                 await self._consume_loop()
             except KafkaException as exc:
-                logger.error(f"KafkaException in consumer — restarting in {_RETRY_BACKOFF_S}s: {exc}")
+                logger.error(f"Kafka error: {exc}")
                 await asyncio.sleep(_RETRY_BACKOFF_S)
             except Exception as exc:
-                logger.error(f"Unexpected error in consumer — restarting in {_RETRY_BACKOFF_S}s: {exc}")
+                logger.error(f"Unexpected error: {exc}")
                 await asyncio.sleep(_RETRY_BACKOFF_S)
             finally:
                 self._disconnect()
 
     async def stop(self):
-        """Graceful shutdown."""
         self._running = False
         self._disconnect()
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
     async def _connect(self):
         self.consumer = Consumer(self.consumer_conf)
         self.consumer.subscribe([settings.RECIPE_COOKING_TOPIC])
@@ -83,15 +57,9 @@ class KafkaManager:
             self.consumer = None
 
     async def _consume_loop(self):
-        """
-        Poll is blocking (librdkafka C extension).
-        We offload it to a thread-pool executor so as NOT to block the
-        asyncio event loop — this is the critical fix for uvicorn compatibility.
-        """
         loop = asyncio.get_running_loop()
 
         while self._running:
-            # Run the blocking poll in a thread executor
             msg = await loop.run_in_executor(
                 None, lambda: self.consumer.poll(_POLL_TIMEOUT_S)
             )
