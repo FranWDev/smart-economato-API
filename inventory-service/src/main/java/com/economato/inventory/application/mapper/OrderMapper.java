@@ -17,6 +17,8 @@ public interface OrderMapper {
 
     @Mapping(source = "user.id", target = "userId")
     @Mapping(source = "user.name", target = "userName")
+    @Mapping(source = "supplier.id", target = "supplierId")
+    @Mapping(source = "supplier.name", target = "supplierName")
     @Mapping(source = ".", target = "totalPrice", qualifiedByName = "calculateTotalPrice")
     OrderResponseDTO toResponseDTO(Order order);
 
@@ -25,6 +27,8 @@ public interface OrderMapper {
     @Mapping(source = "projection.status", target = "status")
     @Mapping(source = "projection.user.id", target = "userId")
     @Mapping(source = "projection.user.name", target = "userName")
+    @Mapping(source = "projection.supplier.id", target = "supplierId")
+    @Mapping(source = "projection.supplier.name", target = "supplierName")
     @Mapping(source = "projection.details", target = "details")
     @Mapping(source = "projection", target = "totalPrice", qualifiedByName = "calculateTotalPriceFromProjection")
     OrderResponseDTO toResponseDTO(OrderProjection projection);

@@ -50,6 +50,11 @@ class OrderMapperTest {
             }
 
             @Override
+            public SupplierInfo getSupplier() {
+                return null;
+            }
+
+            @Override
             public LocalDateTime getOrderDate() {
                 return LocalDateTime.now();
             }
@@ -140,6 +145,11 @@ class OrderMapperTest {
             }
 
             @Override
+            public SupplierInfo getSupplier() {
+                return null;
+            }
+
+            @Override
             public LocalDateTime getOrderDate() {
                 return LocalDateTime.now();
             }
@@ -185,6 +195,11 @@ class OrderMapperTest {
                         return "Test User";
                     }
                 };
+            }
+
+            @Override
+            public SupplierInfo getSupplier() {
+                return null;
             }
 
             @Override

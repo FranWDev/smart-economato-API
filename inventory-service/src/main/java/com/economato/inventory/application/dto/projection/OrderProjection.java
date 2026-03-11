@@ -10,6 +10,8 @@ public interface OrderProjection {
 
     UserInfo getUser();
 
+    SupplierInfo getSupplier();
+
     LocalDateTime getOrderDate();
 
     OrderStatus getStatus();
@@ -17,6 +19,12 @@ public interface OrderProjection {
     List<OrderDetailSummary> getDetails();
 
     interface UserInfo {
+        Integer getId();
+
+        String getName();
+    }
+
+    interface SupplierInfo {
         Integer getId();
 
         String getName();
