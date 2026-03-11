@@ -336,7 +336,7 @@ class UserServiceTest {
     void findByRole_ShouldReturnUsersWithRole() {
 
         List<UserProjection> users = Arrays.asList(testProjection);
-        when(repository.findProjectedByRoleAndIsHiddenFalse(Role.USER)).thenReturn(users);
+        when(repository.findProjectedByRoleInAndIsHiddenFalse(List.of(Role.USER, Role.ELEVATED))).thenReturn(users);
         when(userMapper.toResponseDTO(any(UserProjection.class))).thenReturn(testUserResponseDTO);
 
         List<UserResponseDTO> result = userService.findByRole(Role.USER);
@@ -344,7 +344,7 @@ class UserServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(testUserResponseDTO.getRole(), result.get(0).getRole());
-        verify(repository).findProjectedByRoleAndIsHiddenFalse(Role.USER);
+        verify(repository).findProjectedByRoleInAndIsHiddenFalse(List.of(Role.USER, Role.ELEVATED));
     }
 
     @Test

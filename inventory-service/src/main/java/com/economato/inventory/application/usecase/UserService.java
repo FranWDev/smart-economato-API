@@ -223,6 +223,11 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findByRole(Role role) {
+        if (Role.USER.equals(role)) {
+            return repository.findProjectedByRoleInAndIsHiddenFalse(List.of(Role.USER, Role.ELEVATED)).stream()
+                    .map(userMapper::toResponseDTO)
+                    .toList();
+        }
         return repository.findProjectedByRoleAndIsHiddenFalse(role).stream()
                 .map(userMapper::toResponseDTO)
                 .toList();
