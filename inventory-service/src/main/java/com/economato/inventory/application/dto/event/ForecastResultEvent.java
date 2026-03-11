@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * DTO para recibir resultados de predicción desde el microservicio Python.
@@ -22,7 +22,7 @@ public class ForecastResultEvent implements Serializable {
     
     private Integer productId;
     private BigDecimal projectedConsumption;
-    private LocalDateTime calculatedAt;
+    private OffsetDateTime calculatedAt;
     private String modelUsed;
     private String confidenceScore;
 }
