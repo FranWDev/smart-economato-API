@@ -1,48 +1,44 @@
 import logging
 import asyncio
 from contextlib import asynccontextmanager
-
-# ── LOGGING CONFIGURATION MUST BE FIRST ──────────────────────────────────
-# Historically we ran into a bug during Prophet initialization where a
-# missing backend would lead to an AttributeError being emitted at DEBUG
-# log level.  We now handle that failure explicitly in the forecasting
-# service, but we keep the logger seeding here so that the package doesn’t
-# spam the console when a backend is present.
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
-)
-# Reduce noise from prophet/cmdstanpy during startup
-logging.getLogger("prophet").setLevel(logging.ERROR)
-logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
-
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
+from app.db.outbox import init_db
 from app.services.kafka_service import kafka_manager
+from app.services.outbox_service import outbox_service
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+)
+logging.getLogger("prophet").setLevel(logging.ERROR)
+logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    FastAPI modern lifespan handler.
-    Replaces deprecated @app.on_event("startup"/"shutdown").
-    """
     # ── Startup ───────────────────────────────────────────────────────
     logger.info(f"Starting {settings.APP_NAME}...")
 
-
-    # Launch Kafka consumer in the background (non-blocking)
+    init_db()
     kafka_task = asyncio.create_task(kafka_manager.start(), name="kafka-consumer")
-    logger.info("Kafka consumer started")
+    relay_task = asyncio.create_task(outbox_service.relay_loop(), name="outbox-relay")
+    logger.info("Predictor-service background tasks started")
 
     yield  # ← application runs here
 
     # ── Shutdown ──────────────────────────────────────────────────────
     logger.info(f"Shutting down {settings.APP_NAME}...")
+    relay_task.cancel()
+    try:
+        await relay_task
+    except asyncio.CancelledError:
+        pass
+
     kafka_task.cancel()
     try:
         await kafka_task
@@ -77,3 +73,11 @@ def ready():
     status = "READY" if consumer_ok else "NOT_READY"
     code = 200 if consumer_ok else 503
     return JSONResponse({"status": status, "service": settings.APP_NAME}, status_code=code)
+
+
+@app.get("/outbox/metrics", tags=["observability"])
+def outbox_metrics():
+    pending = outbox_service.pending_count()
+    return JSONResponse(
+        {"outbox_pending": pending, "service": settings.APP_NAME}
+    )
