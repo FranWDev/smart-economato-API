@@ -58,10 +58,9 @@ public class OrderAuditAspect {
             if (arg instanceof OrderReceptionRequestDTO) {
                 receptionDto = (OrderReceptionRequestDTO) arg;
                 orderId = receptionDto.getOrderId();
-                newStatus = receptionDto.getStatus().name();
+                // Status is now determined internally by OrderService, so it's not present in the DTO
             } else if (arg instanceof Integer) {
-                newStatus = (receptionDto != null && receptionDto.getStatus() != null) ? receptionDto.getStatus().name()
-                        : null;
+                // If it's just an ID and we don't have a status yet, we can't get it from the receptionDto anymore
             } else if (arg instanceof OrderStatus && orderId != null) {
                 newStatus = ((OrderStatus) arg).name();
             }

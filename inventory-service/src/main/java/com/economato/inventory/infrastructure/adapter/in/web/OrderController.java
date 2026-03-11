@@ -250,4 +250,15 @@ public class OrderController {
                         this.status = status;
                 }
         }
+        @Operation(summary = "Obtener productos faltantes de una orden incompleta", description = "Devuelve la lista de detalles de la orden que indican cuánto faltó por recibir respecto a lo solicitado originalmente. [Rol requerido: CHEF]", responses = {
+                        @ApiResponse(responseCode = "200", description = "Lista de productos faltantes obtenida correctamente"),
+                        @ApiResponse(responseCode = "404", description = "No se encontró la orden"),
+                        @ApiResponse(responseCode = "400", description = "La orden no está en estado INCOMPLETE")
+        })
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @GetMapping("/{id}/missing-items")
+        public ResponseEntity<List<com.economato.inventory.application.dto.response.OrderDetailResponseDTO>> getMissingItems(
+                        @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id) {
+                return ResponseEntity.ok(orderService.getMissingItems(id));
+        }
 }
