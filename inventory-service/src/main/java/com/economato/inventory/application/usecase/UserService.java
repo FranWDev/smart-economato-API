@@ -1,5 +1,6 @@
 package com.economato.inventory.application.usecase;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,9 +14,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.RestPage;
+import com.economato.inventory.application.dto.request.BatchTeacherAssignmentRequestDTO;
 import com.economato.inventory.application.dto.request.ChangePasswordRequestDTO;
 import com.economato.inventory.application.dto.request.RoleEscalationRequestDTO;
 import com.economato.inventory.application.dto.request.UserRequestDTO;
+import com.economato.inventory.application.dto.response.BatchTeacherAssignmentResponseDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
 import com.economato.inventory.application.dto.response.UserStatsResponseDTO;
 import com.economato.inventory.application.mapper.StatsMapper;
@@ -287,6 +290,58 @@ public class UserService {
         }
 
         repository.save(user);
+    }
+
+    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+    @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
+    public BatchTeacherAssignmentResponseDTO assignTeacherBatch(BatchTeacherAssignmentRequestDTO request) {
+        List<Integer> studentIds = request.getStudentIds();
+        Integer teacherId = request.getTeacherId();
+        int totalCount = studentIds.size();
+
+        // Validar el profesor primero (si se proporcionó)
+        User teacher = null;
+        if (teacherId != null) {
+            teacher = repository.findById(teacherId)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            i18nService.getMessage(MessageKey.ERROR_USER_TEACHER_NOT_FOUND, new Object[] { teacherId })));
+            if (!Role.CHEF.equals(teacher.getRole())) {
+                throw new InvalidOperationException(
+                        i18nService.getMessage(MessageKey.ERROR_USER_TEACHER_MUST_BE_ADMIN));
+            }
+        }
+
+        // Validar todos los alumnos antes de aplicar cambios
+        List<User> students = new ArrayList<>();
+        for (Integer studentId : studentIds) {
+            User student = repository.findById(studentId)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { studentId })));
+            if (teacherId != null && (Role.CHEF.equals(student.getRole()) || Role.ADMIN.equals(student.getRole()))) {
+                throw new InvalidOperationException(
+                        i18nService.getMessage(MessageKey.ERROR_USER_ADMIN_CANNOT_HAVE_TEACHER));
+            }
+            students.add(student);
+        }
+
+        // Asignar el profesor a todos los alumnos validados
+        final User finalTeacher = teacher;
+        students.forEach(s -> {
+            s.setTeacher(finalTeacher);
+            repository.save(s);
+        });
+
+        String message = finalTeacher != null
+                ? "Todos los alumnos fueron asignados al profesor correctamente"
+                : "Profesor desasignado correctamente de todos los alumnos";
+
+        return BatchTeacherAssignmentResponseDTO.builder()
+                .success(true)
+                .processedCount(totalCount)
+                .totalCount(totalCount)
+                .message(message)
+                .failedStudentIds(List.of())
+                .build();
     }
 
     @Transactional(readOnly = true)

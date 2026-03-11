@@ -1,6 +1,33 @@
 package com.economato.inventory.infrastructure.adapter.in.web;
 
-import jakarta.validation.Valid;
+import java.util.List;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.economato.inventory.application.dto.request.BatchTeacherAssignmentRequestDTO;
+import com.economato.inventory.application.dto.request.ChangePasswordRequestDTO;
+import com.economato.inventory.application.dto.request.RoleEscalationRequestDTO;
+import com.economato.inventory.application.dto.request.TeacherAssignmentRequestDTO;
+import com.economato.inventory.application.dto.request.UserRequestDTO;
+import com.economato.inventory.application.dto.response.BatchTeacherAssignmentResponseDTO;
+import com.economato.inventory.application.dto.response.UserResponseDTO;
+import com.economato.inventory.application.usecase.UserService;
+import com.economato.inventory.domain.model.Role;
+
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -8,23 +35,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
-import com.economato.inventory.application.dto.request.UserRequestDTO;
-import com.economato.inventory.application.dto.request.ChangePasswordRequestDTO;
-import com.economato.inventory.application.dto.request.TeacherAssignmentRequestDTO;
-import com.economato.inventory.application.dto.request.RoleEscalationRequestDTO;
-import com.economato.inventory.application.dto.response.UserResponseDTO;
-import com.economato.inventory.domain.model.Role;
-import com.economato.inventory.application.usecase.UserService;
-import org.springframework.security.core.Authentication;
-
-import java.util.List;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/users")
@@ -242,6 +253,21 @@ public class UserController {
                 Integer teacherId = request != null ? request.getTeacherId() : null;
                 service.assignTeacher(id, teacherId);
                 return ResponseEntity.ok().build();
+        }
+
+        @PatchMapping("/batch/teacher")
+        @PreAuthorize("hasRole('ADMIN')")
+        @Operation(summary = "Asignar profesor en batch", description = "Asigna o desasigna un profesor a una lista de alumnos en una sola operación. La operación es atómica: si algún alumno no es válido, no se aplica ningún cambio. [Rol requerido: ADMIN]")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "200", description = "Profesor asignado correctamente a todos los alumnos", content = @Content(mediaType = "application/json", schema = @Schema(implementation = BatchTeacherAssignmentResponseDTO.class))),
+                        @ApiResponse(responseCode = "400", description = "Operación inválida (ej. alumno no encontrado, rol incorrecto)"),
+                        @ApiResponse(responseCode = "403", description = "Acceso denegado"),
+                        @ApiResponse(responseCode = "404", description = "Alumno o profesor no encontrado")
+        })
+        public ResponseEntity<BatchTeacherAssignmentResponseDTO> assignTeacherBatch(
+                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "ID del profesor y lista de IDs de alumnos", required = true, content = @Content(schema = @Schema(implementation = BatchTeacherAssignmentRequestDTO.class))) @Valid @RequestBody BatchTeacherAssignmentRequestDTO request) {
+                BatchTeacherAssignmentResponseDTO response = service.assignTeacherBatch(request);
+                return ResponseEntity.ok(response);
         }
 
         @PostMapping("/{id}/escalate")
