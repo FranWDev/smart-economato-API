@@ -15,11 +15,4 @@ class Settings(BaseSettings):
     # Topics
     RECIPE_COOKING_TOPIC: str = "recipe-cooking-audit-events"
     FORECAST_UPDATES_TOPIC: str = "forecast-updates"
-    
-    # if you need to force a particular stan backend (e.g. CMDSTANPY or
-    # PYMC3) you can set this environment variable.  Leaving it unset will
-    # allow ``prophet`` to autodetect; if no backend is available the service
-    # will fall back to a trivial average prediction at runtime.
-    PROPHET_STAN_BACKEND: str | None = None
 
-settings = Settings()
