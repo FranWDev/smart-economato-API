@@ -20,8 +20,10 @@ import com.economato.inventory.application.dto.request.OrderDetailRequestDTO;
 import com.economato.inventory.application.dto.request.OrderRequestDTO;
 import com.economato.inventory.application.dto.response.LoginResponseDTO;
 import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.domain.model.Supplier;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 import com.economato.inventory.infrastructure.TestDataUtil;
 
@@ -35,6 +37,9 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
         @Autowired
         private ProductRepository productRepository;
+
+        @Autowired
+        private SupplierRepository supplierRepository;
 
         @Autowired
         private PasswordEncoder passwordEncoder;
@@ -245,6 +250,74 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$").isArray());
+        }
+
+        @Test
+        void whenSearchOrdersWithFilters_thenReturnsOrdersAndTotalCost() throws Exception {
+                Supplier supplier = Supplier.builder()
+                                .name("Proveedor Filtro")
+                                .email("filtro@proveedor.com")
+                                .phone("123456789")
+                                .build();
+                supplier = supplierRepository.saveAndFlush(supplier);
+
+                OrderRequestDTO orderRequest = new OrderRequestDTO();
+                orderRequest.setUserId(testUser.getId());
+                orderRequest.setSupplierId(supplier.getId());
+
+                List<OrderDetailRequestDTO> details = new ArrayList<>();
+                OrderDetailRequestDTO detail = new OrderDetailRequestDTO();
+                detail.setProductId(testProduct1.getId());
+                detail.setQuantity(new BigDecimal("2.5"));
+                details.add(detail);
+                orderRequest.setDetails(details);
+
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(orderRequest)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer orderId = objectMapper.readTree(response).get("id").asInt();
+
+                mockMvc.perform(get(BASE_URL + "/search")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .param("startDate", "2026-01-01T00:00:00")
+                                .param("endDate", "2026-12-31T23:59:59")
+                                .param("userId", testUser.getId().toString())
+                                .param("supplierId", supplier.getId().toString())
+                                .param("orderId", orderId.toString()))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.orders", hasSize(1)))
+                                .andExpect(jsonPath("$.orders[0].id", is(orderId)))
+                                .andExpect(jsonPath("$.totalOrders", is(1)))
+                                .andExpect(jsonPath("$.totalCost", is(6.25)));
+        }
+
+        @Test
+        void whenGetGlobalOrdersTotalCost_thenReturnsAggregatedTotal() throws Exception {
+                OrderRequestDTO orderRequest = new OrderRequestDTO();
+                orderRequest.setUserId(testUser.getId());
+
+                List<OrderDetailRequestDTO> details = new ArrayList<>();
+                OrderDetailRequestDTO detail = new OrderDetailRequestDTO();
+                detail.setProductId(testProduct1.getId());
+                detail.setQuantity(new BigDecimal("2.5"));
+                details.add(detail);
+                orderRequest.setDetails(details);
+
+                mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(orderRequest)))
+                                .andExpect(status().isOk());
+
+                mockMvc.perform(get(BASE_URL + "/total-cost")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.totalOrders", is(1)))
+                                .andExpect(jsonPath("$.totalCost", is(6.25)));
         }
 
         @Test

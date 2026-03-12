@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -22,7 +23,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.economato.inventory.application.dto.request.OrderReceptionRequestDTO;
 import com.economato.inventory.application.dto.request.OrderRequestDTO;
+import com.economato.inventory.application.dto.response.OrderFilterResponseDTO;
 import com.economato.inventory.application.dto.response.OrderResponseDTO;
+import com.economato.inventory.application.dto.response.OrderTotalCostResponseDTO;
 import com.economato.inventory.domain.model.OrderStatus;
 import com.economato.inventory.infrastructure.adapter.out.external.reports.OrderPdfService;
 import com.economato.inventory.application.usecase.OrderService;
@@ -184,6 +187,34 @@ public class OrderController {
                 LocalDateTime startDate = LocalDateTime.parse(start);
                 LocalDateTime endDate = LocalDateTime.parse(end);
                 return orderService.findByDateRange(startDate, endDate);
+        }
+
+        @Operation(summary = "Filtrar ordenes y obtener costo total", description = "Permite filtrar por rango de fecha, persona que encarga (usuario), proveedor e ID de orden. Devuelve las ordenes encontradas y el costo total acumulado. [Rol requerido: CHEF]", responses = {
+                        @ApiResponse(responseCode = "200", description = "Ordenes filtradas correctamente")
+        })
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @GetMapping("/search")
+        public ResponseEntity<OrderFilterResponseDTO> searchOrders(
+                        @Parameter(description = "Fecha de inicio (ISO-8601)")
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+                        @Parameter(description = "Fecha de fin (ISO-8601)")
+                        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+                        @Parameter(description = "ID del usuario que encarga")
+                        @RequestParam(required = false) Integer userId,
+                        @Parameter(description = "ID del proveedor")
+                        @RequestParam(required = false) Integer supplierId,
+                        @Parameter(description = "ID de la orden")
+                        @RequestParam(required = false) Integer orderId) {
+                return ResponseEntity.ok(orderService.findFiltered(startDate, endDate, userId, supplierId, orderId));
+        }
+
+        @Operation(summary = "Obtener costo total de todas las ordenes", description = "Devuelve el costo total global acumulado de todas las ordenes del sistema, sin aplicar filtros. [Rol requerido: CHEF]", responses = {
+                        @ApiResponse(responseCode = "200", description = "Costo total global obtenido correctamente")
+        })
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @GetMapping("/total-cost")
+        public ResponseEntity<OrderTotalCostResponseDTO> getTotalCostAllOrders() {
+                return ResponseEntity.ok(orderService.getTotalCostAllOrders());
         }
 
         @Operation(summary = "Obtener órdenes pendientes de recepción", description = "Devuelve todas las órdenes que están en estado PENDING y necesitan ser recibidas. [Rol requerido: CHEF]", responses = {
