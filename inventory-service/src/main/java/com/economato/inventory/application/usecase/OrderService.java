@@ -19,7 +19,9 @@ import com.economato.inventory.domain.OrderAuditable;
 import com.economato.inventory.application.dto.request.OrderDetailRequestDTO;
 import com.economato.inventory.application.dto.request.OrderReceptionRequestDTO;
 import com.economato.inventory.application.dto.request.OrderRequestDTO;
+import com.economato.inventory.application.dto.response.OrderFilterResponseDTO;
 import com.economato.inventory.application.dto.response.OrderResponseDTO;
+import com.economato.inventory.application.dto.response.OrderTotalCostResponseDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
@@ -35,6 +37,8 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.specification.OrderSpecifications;
+import org.springframework.data.jpa.domain.Specification;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -192,6 +196,62 @@ public class OrderService {
                 return repository.findProjectedByOrderDateBetween(start, end).stream()
                                 .map(orderMapper::toResponseDTO)
                                 .toList();
+        }
+
+        @Transactional(readOnly = true)
+        public OrderFilterResponseDTO findFiltered(
+                        LocalDateTime startDate,
+                        LocalDateTime endDate,
+                        Integer userId,
+                        Integer supplierId,
+                        Integer orderId) {
+                if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
+                        throw new InvalidOperationException("La fecha de inicio no puede ser mayor que la fecha de fin.");
+                }
+
+                Specification<Order> spec = (root, query, cb) -> cb.conjunction();
+
+                if (orderId != null) {
+                        spec = spec.and(OrderSpecifications.hasOrderId(orderId));
+                }
+                if (userId != null) {
+                        spec = spec.and(OrderSpecifications.hasUserId(userId));
+                }
+                if (supplierId != null) {
+                        spec = spec.and(OrderSpecifications.hasSupplierId(supplierId));
+                }
+                if (startDate != null) {
+                        spec = spec.and(OrderSpecifications.hasOrderDateAfter(startDate));
+                }
+                if (endDate != null) {
+                        spec = spec.and(OrderSpecifications.hasOrderDateBefore(endDate));
+                }
+
+                List<OrderResponseDTO> orders = repository.findAll(spec).stream()
+                                .map(orderMapper::toResponseDTO)
+                                .toList();
+
+                java.math.BigDecimal totalCost = orders.stream()
+                                .map(OrderResponseDTO::getTotalPrice)
+                                .filter(java.util.Objects::nonNull)
+                                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+                return OrderFilterResponseDTO.builder()
+                                .orders(orders)
+                                .totalCost(totalCost)
+                                .totalOrders(orders.size())
+                                .build();
+        }
+
+        @Transactional(readOnly = true)
+        public OrderTotalCostResponseDTO getTotalCostAllOrders() {
+                java.math.BigDecimal totalCost = repository.getTotalCostAllOrders();
+                long totalOrders = repository.count();
+
+                return OrderTotalCostResponseDTO.builder()
+                                .totalCost(totalCost)
+                                .totalOrders(totalOrders)
+                                .build();
         }
 
         /**

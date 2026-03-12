@@ -34,13 +34,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 
 import com.economato.inventory.application.dto.projection.OrderProjection;
 import com.economato.inventory.application.dto.request.OrderDetailRequestDTO;
 import com.economato.inventory.application.dto.request.OrderReceptionDetailRequestDTO;
 import com.economato.inventory.application.dto.request.OrderReceptionRequestDTO;
 import com.economato.inventory.application.dto.request.OrderRequestDTO;
+import com.economato.inventory.application.dto.response.OrderFilterResponseDTO;
 import com.economato.inventory.application.dto.response.OrderResponseDTO;
+import com.economato.inventory.application.dto.response.OrderTotalCostResponseDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
 import com.economato.inventory.application.mapper.OrderMapper;
 import com.economato.inventory.domain.model.MovementType;
@@ -53,6 +56,7 @@ import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationExc
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
@@ -68,6 +72,9 @@ class OrderServiceTest {
 
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private SupplierRepository supplierRepository;
 
     @Mock
     private OrderMapper orderMapper;
@@ -323,6 +330,52 @@ class OrderServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         verify(repository).findProjectedByOrderDateBetween(start, end);
+    }
+
+    @Test
+    void findFiltered_ShouldReturnOrdersAndTotalCost() {
+        when(repository.findAll(any(Specification.class))).thenReturn(Arrays.asList(testOrder));
+
+        OrderResponseDTO dto = new OrderResponseDTO();
+        dto.setId(1);
+        dto.setTotalPrice(new BigDecimal("12.50"));
+        when(orderMapper.toResponseDTO(any(Order.class))).thenReturn(dto);
+
+        OrderFilterResponseDTO result = orderService.findFiltered(
+                LocalDateTime.now().minusDays(1),
+                LocalDateTime.now().plusDays(1),
+                1,
+                null,
+                1);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalOrders());
+        assertEquals(new BigDecimal("12.50"), result.getTotalCost());
+        assertEquals(1, result.getOrders().size());
+        verify(repository).findAll(any(Specification.class));
+    }
+
+    @Test
+    void findFiltered_WhenDateRangeIsInvalid_ShouldThrowException() {
+        LocalDateTime start = LocalDateTime.now();
+        LocalDateTime end = start.minusHours(1);
+
+        assertThrows(InvalidOperationException.class,
+                () -> orderService.findFiltered(start, end, null, null, null));
+    }
+
+    @Test
+    void getTotalCostAllOrders_ShouldReturnGlobalTotalCost() {
+        when(repository.getTotalCostAllOrders()).thenReturn(new BigDecimal("99.75"));
+        when(repository.count()).thenReturn(3L);
+
+        OrderTotalCostResponseDTO result = orderService.getTotalCostAllOrders();
+
+        assertNotNull(result);
+        assertEquals(new BigDecimal("99.75"), result.getTotalCost());
+        assertEquals(3L, result.getTotalOrders());
+        verify(repository).getTotalCostAllOrders();
+        verify(repository).count();
     }
 
     @Test
