@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 import com.economato.inventory.domain.model.MovementType;
 
@@ -34,4 +35,7 @@ public class StockMovementItemDTO {
     @Size(max = 500, message = "{validation.stockMovementItemDTO.description.size}")
     @Schema(description = "Descripción del movimiento", example = "Rollback de receta errónea #123")
     private String description;
+
+    @Schema(description = "Fecha de caducidad del lote (solo para entradas)", example = "2026-12-31")
+    private LocalDate expirationDate;
 }

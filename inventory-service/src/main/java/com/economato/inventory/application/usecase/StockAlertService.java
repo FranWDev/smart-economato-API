@@ -2,7 +2,9 @@ package com.economato.inventory.application.usecase;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -35,6 +37,7 @@ import com.economato.inventory.application.dto.response.WeeklyConsumptionRespons
 import com.economato.inventory.application.mapper.StockDailyForecastMapper;
 import com.economato.inventory.application.mapper.StockWeeklyConsumptionHistoryMapper;
 import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.domain.model.Recipe;
 import com.economato.inventory.domain.model.StockDailyForecast;
 import com.economato.inventory.domain.model.StockPrediction;
@@ -81,6 +84,7 @@ public class StockAlertService {
     private final StockWeeklyConsumptionHistoryMapper stockWeeklyConsumptionHistoryMapper;
     private final HoltWintersForecaster forecaster;
     private final MessageSource messageSource;
+    private final ProductBatchService productBatchService;
 
     /**
      * Calcula y devuelve todas las alertas predictivas activas
@@ -227,7 +231,7 @@ public class StockAlertService {
         }
 
         if (persistedPredictions.isEmpty()) {
-            return List.of();
+            return mergeExpirationAlerts(List.of(), filterIds);
         }
 
         Map<Integer, BigDecimal> pendingByProduct = buildPendingMap();
@@ -247,8 +251,106 @@ public class StockAlertService {
             }
         }
 
-        return alerts;
+            return mergeExpirationAlerts(alerts, filterIds);
     }
+
+            private List<StockAlertDTO> mergeExpirationAlerts(List<StockAlertDTO> baseAlerts, Set<Integer> filterIds) {
+            List<ProductBatch> expiringBatches = productBatchService.getExpiringBatches(7);
+            if (filterIds != null && !filterIds.isEmpty()) {
+                expiringBatches = expiringBatches.stream()
+                    .filter(batch -> filterIds.contains(batch.getProduct().getId()))
+                    .toList();
+            }
+
+            if (expiringBatches.isEmpty()) {
+                return baseAlerts;
+            }
+
+            Map<Integer, List<ProductBatch>> expiringByProduct = expiringBatches.stream()
+                .collect(Collectors.groupingBy(batch -> batch.getProduct().getId()));
+
+            Map<Integer, StockAlertDTO> alertsByProduct = baseAlerts.stream()
+                .collect(Collectors.toMap(StockAlertDTO::getProductId, alert -> alert, (left, right) -> left));
+
+            for (Map.Entry<Integer, List<ProductBatch>> entry : expiringByProduct.entrySet()) {
+                Integer productId = entry.getKey();
+                List<ProductBatch> batches = entry.getValue();
+
+                LocalDate nearestExpiration = batches.stream()
+                    .map(ProductBatch::getExpirationDate)
+                    .filter(java.util.Objects::nonNull)
+                    .min(LocalDate::compareTo)
+                    .orElse(null);
+
+                if (nearestExpiration == null) {
+                continue;
+                }
+
+                BigDecimal expiringQuantity = batches.stream()
+                    .map(ProductBatch::getRemainingQuantity)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                long daysToExpire = ChronoUnit.DAYS.between(LocalDate.now(), nearestExpiration);
+                AlertSeverity expirationSeverity = classifyExpirationSeverity(daysToExpire);
+
+                String expiringMessage = messageSource.getMessage(
+                    MessageKey.STOCK_ALERT_MESSAGE_EXPIRING.getKey(),
+                    new Object[] { nearestExpiration, expiringQuantity.setScale(3, RoundingMode.HALF_UP) },
+                    LocaleContextHolder.getLocale());
+
+                StockAlertDTO existing = alertsByProduct.get(productId);
+                if (existing == null) {
+                Product product = productRepository.findById(productId).orElse(null);
+                if (product == null) {
+                    continue;
+                }
+
+                StockAlertDTO expirationOnly = StockAlertDTO.builder()
+                    .productId(productId)
+                    .productName(product.getName())
+                    .unit(product.getUnit())
+                    .currentStock(product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO)
+                    .pendingOrderQuantity(BigDecimal.ZERO)
+                    .projectedConsumption(BigDecimal.ZERO)
+                    .effectiveGap(BigDecimal.ZERO)
+                    .estimatedDaysRemaining(999)
+                    .severity(expirationSeverity)
+                    .resolution(AlertResolution.UNCOVERED)
+                    .message(expiringMessage)
+                    .nearestExpirationDate(nearestExpiration)
+                    .expiringQuantity(expiringQuantity)
+                    .topConsumingRecipes(List.of())
+                    .build();
+                alertsByProduct.put(productId, expirationOnly);
+                continue;
+                }
+
+                AlertSeverity mergedSeverity = expirationSeverity.ordinal() > existing.getSeverity().ordinal()
+                    ? expirationSeverity
+                    : existing.getSeverity();
+
+                StockAlertDTO merged = StockAlertDTO.builder()
+                    .productId(existing.getProductId())
+                    .productName(existing.getProductName())
+                    .unit(existing.getUnit())
+                    .currentStock(existing.getCurrentStock())
+                    .pendingOrderQuantity(existing.getPendingOrderQuantity())
+                    .projectedConsumption(existing.getProjectedConsumption())
+                    .effectiveGap(existing.getEffectiveGap())
+                    .estimatedDaysRemaining(existing.getEstimatedDaysRemaining())
+                    .severity(mergedSeverity)
+                    .resolution(existing.getResolution())
+                    .message(existing.getMessage() + " " + expiringMessage)
+                    .nearestExpirationDate(nearestExpiration)
+                    .expiringQuantity(expiringQuantity)
+                    .topConsumingRecipes(existing.getTopConsumingRecipes())
+                    .build();
+
+                alertsByProduct.put(productId, merged);
+            }
+
+            return new ArrayList<>(alertsByProduct.values());
+            }
 
     /**
      * Actualiza la predicción oficial de un producto basándose en el resultado del
@@ -463,6 +565,8 @@ public class StockAlertService {
                 .severity(severity)
                 .resolution(resolution)
                 .message(message)
+                .nearestExpirationDate(null)
+                .expiringQuantity(BigDecimal.ZERO)
                 .topConsumingRecipes(topRecipes)
                 .build();
     }
@@ -481,6 +585,19 @@ public class StockAlertService {
         if (days >= 3)
             return AlertSeverity.HIGH;
         return AlertSeverity.CRITICAL;
+    }
+
+    private AlertSeverity classifyExpirationSeverity(long daysToExpire) {
+        if (daysToExpire < 3) {
+            return AlertSeverity.CRITICAL;
+        }
+        if (daysToExpire < 7) {
+            return AlertSeverity.HIGH;
+        }
+        if (daysToExpire < 14) {
+            return AlertSeverity.MEDIUM;
+        }
+        return AlertSeverity.LOW;
     }
 
     private AlertResolution classifyResolution(BigDecimal gap, BigDecimal pending) {

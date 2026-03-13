@@ -11,13 +11,17 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
+import java.util.List;
 
 
 import com.economato.inventory.application.dto.request.ProductRequestDTO;
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.response.LedgerPdfResponseDTO;
+import com.economato.inventory.application.dto.response.ProductBatchResponseDTO;
 import com.economato.inventory.application.dto.response.ProductResponseDTO;
+import com.economato.inventory.application.mapper.ProductBatchMapper;
 import com.economato.inventory.infrastructure.adapter.out.external.reports.ProductExcelService;
+import com.economato.inventory.application.usecase.ProductBatchService;
 import com.economato.inventory.application.usecase.ProductService;
 import com.economato.inventory.infrastructure.adapter.out.external.reports.StockLedgerPdfService;
 import com.economato.inventory.application.usecase.StockLedgerService;
@@ -39,13 +43,18 @@ public class ProductController {
         private final ProductExcelService productExcelService;
         private final StockLedgerPdfService stockLedgerPdfService;
         private final StockLedgerService stockLedgerService;
+        private final ProductBatchService productBatchService;
+        private final ProductBatchMapper productBatchMapper;
 
         public ProductController(ProductService productService, ProductExcelService productExcelService,
-                StockLedgerPdfService stockLedgerPdfService, StockLedgerService stockLedgerService) {
+                StockLedgerPdfService stockLedgerPdfService, StockLedgerService stockLedgerService,
+                ProductBatchService productBatchService, ProductBatchMapper productBatchMapper) {
                 this.productService = productService;
                 this.productExcelService = productExcelService;
                 this.stockLedgerPdfService = stockLedgerPdfService;
                 this.stockLedgerService = stockLedgerService;
+                this.productBatchService = productBatchService;
+                this.productBatchMapper = productBatchMapper;
         }
 
         @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
@@ -272,6 +281,39 @@ public class ProductController {
                         return ResponseEntity.ok().headers(headers).body(pdfResponse.getPdfContent());
                     })
                     .orElse(ResponseEntity.notFound().build());
+        }
+
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
+        @Operation(summary = "Obtener lotes activos de un producto")
+        @GetMapping("/{id}/batches")
+        public ResponseEntity<List<ProductBatchResponseDTO>> getActiveBatches(
+                        @Parameter(description = "ID del producto", required = true) @PathVariable Integer id) {
+                List<ProductBatchResponseDTO> response = productBatchService.getActiveBatches(id).stream()
+                                .map(productBatchMapper::toResponseDTO)
+                                .toList();
+                return ResponseEntity.ok(response);
+        }
+
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
+        @Operation(summary = "Obtener lotes próximos a caducar")
+        @GetMapping("/batches/expiring")
+        public ResponseEntity<List<ProductBatchResponseDTO>> getExpiringBatches(
+                        @Parameter(description = "Días para considerar próximos a caducar", example = "7")
+                        @RequestParam(defaultValue = "7") int days) {
+                List<ProductBatchResponseDTO> response = productBatchService.getExpiringBatches(days).stream()
+                                .map(productBatchMapper::toResponseDTO)
+                                .toList();
+                return ResponseEntity.ok(response);
+        }
+
+        @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
+        @Operation(summary = "Obtener lotes caducados con stock restante")
+        @GetMapping("/batches/expired")
+        public ResponseEntity<List<ProductBatchResponseDTO>> getExpiredBatches() {
+                List<ProductBatchResponseDTO> response = productBatchService.getExpiredBatches().stream()
+                                .map(productBatchMapper::toResponseDTO)
+                                .toList();
+                return ResponseEntity.ok(response);
         }
 
         private String sanitizeFilename(String filename) {

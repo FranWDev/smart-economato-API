@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
@@ -33,6 +34,7 @@ import com.economato.inventory.application.dto.response.WeeklyConsumptionRespons
 import com.economato.inventory.application.mapper.StockDailyForecastMapper;
 import com.economato.inventory.application.mapper.StockWeeklyConsumptionHistoryMapper;
 import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.domain.model.StockDailyForecast;
 import com.economato.inventory.domain.model.StockPrediction;
 import com.economato.inventory.domain.model.StockWeeklyConsumptionHistory;
@@ -72,6 +74,8 @@ class StockAlertServiceTest {
     private HoltWintersForecaster forecaster;
     @Mock
     private MessageSource messageSource;
+    @Mock
+    private ProductBatchService productBatchService;
 
     @InjectMocks
     private StockAlertService stockAlertService;
@@ -86,8 +90,11 @@ class StockAlertServiceTest {
                         return "Déficit estimado";
                     if (key.contains("partially"))
                         return "Considera ampliar el pedido";
+                    if (key.contains("expiring"))
+                        return "Caducidad próxima";
                     return "message";
                 });
+        org.mockito.Mockito.lenient().when(productBatchService.getExpiringBatches(anyInt())).thenReturn(List.of());
     }
 
     @Test
@@ -305,6 +312,36 @@ class StockAlertServiceTest {
         assertEquals(2, result.getContent().size());
         assertEquals(p1, result.getContent().get(0).getProductId());
         assertEquals(p2, result.getContent().get(1).getProductId());
+    }
+
+    @Test
+    void getActiveAlerts_generatesExpirationAlert_whenBatchExpiresSoon() {
+        Integer productId = 77;
+        Product product = new Product();
+        product.setId(productId);
+        product.setName("Lechuga");
+        product.setUnit("kg");
+        product.setCurrentStock(BigDecimal.valueOf(9));
+        product.setHidden(false);
+
+        ProductBatch batch = ProductBatch.builder()
+                .id(1L)
+                .product(product)
+                .expirationDate(java.time.LocalDate.now().plusDays(2))
+                .remainingQuantity(BigDecimal.valueOf(4))
+                .depleted(false)
+                .build();
+
+        when(predictionRepository.findAll()).thenReturn(List.of());
+        when(productBatchService.getExpiringBatches(7)).thenReturn(List.of(batch));
+        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+
+        List<StockAlertDTO> alerts = stockAlertService.getActiveAlerts();
+
+        assertEquals(1, alerts.size());
+        assertEquals(AlertSeverity.CRITICAL, alerts.get(0).getSeverity());
+        assertEquals(batch.getExpirationDate(), alerts.get(0).getNearestExpirationDate());
+        assertEquals(BigDecimal.valueOf(4), alerts.get(0).getExpiringQuantity());
     }
 
     @Test
