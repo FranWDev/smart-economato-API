@@ -82,4 +82,17 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
   List<String> findTopConsumingRecipesByProduct(
       @Param("productId") Integer productId,
       @Param("since") LocalDateTime since);
+
+  @Query(value = """
+      SELECT DISTINCT rca.*
+      FROM recipe_cooking_audit rca
+      INNER JOIN recipe_component rc ON rc.parent_recipe_id = rca.recipe_id
+      WHERE rc.product_id IN :productIds
+        AND rca.cooking_date BETWEEN :startDate AND :endDate
+      ORDER BY rca.cooking_date DESC
+      """, nativeQuery = true)
+  List<RecipeCookingAudit> findAffectedCookingsByProductIdsAndDateRange(
+      @Param("productIds") List<Integer> productIds,
+      @Param("startDate") LocalDateTime startDate,
+      @Param("endDate") LocalDateTime endDate);
 }

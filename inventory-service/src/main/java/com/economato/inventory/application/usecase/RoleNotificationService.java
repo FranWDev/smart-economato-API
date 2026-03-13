@@ -17,12 +17,18 @@ public class RoleNotificationService {
      * Send notification to all users with a specific role via WebSocket.
      */
     public void sendNotificationToRole(Role role, String title, String message) {
+        sendNotificationToRole(role, new RoleNotificationMessage(title, message));
+    }
+
+    /**
+     * Send pre-built notification message to a specific role.
+     */
+    public void sendNotificationToRole(Role role, RoleNotificationMessage notification) {
         try {
-            RoleNotificationMessage notification = new RoleNotificationMessage(title, message);
             String destination = "/topic/roles/" + role.name();
             
             log.info("Sending notification to role {}: title={}, timestamp={}", 
-                    role.name(), title, notification.getTimestamp());
+                    role.name(), notification.getTitle(), notification.getTimestamp());
             
             messagingTemplate.convertAndSend(destination, notification);
         } catch (Exception e) {
