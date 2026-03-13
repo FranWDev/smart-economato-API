@@ -160,7 +160,25 @@ public enum MessageKey {
     LEDGER_REPAIR_NO_TRANSACTIONS("ledger.repair.no.transactions"),
     LEDGER_RESET_SUCCESS("ledger.reset.success"),
     ERROR_CONSUMPTION_INVALID_DATE_RANGE("error.consumption.invalid.date.range"),
-    ERROR_CONSUMPTION_PRODUCT_NOT_FOUND("error.consumption.product.not.found");
+    ERROR_CONSUMPTION_PRODUCT_NOT_FOUND("error.consumption.product.not.found"),
+
+    // Traceability and Crisis
+    CRISIS_ACTIVATION_TITLE("crisis.activation.title"),
+    CRISIS_ACTIVATION_MESSAGE("crisis.activation.message"),
+    CRISIS_LIFT_TITLE("crisis.lift.title"),
+    CRISIS_LIFT_MESSAGE("crisis.lift.message"),
+    CRISIS_REPORT_TITLE("crisis.report.title"),
+    CRISIS_REPORT_SECTION_AFFECTED_ORDERS("crisis.report.section.affected.orders"),
+    CRISIS_REPORT_SECTION_AFFECTED_COOKINGS("crisis.report.section.affected.cookings"),
+    CRISIS_REPORT_SECTION_QUARANTINE_PRODUCTS("crisis.report.section.quarantine.products"),
+    CRISIS_REPORT_SECTION_TRACEABILITY_CHAIN("crisis.report.section.traceability.chain"),
+    LEDGER_DESCRIPTION_QUARANTINE("ledger.description.quarantine"),
+    LEDGER_DESCRIPTION_QUARANTINE_LIFT("ledger.description.quarantine.lift"),
+    TRACEABILITY_SUMMARY_FORWARD("traceability.summary.forward"),
+    TRACEABILITY_SUMMARY_REVERSE("traceability.summary.reverse"),
+    REPORT_LABEL_CRISIS_ID("report.label.crisis.id"),
+    REPORT_LABEL_REASON("report.label.reason"),
+    REPORT_COLUMN_LATEST_HASH("report.column.latest.hash");
 
     private final String key;
 

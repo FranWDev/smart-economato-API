@@ -103,11 +103,15 @@ class OutboxService:
                 )
                 self._producer.flush(timeout=KAFKA_FLUSH_TIMEOUT_S)
 
-                if broker_error:
+                if ack_received:
+                    sent_ids.append(row_id)
+                elif broker_error:
                     failed_ids.append(row_id)
                     error_msgs[row_id] = broker_error[0]
                 else:
-                    sent_ids.append(row_id)
+                    # flush timed out — callback never fired
+                    failed_ids.append(row_id)
+                    error_msgs[row_id] = "delivery callback not invoked (flush timeout?)"
 
             except KafkaException as exc:
                 logger.error("KafkaException for outbox row %s: %s", row_id, exc)

@@ -8,7 +8,8 @@ public enum MovementType {
     RECEPCION("Recepción de mercancía"),
     CREACION("Creación de producto"),
     OCULTAR("Producto ocultado"),
-    MOSTRAR("Producto mostrado");
+    MOSTRAR("Producto mostrado"),
+    CUARENTENA("Cuarentena de stock");
 
 
     private final String description;

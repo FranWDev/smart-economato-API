@@ -16,7 +16,11 @@ public enum AlertCode {
     DB_RECOVERED("DB_RECOVERED", "Primary database is back online"),
     REDIS_RECOVERED("REDIS_RECOVERED", "Redis cache is back online"),
     KAFKA_RECOVERED("KAFKA_RECOVERED", "Kafka messaging is back online"),
-    REPLICA_RECOVERED("REPLICA_RECOVERED", "Database replica is back online");
+    REPLICA_RECOVERED("REPLICA_RECOVERED", "Database replica is back online"),
+    
+    // Food crisis codes
+    FOOD_CRISIS_ACTIVATED("FOOD_CRISIS_ACTIVATED", "Food safety crisis activated"),
+    FOOD_CRISIS_LIFTED("FOOD_CRISIS_LIFTED", "Food safety crisis lifted");
 
     private final String code;
     private final String description;
