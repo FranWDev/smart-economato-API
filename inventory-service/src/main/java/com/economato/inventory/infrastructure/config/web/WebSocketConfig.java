@@ -52,6 +52,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.addEndpoint("/ws-alerts")
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
+        registry.addEndpoint("/ws-notifications")
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
     }
 
     @Override
@@ -96,6 +99,24 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     } else {
                         log.warn("WebSocket connection attempt with invalid JWT token");
                         throw new MessageDeliveryException(i18nService.getMessage(MessageKey.ERROR_AUTH_JWT_INVALID));
+                    }
+                } else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+                    String destination = accessor.getDestination();
+                    if (destination != null && destination.startsWith("/topic/roles/")) {
+                        String requiredRole = destination.substring("/topic/roles/".length());
+                        UsernamePasswordAuthenticationToken user = (UsernamePasswordAuthenticationToken) accessor.getUser();
+                        
+                        if (user == null) {
+                            throw new MessageDeliveryException("Unauthorized: User not authenticated");
+                        }
+
+                        boolean hasRole = user.getAuthorities().stream()
+                                .anyMatch(a -> a.getAuthority().equals("ROLE_" + requiredRole));
+
+                        if (!hasRole) {
+                            log.warn("User {} attempted to subscribe to unauthorized role topic: {}", user.getName(), requiredRole);
+                            throw new MessageDeliveryException("Unauthorized: User does not have the required role");
+                        }
                     }
                 }
                 return message;
