@@ -161,6 +161,10 @@ public enum MessageKey {
     LEDGER_RESET_SUCCESS("ledger.reset.success"),
     ERROR_CONSUMPTION_INVALID_DATE_RANGE("error.consumption.invalid.date.range"),
     ERROR_CONSUMPTION_PRODUCT_NOT_FOUND("error.consumption.product.not.found"),
+    ERROR_BATCH_EXPIRED("error.batch.expired"),
+    ERROR_BATCH_INSUFFICIENT_STOCK("error.batch.insufficient.stock"),
+    STOCK_ALERT_MESSAGE_EXPIRING("stock.alert.message.expiring"),
+    REPORT_COLUMN_NEAREST_EXPIRATION("report.column.nearest.expiration"),
 
     // Traceability and Crisis
     CRISIS_ACTIVATION_TITLE("crisis.activation.title"),

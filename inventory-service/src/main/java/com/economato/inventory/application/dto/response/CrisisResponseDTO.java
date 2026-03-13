@@ -1,24 +1,26 @@
 package com.economato.inventory.application.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Schema(description = "Respuesta detallada tras la activación de una crisis")
+@Schema(description = "Respuesta detallada tras la activación o consulta de una crisis")
 public class CrisisResponseDTO {
 
-    @Schema(description = "ID único de la crisis generada")
-    private String crisisId;
+    @Schema(description = "ID de la crisis en base de datos", example = "7")
+    private Long crisisId;
+
+    @Schema(description = "Código público de la crisis", example = "CRISIS-1A2B3C4D")
+    private String crisisCode;
 
     @Schema(description = "Estado actual de la crisis", example = "ACTIVE")
     private String status;
@@ -31,6 +33,9 @@ public class CrisisResponseDTO {
 
     @Schema(description = "Mapa de productos en cuarentena (Nombre -> Hash de transacción)")
     private Map<String, String> quarantinedProducts;
+
+    @Schema(description = "Lotes identificados para los productos en crisis")
+    private List<CrisisAffectedBatchDTO> affectedBatches;
 
     @Schema(description = "Lista de IDs de pedidos afectados")
     private List<Integer> affectedOrderIds;

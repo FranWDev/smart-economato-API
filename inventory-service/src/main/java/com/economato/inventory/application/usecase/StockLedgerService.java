@@ -54,6 +54,7 @@ public class StockLedgerService {
     private final ProductRepository productRepository;
     private final OrderRepository orderRepository;
     private final RecipeCookingAuditRepository recipeCookingAuditRepository;
+    private final ProductBatchService productBatchService;
     private final SecurityContextHelper securityContextHelper;
     private final Environment environment;
 
@@ -70,6 +71,7 @@ public class StockLedgerService {
             ProductRepository productRepository,
             OrderRepository orderRepository,
             RecipeCookingAuditRepository recipeCookingAuditRepository,
+            ProductBatchService productBatchService,
             SecurityContextHelper securityContextHelper,
             Environment environment,
             MeterRegistry meterRegistry) {
@@ -79,6 +81,7 @@ public class StockLedgerService {
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
         this.recipeCookingAuditRepository = recipeCookingAuditRepository;
+        this.productBatchService = productBatchService;
         this.securityContextHelper = securityContextHelper;
         this.environment = environment;
 
@@ -102,7 +105,21 @@ public class StockLedgerService {
             User user,
             Integer orderId) {
 
-        return recordStockMovementInternal(productId, quantityDelta, movementType, description, user, orderId);
+        return recordStockMovement(productId, quantityDelta, movementType, description, user, orderId, null);
+        }
+
+        @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
+        public StockLedger recordStockMovement(
+            Integer productId,
+            BigDecimal quantityDelta,
+            MovementType movementType,
+            String description,
+            User user,
+            Integer orderId,
+            java.time.LocalDate expirationDate) {
+
+        return recordStockMovementInternal(productId, quantityDelta, movementType, description, user, orderId,
+            expirationDate);
     }
 
     private StockLedger recordStockMovementInternal(
@@ -111,7 +128,8 @@ public class StockLedgerService {
             MovementType movementType,
             String description,
             User user,
-            Integer orderId) {
+            Integer orderId,
+            java.time.LocalDate expirationDate) {
 
         log.info("Registrando movimiento: Producto={}, Delta={}, Tipo={}",
                 productId, quantityDelta, movementType);
@@ -136,6 +154,13 @@ public class StockLedgerService {
             throw new InvalidOperationException(
                     i18nService.getMessage(MessageKey.ERROR_RECIPE_STOCK_INSUFFICIENT,
                             new Object[] { product.getName(), quantityDelta.abs(), snapshot.getCurrentStock() }));
+        }
+
+        if (quantityDelta.compareTo(BigDecimal.ZERO) < 0
+            && (movementType == MovementType.SALIDA || movementType == MovementType.MODIFICACION)) {
+            if (productBatchService.hasActiveBatches(productId)) {
+                productBatchService.consumeStock(productId, quantityDelta.abs());
+            }
         }
 
         Optional<StockLedger> lastTransaction = ledgerRepository.findLastTransactionByProductId(productId);
@@ -166,6 +191,7 @@ public class StockLedgerService {
                 .transactionTimestamp(now)
                 .user(user)
                 .orderId(orderId)
+                .expirationDate(expirationDate)
                 .sequenceNumber(nextSequence)
                 .verified(true)
                 .build();
@@ -463,7 +489,17 @@ public class StockLedgerService {
                         item.getMovementType(),
                         item.getDescription(),
                         user,
-                        orderId);
+                    orderId,
+                    item.getExpirationDate());
+
+                if (item.getMovementType() == MovementType.ENTRADA
+                    && item.getQuantityDelta().compareTo(BigDecimal.ZERO) > 0) {
+                    productBatchService.createBatch(
+                        transaction.getProduct(),
+                        item.getQuantityDelta(),
+                        item.getExpirationDate(),
+                        transaction);
+                }
                 transactions.add(transaction);
             }
 
@@ -488,7 +524,8 @@ public class StockLedgerService {
                         item.getProductId(),
                         item.getQuantityDelta(),
                         item.getMovementType(),
-                        item.getDescription() != null ? item.getDescription() : request.getReason()))
+                    item.getDescription() != null ? item.getDescription() : request.getReason(),
+                    item.getExpirationDate()))
                 .collect(Collectors.toList());
 
         List<StockLedger> transactions = recordBatchStockMovements(movements, currentUser, request.getOrderId());

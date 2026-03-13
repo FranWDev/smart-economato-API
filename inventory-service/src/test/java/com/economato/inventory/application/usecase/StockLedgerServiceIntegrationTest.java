@@ -13,15 +13,18 @@ import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationExc
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
 import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.StockSnapshot;
 import com.economato.inventory.domain.model.User;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockSnapshotRepository;
 
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -46,6 +49,12 @@ class StockLedgerServiceIntegrationTest {
         private ProductRepository productRepository;
 
         @Autowired
+        private ProductBatchRepository productBatchRepository;
+
+        @Autowired
+        private ProductBatchService productBatchService;
+
+        @Autowired
         private JdbcTemplate jdbcTemplate;
 
         @Autowired
@@ -59,6 +68,7 @@ class StockLedgerServiceIntegrationTest {
 
                 ledgerRepository.deleteAll();
                 snapshotRepository.deleteAll();
+                productBatchRepository.deleteAll();
 
                 testProduct = new Product();
                 testProduct.setName("Test Product - Ledger");
@@ -100,6 +110,73 @@ class StockLedgerServiceIntegrationTest {
                 assertNotNull(transaction.getCurrentHash());
                 assertEquals("GENESIS", transaction.getPreviousHash());
                 assertTrue(transaction.getVerified());
+        }
+
+        @Test
+        @Transactional
+        @DisplayName("Debe persistir expirationDate en ledger sin afectar la integridad de hash")
+        void testRecordStockMovement_PersistsExpirationDateWithoutAffectingHashChain() {
+                StockLedger tx = stockLedgerService.recordStockMovement(
+                                testProduct.getId(),
+                                new BigDecimal("5.0"),
+                                MovementType.ENTRADA,
+                                "Entrada con caducidad",
+                                testUser,
+                                77,
+                                LocalDate.now().plusDays(30));
+
+                assertNotNull(tx.getExpirationDate());
+
+                jdbcTemplate.update(
+                                "UPDATE stock_ledger SET expiration_date = ? WHERE transaction_id = ?",
+                                java.sql.Date.valueOf(LocalDate.now().plusDays(40)),
+                                tx.getId());
+
+                IntegrityCheckResult integrityCheck = stockLedgerService.verifyChainIntegrity(testProduct.getId());
+                assertTrue(integrityCheck.isValid(), "expirationDate no debe participar en el hash criptográfico");
+        }
+
+        @Test
+        @Transactional
+        @DisplayName("Debe consumir lotes en orden FEFO para salidas")
+        void testRecordStockMovement_ConsumesBatchesUsingFefo() {
+                StockLedger firstEntry = stockLedgerService.recordStockMovement(
+                                testProduct.getId(),
+                                new BigDecimal("10.0"),
+                                MovementType.ENTRADA,
+                                "Entrada lote A",
+                                testUser,
+                                null,
+                                LocalDate.now().plusDays(3));
+                productBatchService.createBatch(testProduct, new BigDecimal("10.0"), LocalDate.now().plusDays(3), firstEntry);
+
+                StockLedger secondEntry = stockLedgerService.recordStockMovement(
+                                testProduct.getId(),
+                                new BigDecimal("10.0"),
+                                MovementType.ENTRADA,
+                                "Entrada lote B",
+                                testUser,
+                                null,
+                                LocalDate.now().plusDays(10));
+                productBatchService.createBatch(testProduct, new BigDecimal("10.0"), LocalDate.now().plusDays(10), secondEntry);
+
+                stockLedgerService.recordStockMovement(
+                                testProduct.getId(),
+                                new BigDecimal("-12.0"),
+                                MovementType.SALIDA,
+                                "Consumo FEFO",
+                                testUser,
+                                null);
+
+                List<ProductBatch> activeBatches = productBatchRepository.findActiveByProductIdOrderByExpiration(testProduct.getId());
+
+                assertEquals(1, activeBatches.size());
+                ProductBatch batchB = activeBatches.get(0);
+                assertEquals(LocalDate.now().plusDays(10), batchB.getExpirationDate());
+                assertEquals(new BigDecimal("8.000"), batchB.getRemainingQuantity());
+
+                long depletedCount = productBatchRepository.findByProductIdAndDepletedFalseOrderByExpirationDateAsc(testProduct.getId()).size();
+                assertEquals(1L, depletedCount);
         }
 
         @Test

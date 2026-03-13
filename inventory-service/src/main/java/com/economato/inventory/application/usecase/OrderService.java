@@ -4,7 +4,9 @@ import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.cache.annotation.CacheEvict;
@@ -31,6 +33,7 @@ import com.economato.inventory.domain.model.Order;
 import com.economato.inventory.domain.model.OrderDetail;
 import com.economato.inventory.domain.model.OrderStatus;
 import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.Supplier;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
@@ -53,13 +56,15 @@ public class OrderService {
         private final SupplierRepository supplierRepository;
         private final OrderMapper orderMapper;
         private final StockLedgerService stockLedgerService;
+        private final ProductBatchService productBatchService;
 
         public OrderService(I18nService i18nService, OrderRepository repository,
                         UserRepository userRepository,
                         ProductRepository productRepository,
                         SupplierRepository supplierRepository,
                         OrderMapper orderMapper,
-                        StockLedgerService stockLedgerService) {
+                        StockLedgerService stockLedgerService,
+                        ProductBatchService productBatchService) {
                 this.i18nService = i18nService;
                 this.repository = repository;
                 this.userRepository = userRepository;
@@ -67,6 +72,7 @@ public class OrderService {
                 this.supplierRepository = supplierRepository;
                 this.orderMapper = orderMapper;
                 this.stockLedgerService = stockLedgerService;
+                this.productBatchService = productBatchService;
         }
 
         @Transactional(readOnly = true)
@@ -291,6 +297,11 @@ public class OrderService {
 
         log.info("Procesando recepción de orden {} con estado final {} - Registrando en ledger inmutable", order.getId(), order.getStatus());
 
+        Map<Integer, com.economato.inventory.application.dto.request.OrderReceptionDetailRequestDTO> receptionByProductId = new HashMap<>();
+        for (var item : receptionData.getItems()) {
+                receptionByProductId.put(item.getProductId(), item);
+        }
+
         for (OrderDetail detail : order.getDetails()) {
                 // If received quantity is greater than 0, register it in the ledger
                 if (detail.getQuantityReceived() != null && detail.getQuantityReceived().compareTo(java.math.BigDecimal.ZERO) > 0) {
@@ -299,14 +310,22 @@ public class OrderService {
                                                         i18nService.getMessage(
                                                                         MessageKey.ERROR_PRODUCT_NOT_FOUND)));
 
-                        stockLedgerService.recordStockMovement(
+                        var receptionItem = receptionByProductId.get(detail.getProduct().getId());
+                        StockLedger ledgerTx = stockLedgerService.recordStockMovement(
                                         product.getId(),
                                         detail.getQuantityReceived(),
                                         MovementType.ENTRADA,
                                           i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_RECEPTION,
                                                           new Object[] { order.getId(), product.getName() }),
                                         order.getUser(),
-                                        order.getId());
+                                        order.getId(),
+                                        receptionItem != null ? receptionItem.getExpirationDate() : null);
+
+                        productBatchService.createBatch(
+                                        product,
+                                        detail.getQuantityReceived(),
+                                        receptionItem != null ? receptionItem.getExpirationDate() : null,
+                                        ledgerTx);
                 }
         }
 

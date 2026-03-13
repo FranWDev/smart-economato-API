@@ -3,29 +3,56 @@ package com.economato.inventory.application.usecase;
 import com.economato.inventory.application.dto.request.BatchMovementItem;
 import com.economato.inventory.application.dto.request.CrisisActivationRequestDTO;
 import com.economato.inventory.application.dto.request.CrisisLiftRequestDTO;
-import com.economato.inventory.application.dto.response.*;
+import com.economato.inventory.application.dto.response.CrisisAffectedBatchDTO;
+import com.economato.inventory.application.dto.response.CrisisResponseDTO;
+import com.economato.inventory.application.dto.response.ForwardTraceabilityDTO;
+import com.economato.inventory.application.dto.response.ReverseTraceabilityDTO;
 import com.economato.inventory.application.mapper.OrderMapper;
 import com.economato.inventory.application.mapper.RecipeCookingAuditMapper;
 import com.economato.inventory.application.mapper.StockLedgerMapper;
-import com.economato.inventory.domain.model.*;
+import com.economato.inventory.domain.model.CrisisAffectedProduct;
+import com.economato.inventory.domain.model.FoodCrisis;
+import com.economato.inventory.domain.model.MovementType;
+import com.economato.inventory.domain.model.Order;
+import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.domain.model.ProductBatch;
+import com.economato.inventory.domain.model.RecipeCookingAudit;
+import com.economato.inventory.domain.model.Role;
+import com.economato.inventory.domain.model.StockLedger;
+import com.economato.inventory.domain.model.Supplier;
+import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.*;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.CrisisAffectedProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.FoodCrisisRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDateTime;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
-
-import java.math.BigDecimal;
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -39,6 +66,7 @@ public class TraceabilityService {
         private final RecipeCookingAuditRepository cookingAuditRepository;
         private final SupplierRepository supplierRepository;
         private final StockLedgerService ledgerService;
+        private final ProductBatchService productBatchService;
         private final RoleNotificationService notificationService;
         private final I18nService i18nService;
         private final SecurityContextHelper securityContextHelper;
@@ -46,7 +74,6 @@ public class TraceabilityService {
         private final RecipeCookingAuditMapper cookingAuditMapper;
         private final StockLedgerMapper ledgerMapper;
         private final MeterRegistry meterRegistry;
-
         private final FoodCrisisRepository foodCrisisRepository;
         private final CrisisAffectedProductRepository crisisAffectedProductRepository;
         private final ObjectMapper objectMapper;
@@ -94,7 +121,8 @@ public class TraceabilityService {
                                         BigDecimal.ZERO,
                                         MovementType.CUARENTENA,
                                         i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_QUARANTINE,
-                                                        new Object[] { crisisCode })));
+                                                        new Object[] { crisisCode }),
+                                        null));
                 }
 
                 productRepository.updateAvailabilityForProducts(request.getProductIds(), BigDecimal.ZERO);
@@ -102,19 +130,11 @@ public class TraceabilityService {
 
                 List<StockLedger> txs = ledgerService.recordBatchStockMovements(batchMovements, currentUser, null);
                 Map<String, String> quarantinedProducts = txs.stream()
-                                .collect(Collectors.toMap(tx -> tx.getProduct().getName(),
-                                                StockLedger::getCurrentHash));
-
-                List<Order> affectedOrders = orderRepository.findConfirmedOrdersBySupplierAndProductIdsAndDateRange(
-                                request.getSupplierId(), request.getProductIds(), request.getDateFrom(),
-                                request.getDateTo());
-
-                List<RecipeCookingAudit> affectedCookings = cookingAuditRepository
-                                .findAffectedCookingsByProductIdsAndDateRange(
-                                                request.getProductIds(), request.getDateFrom(), request.getDateTo());
-
-                boolean integrityVerified = products.stream()
-                                .allMatch(p -> ledgerService.verifyChainIntegrity(p.getId()).isValid());
+                                .collect(Collectors.toMap(
+                                                tx -> tx.getProduct().getName(),
+                                                StockLedger::getCurrentHash,
+                                                (left, right) -> left,
+                                                LinkedHashMap::new));
 
                 broadcastCrisisNotification(
                                 i18nService.getMessage(MessageKey.CRISIS_ACTIVATION_TITLE),
@@ -125,75 +145,76 @@ public class TraceabilityService {
 
                 meterRegistry.counter("food.crisis.active.count").increment();
 
-                return CrisisResponseDTO.builder()
-                                .crisisId(crisisCode)
-                                .status("ACTIVE")
-                                .reason(request.getReason())
-                                .supplierName(supplier.getName())
-                                .quarantinedProducts(quarantinedProducts)
-                                .affectedOrderIds(
-                                                affectedOrders.stream().map(Order::getId).collect(Collectors.toList()))
-                                .affectedCookingAuditIds(affectedCookings.stream().map(RecipeCookingAudit::getId)
-                                                .collect(Collectors.toList()))
-                                .integrityVerified(integrityVerified)
-                                .summary(i18nService.getMessage(MessageKey.TRACEABILITY_SUMMARY_FORWARD,
-                                                new Object[] { supplier.getName(), request.getDateFrom(),
-                                                                request.getDateTo() }))
-                                .timestamp(LocalDateTime.now())
-                                .build();
+                return buildCrisisResponse(crisis, quarantinedProducts);
         }
 
         @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
         public void liftCrisis(CrisisLiftRequestDTO request) {
-                log.info("Lifting food safety quarantine for products: {}", request.getProductIds());
+                FoodCrisis crisis = foodCrisisRepository.findById(request.getCrisisId())
+                                .orElseThrow(() -> new InvalidOperationException(
+                                                i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
-                List<Product> products = productRepository.findByIdsForUpdate(request.getProductIds());
+                if (crisis.getStatus() != FoodCrisis.CrisisStatus.ACTIVE) {
+                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND));
+                }
+
+                List<CrisisAffectedProduct> associations = crisisAffectedProductRepository.findByFoodCrisisId(crisis.getId());
+                if (associations.isEmpty()) {
+                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND));
+                }
+
+                List<Integer> productIds = associations.stream()
+                                .map(ap -> ap.getProduct().getId())
+                                .toList();
+                List<Product> lockedProducts = productRepository.findByIdsForUpdate(productIds);
+                Map<Integer, Product> productsById = lockedProducts.stream()
+                                .collect(Collectors.toMap(Product::getId, p -> p));
+
                 User currentUser = securityContextHelper.getCurrentUser();
-
-                List<CrisisAffectedProduct> associations = crisisAffectedProductRepository
-                                .findByProductInAndFoodCrisisStatus(products, FoodCrisis.CrisisStatus.ACTIVE);
-
-                Map<Integer, CrisisAffectedProduct> associationMap = associations.stream()
-                                .collect(Collectors.toMap(ap -> ap.getProduct().getId(), ap -> ap));
-
                 List<BatchMovementItem> batchMovements = new ArrayList<>();
-                Set<FoodCrisis> affectedCrises = new HashSet<>();
 
-                for (Product product : products) {
-                        CrisisAffectedProduct association = associationMap.get(product.getId());
-
-                        if (association != null) {
-                                product.setAvailabilityPercentage(association.getOriginalAvailabilityPercentage());
-
-                                FoodCrisis crisis = association.getFoodCrisis();
-                                crisis.setStatus(FoodCrisis.CrisisStatus.LIFTED);
-                                crisis.setLiftedBy(currentUser);
-                                crisis.setLiftedAt(LocalDateTime.now());
-                                affectedCrises.add(crisis);
-                        } else {
-                                product.setAvailabilityPercentage(request.getAvailabilityPercentage() != null
-                                                ? request.getAvailabilityPercentage()
-                                                : BigDecimal.valueOf(100));
+                for (CrisisAffectedProduct association : associations) {
+                        Product product = productsById.get(association.getProduct().getId());
+                        if (product == null) {
+                                continue;
                         }
+
+                        BigDecimal targetAvailability = request.getAvailabilityPercentage() != null
+                                        ? request.getAvailabilityPercentage()
+                                        : association.getOriginalAvailabilityPercentage();
+                        product.setAvailabilityPercentage(targetAvailability);
 
                         batchMovements.add(new BatchMovementItem(
                                         product.getId(),
                                         BigDecimal.ZERO,
                                         MovementType.MODIFICACION,
                                         i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_QUARANTINE_LIFT,
-                                                        new Object[] { product.getAvailabilityPercentage() })));
+                                                        new Object[] { targetAvailability }) + " [" + crisis.getCrisisCode() + "]",
+                                        null));
                 }
 
-                productRepository.saveAll(products);
-                foodCrisisRepository.saveAll(affectedCrises);
+                crisis.setStatus(FoodCrisis.CrisisStatus.LIFTED);
+                crisis.setLiftedBy(currentUser);
+                crisis.setLiftedAt(LocalDateTime.now());
+
+                productRepository.saveAll(lockedProducts);
+                foodCrisisRepository.save(crisis);
                 ledgerService.recordBatchStockMovements(batchMovements, currentUser, null);
 
                 broadcastCrisisNotification(
                                 i18nService.getMessage(MessageKey.CRISIS_LIFT_TITLE),
                                 i18nService.getMessage(MessageKey.CRISIS_LIFT_MESSAGE,
-                                                new Object[] { products.stream().map(Product::getName)
+                                                new Object[] { lockedProducts.stream().map(Product::getName)
                                                                 .collect(Collectors.toList()), "RESTORED" }),
                                 AlertCode.FOOD_CRISIS_LIFTED);
+        }
+
+        @Transactional(readOnly = true)
+        public CrisisResponseDTO getCrisisById(Long crisisId) {
+                FoodCrisis crisis = foodCrisisRepository.findById(crisisId)
+                                .orElseThrow(() -> new InvalidOperationException(
+                                                i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
+                return buildCrisisResponse(crisis, null);
         }
 
         @Transactional(readOnly = true)
@@ -269,6 +290,96 @@ public class TraceabilityService {
                                 .build();
         }
 
+        private CrisisResponseDTO buildCrisisResponse(FoodCrisis crisis, Map<String, String> quarantinedProductsOverride) {
+                List<CrisisAffectedProduct> associations = crisisAffectedProductRepository.findByFoodCrisisId(crisis.getId());
+                List<Integer> productIds = associations.stream().map(ap -> ap.getProduct().getId()).toList();
+
+                Map<String, String> quarantinedProducts = quarantinedProductsOverride != null
+                                ? quarantinedProductsOverride
+                                : resolveLatestHashesByProduct(associations);
+
+                List<Order> affectedOrders = orderRepository.findConfirmedOrdersBySupplierAndProductIdsAndDateRange(
+                                crisis.getSupplier().getId(),
+                                productIds,
+                                crisis.getDateFrom(),
+                                crisis.getDateTo());
+
+                List<RecipeCookingAudit> affectedCookings = cookingAuditRepository
+                                .findAffectedCookingsByProductIdsAndDateRange(productIds, crisis.getDateFrom(),
+                                                crisis.getDateTo());
+
+                boolean integrityVerified = productIds.stream()
+                                .allMatch(p -> ledgerService.verifyChainIntegrity(p).isValid());
+
+                return CrisisResponseDTO.builder()
+                                .crisisId(crisis.getId())
+                                .crisisCode(crisis.getCrisisCode())
+                                .status(crisis.getStatus().name())
+                                .reason(crisis.getReason())
+                                .supplierName(crisis.getSupplier().getName())
+                                .quarantinedProducts(quarantinedProducts)
+                                .affectedBatches(buildAffectedBatchDetails(associations))
+                                .affectedOrderIds(affectedOrders.stream().map(Order::getId).toList())
+                                .affectedCookingAuditIds(affectedCookings.stream().map(RecipeCookingAudit::getId).toList())
+                                .integrityVerified(integrityVerified)
+                                .summary(i18nService.getMessage(MessageKey.TRACEABILITY_SUMMARY_FORWARD,
+                                                new Object[] { crisis.getSupplier().getName(), crisis.getDateFrom(),
+                                                                crisis.getDateTo() }))
+                                .timestamp(crisis.getActivatedAt())
+                                .build();
+        }
+
+        private Map<String, String> resolveLatestHashesByProduct(List<CrisisAffectedProduct> associations) {
+                Map<String, String> map = new LinkedHashMap<>();
+                for (CrisisAffectedProduct association : associations) {
+                        Product product = association.getProduct();
+                        String hash = ledgerRepository.findLastTransactionByProductId(product.getId())
+                                        .map(StockLedger::getCurrentHash)
+                                        .orElse("-");
+                        map.put(product.getName(), hash);
+                }
+                return map;
+        }
+
+        private List<CrisisAffectedBatchDTO> buildAffectedBatchDetails(List<CrisisAffectedProduct> associations) {
+                if (associations.isEmpty()) {
+                        return List.of();
+                }
+
+                Set<Integer> productIds = associations.stream()
+                                .map(ap -> ap.getProduct().getId())
+                                .collect(Collectors.toSet());
+
+                Map<Long, ProductBatch> batchesById = new LinkedHashMap<>();
+                for (Integer productId : productIds) {
+                        for (ProductBatch batch : productBatchService.getActiveBatches(productId)) {
+                                batchesById.put(batch.getId(), batch);
+                        }
+                }
+
+                for (ProductBatch batch : productBatchService.getExpiredBatches()) {
+                        if (productIds.contains(batch.getProduct().getId())) {
+                                batchesById.put(batch.getId(), batch);
+                        }
+                }
+
+                return batchesById.values().stream()
+                                .sorted(Comparator
+                                                .comparing(ProductBatch::getExpirationDate,
+                                                                Comparator.nullsLast(LocalDate::compareTo))
+                                                .thenComparing(ProductBatch::getId))
+                                .map(batch -> CrisisAffectedBatchDTO.builder()
+                                                .batchId(batch.getId())
+                                                .productId(batch.getProduct().getId())
+                                                .productName(batch.getProduct().getName())
+                                                .expirationDate(batch.getExpirationDate())
+                                                .remainingQuantity(batch.getRemainingQuantity())
+                                                .expired(batch.getExpirationDate() != null
+                                                                && batch.getExpirationDate().isBefore(LocalDate.now()))
+                                                .build())
+                                .toList();
+        }
+
         private void broadcastCrisisNotification(String title, String body, AlertCode code) {
                 RoleNotificationMessage message = RoleNotificationMessage.builder()
                                 .title(title)
@@ -287,7 +398,8 @@ public class TraceabilityService {
                         return Collections.emptyMap();
                 }
                 try {
-                        return objectMapper.readValue(detailsJson, new TypeReference<Map<String, Object>>() {});
+                        return objectMapper.readValue(detailsJson, new TypeReference<Map<String, Object>>() {
+                        });
                 } catch (Exception e) {
                         log.warn("Failed to parse audit details JSON: {}", detailsJson);
                         return Collections.emptyMap();
