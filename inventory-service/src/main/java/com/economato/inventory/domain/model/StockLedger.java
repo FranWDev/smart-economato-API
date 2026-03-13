@@ -3,6 +3,7 @@ package com.economato.inventory.domain.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import lombok.*;
 
@@ -16,7 +17,8 @@ import lombok.*;
         @Index(name = "idx_ledger_product", columnList = "product_id"),
         @Index(name = "idx_ledger_timestamp", columnList = "transaction_timestamp"),
         @Index(name = "idx_ledger_type", columnList = "movement_type"),
-        @Index(name = "idx_ledger_prev_hash", columnList = "previous_hash")
+    @Index(name = "idx_ledger_prev_hash", columnList = "previous_hash"),
+    @Index(name = "idx_ledger_expiration", columnList = "expiration_date")
 })
 public class StockLedger {
 
@@ -70,6 +72,9 @@ public class StockLedger {
 
     @Column(name = "order_id")
     private Integer orderId;
+
+    @Column(name = "expiration_date")
+    private LocalDate expirationDate;
 
     @NotNull(message = "{validation.stockLedger.sequenceNumber.notNull}")
     @Column(name = "sequence_number", nullable = false)

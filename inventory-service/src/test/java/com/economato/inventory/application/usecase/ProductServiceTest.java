@@ -65,6 +65,9 @@ class ProductServiceTest {
     private StockLedgerService stockLedgerService;
 
     @Mock
+    private ProductBatchService productBatchService;
+
+    @Mock
     private UserRepository userRepository;
     @Mock
     private I18nService i18nService;

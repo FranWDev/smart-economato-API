@@ -28,6 +28,7 @@ import com.economato.inventory.infrastructure.config.web.MessageKey;
 import com.economato.inventory.application.mapper.ProductMapper;
 import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.InventoryAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
@@ -50,6 +51,7 @@ public class ProductService {
     private final SupplierRepository supplierRepository;
     private final ProductMapper productMapper;
     private final StockLedgerService stockLedgerService;
+    private final ProductBatchService productBatchService;
     private final SecurityContextHelper securityContextHelper;
 
     public ProductService(I18nService i18nService,
@@ -59,6 +61,7 @@ public class ProductService {
             SupplierRepository supplierRepository,
             ProductMapper productMapper,
             StockLedgerService stockLedgerService,
+            ProductBatchService productBatchService,
             SecurityContextHelper securityContextHelper) {
         this.i18nService = i18nService;
         this.repository = repository;
@@ -67,6 +70,7 @@ public class ProductService {
         this.supplierRepository = supplierRepository;
         this.productMapper = productMapper;
         this.stockLedgerService = stockLedgerService;
+        this.productBatchService = productBatchService;
         this.securityContextHelper = securityContextHelper;
     }
 
@@ -277,7 +281,7 @@ public class ProductService {
                     if (stockDelta.compareTo(BigDecimal.ZERO) != 0) {
                         User currentUser = securityContextHelper.getCurrentUser();
 
-                        stockLedgerService.recordStockMovement(
+                        StockLedger ledgerTx = stockLedgerService.recordStockMovement(
                                 existing.getId(),
                                 stockDelta,
                                 MovementType.MODIFICACION,
@@ -285,6 +289,10 @@ public class ProductService {
                                         new Object[] { existing.getName() }),
                                 currentUser,
                                 null);
+
+                        if (stockDelta.compareTo(BigDecimal.ZERO) > 0) {
+                            productBatchService.createBatch(existing, stockDelta, null, ledgerTx);
+                        }
 
                         Product updated = repository.findById(id).orElseThrow();
                         return productMapper.toResponseDTO(updated);

@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -67,6 +68,12 @@ public class StockAlertDTO {
      * proyectada — faltan ~2,4 kg para la próxima semana."
      */
     private String message;
+
+    /** Fecha de caducidad más cercana entre los lotes activos del producto. */
+    private LocalDate nearestExpirationDate;
+
+    /** Cantidad total que caduca próximamente para el producto. */
+    private BigDecimal expiringQuantity;
 
     /**
      * Las recetas que más consumen este producto, ordenadas por consumo

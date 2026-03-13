@@ -79,7 +79,8 @@ public class CrisisReportPdfService {
             return baos.toByteArray();
         } catch (Exception e) {
             log.error("Error generating crisis PDF report", e);
-            throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_REPORT_ORDER_PDF_GENERATION, new Object[]{crisisData.getCrisisId()}), e);
+            String reportRef = crisisData.getCrisisCode() != null ? crisisData.getCrisisCode() : String.valueOf(crisisData.getCrisisId());
+            throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_REPORT_ORDER_PDF_GENERATION, new Object[]{reportRef}), e);
         }
     }
 
@@ -90,7 +91,8 @@ public class CrisisReportPdfService {
         document.add(title);
 
         Table infoTable = new Table(2).setWidth(UnitValue.createPercentValue(100)).setMarginTop(10).setMarginBottom(20);
-        addInfoRow(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_CRISIS_ID) + ":", data.getCrisisId(), bold, bold);
+        String crisisReference = data.getCrisisCode() != null ? data.getCrisisCode() : String.valueOf(data.getCrisisId());
+        addInfoRow(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_CRISIS_ID) + ":", crisisReference, bold, bold);
         addInfoRow(infoTable, i18nService.getMessage(MessageKey.REPORT_COLUMN_SUPPLIER) + ":", data.getSupplierName(), bold, bold);
         addInfoRow(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_REASON) + ":", data.getReason(), bold, bold);
         addInfoRow(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_DATE) + ":", data.getTimestamp().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")), bold, bold);

@@ -53,6 +53,9 @@ class StockLedgerServiceLedgerMethodsTest {
         private RecipeCookingAuditRepository recipeCookingAuditRepository;
 
         @Mock
+        private ProductBatchService productBatchService;
+
+        @Mock
         private SecurityContextHelper securityContextHelper;
 
         @Mock
@@ -79,6 +82,7 @@ class StockLedgerServiceLedgerMethodsTest {
                         productRepository,
                         orderRepository,
                         recipeCookingAuditRepository,
+                        productBatchService,
                         securityContextHelper,
                         environment,
                         meterRegistry

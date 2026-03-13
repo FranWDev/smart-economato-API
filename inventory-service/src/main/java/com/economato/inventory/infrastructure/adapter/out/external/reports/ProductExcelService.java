@@ -3,6 +3,7 @@ package com.economato.inventory.infrastructure.adapter.out.external.reports;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.projection.ProductProjection;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
@@ -33,10 +35,14 @@ public class ProductExcelService {
     private static final int CHUNK_SIZE = 100;
 
     private final ProductRepository productRepository;
+    private final ProductBatchRepository productBatchRepository;
     private final I18nService i18nService;
 
-    public ProductExcelService(ProductRepository productRepository, I18nService i18nService) {
+    public ProductExcelService(ProductRepository productRepository,
+            ProductBatchRepository productBatchRepository,
+            I18nService i18nService) {
         this.productRepository = productRepository;
+        this.productBatchRepository = productBatchRepository;
         this.i18nService = i18nService;
     }
 
@@ -72,7 +78,8 @@ public class ProductExcelService {
                     i18nService.getMessage(MessageKey.REPORT_COLUMN_STOCK_CURRENT),
                     i18nService.getMessage(MessageKey.REPORT_COLUMN_STOCK_MINIMUM),
                     i18nService.getMessage(MessageKey.REPORT_COLUMN_AVAILABILITY),
-                    i18nService.getMessage(MessageKey.REPORT_COLUMN_SUPPLIER)
+                        i18nService.getMessage(MessageKey.REPORT_COLUMN_SUPPLIER),
+                        i18nService.getMessage(MessageKey.REPORT_COLUMN_NEAREST_EXPIRATION)
             };
             Row headerRow = sheet.createRow(0);
             for (int i = 0; i < headers.length; i++) {
@@ -106,6 +113,7 @@ public class ProductExcelService {
                     createTextCell(row, 9,
                             p.getSupplier() == null ? "" : nullToEmpty(p.getSupplier().getName()),
                             bodyStyle);
+                        createTextCell(row, 10, findNearestExpirationText(p.getId()), bodyStyle);
                 }
 
                 // Volcar filas ya procesadas a disco temporal para liberar heap
@@ -118,10 +126,22 @@ public class ProductExcelService {
     }
 
     private void setColumnWidths(Sheet sheet) {
-        int[] widths = { 10, 30, 18, 12, 18, 22, 16, 16, 18, 26 };
+        int[] widths = { 10, 30, 18, 12, 18, 22, 16, 16, 18, 26, 20 };
         for (int i = 0; i < widths.length; i++) {
             sheet.setColumnWidth(i, widths[i] * 256);
         }
+    }
+
+    private String findNearestExpirationText(Integer productId) {
+        if (productId == null) {
+            return "";
+        }
+        LocalDate nearest = productBatchRepository.findActiveByProductIdOrderByExpiration(productId).stream()
+                .map(batch -> batch.getExpirationDate())
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+        return nearest != null ? nearest.toString() : "";
     }
 
     private CellStyle createHeaderStyle(SXSSFWorkbook workbook) {

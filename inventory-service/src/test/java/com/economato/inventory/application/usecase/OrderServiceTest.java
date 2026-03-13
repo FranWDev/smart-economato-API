@@ -1,6 +1,7 @@
 package com.economato.inventory.application.usecase;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,6 +30,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.nullable;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -51,6 +53,7 @@ import com.economato.inventory.domain.model.Order;
 import com.economato.inventory.domain.model.OrderDetail;
 import com.economato.inventory.domain.model.OrderStatus;
 import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
@@ -81,6 +84,8 @@ class OrderServiceTest {
 
     @Mock
     private StockLedgerService stockLedgerService;
+    @Mock
+    private ProductBatchService productBatchService;
     @Mock
     private I18nService i18nService;
 
@@ -388,15 +393,18 @@ class OrderServiceTest {
         OrderReceptionDetailRequestDTO receptionItem = new OrderReceptionDetailRequestDTO();
         receptionItem.setProductId(1);
         receptionItem.setQuantityReceived(new BigDecimal("5.0"));
+        receptionItem.setExpirationDate(LocalDate.now().plusDays(30));
         receptionData.setItems(Arrays.asList(receptionItem));
 
         testOrder.getDetails().get(0).setQuantityReceived(new BigDecimal("5.0"));
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
         when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
+        StockLedger ledger = new StockLedger();
+        ledger.setId(1L);
         when(stockLedgerService.recordStockMovement(
-                anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt()))
-                .thenReturn(null);
+            anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class)))
+            .thenReturn(ledger);
         when(repository.save(testOrder)).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
 
@@ -406,7 +414,8 @@ class OrderServiceTest {
         verify(repository).findByIdWithDetails(1);
         verify(productRepository).findByIdForUpdate(1);
         verify(stockLedgerService).recordStockMovement(
-                anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt());
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
+        verify(productBatchService).createBatch(any(Product.class), any(BigDecimal.class), eq(receptionItem.getExpirationDate()), any(StockLedger.class));
         verify(repository).save(testOrder);
     }
 
@@ -440,9 +449,10 @@ class OrderServiceTest {
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
         when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
+        StockLedger ledger = new StockLedger();
         when(stockLedgerService.recordStockMovement(
-                anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt()))
-                .thenReturn(null);
+            anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class)))
+            .thenReturn(ledger);
         when(repository.save(testOrder)).thenReturn(testOrder);
 
         OrderResponseDTO incompleteResponse = new OrderResponseDTO();
@@ -457,7 +467,7 @@ class OrderServiceTest {
         verify(repository).findByIdWithDetails(1);
         verify(productRepository).findByIdForUpdate(1);
         verify(stockLedgerService).recordStockMovement(
-                anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt());
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
         verify(repository).save(testOrder);
     }
 
@@ -593,9 +603,10 @@ class OrderServiceTest {
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
         when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
+        StockLedger ledger = new StockLedger();
         when(stockLedgerService.recordStockMovement(
-                anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt()))
-                .thenReturn(null);
+            anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class)))
+            .thenReturn(ledger);
         when(repository.save(any(Order.class))).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(any(Order.class))).thenReturn(testOrderResponseDTO);
 
@@ -605,7 +616,7 @@ class OrderServiceTest {
         verify(repository).findByIdWithDetails(1);
         verify(productRepository).findByIdForUpdate(1);
         verify(stockLedgerService).recordStockMovement(
-                anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt());
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
         verify(repository).save(any(Order.class));
     }
 
@@ -625,9 +636,10 @@ class OrderServiceTest {
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
         when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
+        StockLedger ledger = new StockLedger();
         when(stockLedgerService.recordStockMovement(
-                anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt()))
-                .thenReturn(null);
+            anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class)))
+            .thenReturn(ledger);
         when(repository.save(any(Order.class))).thenReturn(testOrder);
 
         OrderResponseDTO incompleteResponse = new OrderResponseDTO();
@@ -642,7 +654,7 @@ class OrderServiceTest {
         verify(repository).findByIdWithDetails(1);
         verify(productRepository).findByIdForUpdate(1);
         verify(stockLedgerService).recordStockMovement(
-                anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt());
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
         verify(repository).save(any(Order.class));
     }
 }
