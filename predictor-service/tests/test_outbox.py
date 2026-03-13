@@ -269,6 +269,40 @@ class TestProcessBatch:
 
         mock_producer.produce.assert_not_called()
 
+    def test_increments_attempts_on_flush_timeout(self, tmp_path):
+        """When flush() times out (callback never fired), attempts must increase."""
+        import app.db.outbox as outbox_mod
+        outbox_mod.DB_PATH = str(tmp_path / "outbox.db")
+        from app.db.outbox import init_db, get_connection
+        init_db()
+
+        conn = get_connection()
+        _insert_row(conn, key="timeout-row", attempts=0)
+
+        from app.services.outbox_service import OutboxService
+
+        mock_producer = MagicMock()
+
+        def fake_produce(topic, key, value, on_delivery):
+            # simulate no callback being fired (e.g. timeout)
+            pass
+
+        mock_producer.produce = fake_produce
+        mock_producer.flush = MagicMock() # flush returns but callback wasn't called
+
+        svc = OutboxService()
+        svc._producer = mock_producer
+        svc._process_batch()
+
+        row = conn.execute("SELECT attempts, last_error FROM forecast_outbox").fetchone()
+        assert row["attempts"] == 1
+        assert "flush timeout" in row["last_error"]
+        
+        # Verify it wasn't deleted
+        remaining = conn.execute("SELECT COUNT(*) FROM forecast_outbox").fetchone()[0]
+        assert remaining == 1
+
+
 
 # ---------------------------------------------------------------------------
 # Tests — relay_loop() (async)
