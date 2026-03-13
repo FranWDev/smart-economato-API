@@ -7,6 +7,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.projection.ProductProjection;
 import com.economato.inventory.domain.model.Product;
@@ -93,4 +95,8 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
 
         @Query("SELECT COALESCE(AVG(p.unitPrice), 0) FROM Product p WHERE p.isHidden = false")
         BigDecimal calculateAveragePrice();
+        @Modifying
+        @Transactional
+        @Query("UPDATE Product p SET p.availabilityPercentage = :percentage WHERE p.id IN :ids")
+        void updateAvailabilityForProducts(@Param("ids") List<Integer> ids, @Param("percentage") BigDecimal percentage);
 }

@@ -109,4 +109,16 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                      "JOIN o.details od " +
                      "JOIN od.product p")
        java.math.BigDecimal getTotalCostAllOrders();
+
+       @Query("SELECT DISTINCT o FROM Order o " +
+                      "JOIN o.details od " +
+                      "WHERE o.supplier.id = :supplierId " +
+                      "AND od.product.id IN :productIds " +
+                      "AND o.status = com.economato.inventory.domain.model.OrderStatus.CONFIRMED " +
+                      "AND o.orderDate BETWEEN :startDate AND :endDate")
+       List<Order> findConfirmedOrdersBySupplierAndProductIdsAndDateRange(
+                      @Param("supplierId") Integer supplierId,
+                      @Param("productIds") List<Integer> productIds,
+                      @Param("startDate") LocalDateTime startDate,
+                      @Param("endDate") LocalDateTime endDate);
 }

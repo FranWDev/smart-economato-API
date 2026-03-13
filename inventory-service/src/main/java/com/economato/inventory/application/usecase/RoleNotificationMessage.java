@@ -1,14 +1,14 @@
 package com.economato.inventory.application.usecase;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import java.time.LocalDateTime;
 
 /**
  * WebSocket notification message sent to specific roles.
  */
 @Getter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class RoleNotificationMessage {
@@ -17,13 +17,16 @@ public class RoleNotificationMessage {
     
     @JsonProperty("message")
     private String message;
+
+    @JsonProperty("code")
+    private AlertCode code;
     
     @JsonProperty("timestamp")
-    private long timestamp;
+    private LocalDateTime timestamp;
 
     public RoleNotificationMessage(String title, String message) {
         this.title = title;
         this.message = message;
-        this.timestamp = System.currentTimeMillis();
+        this.timestamp = LocalDateTime.now();
     }
 }

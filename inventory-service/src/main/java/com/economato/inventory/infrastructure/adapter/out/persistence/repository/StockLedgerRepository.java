@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDateTime;
 
 import com.economato.inventory.domain.model.StockLedger;
 
@@ -55,4 +56,21 @@ public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> 
     @Modifying
     @Transactional
     void deleteAllByProductId(Integer productId);
+
+    @Query("SELECT l FROM StockLedger l WHERE l.product.id IN :productIds AND l.movementType = 'ENTRADA' AND l.orderId IS NOT NULL AND l.transactionTimestamp BETWEEN :startDate AND :endDate ORDER BY l.transactionTimestamp ASC")
+    List<StockLedger> findEntradasWithOrderIdByProductIdsAndDateRange(
+            @Param("productIds") List<Integer> productIds,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
+
+    @Query("SELECT l FROM StockLedger l WHERE l.product.id IN :productIds AND l.movementType = 'SALIDA' AND l.transactionTimestamp BETWEEN :startDate AND :endDate ORDER BY l.transactionTimestamp ASC")
+    List<StockLedger> findSalidasByProductIdsAndDateRange(
+            @Param("productIds") List<Integer> productIds,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
+
+    @Query("SELECT l FROM StockLedger l WHERE l.product.id = :productId AND l.movementType = 'ENTRADA' AND l.transactionTimestamp < :date ORDER BY l.transactionTimestamp DESC LIMIT 1")
+    Optional<StockLedger> findLastEntradaBeforeDate(
+            @Param("productId") Integer productId,
+            @Param("date") LocalDateTime date);
 }
