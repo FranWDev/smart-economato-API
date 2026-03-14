@@ -113,7 +113,9 @@ public class TraceabilityService {
                         affectedProducts.add(CrisisAffectedProduct.builder()
                                         .foodCrisis(crisis)
                                         .product(product)
-                                        .originalAvailabilityPercentage(product.getAvailabilityPercentage())
+                                        .originalAvailabilityPercentage(product.getAvailabilityPercentage() != null 
+                                                        ? product.getAvailabilityPercentage() 
+                                                        : BigDecimal.valueOf(100.00))
                                         .build());
 
                         batchMovements.add(new BatchMovementItem(
@@ -207,6 +209,13 @@ public class TraceabilityService {
                                                 new Object[] { lockedProducts.stream().map(Product::getName)
                                                                 .collect(Collectors.toList()), "RESTORED" }),
                                 AlertCode.FOOD_CRISIS_LIFTED);
+        }
+
+        @Transactional(readOnly = true)
+        public List<CrisisResponseDTO> getAllCrises() {
+                return foodCrisisRepository.findAll().stream()
+                                .map(crisis -> buildCrisisResponse(crisis, null))
+                                .collect(Collectors.toList());
         }
 
         @Transactional(readOnly = true)
@@ -352,13 +361,7 @@ public class TraceabilityService {
 
                 Map<Long, ProductBatch> batchesById = new LinkedHashMap<>();
                 for (Integer productId : productIds) {
-                        for (ProductBatch batch : productBatchService.getActiveBatches(productId)) {
-                                batchesById.put(batch.getId(), batch);
-                        }
-                }
-
-                for (ProductBatch batch : productBatchService.getExpiredBatches()) {
-                        if (productIds.contains(batch.getProduct().getId())) {
+                        for (ProductBatch batch : productBatchService.getAllBatches(productId)) {
                                 batchesById.put(batch.getId(), batch);
                         }
                 }
@@ -376,6 +379,7 @@ public class TraceabilityService {
                                                 .remainingQuantity(batch.getRemainingQuantity())
                                                 .expired(batch.getExpirationDate() != null
                                                                 && batch.getExpirationDate().isBefore(LocalDate.now()))
+                                                .depleted(batch.isDepleted())
                                                 .build())
                                 .toList();
         }

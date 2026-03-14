@@ -32,4 +32,7 @@ public class CrisisAffectedBatchDTO {
 
     @Schema(description = "Indica si el lote está caducado", example = "false")
     private boolean expired;
+
+    @Schema(description = "Indica si el lote está agotado o retirado", example = "false")
+    private boolean depleted;
 }
