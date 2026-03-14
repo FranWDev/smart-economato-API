@@ -1,5 +1,6 @@
 package com.economato.inventory.application.usecase;
 
+import com.economato.inventory.application.dto.BatchConsumptionDetail;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.domain.model.StockLedger;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -45,7 +47,7 @@ public class ProductBatchService {
     }
 
     @Transactional(rollbackFor = Exception.class)
-    public List<ProductBatch> consumeStock(Integer productId, BigDecimal quantity) {
+    public List<BatchConsumptionDetail> consumeStock(Integer productId, BigDecimal quantity) {
         if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
             return List.of();
         }
@@ -53,6 +55,7 @@ public class ProductBatchService {
         List<ProductBatch> batches = batchRepository.findActiveByProductIdOrderByExpiration(productId);
         BigDecimal remaining = quantity;
         List<ProductBatch> affected = new ArrayList<>();
+        List<BatchConsumptionDetail> consumptionDetails = new ArrayList<>();
 
         for (ProductBatch batch : batches) {
             if (remaining.compareTo(BigDecimal.ZERO) <= 0) {
@@ -76,6 +79,7 @@ public class ProductBatchService {
                 batch.setDepleted(true);
             }
             affected.add(batch);
+            consumptionDetails.add(new BatchConsumptionDetail(batch.getId(), toConsume));
             remaining = remaining.subtract(toConsume);
         }
 
@@ -84,7 +88,7 @@ public class ProductBatchService {
         }
 
         batchRepository.saveAll(affected);
-        return affected;
+        return consumptionDetails;
     }
 
     @Transactional(readOnly = true)
@@ -110,5 +114,24 @@ public class ProductBatchService {
     @Transactional(readOnly = true)
     public List<ProductBatch> getExpiredBatches() {
         return batchRepository.findExpiredWithRemainingStock();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ProductBatch> getBatchById(Long batchId) {
+        return batchRepository.findById(batchId);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void depleteBatch(Long batchId) {
+        batchRepository.findById(batchId).ifPresent(batch -> {
+            batch.setRemainingQuantity(BigDecimal.ZERO);
+            batch.setDepleted(true);
+            batchRepository.save(batch);
+        });
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void saveBatch(ProductBatch batch) {
+        batchRepository.save(batch);
     }
 }

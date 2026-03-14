@@ -192,6 +192,7 @@ public class AuditEventConsumer {
             audit.setDetails(event.getDetails());
             audit.setComponentsState(event.getComponentsState());
             audit.setCookingDate(event.getCookingDate());
+            audit.setCorrelationId(event.getCorrelationId());
 
             recipeCookingAuditRepository.save(audit);
 

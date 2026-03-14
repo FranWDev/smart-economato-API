@@ -166,6 +166,16 @@ public class RecipeController {
                 return ResponseEntity.ok(result);
         }
 
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @PostMapping("/cook/{auditId}/revert")
+        @Operation(summary = "Revertir cocinado de receta", description = "Revierte un cocinado específico, devolviendo el stock a los lotes originales. [Rol requerido: CHEF]")
+        public ResponseEntity<Void> revertCooking(
+                        @Parameter(description = "ID de la auditoría de cocinado", required = true) @PathVariable Long auditId,
+                        @Parameter(description = "Motivo de la reversión") @RequestParam(required = false, defaultValue = "Reversión manual") String reason) {
+                recipeService.revertCooking(auditId, reason);
+                return ResponseEntity.noContent().build();
+        }
+
         @SuppressWarnings("unused")
         @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/{id}/pdf")

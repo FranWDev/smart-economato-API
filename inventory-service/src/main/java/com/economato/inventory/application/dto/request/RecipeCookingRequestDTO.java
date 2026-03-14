@@ -25,4 +25,6 @@ public class RecipeCookingRequestDTO {
 
     @Size(max = 500, message = "{validation.recipeCookingRequestDTO.details.size}")
     private String details;
+
+    private String correlationId;
 }

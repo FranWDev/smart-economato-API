@@ -36,6 +36,7 @@ public class RecipeCookingAuditEvent implements Serializable {
     private String details;
     private String componentsState;
     private LocalDateTime cookingDate;
+    private String correlationId;
 
     /**
      * Historial de consumo de 90 días por producto.

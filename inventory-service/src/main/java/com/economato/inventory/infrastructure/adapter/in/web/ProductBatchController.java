@@ -3,6 +3,7 @@ package com.economato.inventory.infrastructure.adapter.in.web;
 import com.economato.inventory.application.dto.response.ProductBatchResponseDTO;
 import com.economato.inventory.application.mapper.ProductBatchMapper;
 import com.economato.inventory.application.usecase.ProductBatchService;
+import com.economato.inventory.application.usecase.StockLedgerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,6 +21,7 @@ public class ProductBatchController {
 
     private final ProductBatchService productBatchService;
     private final ProductBatchMapper productBatchMapper;
+    private final StockLedgerService stockLedgerService;
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @Operation(summary = "Obtener lotes próximos a caducar")
@@ -52,5 +54,13 @@ public class ProductBatchController {
                 .map(productBatchMapper::toResponseDTO)
                 .toList();
         return ResponseEntity.ok(response);
+    }
+
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+    @Operation(summary = "Retirar lote caducado", description = "Retira el stock restante de un lote caducado y lo registra como merma.")
+    @PostMapping("/{batchId}/withdraw")
+    public ResponseEntity<Void> withdrawBatch(@PathVariable Long batchId) {
+        stockLedgerService.withdrawExpiredBatch(batchId);
+        return ResponseEntity.noContent().build();
     }
 }

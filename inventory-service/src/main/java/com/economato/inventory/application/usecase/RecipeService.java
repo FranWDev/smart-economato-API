@@ -32,6 +32,7 @@ import com.economato.inventory.domain.model.RecipeComponent;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.AllergenRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 
@@ -55,6 +56,7 @@ public class RecipeService {
     private final StatsMapper statsMapper;
     private final StockLedgerService stockLedgerService;
     private final SecurityContextHelper securityContextHelper;
+    private final RecipeCookingAuditRepository recipeCookingAuditRepository;
 
     public RecipeService(I18nService i18nService, RecipeRepository repository,
             ProductRepository productRepository,
@@ -62,7 +64,8 @@ public class RecipeService {
             RecipeMapper recipeMapper,
             StatsMapper statsMapper,
             StockLedgerService stockLedgerService,
-            SecurityContextHelper securityContextHelper) {
+            SecurityContextHelper securityContextHelper,
+            RecipeCookingAuditRepository recipeCookingAuditRepository) {
         this.i18nService = i18nService;
         this.repository = repository;
         this.productRepository = productRepository;
@@ -71,6 +74,7 @@ public class RecipeService {
         this.statsMapper = statsMapper;
         this.stockLedgerService = stockLedgerService;
         this.securityContextHelper = securityContextHelper;
+        this.recipeCookingAuditRepository = recipeCookingAuditRepository;
     }
 
     @Cacheable(value = "recipes_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
@@ -269,8 +273,11 @@ public class RecipeService {
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public RecipeResponseDTO cookRecipe(RecipeCookingRequestDTO cookingRequest) {
-        log.info("Iniciando proceso de cocinado de receta: recipeId={}, cantidad={}",
-                cookingRequest.getRecipeId(), cookingRequest.getQuantity());
+        String correlationId = java.util.UUID.randomUUID().toString();
+        cookingRequest.setCorrelationId(correlationId);
+
+        log.info("Iniciando proceso de cocinado de receta: recipeId={}, cantidad={}, correlationId={}",
+                cookingRequest.getRecipeId(), cookingRequest.getQuantity(), correlationId);
 
         Recipe recipe = repository.findByIdWithDetails(cookingRequest.getRecipeId())
                 .orElseThrow(
@@ -311,7 +318,9 @@ public class RecipeService {
                     i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_COOKING,
                                     new Object[] { recipe.getName(), cookingRequest.getQuantity() }),
                     currentUser,
-                    null);
+                    null,
+                    null,
+                    correlationId);
 
             log.info("Stock descontado del ledger: producto={}, cantidad={}",
                     product.getName(), requiredQuantity);
@@ -322,5 +331,24 @@ public class RecipeService {
                 currentUser != null ? currentUser.getName() : "Sistema");
 
         return recipeMapper.toResponseDTO(recipe);
+    }
+
+    /**
+     * Revierte un cocinado de receta específico.
+     */
+    @Transactional(rollbackFor = Exception.class)
+    public void revertCooking(Long auditId, String reason) {
+        var audit = recipeCookingAuditRepository.findById(auditId)
+                .orElseThrow(() -> new ResourceNotFoundException("Auditoría de cocinado no encontrada"));
+        
+        if (audit.getCorrelationId() == null) {
+            throw new InvalidOperationException("Esta auditoría no tiene ID de correlación y no puede revertirse automáticamente.");
+        }
+
+        stockLedgerService.revertMovement(audit.getCorrelationId(), "Deshacer cocinado: " + reason);
+        
+        // Opcional: marcar la auditoría como revertida
+        audit.setDetails(audit.getDetails() + " [REVERTIDO: " + reason + "]");
+        recipeCookingAuditRepository.save(audit);
     }
 }
