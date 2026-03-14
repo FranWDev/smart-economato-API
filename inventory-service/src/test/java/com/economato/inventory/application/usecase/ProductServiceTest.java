@@ -290,7 +290,7 @@ class ProductServiceTest {
 
         when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
         when(productMapper.toEntity(testProductRequestDTO)).thenReturn(testProduct);
-        when(repository.save(testProduct)).thenReturn(testProduct);
+        when(repository.saveAndFlush(testProduct)).thenReturn(testProduct);
         when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
 
         ProductResponseDTO result = productService.save(testProductRequestDTO);
@@ -298,7 +298,8 @@ class ProductServiceTest {
         assertNotNull(result);
         assertEquals(testProductResponseDTO.getName(), result.getName());
         verify(repository).existsByName(testProductRequestDTO.getName());
-        verify(repository).save(testProduct);
+        verify(repository).saveAndFlush(testProduct);
+        verify(stockLedgerService).recordStockMovement(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -335,7 +336,7 @@ class ProductServiceTest {
             testProductRequestDTO.setUnit(unit);
             when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
             when(productMapper.toEntity(testProductRequestDTO)).thenReturn(testProduct);
-            when(repository.save(testProduct)).thenReturn(testProduct);
+            when(repository.saveAndFlush(testProduct)).thenReturn(testProduct);
             when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
 
             ProductResponseDTO result = productService.save(testProductRequestDTO);
@@ -409,6 +410,7 @@ class ProductServiceTest {
         when(repository.findById(1)).thenReturn(Optional.of(testProduct));
         when(movementRepository.existsByProductId(1)).thenReturn(false);
         when(recipeComponentRepository.existsByProductId(1)).thenReturn(false);
+        when(stockLedgerService.resetProductLedger(1)).thenReturn("Success");
         doNothing().when(repository).delete(testProduct);
 
         productService.deleteById(1);
@@ -416,6 +418,7 @@ class ProductServiceTest {
         verify(repository).findById(1);
         verify(movementRepository).existsByProductId(1);
         verify(recipeComponentRepository).existsByProductId(1);
+        verify(stockLedgerService).resetProductLedger(1);
         verify(repository).delete(testProduct);
     }
 

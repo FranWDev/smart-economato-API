@@ -52,6 +52,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -218,6 +220,12 @@ public class TraceabilityService {
                 return foodCrisisRepository.findAll().stream()
                                 .map(crisis -> buildCrisisResponse(crisis, null))
                                 .collect(Collectors.toList());
+        }
+
+        @Transactional(readOnly = true)
+        public Page<CrisisResponseDTO> getCrisisHistory(String search, Pageable pageable) {
+                return foodCrisisRepository.findHistoryWithSearch(search, pageable)
+                                .map(crisis -> buildCrisisResponse(crisis, null));
         }
 
         @Transactional(readOnly = true)

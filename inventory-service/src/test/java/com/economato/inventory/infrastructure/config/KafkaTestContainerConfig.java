@@ -18,7 +18,12 @@ public class KafkaTestContainerConfig {
         KafkaContainer container = new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.0"));
         try {
             container.start();
-            System.setProperty("spring.kafka.bootstrap-servers", container.getBootstrapServers());
+            if (container.isRunning()) {
+                System.setProperty("spring.kafka.bootstrap-servers", container.getBootstrapServers());
+                System.out.println("[KafkaTestContainerConfig] Kafka container started at: " + container.getBootstrapServers());
+            } else {
+                System.err.println("[KafkaTestContainerConfig] Kafka container started but is not running.");
+            }
         } catch (Exception e) {
             // In environments without Docker, simply log and continue. Tests may
             // choose to skip or fail gracefully.

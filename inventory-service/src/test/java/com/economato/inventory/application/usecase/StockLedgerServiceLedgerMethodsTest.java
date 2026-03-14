@@ -28,6 +28,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockSnapshotRepository;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.core.env.Environment;
@@ -63,6 +64,9 @@ class StockLedgerServiceLedgerMethodsTest {
         private StockLedgerBatchDetailRepository batchDetailRepository;
 
         @Mock
+        private ProductBatchRepository batchRepository;
+
+        @Mock
         private Environment environment;
 
         private StockLedgerService stockLedgerService;
@@ -89,6 +93,7 @@ class StockLedgerServiceLedgerMethodsTest {
                         productBatchService,
                         securityContextHelper,
                         batchDetailRepository,
+                        batchRepository,
                         environment,
                         meterRegistry
                 );

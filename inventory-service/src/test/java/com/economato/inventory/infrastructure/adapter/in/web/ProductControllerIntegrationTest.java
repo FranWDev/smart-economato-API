@@ -29,7 +29,10 @@ import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
+import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.infrastructure.TestDataUtil;
+import java.time.LocalDate;
 
 class ProductControllerIntegrationTest extends BaseIntegrationTest {
 
@@ -41,6 +44,10 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
 
         @Autowired
         private UserRepository userRepository;
+
+
+        @Autowired
+        private ProductBatchRepository productBatchRepository;
 
         @Autowired
         private PasswordEncoder passwordEncoder;
@@ -71,6 +78,15 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
 
                 testProduct = TestDataUtil.createFlour();
                 testProduct = productRepository.saveAndFlush(testProduct);
+
+                ProductBatch batch = new ProductBatch();
+                batch.setProduct(testProduct);
+                batch.setInitialQuantity(testProduct.getCurrentStock());
+                batch.setRemainingQuantity(testProduct.getCurrentStock());
+                batch.setExpirationDate(LocalDate.now().plusYears(1));
+                batch.setReceivedAt(java.time.LocalDateTime.now());
+                batch.setDepleted(false);
+                productBatchRepository.saveAndFlush(batch);
         }
 
         @Test

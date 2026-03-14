@@ -126,8 +126,28 @@ public class ProductService {
         }
 
         validateProductData(requestDTO);
-        Product product = productMapper.toEntity(requestDTO);
-        return productMapper.toResponseDTO(repository.save(product));
+
+        BigDecimal initialStock = requestDTO.getCurrentStock();
+        // Forzamos 0 stock inicial para que sea el ledger quien lo establezca y cree los lotes necesarios
+        requestDTO.setCurrentStock(BigDecimal.ZERO);
+
+        Product product = repository.saveAndFlush(productMapper.toEntity(requestDTO));
+
+        if (initialStock != null && initialStock.compareTo(BigDecimal.ZERO) > 0) {
+            User currentUser = securityContextHelper.getCurrentUser();
+            stockLedgerService.recordStockMovement(
+                    product.getId(),
+                    initialStock,
+                    MovementType.ENTRADA,
+                    i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_INITIAL_STOCK, new Object[]{product.getName()}),
+                    currentUser,
+                    null);
+
+            // Recargamos el producto para obtener el stock actualizado por el ledger
+            product = repository.findById(product.getId()).orElse(product);
+        }
+
+        return productMapper.toResponseDTO(product);
     }
 
     @CacheEvict(value = { "products_page", "product" }, allEntries = true)
@@ -170,6 +190,10 @@ public class ProductService {
             throw new InvalidOperationException(
                     i18nService.getMessage(MessageKey.ERROR_PRODUCT_DELETE_IN_RECIPE));
         }
+        
+        // Limpiamos datos relacionados del ledger y lotes antes de borrar el producto
+        stockLedgerService.resetProductLedger(id);
+        
         repository.delete(product);
     }
 
@@ -290,9 +314,7 @@ public class ProductService {
                                 currentUser,
                                 null);
 
-                        if (stockDelta.compareTo(BigDecimal.ZERO) > 0) {
-                            productBatchService.createBatch(existing, stockDelta, null, ledgerTx);
-                        }
+
 
                         Product updated = repository.findById(id).orElseThrow();
                         return productMapper.toResponseDTO(updated);

@@ -80,6 +80,16 @@ class StockLedgerServiceIntegrationTest {
                 testProduct.setMinimumStock(BigDecimal.ZERO); // Required field
                 testProduct = productRepository.saveAndFlush(testProduct);
 
+                ProductBatch batch = ProductBatch.builder()
+                                .product(testProduct)
+                                .initialQuantity(testProduct.getCurrentStock())
+                                .remainingQuantity(testProduct.getCurrentStock())
+                                .expirationDate(LocalDate.now().plusYears(1))
+                                .receivedAt(java.time.LocalDateTime.now())
+                                .depleted(false)
+                                .build();
+                productBatchRepository.saveAndFlush(batch);
+
                 testUser = null;
         }
 
@@ -148,7 +158,6 @@ class StockLedgerServiceIntegrationTest {
                                 testUser,
                                 null,
                                 LocalDate.now().plusDays(3));
-                productBatchService.createBatch(testProduct, new BigDecimal("10.0"), LocalDate.now().plusDays(3), firstEntry);
 
                 StockLedger secondEntry = stockLedgerService.recordStockMovement(
                                 testProduct.getId(),
@@ -158,7 +167,6 @@ class StockLedgerServiceIntegrationTest {
                                 testUser,
                                 null,
                                 LocalDate.now().plusDays(10));
-                productBatchService.createBatch(testProduct, new BigDecimal("10.0"), LocalDate.now().plusDays(10), secondEntry);
 
                 stockLedgerService.recordStockMovement(
                                 testProduct.getId(),
@@ -170,13 +178,13 @@ class StockLedgerServiceIntegrationTest {
 
                 List<ProductBatch> activeBatches = productBatchRepository.findActiveByProductIdOrderByExpiration(testProduct.getId());
 
-                assertEquals(1, activeBatches.size());
+                assertEquals(2, activeBatches.size()); // Batch B + Lote dummy del setUp
                 ProductBatch batchB = activeBatches.get(0);
                 assertEquals(LocalDate.now().plusDays(10), batchB.getExpirationDate());
                 assertEquals(new BigDecimal("8.000"), batchB.getRemainingQuantity());
 
                 long depletedCount = productBatchRepository.findByProductIdAndDepletedFalseOrderByExpirationDateAsc(testProduct.getId()).size();
-                assertEquals(1L, depletedCount);
+                assertEquals(2L, depletedCount); // Dummy + Batch B
         }
 
         @Test
@@ -420,7 +428,14 @@ class StockLedgerServiceIntegrationTest {
                                 testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX3", testUser,
                                 null);
 
-                jdbcTemplate.update("DELETE FROM stock_ledger WHERE transaction_id = ?", tx2.getId());
+                // Corromper la cadena eliminando una transacción intermedia (TX2) directamente vía JDBC
+                List<StockLedger> history = stockLedgerService.getProductHistory(testProduct.getId());
+                StockLedger txToDelete = history.get(1); // This should be TX2
+
+                // Primero borrar detalles de lotes y lotes que referencien a esta tx
+                jdbcTemplate.update("DELETE FROM stock_ledger_batch_detail WHERE ledger_transaction_id = ?", txToDelete.getId());
+                jdbcTemplate.update("DELETE FROM product_batch WHERE ledger_transaction_id = ?", txToDelete.getId());
+                jdbcTemplate.update("DELETE FROM stock_ledger WHERE transaction_id = ?", txToDelete.getId());
 
                 IntegrityCheckResult result = stockLedgerService
                                 .verifyChainIntegrity(testProduct.getId());

@@ -22,6 +22,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import com.economato.inventory.infrastructure.adapter.in.web.BaseIntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
-class RecipeServiceFefoIntegrationTest {
+class RecipeServiceFefoIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private RecipeService recipeService;
@@ -70,12 +71,7 @@ class RecipeServiceFefoIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        productBatchRepository.deleteAll();
-        stockLedgerRepository.deleteAll();
-        stockSnapshotRepository.deleteAll();
-        recipeRepository.deleteAll();
-        productRepository.deleteAll();
-        userRepository.deleteAll();
+        clearDatabase();
 
         user = new User();
         user.setName("fefo-user");
@@ -122,7 +118,6 @@ class RecipeServiceFefoIntegrationTest {
                 user,
                 null,
                 LocalDate.now().plusDays(2));
-        productBatchService.createBatch(product, new BigDecimal("10.000"), LocalDate.now().plusDays(2), tx1);
 
         StockLedger tx2 = stockLedgerService.recordStockMovement(
                 product.getId(),
@@ -132,7 +127,6 @@ class RecipeServiceFefoIntegrationTest {
                 user,
                 null,
                 LocalDate.now().plusDays(10));
-        productBatchService.createBatch(product, new BigDecimal("10.000"), LocalDate.now().plusDays(10), tx2);
 
         RecipeCookingRequestDTO request = new RecipeCookingRequestDTO();
         request.setRecipeId(recipe.getId());

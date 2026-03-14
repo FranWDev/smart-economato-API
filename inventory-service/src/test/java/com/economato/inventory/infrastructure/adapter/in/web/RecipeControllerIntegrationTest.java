@@ -37,7 +37,10 @@ import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
+import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.infrastructure.TestDataUtil;
+import java.time.LocalDate;
 
 class RecipeControllerIntegrationTest extends BaseIntegrationTest {
 
@@ -53,6 +56,9 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
         @Autowired
         private StockLedgerRepository stockLedgerRepository;
 
+        @Autowired
+        private ProductBatchRepository productBatchRepository;
+
         private Product testProduct;
         private User testUser;
         private String jwtToken;
@@ -66,6 +72,15 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
 
                 testProduct = TestDataUtil.createFlour();
                 testProduct = productRepository.saveAndFlush(testProduct);
+
+                ProductBatch batch = new ProductBatch();
+                batch.setProduct(testProduct);
+                batch.setInitialQuantity(testProduct.getCurrentStock());
+                batch.setRemainingQuantity(testProduct.getCurrentStock());
+                batch.setExpirationDate(LocalDate.now().plusYears(1));
+                batch.setReceivedAt(java.time.LocalDateTime.now());
+                batch.setDepleted(false);
+                productBatchRepository.saveAndFlush(batch);
 
                 LoginRequestDTO loginRequest = new LoginRequestDTO();
                 loginRequest.setName(testUser.getName());
