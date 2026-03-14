@@ -227,41 +227,30 @@ public class StockLedgerService {
                 BigDecimal newRemaining = currentRemaining.add(quantityToRestore)
                         .setScale(3, java.math.RoundingMode.HALF_UP);
 
-                if (newRemaining.compareTo(BigDecimal.ZERO) < 0) {
+                // Solo lanzamos la excepción si es una REDUCCIÓN de stock (reversión de una ENTRADA)
+                // Para una adición (reversión de una SALIDA/Cocinada), no debería haber problema de stock negativo.
+                if (quantityToRestore.compareTo(BigDecimal.ZERO) < 0 && newRemaining.compareTo(BigDecimal.ZERO) < 0) {
                     throw new InvalidOperationException(
-                            "No se puede revertir el movimiento del lote #" + batch.getId() + 
+                            "No se puede deshacer la entrada del lote #" + batch.getId() + 
                             " porque resultará en stock negativo (" + newRemaining + "). " +
-                            "Es posible que el stock ya haya sido consumido o desechado.");
+                            "El stock probablemente ya ha sido consumido.");
                 }
 
-                batch.setRemainingQuantity(newRemaining);
-                if (batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
-                    batch.setDepleted(false);
-                } else if (batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) == 0) {
-                    batch.setDepleted(true);
-                }
-                productBatchService.saveBatch(batch);
-
-                log.info("Lote restaurado: id={}, nuevaCantidad={}", batch.getId(), newRemaining);
+                log.info("Iniciando registro de contra-asiento en ledger para lote #{}", batch.getId());
 
                 // 3. Registrar contra-asiento en el ledger PARA ESTE LOTE
-                try {
-                    recordStockMovementInternal(
-                            originalTx.getProduct().getId(),
-                            quantityToRestore, 
-                            MovementType.REVERSION,
-                            "REVERSIÓN: " + reason + " (Lote #" + batch.getId() + ")",
-                            currentUser,
-                            originalTx.getOrderId(),
-                            originalTx.getExpirationDate(),
-                            reversalCorrelationId,
-                            batch.getId());
-                } catch (InvalidOperationException e) {
-                    log.error("Error al registrar reversión en el ledger: {}", e.getMessage());
-                    throw new InvalidOperationException(
-                            "No se puede revertir la operación: el stock total del producto " + 
-                            originalTx.getProduct().getName() + " quedaría en negativo.");
-                }
+                // IMPORTANTE: NO actualizamos el batch manualmente aquí arriba porque recordStockMovementInternal 
+                // con targetBatchId ya llama a productBatchService.addStockToBatch o consumeFromSpecificBatch.
+                recordStockMovementInternal(
+                        originalTx.getProduct().getId(),
+                        quantityToRestore, 
+                        MovementType.REVERSION,
+                        "REVERSIÓN: " + reason + " (Lote #" + batch.getId() + ")",
+                        currentUser,
+                        originalTx.getOrderId(),
+                        originalTx.getExpirationDate(),
+                        reversalCorrelationId,
+                        batch.getId());
             }
         }
     }
