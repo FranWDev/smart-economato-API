@@ -296,11 +296,23 @@ public class TraceabilityService {
 
                 lastEntrada.ifPresent(le -> {
                     builder.ledgerHash(le.getCurrentHash())
-                           .orderId(le.getOrderId());
+                           .orderId(le.getOrderId())
+                           .movementType(le.getMovementType() != null ? le.getMovementType().name() : null)
+                           .description(le.getDescription());
 
                     if (le.getOrderId() != null) {
                         orderRepository.findById(le.getOrderId()).ifPresent(
                                 o -> builder.supplierName(o.getSupplier().getName()));
+                    } else {
+                        // Si no hay orden, intentar usar el proveedor por defecto del producto
+                        Optional<Product> product = productRepository.findById(productId);
+                        product.ifPresent(p -> {
+                            if (p.getSupplier() != null) {
+                                builder.supplierName(p.getSupplier().getName() + " (Por defecto)");
+                            } else {
+                                builder.supplierName("Sin proveedor");
+                            }
+                        });
                     }
                 });
 
