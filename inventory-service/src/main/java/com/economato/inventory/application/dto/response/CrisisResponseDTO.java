@@ -40,8 +40,14 @@ public class CrisisResponseDTO {
     @Schema(description = "Lista de IDs de pedidos afectados")
     private List<Integer> affectedOrderIds;
 
+    @Schema(description = "Detalles de los pedidos afectados")
+    private List<CrisisAffectedOrderDTO> affectedOrders;
+
     @Schema(description = "Lista de IDs de auditorías de cocina afectadas")
     private List<Long> affectedCookingAuditIds;
+
+    @Schema(description = "Detalles de los cocinados afectados")
+    private List<CrisisAffectedCookingDTO> affectedCookings;
 
     @Schema(description = "Indica si la integridad de la cadena de bloques ha sido verificada")
     private boolean integrityVerified;

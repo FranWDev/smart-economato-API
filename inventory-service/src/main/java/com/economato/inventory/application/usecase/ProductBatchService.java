@@ -91,6 +91,56 @@ public class ProductBatchService {
         return consumptionDetails;
     }
 
+    @Transactional(rollbackFor = Exception.class)
+    public List<BatchConsumptionDetail> consumeFromSpecificBatch(Long batchId, BigDecimal quantity) {
+        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+            return List.of();
+        }
+
+        ProductBatch batch = batchRepository.findById(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lote no encontrado"));
+
+        if (batch.isDepleted() || batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) == 0) {
+            throw new InvalidOperationException("El lote específico está agotado.");
+        }
+
+        BigDecimal toConsume = quantity.min(batch.getRemainingQuantity());
+        BigDecimal newRemaining = batch.getRemainingQuantity()
+                .subtract(toConsume)
+                .setScale(3, java.math.RoundingMode.HALF_UP);
+                
+        batch.setRemainingQuantity(newRemaining);
+        if (batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) == 0) {
+            batch.setDepleted(true);
+        }
+        batchRepository.save(batch);
+
+        if (quantity.compareTo(toConsume) > 0) {
+            throw new InvalidOperationException("El lote específico no tiene suficiente stock para cubrir todo el ajuste.");
+        }
+
+        return List.of(new BatchConsumptionDetail(batch.getId(), toConsume));
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void addStockToBatch(Long batchId, BigDecimal quantity) {
+        if (quantity == null || quantity.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+        ProductBatch batch = batchRepository.findById(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lote no encontrado"));
+                
+        BigDecimal newRemaining = batch.getRemainingQuantity()
+                .add(quantity)
+                .setScale(3, java.math.RoundingMode.HALF_UP);
+                
+        batch.setRemainingQuantity(newRemaining);
+        if (newRemaining.compareTo(BigDecimal.ZERO) > 0) {
+            batch.setDepleted(false);
+        }
+        batchRepository.save(batch);
+    }
+
     @Transactional(readOnly = true)
     public List<ProductBatch> getActiveBatches(Integer productId) {
         return batchRepository.findByProductIdAndDepletedFalseOrderByExpirationDateAsc(productId);
