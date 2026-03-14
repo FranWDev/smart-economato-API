@@ -33,6 +33,10 @@ public class ReverseTraceabilityDTO {
         private String supplierName;
         @Schema(description = "ID del pedido de compra")
         private Integer orderId;
+        @Schema(description = "Tipo de movimiento")
+        private String movementType;
+        @Schema(description = "Descripción del movimiento")
+        private String description;
         @Schema(description = "Hash criptográfico en el libro mayor")
         private String ledgerHash;
     }
