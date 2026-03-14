@@ -16,6 +16,7 @@ public enum MessageKey {
     ERROR_AUTH_UNAUTHORIZED("error.auth.unauthorized"),
 
     ERROR_PRODUCT_ALREADY_EXISTS("error.product.already.exists"),
+    ERROR_PRODUCT_CODE_ALREADY_EXISTS("error.product.code.already.exists"),
     ERROR_PRODUCT_DELETE_HAS_MOVEMENTS("error.product.delete.has.movements"),
     ERROR_PRODUCT_DELETE_IN_RECIPE("error.product.delete.in.recipe"),
     ERROR_PRODUCT_INVALID_UNIT("error.product.invalid.unit"),

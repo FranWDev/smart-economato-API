@@ -125,6 +125,10 @@ public class ProductService {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_ALREADY_EXISTS));
         }
 
+        if (repository.existsByProductCode(requestDTO.getProductCode())) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_CODE_ALREADY_EXISTS));
+        }
+
         validateProductData(requestDTO);
 
         BigDecimal initialStock = requestDTO.getCurrentStock();
@@ -164,6 +168,14 @@ public class ProductService {
                         throw new InvalidOperationException(
                                 i18nService.getMessage(MessageKey.ERROR_PRODUCT_ALREADY_EXISTS));
                     }
+
+                    if (requestDTO.getProductCode() != null &&
+                            !requestDTO.getProductCode().equals(existing.getProductCode()) &&
+                            repository.existsByProductCode(requestDTO.getProductCode())) {
+                        throw new InvalidOperationException(
+                                i18nService.getMessage(MessageKey.ERROR_PRODUCT_CODE_ALREADY_EXISTS));
+                    }
+
                     validateProductData(requestDTO);
                     productMapper.updateEntity(requestDTO, existing);
 

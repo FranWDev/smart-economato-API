@@ -307,13 +307,19 @@ class ProductServiceTest {
 
     @Test
     void save_WhenNameExists_ShouldThrowException() {
-
-        when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(true);
-
-        assertThrows(InvalidOperationException.class, () -> {
-            productService.save(testProductRequestDTO);
-        });
+        when(repository.existsByName(anyString())).thenReturn(true);
+        assertThrows(InvalidOperationException.class, () -> productService.save(testProductRequestDTO));
         verify(repository).existsByName(testProductRequestDTO.getName());
+        verify(repository, never()).save(any(Product.class));
+    }
+
+    @Test
+    void save_WhenProductCodeExists_ShouldThrowException() {
+        when(repository.existsByName(anyString())).thenReturn(false);
+        when(repository.existsByProductCode(anyString())).thenReturn(true);
+        assertThrows(InvalidOperationException.class, () -> productService.save(testProductRequestDTO));
+        verify(repository).existsByName(testProductRequestDTO.getName());
+        verify(repository).existsByProductCode(testProductRequestDTO.getProductCode());
         verify(repository, never()).save(any(Product.class));
     }
 
@@ -366,8 +372,7 @@ class ProductServiceTest {
     }
 
     @Test
-    void update_WhenNameChangesAndNewNameExists_ShouldThrowException() {
-
+    void update_WhenNameExists_ShouldThrowException() {
         testProduct.setName("Old Name");
         testProductRequestDTO.setName("New Name");
         when(repository.findById(1)).thenReturn(Optional.of(testProduct));
@@ -378,6 +383,21 @@ class ProductServiceTest {
         });
         verify(repository).findById(1);
         verify(repository).existsByName("New Name");
+        verify(repository, never()).save(any(Product.class));
+    }
+
+    @Test
+    void update_WhenProductCodeExists_ShouldThrowException() {
+        testProduct.setProductCode("OLDCODE");
+        testProductRequestDTO.setProductCode("NEWCODE");
+        when(repository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(repository.existsByProductCode("NEWCODE")).thenReturn(true);
+
+        assertThrows(InvalidOperationException.class, () -> {
+            productService.update(1, testProductRequestDTO);
+        });
+        verify(repository).findById(1);
+        verify(repository).existsByProductCode("NEWCODE");
         verify(repository, never()).save(any(Product.class));
     }
 
