@@ -193,15 +193,38 @@ public class StockLedgerService {
         String reversalCorrelationId = "REV-" + correlationId;
 
         for (StockLedger originalTx : transactions) {
-            // 1. Obtener detalles de trazabilidad de lotes
+            // 1. Obtener detalles de trazabilidad de lotes originales
             List<StockLedgerBatchDetail> details = batchDetailRepository.findByLedgerTransactionId(originalTx.getId());
+            
+            // Si la transacción original no tiene detalles de lotes, algo falló en el origen, 
+            // pero aún así debemos intentar revertir el stock total.
+            if (details.isEmpty()) {
+                log.warn("La transacción original {} no tiene detalles de lotes. Revirtiendo solo stock total.", originalTx.getId());
+                recordStockMovementInternal(
+                        originalTx.getProduct().getId(),
+                        originalTx.getQuantityDelta().negate(),
+                        MovementType.REVERSION,
+                        "REVERSIÓN (Sin Lote): " + reason + " (Original: " + originalTx.getDescription() + ")",
+                        currentUser,
+                        originalTx.getOrderId(),
+                        originalTx.getExpirationDate(),
+                        reversalCorrelationId,
+                        null);
+                continue;
+            }
 
-            // 2. Restaurar cantidades en lotes
+            // 2. Restaurar cantidades en lotes y recolectar para el ledger de reversión
             for (StockLedgerBatchDetail detail : details) {
                 ProductBatch batch = detail.getBatch();
-                BigDecimal quantityToRestore = detail.getQuantity().negate(); // Invertir el efecto original
+                if (batch == null) {
+                    log.error("Lote nulo en detalle de transición {}. Saltando restauración de este lote.", detail.getId());
+                    continue;
+                }
 
-                BigDecimal newRemaining = batch.getRemainingQuantity().add(quantityToRestore)
+                BigDecimal quantityToRestore = detail.getQuantity().negate(); // Invertir el efecto original (si restó 5, restauramos 5)
+
+                BigDecimal currentRemaining = batch.getRemainingQuantity() != null ? batch.getRemainingQuantity() : BigDecimal.ZERO;
+                BigDecimal newRemaining = currentRemaining.add(quantityToRestore)
                         .setScale(3, java.math.RoundingMode.HALF_UP);
 
                 batch.setRemainingQuantity(newRemaining);
@@ -211,19 +234,20 @@ public class StockLedgerService {
                 productBatchService.saveBatch(batch);
 
                 log.info("Lote restaurado: id={}, nuevaCantidad={}", batch.getId(), newRemaining);
-            }
 
-            // 3. Registrar contra-asiento en el ledger
-            recordStockMovementInternal(
-                    originalTx.getProduct().getId(),
-                    originalTx.getQuantityDelta().negate(), // Invertir delta
-                    MovementType.REVERSION,
-                    "REVERSIÓN: " + reason + " (Original: " + originalTx.getDescription() + ")",
-                    currentUser,
-                    originalTx.getOrderId(),
-                    originalTx.getExpirationDate(),
-                    reversalCorrelationId,
-                    null);
+                // 3. Registrar contra-asiento en el ledger PARA ESTE LOTE
+                // Nota: Llamamos a recordStockMovementInternal con targetBatchId para que se cree el StockLedgerBatchDetail de la reversión.
+                recordStockMovementInternal(
+                        originalTx.getProduct().getId(),
+                        quantityToRestore, 
+                        MovementType.REVERSION,
+                        "REVERSIÓN: " + reason + " (Lote #" + batch.getId() + ")",
+                        currentUser,
+                        originalTx.getOrderId(),
+                        originalTx.getExpirationDate(),
+                        reversalCorrelationId,
+                        batch.getId());
+            }
         }
     }
 
