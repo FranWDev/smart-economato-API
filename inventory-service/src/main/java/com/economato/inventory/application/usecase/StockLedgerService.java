@@ -778,18 +778,15 @@ public class StockLedgerService {
         BigDecimal quantity = batch.getRemainingQuantity();
         Integer productId = batch.getProduct().getId();
 
-        // 1. Mark batch as depleted
-        productBatchService.depleteBatch(batchId);
-
-        // 2. Record ledger movement (using MERMA type to avoid automatic consumption of
-        // OTHER batches)
-        recordStockMovement(
+        // Use recordManualAdjustment with targetBatchId to correctly handle the withdrawal.
+        // This will internally call consumeFromSpecificBatch, which updates the batch and records the movement.
+        recordManualAdjustment(
                 productId,
                 quantity.negate(),
                 MovementType.MERMA,
                 "Retirada de lote caducado #" + batchId,
                 user,
-                null);
+                batchId);
 
         log.info("Lote caducado retirado: batchId={}, productId={}, qty={}", batchId, productId, quantity);
     }

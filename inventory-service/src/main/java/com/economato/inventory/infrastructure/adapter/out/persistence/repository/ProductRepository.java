@@ -21,6 +21,7 @@ import java.util.Optional;
 public interface ProductRepository extends JpaRepository<Product, Integer> {
 
         boolean existsByName(String name);
+        boolean existsByProductCode(String productCode);
 
         List<Product> findByType(String type);
 
