@@ -142,7 +142,32 @@ public class StockLedgerService {
             String correlationId) {
 
         return recordStockMovementInternal(productId, quantityDelta, movementType, description, user, orderId,
-                expirationDate, correlationId);
+                expirationDate, correlationId, null);
+    }
+
+    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
+    public StockLedger recordManualAdjustment(
+            Integer productId,
+            BigDecimal quantityDelta,
+            MovementType movementType,
+            String description,
+            User user,
+            Long targetBatchId) {
+        
+        return recordStockMovementInternal(productId, quantityDelta, movementType, description, user, null, null, null, targetBatchId);
+    }
+    
+    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
+    public StockLedger processManualAdjustment(com.economato.inventory.application.dto.request.ManualStockAdjustmentRequestDTO request) {
+        User currentUser = securityContextHelper.getCurrentUser();
+        return recordManualAdjustment(
+                request.getProductId(),
+                request.getQuantityDelta(),
+                request.getMovementType(),
+                request.getDescription(),
+                currentUser,
+                request.getBatchId()
+        );
     }
 
     /**
@@ -193,7 +218,8 @@ public class StockLedgerService {
                     currentUser,
                     originalTx.getOrderId(),
                     originalTx.getExpirationDate(),
-                    reversalCorrelationId);
+                    reversalCorrelationId,
+                    null);
         }
     }
 
@@ -205,7 +231,8 @@ public class StockLedgerService {
             User user,
             Integer orderId,
             java.time.LocalDate expirationDate,
-            String correlationId) {
+            String correlationId,
+            Long targetBatchId) {
 
         log.info("Registrando movimiento: Producto={}, Delta={}, Tipo={}",
                 productId, quantityDelta, movementType);
@@ -233,7 +260,15 @@ public class StockLedgerService {
         }
 
         List<BatchConsumptionDetail> batchMovements = new ArrayList<>();
-        if (quantityDelta.compareTo(BigDecimal.ZERO) < 0
+        
+        if (targetBatchId != null) {
+            if (quantityDelta.compareTo(BigDecimal.ZERO) < 0) {
+                batchMovements = productBatchService.consumeFromSpecificBatch(targetBatchId, quantityDelta.abs());
+            } else if (quantityDelta.compareTo(BigDecimal.ZERO) > 0) {
+                productBatchService.addStockToBatch(targetBatchId, quantityDelta);
+                batchMovements.add(new BatchConsumptionDetail(targetBatchId, quantityDelta.negate())); // Negative so it becomes positive when negated below
+            }
+        } else if (quantityDelta.compareTo(BigDecimal.ZERO) < 0
                 && (movementType == MovementType.SALIDA || movementType == MovementType.MODIFICACION
                         || movementType == MovementType.MERMA)) {
             if (productBatchService.hasActiveBatches(productId)) {

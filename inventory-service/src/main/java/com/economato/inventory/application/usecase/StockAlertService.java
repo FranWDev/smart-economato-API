@@ -313,7 +313,7 @@ public class StockAlertService {
                     .pendingOrderQuantity(BigDecimal.ZERO)
                     .projectedConsumption(BigDecimal.ZERO)
                     .effectiveGap(BigDecimal.ZERO)
-                    .estimatedDaysRemaining(999)
+                    .estimatedDaysRemaining((int) daysToExpire)
                     .severity(expirationSeverity)
                     .resolution(AlertResolution.UNCOVERED)
                     .message(expiringMessage)

@@ -15,6 +15,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.economato.inventory.application.dto.request.BatchStockMovementRequestDTO;
+import com.economato.inventory.application.dto.request.ManualStockAdjustmentRequestDTO;
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.response.BatchStockMovementResponseDTO;
 import com.economato.inventory.application.dto.response.IntegrityCheckResponseDTO;
@@ -226,6 +227,21 @@ public class StockLedgerController {
 
             return ResponseEntity.badRequest().body(errorResponse);
         }
+    }
+
+    @Operation(summary = "Realizar ajuste manual de stock", description = "Permite realizar un ajuste manual de stock para un producto, opcionalmente asignándolo a un lote específico para correcciones de inventario.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Ajuste manual registrado exitosamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = StockLedgerResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos o stock insuficiente"),
+            @ApiResponse(responseCode = "403", description = "Sin permisos para realizar la operación"),
+            @ApiResponse(responseCode = "500", description = "Error en la operación")
+    })
+    @PostMapping("/manual-adjustment")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<StockLedgerResponseDTO> registerManualAdjustment(
+            @Valid @RequestBody ManualStockAdjustmentRequestDTO request) {
+        StockLedger transaction = stockLedgerService.processManualAdjustment(request);
+        return ResponseEntity.ok(stockLedgerMapper.toDTO(transaction));
     }
 
     @Operation(summary = "Obtener consumo de un producto", description = "Calcula el consumo total de un producto en un periodo específico. "

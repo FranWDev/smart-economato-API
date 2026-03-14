@@ -4,6 +4,8 @@ import com.economato.inventory.application.dto.request.BatchMovementItem;
 import com.economato.inventory.application.dto.request.CrisisActivationRequestDTO;
 import com.economato.inventory.application.dto.request.CrisisLiftRequestDTO;
 import com.economato.inventory.application.dto.response.CrisisAffectedBatchDTO;
+import com.economato.inventory.application.dto.response.CrisisAffectedCookingDTO;
+import com.economato.inventory.application.dto.response.CrisisAffectedOrderDTO;
 import com.economato.inventory.application.dto.response.CrisisResponseDTO;
 import com.economato.inventory.application.dto.response.ForwardTraceabilityDTO;
 import com.economato.inventory.application.dto.response.ReverseTraceabilityDTO;
@@ -329,7 +331,21 @@ public class TraceabilityService {
                                 .quarantinedProducts(quarantinedProducts)
                                 .affectedBatches(buildAffectedBatchDetails(associations))
                                 .affectedOrderIds(affectedOrders.stream().map(Order::getId).toList())
+                                .affectedOrders(affectedOrders.stream().map(o -> CrisisAffectedOrderDTO.builder()
+                                                .orderId(o.getId())
+                                                .supplierName(o.getSupplier() != null ? o.getSupplier().getName() : crisis.getSupplier().getName())
+                                                .status(o.getStatus().name())
+                                                .createdAt(o.getOrderDate())
+                                                .totalItems(o.getDetails() != null ? o.getDetails().size() : 0)
+                                                .build()).toList())
                                 .affectedCookingAuditIds(affectedCookings.stream().map(RecipeCookingAudit::getId).toList())
+                                .affectedCookings(affectedCookings.stream().map(c -> CrisisAffectedCookingDTO.builder()
+                                                .cookingAuditId(c.getId())
+                                                .recipeName(c.getRecipe() != null ? c.getRecipe().getName() : "–")
+                                                .userName(c.getUser() != null ? c.getUser().getName() : "–")
+                                                .cookingDate(c.getCookingDate())
+                                                .quantityCooked(c.getQuantityCooked() != null ? c.getQuantityCooked().doubleValue() : 0.0)
+                                                .build()).toList())
                                 .integrityVerified(integrityVerified)
                                 .summary(i18nService.getMessage(MessageKey.TRACEABILITY_SUMMARY_FORWARD,
                                                 new Object[] { crisis.getSupplier().getName(), crisis.getDateFrom(),
