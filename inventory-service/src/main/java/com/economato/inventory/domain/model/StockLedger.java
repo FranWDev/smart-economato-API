@@ -76,6 +76,9 @@ public class StockLedger {
     @Column(name = "expiration_date")
     private LocalDate expirationDate;
 
+    @Column(name = "correlation_id", length = 64)
+    private String correlationId;
+
     @NotNull(message = "{validation.stockLedger.sequenceNumber.notNull}")
     @Column(name = "sequence_number", nullable = false)
     private Long sequenceNumber;

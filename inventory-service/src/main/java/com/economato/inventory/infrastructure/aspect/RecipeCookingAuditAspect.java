@@ -103,6 +103,7 @@ public class RecipeCookingAuditAspect {
                     .details(details.toString())
                     .componentsState(componentsState)
                     .cookingDate(LocalDateTime.now())
+                    .correlationId(cookingRequest.getCorrelationId())
                     .productHistories(productHistories)
                     .build();
 

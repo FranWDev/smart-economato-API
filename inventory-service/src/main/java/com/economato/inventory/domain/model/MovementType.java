@@ -9,7 +9,9 @@ public enum MovementType {
     CREACION("Creación de producto"),
     OCULTAR("Producto ocultado"),
     MOSTRAR("Producto mostrado"),
-    CUARENTENA("Cuarentena de stock");
+    CUARENTENA("Cuarentena de stock"),
+    MERMA("Retirada de stock/Merma"),
+    REVERSION("Reversión de movimiento");
 
 
     private final String description;

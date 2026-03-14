@@ -22,7 +22,8 @@ import java.time.LocalDateTime;
 @Table(name = "recipe_cooking_audit", indexes = {
         @Index(name = "idx_cooking_audit_recipe", columnList = "recipe_id"),
         @Index(name = "idx_cooking_audit_user", columnList = "user_id"),
-        @Index(name = "idx_cooking_audit_date", columnList = "cooking_date")
+        @Index(name = "idx_cooking_audit_date", columnList = "cooking_date"),
+        @Index(name = "idx_cooking_audit_correlation", columnList = "correlation_id")
 })
 @EntityListeners(AuditingEntityListener.class)
 public class RecipeCookingAudit {
@@ -54,6 +55,10 @@ public class RecipeCookingAudit {
 
     @Column(name = "components_state", columnDefinition = "TEXT")
     private String componentsState;
+
+    @Size(max = 64)
+    @Column(name = "correlation_id", length = 64)
+    private String correlationId;
 
     @CreatedDate
     @Column(name = "cooking_date", nullable = false, updatable = false)
