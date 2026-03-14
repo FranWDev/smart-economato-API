@@ -126,7 +126,8 @@ public class StockLedgerService {
             Integer orderId,
             java.time.LocalDate expirationDate) {
 
-        return recordStockMovement(productId, quantityDelta, movementType, description, user, orderId, expirationDate, null);
+        return recordStockMovement(productId, quantityDelta, movementType, description, user, orderId, expirationDate,
+                null);
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
@@ -146,12 +147,13 @@ public class StockLedgerService {
 
     /**
      * Revierte un grupo de movimientos asociados a un correlationId.
-     * Restaura el stock en los lotes originales y genera contra-asientos en el ledger.
+     * Restaura el stock en los lotes originales y genera contra-asientos en el
+     * ledger.
      */
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public void revertMovement(String correlationId, String reason) {
         log.info("Iniciando reversión de movimientos: correlationId={}, motivo={}", correlationId, reason);
-        
+
         List<StockLedger> transactions = ledgerRepository.findByCorrelationId(correlationId);
         if (transactions.isEmpty()) {
             log.warn("No se encontraron transacciones para el correlationId: {}", correlationId);
@@ -164,35 +166,34 @@ public class StockLedgerService {
         for (StockLedger originalTx : transactions) {
             // 1. Obtener detalles de trazabilidad de lotes
             List<StockLedgerBatchDetail> details = batchDetailRepository.findByLedgerTransactionId(originalTx.getId());
-            
+
             // 2. Restaurar cantidades en lotes
             for (StockLedgerBatchDetail detail : details) {
                 ProductBatch batch = detail.getBatch();
                 BigDecimal quantityToRestore = detail.getQuantity().negate(); // Invertir el efecto original
-                
+
                 BigDecimal newRemaining = batch.getRemainingQuantity().add(quantityToRestore)
                         .setScale(3, java.math.RoundingMode.HALF_UP);
-                
+
                 batch.setRemainingQuantity(newRemaining);
                 if (batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0) {
                     batch.setDepleted(false);
                 }
                 productBatchService.saveBatch(batch);
-                
+
                 log.info("Lote restaurado: id={}, nuevaCantidad={}", batch.getId(), newRemaining);
             }
-            
+
             // 3. Registrar contra-asiento en el ledger
             recordStockMovementInternal(
-                originalTx.getProduct().getId(),
-                originalTx.getQuantityDelta().negate(), // Invertir delta
-                MovementType.REVERSION,
-                "REVERSIÓN: " + reason + " (Original: " + originalTx.getDescription() + ")",
-                currentUser,
-                originalTx.getOrderId(),
-                originalTx.getExpirationDate(),
-                reversalCorrelationId
-            );
+                    originalTx.getProduct().getId(),
+                    originalTx.getQuantityDelta().negate(), // Invertir delta
+                    MovementType.REVERSION,
+                    "REVERSIÓN: " + reason + " (Original: " + originalTx.getDescription() + ")",
+                    currentUser,
+                    originalTx.getOrderId(),
+                    originalTx.getExpirationDate(),
+                    reversalCorrelationId);
         }
     }
 
@@ -233,7 +234,8 @@ public class StockLedgerService {
 
         List<BatchConsumptionDetail> batchMovements = new ArrayList<>();
         if (quantityDelta.compareTo(BigDecimal.ZERO) < 0
-            && (movementType == MovementType.SALIDA || movementType == MovementType.MODIFICACION || movementType == MovementType.MERMA)) {
+                && (movementType == MovementType.SALIDA || movementType == MovementType.MODIFICACION
+                        || movementType == MovementType.MERMA)) {
             if (productBatchService.hasActiveBatches(productId)) {
                 BigDecimal batchTotal = productBatchService.getTotalBatchStock(productId);
                 BigDecimal toConsume = quantityDelta.abs().min(batchTotal);
@@ -283,12 +285,14 @@ public class StockLedgerService {
         if (!batchMovements.isEmpty()) {
             for (BatchConsumptionDetail detail : batchMovements) {
                 ProductBatch affectedBatch = productBatchService.getBatchById(detail.getBatchId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Lote no encontrado durante el registro de trazabilidad"));
-                
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "Lote no encontrado durante el registro de trazabilidad"));
+
                 StockLedgerBatchDetail batchDetail = StockLedgerBatchDetail.builder()
                         .ledgerTransaction(transaction)
                         .batch(affectedBatch)
-                        .quantity(detail.getQuantityConsumed().negate()) // Guardamos la cantidad tal cual afectó al lote
+                        .quantity(detail.getQuantityConsumed().negate()) // Guardamos la cantidad tal cual afectó al
+                                                                         // lote
                         .build();
                 batchDetailRepository.save(batchDetail);
             }
@@ -352,7 +356,8 @@ public class StockLedgerService {
         List<StockLedger> chain = ledgerRepository.findByProductIdOrderBySequenceNumber(productId);
 
         if (chain.isEmpty()) {
-            return new IntegrityCheckResult(productId, productName, true, i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_NO_TRANSACTIONS),
+            return new IntegrityCheckResult(productId, productName, true,
+                    i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_NO_TRANSACTIONS),
                     null);
         }
 
@@ -363,12 +368,12 @@ public class StockLedgerService {
             StockLedger tx = chain.get(i);
 
             if (!tx.getPreviousHash().equals(expectedPreviousHash)) {
-                String error = i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_PREVIOUS_HASH_MISMATCH, 
-                    new Object[] {
-                        tx.getSequenceNumber(),
-                        expectedPreviousHash.substring(0, Math.min(8, expectedPreviousHash.length())),
-                        tx.getPreviousHash().substring(0, Math.min(8, tx.getPreviousHash().length()))
-                    });
+                String error = i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_PREVIOUS_HASH_MISMATCH,
+                        new Object[] {
+                                tx.getSequenceNumber(),
+                                expectedPreviousHash.substring(0, Math.min(8, expectedPreviousHash.length())),
+                                tx.getPreviousHash().substring(0, Math.min(8, tx.getPreviousHash().length()))
+                        });
                 errors.add(error);
             }
 
@@ -387,20 +392,20 @@ public class StockLedgerService {
                     tx.getSequenceNumber());
 
             if (!recalculatedHash.equals(tx.getCurrentHash())) {
-                String error = i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_HASH_CORRUPT, 
-                    new Object[] {
-                        tx.getSequenceNumber(),
-                        recalculatedHash.substring(0, Math.min(8, recalculatedHash.length())),
-                        tx.getCurrentHash().substring(0, Math.min(8, tx.getCurrentHash().length())),
-                        normalizedDelta,
-                        normalizedStock
-                    });
+                String error = i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_HASH_CORRUPT,
+                        new Object[] {
+                                tx.getSequenceNumber(),
+                                recalculatedHash.substring(0, Math.min(8, recalculatedHash.length())),
+                                tx.getCurrentHash().substring(0, Math.min(8, tx.getCurrentHash().length())),
+                                normalizedDelta,
+                                normalizedStock
+                        });
                 errors.add(error);
             }
 
             if (tx.getSequenceNumber() != (i + 1L)) {
-                String error = i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_SEQUENCE_BROKEN, 
-                    new Object[] { tx.getSequenceNumber(), (i + 1L) });
+                String error = i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_SEQUENCE_BROKEN,
+                        new Object[] { tx.getSequenceNumber(), (i + 1L) });
                 errors.add(error);
             }
 
@@ -447,10 +452,10 @@ public class StockLedgerService {
         return ledgerRepository.findByProductIdOrderBySequenceNumber(productId);
     }
 
-        @Transactional(readOnly = true)
-        public Page<StockLedger> getProductHistory(Integer productId, Pageable pageable) {
-                return ledgerRepository.findByProductId(productId, pageable);
-        }
+    @Transactional(readOnly = true)
+    public Page<StockLedger> getProductHistory(Integer productId, Pageable pageable) {
+        return ledgerRepository.findByProductId(productId, pageable);
+    }
 
     @Transactional(readOnly = true)
     public Optional<StockSnapshot> getCurrentStock(Integer productId) {
@@ -471,12 +476,12 @@ public class StockLedgerService {
                 .build();
     }
 
-        private LocalDateTime normalizeTimestamp(LocalDateTime timestamp) {
-                if (timestamp == null) {
-                        return null;
-                }
-                return timestamp.truncatedTo(ChronoUnit.MICROS);
+    private LocalDateTime normalizeTimestamp(LocalDateTime timestamp) {
+        if (timestamp == null) {
+            return null;
         }
+        return timestamp.truncatedTo(ChronoUnit.MICROS);
+    }
 
     @Transactional(rollbackFor = Exception.class)
     public String resetProductLedger(Integer productId) {
@@ -495,7 +500,7 @@ public class StockLedgerService {
         log.info("Historial restablecido: Producto {} - {} transacciones eliminadas. Stock actual: {}",
                 productId, deletedCount, product.getCurrentStock());
 
-        return i18nService.getMessage(MessageKey.LEDGER_RESET_SUCCESS, 
+        return i18nService.getMessage(MessageKey.LEDGER_RESET_SUCCESS,
                 new Object[] { deletedCount, product.getName(), product.getCurrentStock(), product.getUnit() });
     }
 
@@ -556,8 +561,8 @@ public class StockLedgerService {
         }
 
         IntegrityCheckResult verification = verifyChainIntegrity(productId);
-        String message = i18nService.getMessage(MessageKey.LEDGER_REPAIR_STATUS, 
-            new Object[] { repairedTransactions, chain.size(), verification.getMessage() });
+        String message = i18nService.getMessage(MessageKey.LEDGER_REPAIR_STATUS,
+                new Object[] { repairedTransactions, chain.size(), verification.getMessage() });
 
         return new IntegrityCheckResult(
                 productId,
@@ -585,16 +590,17 @@ public class StockLedgerService {
                         item.getMovementType(),
                         item.getDescription(),
                         user,
-                    orderId,
-                    item.getExpirationDate());
+                        orderId,
+                        item.getExpirationDate(),
+                        null);
 
                 if (item.getMovementType() == MovementType.ENTRADA
-                    && item.getQuantityDelta().compareTo(BigDecimal.ZERO) > 0) {
+                        && item.getQuantityDelta().compareTo(BigDecimal.ZERO) > 0) {
                     productBatchService.createBatch(
-                        transaction.getProduct(),
-                        item.getQuantityDelta(),
-                        item.getExpirationDate(),
-                        transaction);
+                            transaction.getProduct(),
+                            item.getQuantityDelta(),
+                            item.getExpirationDate(),
+                            transaction);
                 }
                 transactions.add(transaction);
             }
@@ -620,8 +626,8 @@ public class StockLedgerService {
                         item.getProductId(),
                         item.getQuantityDelta(),
                         item.getMovementType(),
-                    item.getDescription() != null ? item.getDescription() : request.getReason(),
-                    item.getExpirationDate()))
+                        item.getDescription() != null ? item.getDescription() : request.getReason(),
+                        item.getExpirationDate()))
                 .collect(Collectors.toList());
 
         List<StockLedger> transactions = recordBatchStockMovements(movements, currentUser, request.getOrderId());
@@ -658,8 +664,10 @@ public class StockLedgerService {
     }
 
     /**
-     * Verifica la integridad de las cadenas de todos los productos que tienen ledger.
-     * A diferencia de verifyAllChains(), este método solo verifica productos con transacciones,
+     * Verifica la integridad de las cadenas de todos los productos que tienen
+     * ledger.
+     * A diferencia de verifyAllChains(), este método solo verifica productos con
+     * transacciones,
      * evitando procesar productos sin historial.
      * 
      * @return Lista de resultados de verificación de integridad
@@ -667,27 +675,29 @@ public class StockLedgerService {
     @Transactional(readOnly = true)
     public List<IntegrityCheckResult> verifyProductsWithLedger() {
         log.info("Verificando integridad de productos con ledger...");
-        
+
         List<Integer> productIds = getProductsWithLedger();
         List<IntegrityCheckResult> results = new ArrayList<>();
-        
+
         for (Integer productId : productIds) {
             IntegrityCheckResult result = verifyChainIntegrity(productId);
             results.add(result);
         }
-        
+
         long validChains = results.stream().filter(IntegrityCheckResult::isValid).count();
-        log.info("Verificación de productos con ledger completa: {}/{} cadenas íntegras", 
-                 validChains, results.size());
-        
+        log.info("Verificación de productos con ledger completa: {}/{} cadenas íntegras",
+                validChains, results.size());
+
         return results;
     }
 
     @Transactional(readOnly = true)
-    public ProductConsumptionResponseDTO getProductConsumption(Integer productId, LocalDateTime startDate, LocalDateTime endDate) {
+    public ProductConsumptionResponseDTO getProductConsumption(Integer productId, LocalDateTime startDate,
+            LocalDateTime endDate) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new InvalidOperationException(
-                        i18nService.getMessage(MessageKey.ERROR_CONSUMPTION_PRODUCT_NOT_FOUND, new Object[]{productId})));
+                        i18nService.getMessage(MessageKey.ERROR_CONSUMPTION_PRODUCT_NOT_FOUND,
+                                new Object[] { productId })));
 
         if (startDate.isAfter(endDate)) {
             throw new InvalidOperationException(
@@ -695,7 +705,7 @@ public class StockLedgerService {
         }
 
         List<Object[]> results = ledgerRepository.getConsumptionByProductIdAndDateRange(productId, startDate, endDate);
-        
+
         List<ProductConsumptionResponseDTO.DailyConsumptionDTO> breakdown = results.stream()
                 .map(row -> {
                     java.sql.Date sqlDate = (java.sql.Date) row[0];
@@ -730,16 +740,16 @@ public class StockLedgerService {
         // 1. Mark batch as depleted
         productBatchService.depleteBatch(batchId);
 
-        // 2. Record ledger movement (using MERMA type to avoid automatic consumption of OTHER batches)
+        // 2. Record ledger movement (using MERMA type to avoid automatic consumption of
+        // OTHER batches)
         recordStockMovement(
                 productId,
                 quantity.negate(),
                 MovementType.MERMA,
                 "Retirada de lote caducado #" + batchId,
                 user,
-                null
-        );
-        
+                null);
+
         log.info("Lote caducado retirado: batchId={}, productId={}, qty={}", batchId, productId, quantity);
     }
 }

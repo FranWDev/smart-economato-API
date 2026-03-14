@@ -13,6 +13,7 @@ import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.application.dto.BatchConsumptionDetail;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -91,14 +92,14 @@ class ProductBatchServiceTest {
 
         when(batchRepository.findActiveByProductIdOrderByExpiration(1)).thenReturn(List.of(older, newer));
 
-        List<ProductBatch> affected = productBatchService.consumeStock(1, new BigDecimal("5.000"));
+        List<BatchConsumptionDetail> affected = productBatchService.consumeStock(1, new BigDecimal("5.000"));
 
         assertEquals(new BigDecimal("0.000"), older.getRemainingQuantity());
         assertTrue(older.isDepleted());
         assertEquals(new BigDecimal("2.000"), newer.getRemainingQuantity());
         assertTrue(!newer.isDepleted());
         assertEquals(2, affected.size());
-        verify(batchRepository).saveAll(affected);
+        verify(batchRepository).saveAll(any());
     }
 
     @Test
