@@ -38,6 +38,7 @@ import java.util.Optional;
 
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.domain.model.User;
+import com.economato.inventory.domain.model.MovementType;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -86,6 +87,8 @@ class ProductServiceTest {
     @BeforeEach
     void setUp() {
         Mockito.lenient().when(i18nService.getMessage(ArgumentMatchers.any(MessageKey.class)))
+                .thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
+        Mockito.lenient().when(i18nService.getMessage(ArgumentMatchers.any(MessageKey.class), ArgumentMatchers.any(Object[].class)))
                 .thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).name());
         testProduct = new Product();
         testProduct.setId(1);
@@ -299,7 +302,7 @@ class ProductServiceTest {
         assertEquals(testProductResponseDTO.getName(), result.getName());
         verify(repository).existsByName(testProductRequestDTO.getName());
         verify(repository).saveAndFlush(testProduct);
-        verify(stockLedgerService).recordStockMovement(any(), any(), any(), any(), any(), any());
+        verify(stockLedgerService).recordStockMovement(eq(1), any(BigDecimal.class), eq(MovementType.ENTRADA), anyString(), any(User.class), ArgumentMatchers.isNull(), ArgumentMatchers.isNull());
     }
 
     @Test

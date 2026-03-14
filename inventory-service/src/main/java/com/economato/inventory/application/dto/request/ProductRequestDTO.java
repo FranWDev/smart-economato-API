@@ -61,4 +61,7 @@ public class ProductRequestDTO {
 
     @Schema(description = "ID del proveedor del producto", example = "1")
     private Integer supplierId;
+
+    @Schema(description = "Fecha de expiración para el stock inicial", example = "2026-12-31")
+    private java.time.LocalDate expirationDate;
 }
