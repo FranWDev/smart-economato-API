@@ -98,6 +98,11 @@ public class ProductBatchService {
     }
 
     @Transactional(readOnly = true)
+    public BigDecimal getTotalBatchStock(Integer productId) {
+        return batchRepository.sumRemainingQuantityByProductId(productId);
+    }
+
+    @Transactional(readOnly = true)
     public List<ProductBatch> getExpiringBatches(int days) {
         return batchRepository.findExpiringBefore(LocalDate.now().plusDays(days));
     }

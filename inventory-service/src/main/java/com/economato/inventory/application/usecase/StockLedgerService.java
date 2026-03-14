@@ -159,7 +159,11 @@ public class StockLedgerService {
         if (quantityDelta.compareTo(BigDecimal.ZERO) < 0
             && (movementType == MovementType.SALIDA || movementType == MovementType.MODIFICACION)) {
             if (productBatchService.hasActiveBatches(productId)) {
-                productBatchService.consumeStock(productId, quantityDelta.abs());
+                BigDecimal batchTotal = productBatchService.getTotalBatchStock(productId);
+                BigDecimal toConsume = quantityDelta.abs().min(batchTotal);
+                if (toConsume.compareTo(BigDecimal.ZERO) > 0) {
+                    productBatchService.consumeStock(productId, toConsume);
+                }
             }
         }
 
