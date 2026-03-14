@@ -358,11 +358,11 @@ public class RecipeService {
             
             log.info("Cocinado revertido exitosamente: auditId={}, correlationId={}", auditId, audit.getCorrelationId());
         } catch (ResourceNotFoundException | InvalidOperationException e) {
-            log.error("Error validado al revertir cocinado: {}", e.getMessage());
+            log.warn("Error validado al revertir cocinado: {}", e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("Error inesperado al revertir cocinado (500): {}", e.getMessage(), e);
-            throw new RuntimeException("Error interno al revertir el cocinado: " + e.getMessage(), e);
+            log.error("Error inesperado al revertir cocinado: {}", e.getMessage(), e);
+            throw e; // Permitir que ruede hasta el GlobalExceptionHandler
         }
     }
 }
