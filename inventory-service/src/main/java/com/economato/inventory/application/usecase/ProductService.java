@@ -141,7 +141,8 @@ public class ProductService {
                     MovementType.ENTRADA,
                     i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_INITIAL_STOCK, new Object[]{product.getName()}),
                     currentUser,
-                    null);
+                    null,
+                    requestDTO.getExpirationDate());
 
             // Recargamos el producto para obtener el stock actualizado por el ledger
             product = repository.findById(product.getId()).orElse(product);
@@ -312,7 +313,8 @@ public class ProductService {
                                 i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_MANUAL_ADJUSTMENT,
                                         new Object[] { existing.getName() }),
                                 currentUser,
-                                null);
+                                null,
+                                requestDTO.getExpirationDate());
 
 
 
