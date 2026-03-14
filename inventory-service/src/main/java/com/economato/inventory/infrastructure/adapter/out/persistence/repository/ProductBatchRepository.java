@@ -9,22 +9,22 @@ import org.springframework.data.repository.query.Param;
 
 public interface ProductBatchRepository extends JpaRepository<ProductBatch, Long> {
 
-    @Query("SELECT b FROM ProductBatch b " +
+    @Query("SELECT b FROM ProductBatch b JOIN FETCH b.product " +
             "WHERE b.product.id = :productId AND b.depleted = false " +
             "ORDER BY CASE WHEN b.expirationDate IS NULL THEN 1 ELSE 0 END, b.expirationDate ASC, b.receivedAt ASC")
     List<ProductBatch> findActiveByProductIdOrderByExpiration(@Param("productId") Integer productId);
 
-    @Query("SELECT b FROM ProductBatch b " +
+    @Query("SELECT b FROM ProductBatch b JOIN FETCH b.product " +
             "WHERE b.depleted = false AND b.expirationDate IS NOT NULL AND b.expirationDate <= :date " +
             "ORDER BY b.expirationDate ASC")
     List<ProductBatch> findExpiringBefore(@Param("date") LocalDate date);
 
-    @Query("SELECT b FROM ProductBatch b " +
+    @Query("SELECT b FROM ProductBatch b JOIN FETCH b.product " +
             "WHERE b.depleted = false AND b.expirationDate IS NOT NULL AND b.expirationDate < CURRENT_DATE " +
             "ORDER BY b.expirationDate ASC")
     List<ProductBatch> findExpiredWithRemainingStock();
 
-    @Query("SELECT b FROM ProductBatch b " +
+    @Query("SELECT b FROM ProductBatch b JOIN FETCH b.product " +
             "WHERE b.product.id = :productId AND b.depleted = false " +
             "ORDER BY CASE WHEN b.expirationDate IS NULL THEN 1 ELSE 0 END, b.expirationDate ASC, b.receivedAt ASC")
     List<ProductBatch> findByProductIdAndDepletedFalseOrderByExpirationDateAsc(@Param("productId") Integer productId);
