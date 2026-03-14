@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import org.mockito.InjectMocks;
@@ -478,7 +479,9 @@ class RecipeServiceTest {
                 eq(MovementType.SALIDA),
                 any(),
                 any(),
-                isNull());
+                isNull(),
+                isNull(),
+                anyString());
     }
 
     @Test
@@ -495,7 +498,7 @@ class RecipeServiceTest {
         });
 
         verify(repository).findByIdWithDetails(999);
-        verify(stockLedgerService, never()).recordStockMovement(anyInt(), any(), any(), any(), any(), any());
+        verify(stockLedgerService, never()).recordStockMovement(anyInt(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -517,7 +520,7 @@ class RecipeServiceTest {
         });
 
         assertTrue(exception.getMessage().contains("ERROR_RECIPE_NO_COMPONENTS"));
-        verify(stockLedgerService, never()).recordStockMovement(anyInt(), any(), any(), any(), any(), any());
+        verify(stockLedgerService, never()).recordStockMovement(anyInt(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -538,7 +541,7 @@ class RecipeServiceTest {
 
         assertTrue(exception.getMessage().contains("ERROR_RECIPE_STOCK_INSUFFICIENT"));
         assertTrue(exception.getMessage().contains(testProduct.getName()));
-        verify(stockLedgerService, never()).recordStockMovement(anyInt(), any(), any(), any(), any(), any());
+        verify(stockLedgerService, never()).recordStockMovement(anyInt(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -556,7 +559,7 @@ class RecipeServiceTest {
         });
 
         verify(productRepository).findById(1);
-        verify(stockLedgerService, never()).recordStockMovement(anyInt(), any(), any(), any(), any(), any());
+        verify(stockLedgerService, never()).recordStockMovement(anyInt(), any(), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -593,7 +596,9 @@ class RecipeServiceTest {
                 eq(MovementType.SALIDA),
                 any(),
                 any(),
-                isNull());
+                isNull(),
+                isNull(),
+                anyString());
     }
 
     @Test
@@ -620,7 +625,9 @@ class RecipeServiceTest {
                 eq(MovementType.SALIDA),
                 any(),
                 any(),
-                isNull());
+                isNull(),
+                isNull(),
+                anyString());
     }
 
     @Test
