@@ -30,6 +30,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockSnapshotRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 
@@ -62,6 +63,7 @@ public class StockLedgerService {
     private final ProductBatchService productBatchService;
     private final SecurityContextHelper securityContextHelper;
     private final StockLedgerBatchDetailRepository batchDetailRepository;
+    private final ProductBatchRepository batchRepository;
     private final Environment environment;
 
     // Métricas declaradas como final para thread-safety
@@ -80,6 +82,7 @@ public class StockLedgerService {
             ProductBatchService productBatchService,
             SecurityContextHelper securityContextHelper,
             StockLedgerBatchDetailRepository batchDetailRepository,
+            ProductBatchRepository batchRepository,
             Environment environment,
             MeterRegistry meterRegistry) {
         this.i18nService = i18nService;
@@ -91,6 +94,7 @@ public class StockLedgerService {
         this.productBatchService = productBatchService;
         this.securityContextHelper = securityContextHelper;
         this.batchDetailRepository = batchDetailRepository;
+        this.batchRepository = batchRepository;
         this.environment = environment;
 
         // Inicializar métricas
@@ -271,13 +275,8 @@ public class StockLedgerService {
         } else if (quantityDelta.compareTo(BigDecimal.ZERO) < 0
                 && (movementType == MovementType.SALIDA || movementType == MovementType.MODIFICACION
                         || movementType == MovementType.MERMA)) {
-            if (productBatchService.hasActiveBatches(productId)) {
-                BigDecimal batchTotal = productBatchService.getTotalBatchStock(productId);
-                BigDecimal toConsume = quantityDelta.abs().min(batchTotal);
-                if (toConsume.compareTo(BigDecimal.ZERO) > 0) {
-                    batchMovements = productBatchService.consumeStock(productId, toConsume);
-                }
-            }
+            BigDecimal toConsume = quantityDelta.abs();
+            batchMovements = productBatchService.consumeStock(productId, toConsume);
         }
 
         Optional<StockLedger> lastTransaction = ledgerRepository.findLastTransactionByProductId(productId);
@@ -314,7 +313,19 @@ public class StockLedgerService {
                 .verified(true)
                 .build();
 
-        transaction = ledgerRepository.save(transaction);
+        transaction = ledgerRepository.saveAndFlush(transaction);
+
+        // Crear lote automáticamente para cualquier delta positivo sin targetBatchId
+        if (targetBatchId == null
+                && quantityDelta.compareTo(BigDecimal.ZERO) > 0
+                && movementType != MovementType.REVERSION) {
+            ProductBatch newBatch = productBatchService.createBatch(
+                    product,
+                    normalizedDelta,
+                    expirationDate,
+                    transaction);
+            batchMovements.add(new BatchConsumptionDetail(newBatch.getId(), normalizedDelta.negate()));
+        }
 
         // Guardar detalles de trazabilidad de lotes si existen
         if (!batchMovements.isEmpty()) {
@@ -529,6 +540,8 @@ public class StockLedgerService {
         log.warn("RESTABLECIENDO HISTORIAL: Producto {} - {} transacciones serán eliminadas",
                 productId, deletedCount);
 
+        batchDetailRepository.deleteAllByProductId(productId);
+        batchRepository.deleteAllByProductId(productId);
         ledgerRepository.deleteAllByProductId(productId);
         snapshotRepository.deleteById(productId);
 
@@ -627,16 +640,9 @@ public class StockLedgerService {
                         user,
                         orderId,
                         item.getExpirationDate(),
+                        null,
                         null);
 
-                if (item.getMovementType() == MovementType.ENTRADA
-                        && item.getQuantityDelta().compareTo(BigDecimal.ZERO) > 0) {
-                    productBatchService.createBatch(
-                            transaction.getProduct(),
-                            item.getQuantityDelta(),
-                            item.getExpirationDate(),
-                            transaction);
-                }
                 transactions.add(transaction);
             }
 

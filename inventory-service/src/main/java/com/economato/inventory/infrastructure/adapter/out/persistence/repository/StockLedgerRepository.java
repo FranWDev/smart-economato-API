@@ -55,7 +55,7 @@ public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> 
             @Param("startDate") java.time.LocalDateTime startDate,
             @Param("endDate") java.time.LocalDateTime endDate);
 
-    @Modifying
+    @Modifying(clearAutomatically = true)
     @Transactional
     void deleteAllByProductId(Integer productId);
 

@@ -12,11 +12,14 @@ import redis.embedded.RedisServer;
  * Uses port 6370 to avoid conflicts with a local Redis instance.
  * On Windows, may fail silently and allow tests to continue.
  */
-@Slf4j
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @TestConfiguration
 @Profile("resilience-test")
 public class EmbeddedRedisTestConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(EmbeddedRedisTestConfig.class);
     private RedisServer redisServer;
     private boolean redisStarted = false;
 

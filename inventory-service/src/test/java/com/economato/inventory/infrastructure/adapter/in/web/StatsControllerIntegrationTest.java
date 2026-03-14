@@ -38,10 +38,7 @@ class StatsControllerIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        recipeRepository.deleteAll();
-        allergenRepository.deleteAll();
-        productRepository.deleteAll();
-        userRepository.deleteAll();
+        clearDatabase();
 
         User admin = TestDataUtil.createAdminUser();
         userRepository.saveAndFlush(admin);

@@ -25,7 +25,10 @@ import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
+import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.infrastructure.TestDataUtil;
+import java.time.LocalDate;
 
 class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
 
@@ -40,6 +43,9 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private StockLedgerRepository stockLedgerRepository;
+
+    @Autowired
+    private ProductBatchRepository productBatchRepository;
 
     private Product product1;
     private Product product2;
@@ -64,6 +70,12 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
                 new BigDecimal("0.20"), "HUE001", new BigDecimal("200.0"));
         product3 = productRepository.saveAndFlush(product3);
 
+        List<ProductBatch> batches = new ArrayList<>();
+        batches.add(createDummyBatch(product1));
+        batches.add(createDummyBatch(product2));
+        batches.add(createDummyBatch(product3));
+        productBatchRepository.saveAllAndFlush(batches);
+
         LoginRequestDTO loginRequest = new LoginRequestDTO();
         loginRequest.setName(testUser.getName());
         loginRequest.setPassword("admin123");
@@ -76,6 +88,17 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
 
         LoginResponseDTO loginResponse = objectMapper.readValue(response, LoginResponseDTO.class);
         jwtToken = loginResponse.getToken();
+    }
+
+    private ProductBatch createDummyBatch(Product p) {
+        ProductBatch b = new ProductBatch();
+        b.setProduct(p);
+        b.setInitialQuantity(p.getCurrentStock());
+        b.setRemainingQuantity(p.getCurrentStock());
+        b.setExpirationDate(LocalDate.now().plusYears(1));
+        b.setReceivedAt(java.time.LocalDateTime.now());
+        b.setDepleted(false);
+        return b;
     }
 
     @Test

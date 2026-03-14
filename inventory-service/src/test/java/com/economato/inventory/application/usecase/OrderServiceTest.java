@@ -415,7 +415,6 @@ class OrderServiceTest {
         verify(productRepository).findByIdForUpdate(1);
         verify(stockLedgerService).recordStockMovement(
             anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
-        verify(productBatchService).createBatch(any(Product.class), any(BigDecimal.class), eq(receptionItem.getExpirationDate()), any(StockLedger.class));
         verify(repository).save(testOrder);
     }
 

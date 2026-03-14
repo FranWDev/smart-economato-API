@@ -5,6 +5,7 @@ import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;

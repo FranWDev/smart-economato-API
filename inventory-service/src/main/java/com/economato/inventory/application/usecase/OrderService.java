@@ -321,11 +321,6 @@ public class OrderService {
                                         order.getId(),
                                         receptionItem != null ? receptionItem.getExpirationDate() : null);
 
-                        productBatchService.createBatch(
-                                        product,
-                                        detail.getQuantityReceived(),
-                                        receptionItem != null ? receptionItem.getExpirationDate() : null,
-                                        ledgerTx);
                 }
         }
 

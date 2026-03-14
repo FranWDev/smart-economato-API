@@ -11,6 +11,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +60,17 @@ public class TraceabilityController {
     @Operation(summary = "Obtener todas las crisis registradas")
     public ResponseEntity<List<CrisisResponseDTO>> getAllCrises() {
         return ResponseEntity.ok(traceabilityService.getAllCrises());
+    }
+
+    @GetMapping("/crisis/history")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+    @Operation(summary = "Obtener historial de crisis (paginado y filtrado)")
+    public ResponseEntity<Page<CrisisResponseDTO>> getCrisisHistory(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String search) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "activatedAt"));
+        return ResponseEntity.ok(traceabilityService.getCrisisHistory(search, pageable));
     }
 
     @GetMapping("/crisis/{crisisId}")

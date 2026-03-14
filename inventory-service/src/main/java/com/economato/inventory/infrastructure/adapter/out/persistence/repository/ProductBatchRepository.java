@@ -7,7 +7,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.transaction.annotation.Transactional;
+
 public interface ProductBatchRepository extends JpaRepository<ProductBatch, Long> {
+
+    @Modifying(clearAutomatically = true)
+    @Transactional
+    void deleteAllByProductId(Integer productId);
 
     @Query("SELECT b FROM ProductBatch b JOIN FETCH b.product " +
             "WHERE b.product.id = :productId AND b.depleted = false " +

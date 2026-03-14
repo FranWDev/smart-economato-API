@@ -17,11 +17,15 @@ import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.Role;
 import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.User;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockSnapshotRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
+import com.economato.inventory.domain.model.ProductBatch;
+import java.time.LocalDate;
 
+import com.economato.inventory.infrastructure.adapter.in.web.BaseIntegrationTest;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -34,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 @Transactional
 @DisplayName("ProductService - Stock Ledger Integration Tests")
-class ProductServiceStockLedgerIntegrationTest {
+class ProductServiceStockLedgerIntegrationTest extends BaseIntegrationTest {
 
         @Autowired
         private ProductService productService;
@@ -51,15 +55,15 @@ class ProductServiceStockLedgerIntegrationTest {
         @Autowired
         private UserRepository userRepository;
 
+        @Autowired
+        private ProductBatchRepository productBatchRepository;
+
         private Product testProduct;
         private User testUser;
 
         @BeforeEach
         void setUp() {
-
-                stockLedgerRepository.deleteAll();
-                snapshotRepository.deleteAll();
-                productRepository.deleteAll();
+                clearDatabase();
                 userRepository.deleteAll();
 
                 testUser = new User();
@@ -78,6 +82,16 @@ class ProductServiceStockLedgerIntegrationTest {
                 testProduct.setCurrentStock(new BigDecimal("100.0"));
                 testProduct.setMinimumStock(BigDecimal.ZERO); // Required field
                 testProduct = productRepository.saveAndFlush(testProduct);
+
+                ProductBatch batch = ProductBatch.builder()
+                                .product(testProduct)
+                                .initialQuantity(testProduct.getCurrentStock())
+                                .remainingQuantity(testProduct.getCurrentStock())
+                                .expirationDate(LocalDate.now().plusYears(1))
+                                .receivedAt(java.time.LocalDateTime.now())
+                                .depleted(false)
+                                .build();
+                productBatchRepository.saveAndFlush(batch);
 
                 Authentication auth = new UsernamePasswordAuthenticationToken(
                                 testUser.getName(), null, null);

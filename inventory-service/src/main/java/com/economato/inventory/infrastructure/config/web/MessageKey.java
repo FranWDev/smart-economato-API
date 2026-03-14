@@ -146,6 +146,7 @@ public enum MessageKey {
     ERROR_ORDER_DETAIL_UPDATED_NOT_FOUND("error.order.detail.updated.not.found"),
     LEDGER_DESCRIPTION_MANUAL_ADJUSTMENT("ledger.description.manual.adjustment"),
     LEDGER_DESCRIPTION_COOKING("ledger.description.cooking"),
+    LEDGER_DESCRIPTION_INITIAL_STOCK("ledger.description.initial.stock"),
     ERROR_AUTH_TOKEN_REVOKE_FAILED("error.auth.token.revoke.failed"),
     ERROR_USER_FIRST_LOGIN_REACTIVATE_DENIED("error.user.first.login.reactivate.denied"),
     ERROR_USER_TEACHER_NOT_FOUND("error.user.teacher.not.found"),

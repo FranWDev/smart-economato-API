@@ -44,9 +44,7 @@ class ProductLedgerIntegrityControllerIntegrationTest extends BaseIntegrationTes
         @BeforeEach
         void setUp() throws Exception {
                 // Limpiar base de datos
-                stockLedgerRepository.deleteAll();
-                productRepository.deleteAll();
-                userRepository.deleteAll();
+                clearDatabase();
 
                 // Crear usuario Chef para autenticación
                 User chefUser = TestDataUtil.createChefUser();

@@ -31,9 +31,7 @@ class InventoryAuditFilteringIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        inventoryAuditRepository.deleteAll();
-        productRepository.deleteAll();
-        userRepository.deleteAll();
+        clearDatabase();
 
         User admin = TestDataUtil.createAdminUser();
         userRepository.saveAndFlush(admin);
