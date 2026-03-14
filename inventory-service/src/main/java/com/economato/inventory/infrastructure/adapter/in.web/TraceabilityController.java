@@ -51,6 +51,13 @@ public class TraceabilityController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/crisis")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+    @Operation(summary = "Obtener todas las crisis registradas")
+    public ResponseEntity<List<CrisisResponseDTO>> getAllCrises() {
+        return ResponseEntity.ok(traceabilityService.getAllCrises());
+    }
+
     @GetMapping("/crisis/{crisisId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
     @Operation(summary = "Obtener una crisis por ID")

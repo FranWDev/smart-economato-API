@@ -97,6 +97,11 @@ public class ProductBatchService {
     }
 
     @Transactional(readOnly = true)
+    public List<ProductBatch> getAllBatches(Integer productId) {
+        return batchRepository.findByProductIdOrderByExpirationDateAsc(productId);
+    }
+
+    @Transactional(readOnly = true)
     public boolean hasActiveBatches(Integer productId) {
         return !batchRepository.findByProductIdAndDepletedFalseOrderByExpirationDateAsc(productId).isEmpty();
     }
