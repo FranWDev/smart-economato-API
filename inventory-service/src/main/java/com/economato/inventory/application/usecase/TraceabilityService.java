@@ -272,42 +272,47 @@ public class TraceabilityService {
                                 .orElseThrow(() -> new InvalidOperationException(
                                                 i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
-                List<ReverseTraceabilityDTO.IngredientTraceDTO> ingredientTrace = new ArrayList<>();
+        List<ReverseTraceabilityDTO.IngredientTraceDTO> ingredientTrace = new ArrayList<>();
+        
+        // El estado de los componentes se guarda como JSON en componentsState
+        Map<String, Object> state = parseDetails(audit.getComponentsState());
+        if (state != null && state.containsKey("components")) {
+            List<Map<String, Object>> components = (List<Map<String, Object>>) state.get("components");
 
-                Map<String, Object> details = parseDetails(audit.getDetails());
-                if (details != null && details.containsKey("ingredients")) {
-                        List<Map<String, Object>> ingredients = (List<Map<String, Object>>) details.get("ingredients");
+            for (Map<String, Object> comp : components) {
+                // Jackson puede deserializar números como Integer o Long
+                Object rawId = comp.get("productId");
+                Integer productId = rawId instanceof Number ? ((Number) rawId).intValue() : null;
+                String productName = (String) comp.get("productName");
 
-                        for (Map<String, Object> ing : ingredients) {
-                                Integer productId = (Integer) ing.get("productId");
-                                String productName = (String) ing.get("productName");
+                if (productId == null) continue;
 
-                                Optional<StockLedger> lastEntrada = ledgerRepository
-                                                .findLastEntradaBeforeDate(productId, audit.getCookingDate());
+                Optional<StockLedger> lastEntrada = ledgerRepository
+                        .findLastEntradaBeforeDate(productId, audit.getCookingDate());
 
-                                ReverseTraceabilityDTO.IngredientTraceDTO.IngredientTraceDTOBuilder builder = ReverseTraceabilityDTO.IngredientTraceDTO
-                                                .builder()
-                                                .productName(productName);
+                ReverseTraceabilityDTO.IngredientTraceDTO.IngredientTraceDTOBuilder builder = ReverseTraceabilityDTO.IngredientTraceDTO
+                        .builder()
+                        .productName(productName);
 
-                                lastEntrada.ifPresent(le -> {
-                                        builder.ledgerHash(le.getCurrentHash())
-                                                        .orderId(le.getOrderId());
+                lastEntrada.ifPresent(le -> {
+                    builder.ledgerHash(le.getCurrentHash())
+                           .orderId(le.getOrderId());
 
-                                        if (le.getOrderId() != null) {
-                                                orderRepository.findById(le.getOrderId()).ifPresent(
-                                                                o -> builder.supplierName(o.getSupplier().getName()));
-                                        }
-                                });
+                    if (le.getOrderId() != null) {
+                        orderRepository.findById(le.getOrderId()).ifPresent(
+                                o -> builder.supplierName(o.getSupplier().getName()));
+                    }
+                });
 
-                                ingredientTrace.add(builder.build());
-                        }
-                }
-
-                return ReverseTraceabilityDTO.builder()
-                                .cookingAudit(cookingAuditMapper.toResponseDTO(audit))
-                                .ingredientTrace(ingredientTrace)
-                                .build();
+                ingredientTrace.add(builder.build());
+            }
         }
+
+        return ReverseTraceabilityDTO.builder()
+                .cookingAudit(cookingAuditMapper.toResponseDTO(audit))
+                .ingredientTrace(ingredientTrace)
+                .build();
+    }
 
         private CrisisResponseDTO buildCrisisResponse(FoodCrisis crisis, Map<String, String> quarantinedProductsOverride) {
                 List<CrisisAffectedProduct> associations = crisisAffectedProductRepository.findByFoodCrisisId(crisis.getId());

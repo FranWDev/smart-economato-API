@@ -338,17 +338,31 @@ public class RecipeService {
      */
     @Transactional(rollbackFor = Exception.class)
     public void revertCooking(Long auditId, String reason) {
-        var audit = recipeCookingAuditRepository.findById(auditId)
-                .orElseThrow(() -> new ResourceNotFoundException("Auditoría de cocinado no encontrada"));
+        log.info("Iniciando reversión de cocinado: auditId={}, motivo={}", auditId, reason);
         
-        if (audit.getCorrelationId() == null) {
-            throw new InvalidOperationException("Esta auditoría no tiene ID de correlación y no puede revertirse automáticamente.");
-        }
+        try {
+            var audit = recipeCookingAuditRepository.findById(auditId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Auditoría de cocinado no encontrada (ID: " + auditId + ")"));
+            
+            if (audit.getCorrelationId() == null) {
+                log.warn("Intento de revertir auditoría sin correlationId: auditId={}", auditId);
+                throw new InvalidOperationException("Esta auditoría no tiene ID de correlación y no puede revertirse automáticamente.");
+            }
 
-        stockLedgerService.revertMovement(audit.getCorrelationId(), "Deshacer cocinado: " + reason);
-        
-        // Opcional: marcar la auditoría como revertida
-        audit.setDetails(audit.getDetails() + " [REVERTIDO: " + reason + "]");
-        recipeCookingAuditRepository.save(audit);
+            stockLedgerService.revertMovement(audit.getCorrelationId(), "Deshacer cocinado: " + reason);
+            
+            // Marcar la auditoría como revertida en los detalles
+            String previousDetails = audit.getDetails() != null ? audit.getDetails() : "";
+            audit.setDetails(previousDetails + " [REVERTIDO: " + reason + "]");
+            recipeCookingAuditRepository.save(audit);
+            
+            log.info("Cocinado revertido exitosamente: auditId={}, correlationId={}", auditId, audit.getCorrelationId());
+        } catch (ResourceNotFoundException | InvalidOperationException e) {
+            log.error("Error validado al revertir cocinado: {}", e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            log.error("Error inesperado al revertir cocinado (500): {}", e.getMessage(), e);
+            throw new RuntimeException("Error interno al revertir el cocinado: " + e.getMessage(), e);
+        }
     }
 }
