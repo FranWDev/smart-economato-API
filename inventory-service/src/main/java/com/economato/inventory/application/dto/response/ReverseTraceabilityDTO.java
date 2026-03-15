@@ -5,7 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -33,6 +33,10 @@ public class ReverseTraceabilityDTO {
         private String supplierName;
         @Schema(description = "ID del pedido de compra")
         private Integer orderId;
+        @Schema(description = "Fecha de creación del pedido")
+        private LocalDateTime orderDate;
+        @Schema(description = "Usuario receptor del pedido")
+        private String orderUserName;
         @Schema(description = "Tipo de movimiento")
         private String movementType;
         @Schema(description = "Descripción del movimiento")

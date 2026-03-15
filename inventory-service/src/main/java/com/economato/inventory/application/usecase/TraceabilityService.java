@@ -302,7 +302,13 @@ public class TraceabilityService {
 
                     if (le.getOrderId() != null) {
                         orderRepository.findById(le.getOrderId()).ifPresent(
-                                o -> builder.supplierName(o.getSupplier().getName()));
+                                o -> {
+                                    builder.supplierName(o.getSupplier().getName());
+                                    builder.orderDate(o.getOrderDate());
+                                    if (o.getUser() != null) {
+                                        builder.orderUserName(o.getUser().getName());
+                                    }
+                                });
                     } else {
                         // Si no hay orden, intentar usar el proveedor por defecto del producto
                         Optional<Product> product = productRepository.findById(productId);
