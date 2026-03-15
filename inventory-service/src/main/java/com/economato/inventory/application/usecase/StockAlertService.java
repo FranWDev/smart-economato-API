@@ -236,6 +236,7 @@ public class StockAlertService {
 
         Map<Integer, BigDecimal> pendingByProduct = buildPendingMap();
         Map<Integer, BigDecimal> stockByProduct = buildStockMap();
+        Map<Integer, List<ProductBatch>> activeBatchesByProduct = buildActiveBatchesMap();
 
         List<StockAlertDTO> alerts = new ArrayList<>();
         for (Map.Entry<Integer, BigDecimal> entry : persistedPredictions.entrySet()) {
@@ -245,7 +246,7 @@ public class StockAlertService {
             BigDecimal currentStock = stockByProduct.getOrDefault(productId, BigDecimal.ZERO);
             BigDecimal pending = pendingByProduct.getOrDefault(productId, BigDecimal.ZERO);
 
-            StockAlertDTO alert = buildAlert(productId, currentStock, pending, projected, since);
+            StockAlertDTO alert = buildAlert(productId, currentStock, pending, projected, since, activeBatchesByProduct);
             if (alert != null) {
                 alerts.add(alert);
             }
@@ -518,7 +519,8 @@ public class StockAlertService {
             BigDecimal currentStock,
             BigDecimal pending,
             BigDecimal projected,
-            LocalDateTime since) {
+            LocalDateTime since,
+            Map<Integer, List<ProductBatch>> activeBatchesByProduct) {
 
         // Recuperar nombre y unidad del producto
         var productOpt = productRepository.findById(productId);
@@ -538,7 +540,8 @@ public class StockAlertService {
             if (dailyRate.compareTo(BigDecimal.ZERO) == 0) {
                 daysRemaining = Integer.MAX_VALUE;
             } else {
-                daysRemaining = effective.divide(dailyRate, 0, RoundingMode.FLOOR).intValue();
+                List<ProductBatch> batches = activeBatchesByProduct.getOrDefault(productId, List.of());
+                daysRemaining = calculateDaysRemainingWithExpiration(dailyRate, batches, pending);
             }
         }
 
@@ -712,5 +715,57 @@ public class StockAlertService {
                 .collect(Collectors.toMap(
                         StockPrediction::getId,
                         StockPrediction::getProjectedConsumption));
+    }
+
+    private Map<Integer, List<ProductBatch>> buildActiveBatchesMap() {
+        return productBatchService.getAllActiveBatches().stream()
+                .collect(Collectors.groupingBy(b -> b.getProduct().getId()));
+    }
+
+    private int calculateDaysRemainingWithExpiration(BigDecimal dailyRate, List<ProductBatch> batches, BigDecimal pending) {
+        if (dailyRate.compareTo(BigDecimal.ZERO) == 0) return Integer.MAX_VALUE;
+
+        List<ProductBatch> simulatedBatches = new ArrayList<>();
+        for (ProductBatch b : batches) {
+            ProductBatch clone = ProductBatch.builder()
+                .expirationDate(b.getExpirationDate())
+                .remainingQuantity(b.getRemainingQuantity())
+                .build();
+            simulatedBatches.add(clone);
+        }
+
+        BigDecimal simulatedPending = pending;
+        LocalDate simulatedDate = LocalDate.now();
+
+        for (int day = 0; day <= 999; day++) {
+            final LocalDate currentDate = simulatedDate.plusDays(day);
+
+            simulatedBatches.removeIf(b -> b.getExpirationDate() != null && !b.getExpirationDate().isAfter(currentDate));
+
+            BigDecimal currentDayDemand = dailyRate;
+
+            for (ProductBatch b : simulatedBatches) {
+                if (currentDayDemand.compareTo(BigDecimal.ZERO) <= 0) break;
+
+                BigDecimal available = b.getRemainingQuantity();
+                BigDecimal toConsume = available.min(currentDayDemand);
+                b.setRemainingQuantity(available.subtract(toConsume));
+                currentDayDemand = currentDayDemand.subtract(toConsume);
+            }
+
+            simulatedBatches.removeIf(b -> b.getRemainingQuantity().compareTo(BigDecimal.ZERO) <= 0);
+
+            if (currentDayDemand.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal toConsume = simulatedPending.min(currentDayDemand);
+                simulatedPending = simulatedPending.subtract(toConsume);
+                currentDayDemand = currentDayDemand.subtract(toConsume);
+            }
+
+            if (currentDayDemand.compareTo(BigDecimal.valueOf(0.01)) > 0) {
+                return day;
+            }
+        }
+
+        return 999;
     }
 }

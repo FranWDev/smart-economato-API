@@ -13,6 +13,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -83,5 +87,27 @@ public class ProductBatchController {
         var updated = productBatchService.updateExpirationDate(
                 batchId, request.getExpirationDate(), request.getReason());
         return ResponseEntity.ok(productBatchMapper.toResponseDTO(updated));
+    }
+
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
+    @Operation(summary = "Listar lotes paginados y filtrados")
+    @GetMapping
+    public ResponseEntity<Page<ProductBatchResponseDTO>> getAllBatches(
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean depleted,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "15") int size,
+            @RequestParam(defaultValue = "expirationDate,asc") String sort) {
+        
+        String[] sortParams = sort.split(",");
+        String sortBy = sortParams[0];
+        Sort.Direction sortDirection = sortParams.length > 1 && sortParams[1].equalsIgnoreCase("desc") ?
+                Sort.Direction.DESC : Sort.Direction.ASC;
+        
+        Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
+        Page<ProductBatchResponseDTO> response = productBatchService.findAllBatches(search, depleted, pageable)
+                .map(productBatchMapper::toResponseDTO);
+                
+        return ResponseEntity.ok(response);
     }
 }
