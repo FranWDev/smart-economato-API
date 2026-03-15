@@ -17,6 +17,12 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -194,6 +200,34 @@ public class ProductBatchService {
     @Transactional(readOnly = true)
     public List<ProductBatch> getActiveBatches(Integer productId) {
         return batchRepository.findByProductIdAndDepletedFalseOrderByExpirationDateAsc(productId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductBatch> getAllActiveBatches() {
+        return batchRepository.findAllActiveBatchesOrderByExpiration();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ProductBatch> findAllBatches(String search, Boolean depleted, Pageable pageable) {
+        Specification<ProductBatch> spec = Specification.where((root, query, cb) -> cb.conjunction());
+
+        if (search != null && !search.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> 
+                cb.like(cb.lower(root.join("product").get("name")), "%" + search.trim().toLowerCase() + "%"));
+        }
+
+        if (depleted != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("depleted"), depleted));
+        }
+
+        Specification<ProductBatch> fetchSpec = spec.and((root, query, cb) -> {
+            if (Long.class != query.getResultType()) {
+                root.fetch("product");
+            }
+            return null;
+        });
+
+        return batchRepository.findAll(fetchSpec, pageable);
     }
 
     @Transactional(readOnly = true)
