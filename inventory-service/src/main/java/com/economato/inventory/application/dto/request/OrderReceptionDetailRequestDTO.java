@@ -25,7 +25,8 @@ public class OrderReceptionDetailRequestDTO {
     @Schema(description = "Cantidad del producto recibida", example = "5.0")
     private BigDecimal quantityReceived;
 
+    @NotNull(message = "{validation.orderReceptionDetailRequestDTO.expirationDate.notNull}")
     @FutureOrPresent(message = "{validation.orderReceptionDetailRequestDTO.expirationDate.futureOrPresent}")
-    @Schema(description = "Fecha de caducidad del lote recibido (opcional)", example = "2026-12-31")
+    @Schema(description = "Fecha de caducidad del lote recibido (obligatoria)", example = "2026-12-31")
     private LocalDate expirationDate;
 }

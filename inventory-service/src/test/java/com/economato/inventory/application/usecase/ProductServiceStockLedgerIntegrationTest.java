@@ -112,6 +112,7 @@ class ProductServiceStockLedgerIntegrationTest extends BaseIntegrationTest {
                 requestDTO.setUnitPrice(testProduct.getUnitPrice());
                 requestDTO.setProductCode(testProduct.getProductCode());
                 requestDTO.setCurrentStock(newStock);
+                requestDTO.setExpirationDate(LocalDate.now().plusDays(30));
 
                 Optional<ProductResponseDTO> result = productService.updateStockManually(
                                 testProduct.getId(), requestDTO);
@@ -148,6 +149,7 @@ class ProductServiceStockLedgerIntegrationTest extends BaseIntegrationTest {
                 requestDTO.setUnitPrice(testProduct.getUnitPrice());
                 requestDTO.setProductCode(testProduct.getProductCode());
                 requestDTO.setCurrentStock(newStock);
+                requestDTO.setExpirationDate(LocalDate.now().plusDays(30));
 
                 Optional<ProductResponseDTO> result = productService.updateStockManually(
                                 testProduct.getId(), requestDTO);
@@ -178,6 +180,7 @@ class ProductServiceStockLedgerIntegrationTest extends BaseIntegrationTest {
                 requestDTO.setUnitPrice(testProduct.getUnitPrice().add(new BigDecimal("1.0")));
                 requestDTO.setProductCode(testProduct.getProductCode());
                 requestDTO.setCurrentStock(currentStock);
+                requestDTO.setExpirationDate(LocalDate.now().plusDays(30));
 
                 int initialCount = stockLedgerRepository
                                 .findByProductIdOrderBySequenceNumber(testProduct.getId()).size();
@@ -208,6 +211,7 @@ class ProductServiceStockLedgerIntegrationTest extends BaseIntegrationTest {
                 requestDTO1.setUnitPrice(testProduct.getUnitPrice());
                 requestDTO1.setProductCode(testProduct.getProductCode());
                 requestDTO1.setCurrentStock(testProduct.getCurrentStock().add(new BigDecimal("25.0")));
+                requestDTO1.setExpirationDate(LocalDate.now().plusDays(30));
 
                 productService.updateStockManually(testProduct.getId(), requestDTO1);
 
@@ -219,6 +223,7 @@ class ProductServiceStockLedgerIntegrationTest extends BaseIntegrationTest {
                 requestDTO2.setProductCode(testProduct.getProductCode());
                 requestDTO2.setCurrentStock(
                                 testProduct.getCurrentStock().add(new BigDecimal("25.0")).add(new BigDecimal("35.0")));
+                requestDTO2.setExpirationDate(LocalDate.now().plusDays(30));
 
                 productService.updateStockManually(testProduct.getId(), requestDTO2);
 
@@ -248,6 +253,7 @@ class ProductServiceStockLedgerIntegrationTest extends BaseIntegrationTest {
                 requestDTO.setUnitPrice(testProduct.getUnitPrice());
                 requestDTO.setProductCode(testProduct.getProductCode());
                 requestDTO.setCurrentStock(newStock);
+                requestDTO.setExpirationDate(LocalDate.now().plusDays(30));
 
                 productService.updateStockManually(testProduct.getId(), requestDTO);
 

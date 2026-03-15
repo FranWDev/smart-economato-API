@@ -18,7 +18,7 @@ public interface ProductBatchRepository extends JpaRepository<ProductBatch, Long
 
     @Query("SELECT b FROM ProductBatch b JOIN FETCH b.product " +
             "WHERE b.product.id = :productId AND b.depleted = false " +
-            "ORDER BY CASE WHEN b.expirationDate IS NULL THEN 1 ELSE 0 END, b.expirationDate ASC, b.receivedAt ASC")
+            "ORDER BY b.expirationDate ASC, b.receivedAt ASC")
     List<ProductBatch> findActiveByProductIdOrderByExpiration(@Param("productId") Integer productId);
 
     @Query("SELECT b FROM ProductBatch b JOIN FETCH b.product " +
@@ -33,12 +33,12 @@ public interface ProductBatchRepository extends JpaRepository<ProductBatch, Long
 
     @Query("SELECT b FROM ProductBatch b JOIN FETCH b.product " +
             "WHERE b.product.id = :productId AND b.depleted = false " +
-            "ORDER BY CASE WHEN b.expirationDate IS NULL THEN 1 ELSE 0 END, b.expirationDate ASC, b.receivedAt ASC")
+            "ORDER BY b.expirationDate ASC, b.receivedAt ASC")
     List<ProductBatch> findByProductIdAndDepletedFalseOrderByExpirationDateAsc(@Param("productId") Integer productId);
 
     @Query("SELECT b FROM ProductBatch b JOIN FETCH b.product " +
             "WHERE b.product.id = :productId " +
-            "ORDER BY CASE WHEN b.expirationDate IS NULL THEN 1 ELSE 0 END, b.expirationDate ASC, b.receivedAt ASC")
+            "ORDER BY b.expirationDate ASC, b.receivedAt ASC")
     List<ProductBatch> findByProductIdOrderByExpirationDateAsc(@Param("productId") Integer productId);
 
     @Query("SELECT COALESCE(SUM(b.remainingQuantity), 0) FROM ProductBatch b " +

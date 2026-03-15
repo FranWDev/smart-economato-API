@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -142,5 +143,161 @@ class ProductBatchServiceTest {
 
         assertThrows(InvalidOperationException.class,
                 () -> productBatchService.consumeStock(1, new BigDecimal("1.000")));
+    }
+
+    // ===== Tests para updateExpirationDate =====
+
+    @Test
+    void updateExpirationDate_shouldUpdateSuccessfully() {
+        Product product = new Product();
+        product.setId(1);
+
+        ProductBatch batch = ProductBatch.builder()
+                .id(10L)
+                .product(product)
+                .expirationDate(LocalDate.now().plusDays(5))
+                .initialQuantity(new BigDecimal("10.000"))
+                .remainingQuantity(new BigDecimal("10.000"))
+                .depleted(false)
+                .build();
+
+        LocalDate newDate = LocalDate.now().plusDays(30);
+        ProductBatch updated = ProductBatch.builder()
+                .id(10L).product(product).expirationDate(newDate)
+                .initialQuantity(new BigDecimal("10.000"))
+                .remainingQuantity(new BigDecimal("10.000"))
+                .depleted(false).build();
+
+        when(batchRepository.findById(10L)).thenReturn(java.util.Optional.of(batch));
+        when(batchRepository.save(any(ProductBatch.class))).thenReturn(updated);
+
+        ProductBatch result = productBatchService.updateExpirationDate(10L, newDate, "Corrección de fecha");
+
+        assertEquals(newDate, result.getExpirationDate());
+    }
+
+    @Test
+    void updateExpirationDate_shouldFail_whenBatchDepleted() {
+        Product product = new Product();
+        product.setId(1);
+
+        ProductBatch depleted = ProductBatch.builder()
+                .id(20L).product(product)
+                .expirationDate(LocalDate.now().plusDays(10))
+                .initialQuantity(new BigDecimal("5.000"))
+                .remainingQuantity(BigDecimal.ZERO)
+                .depleted(true).build();
+
+        when(batchRepository.findById(20L)).thenReturn(java.util.Optional.of(depleted));
+        when(i18nService.getMessage(MessageKey.ERROR_BATCH_DEPLETED_CANNOT_UPDATE))
+                .thenReturn("Cannot update depleted batch");
+
+        assertThrows(InvalidOperationException.class,
+                () -> productBatchService.updateExpirationDate(20L, LocalDate.now().plusDays(30), null));
+    }
+
+    @Test
+    void updateExpirationDate_shouldFail_whenDateIsInPast() {
+        Product product = new Product();
+        product.setId(1);
+
+        ProductBatch batch = ProductBatch.builder()
+                .id(30L).product(product)
+                .expirationDate(LocalDate.now().plusDays(5))
+                .initialQuantity(new BigDecimal("5.000"))
+                .remainingQuantity(new BigDecimal("5.000"))
+                .depleted(false).build();
+
+        LocalDate pastDate = LocalDate.now().minusDays(1);
+
+        when(batchRepository.findById(30L)).thenReturn(java.util.Optional.of(batch));
+        when(i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_PAST, new Object[]{pastDate}))
+                .thenReturn("Expiration date cannot be in the past");
+
+        assertThrows(InvalidOperationException.class,
+                () -> productBatchService.updateExpirationDate(30L, pastDate, "Test"));
+    }
+
+    @Test
+    void updateExpirationDate_shouldFail_whenDateIsNull() {
+        Product product = new Product();
+        product.setId(1);
+
+        ProductBatch batch = ProductBatch.builder()
+                .id(40L).product(product)
+                .expirationDate(LocalDate.now().plusDays(5))
+                .initialQuantity(new BigDecimal("5.000"))
+                .remainingQuantity(new BigDecimal("5.000"))
+                .depleted(false).build();
+
+        when(batchRepository.findById(40L)).thenReturn(java.util.Optional.of(batch));
+        when(i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_REQUIRED))
+                .thenReturn("Expiration date required");
+
+        assertThrows(InvalidOperationException.class,
+                () -> productBatchService.updateExpirationDate(40L, null, "Test"));
+    }
+
+    @Test
+    void updateExpirationDate_shouldFail_whenBatchNotFound() {
+        when(batchRepository.findById(999L)).thenReturn(java.util.Optional.empty());
+
+        assertThrows(com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException.class,
+                () -> productBatchService.updateExpirationDate(999L, LocalDate.now().plusDays(10), null));
+    }
+
+    @Test
+    void consumeFromSpecificBatch_shouldFail_whenBatchIsExpired() {
+        Product product = new Product();
+        product.setId(1);
+
+        ProductBatch expired = ProductBatch.builder()
+                .id(5L).product(product)
+                .expirationDate(LocalDate.now().minusDays(2))
+                .initialQuantity(new BigDecimal("5.000"))
+                .remainingQuantity(new BigDecimal("5.000"))
+                .depleted(false).build();
+
+        when(batchRepository.findById(5L)).thenReturn(java.util.Optional.of(expired));
+        when(i18nService.getMessage(
+                eq(MessageKey.ERROR_BATCH_EXPIRED_CANNOT_REVERT), any(Object[].class)))
+                .thenReturn("Batch expired cannot revert");
+
+        assertThrows(InvalidOperationException.class,
+                () -> productBatchService.consumeFromSpecificBatch(5L, new BigDecimal("3.000")));
+    }
+
+    @Test
+    void addStockToBatch_shouldFail_whenBatchIsExpired() {
+        Product product = new Product();
+        product.setId(1);
+
+        ProductBatch expired = ProductBatch.builder()
+                .id(6L).product(product)
+                .expirationDate(LocalDate.now().minusDays(1))
+                .initialQuantity(new BigDecimal("3.000"))
+                .remainingQuantity(new BigDecimal("3.000"))
+                .depleted(false).build();
+
+        when(batchRepository.findById(6L)).thenReturn(java.util.Optional.of(expired));
+        when(i18nService.getMessage(
+                eq(MessageKey.ERROR_BATCH_EXPIRED_CANNOT_ADD_STOCK), any(Object[].class)))
+                .thenReturn("Batch expired cannot add stock");
+
+        assertThrows(InvalidOperationException.class,
+                () -> productBatchService.addStockToBatch(6L, new BigDecimal("2.000")));
+    }
+
+    @Test
+    void createBatch_shouldFail_whenExpirationDateIsNull() {
+        Product product = new Product();
+        product.setId(1);
+
+        when(i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_REQUIRED))
+                .thenReturn("Expiration date required");
+
+        assertThrows(InvalidOperationException.class,
+                () -> productBatchService.createBatch(
+                        product, new BigDecimal("5.000"), null, null));
     }
 }

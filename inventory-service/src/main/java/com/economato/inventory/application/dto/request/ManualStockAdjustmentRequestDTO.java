@@ -4,6 +4,7 @@ import com.economato.inventory.domain.model.MovementType;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -32,4 +33,8 @@ public class ManualStockAdjustmentRequestDTO {
 
     @Schema(description = "ID del lote específico al que aplicar el ajuste. Si se omite, se aplica FIFO automático.", example = "12")
     private Long batchId;
+
+    @Schema(description = "Fecha de caducidad para el lote. Obligatoria si se añade stock (delta positivo) sin batchId.", example = "2026-12-31")
+    private LocalDate expirationDate;
 }
+

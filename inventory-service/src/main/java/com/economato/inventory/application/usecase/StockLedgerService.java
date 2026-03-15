@@ -156,29 +156,42 @@ public class StockLedgerService {
             MovementType movementType,
             String description,
             User user,
-            Long targetBatchId) {
-        
-        return recordStockMovementInternal(productId, quantityDelta, movementType, description, user, null, null, null, targetBatchId);
+            Long targetBatchId,
+            java.time.LocalDate expirationDate) {
+
+        return recordStockMovementInternal(productId, quantityDelta, movementType, description, user, null, expirationDate, null, targetBatchId);
     }
-    
+
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public StockLedger processManualAdjustment(com.economato.inventory.application.dto.request.ManualStockAdjustmentRequestDTO request) {
         User currentUser = securityContextHelper.getCurrentUser();
+
+        // Validación: si delta es positivo y no hay batchId, exigir expirationDate
+        if (request.getQuantityDelta().compareTo(BigDecimal.ZERO) > 0
+                && request.getBatchId() == null
+                && request.getExpirationDate() == null) {
+            throw new InvalidOperationException(
+                i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_REQUIRED));
+        }
+
+        // Validación: expirationDate no puede ser pasada
+        if (request.getExpirationDate() != null
+                && request.getExpirationDate().isBefore(java.time.LocalDate.now())) {
+            throw new InvalidOperationException(
+                i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_PAST,
+                        new Object[]{request.getExpirationDate()}));
+        }
+
         return recordManualAdjustment(
                 request.getProductId(),
                 request.getQuantityDelta(),
                 request.getMovementType(),
                 request.getDescription(),
                 currentUser,
-                request.getBatchId()
-        );
+                request.getBatchId(),
+                request.getExpirationDate());
     }
 
-    /**
-     * Revierte un grupo de movimientos asociados a un correlationId.
-     * Restaura el stock en los lotes originales y genera contra-asientos en el
-     * ledger.
-     */
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public void revertMovement(String correlationId, String reason) {
         log.info("Iniciando reversión de movimientos: correlationId={}, motivo={}", correlationId, reason);
@@ -192,66 +205,80 @@ public class StockLedgerService {
         User currentUser = securityContextHelper.getCurrentUser();
         String reversalCorrelationId = "REV-" + correlationId;
 
+        // Prevenir doble reversión
+        List<StockLedger> existingReversals = ledgerRepository.findByCorrelationId(reversalCorrelationId);
+        if (!existingReversals.isEmpty()) {
+            throw new InvalidOperationException(
+                i18nService.getMessage(MessageKey.ERROR_REVERSION_ALREADY_DONE, new Object[]{correlationId}));
+        }
+
         for (StockLedger originalTx : transactions) {
-            // 1. Obtener detalles de trazabilidad de lotes originales
             List<StockLedgerBatchDetail> details = batchDetailRepository.findByLedgerTransactionId(originalTx.getId());
-            
-            // Si la transacción original no tiene detalles de lotes, algo falló en el origen, 
-            // pero aún así debemos intentar revertir el stock total.
+
+            // Sin trazabilidad de lotes → no se puede revertir de forma segura
             if (details.isEmpty()) {
-                log.warn("La transacción original {} no tiene detalles de lotes. Revirtiendo solo stock total.", originalTx.getId());
-                recordStockMovementInternal(
-                        originalTx.getProduct().getId(),
-                        originalTx.getQuantityDelta().negate(),
-                        MovementType.REVERSION,
-                        "REVERSIÓN (Sin Lote): " + reason + " (Original: " + originalTx.getDescription() + ")",
-                        currentUser,
-                        originalTx.getOrderId(),
-                        originalTx.getExpirationDate(),
-                        reversalCorrelationId,
-                        null);
-                continue;
+                throw new InvalidOperationException(
+                    i18nService.getMessage(MessageKey.ERROR_REVERSION_NO_BATCH_TRACEABILITY,
+                            new Object[]{originalTx.getId()}));
             }
 
-            // 2. Restaurar cantidades en lotes y recolectar para el ledger de reversión
+            // Agregar cantidad total a restaurar y hallar la caducidad más temprana
+            BigDecimal totalToRestore = BigDecimal.ZERO;
+            java.time.LocalDate earliestExpiration = null;
+            List<Long> originalBatchIds = new java.util.ArrayList<>();
+
             for (StockLedgerBatchDetail detail : details) {
                 ProductBatch batch = detail.getBatch();
                 if (batch == null) {
-                    log.error("Lote nulo en detalle de transición {}. Saltando restauración de este lote.", detail.getId());
+                    log.error("Lote nulo en detalle de transacción {}. Saltando.", detail.getId());
                     continue;
                 }
 
-                BigDecimal quantityToRestore = detail.getQuantity().negate(); // Invertir el efecto original (si restó 5, restauramos 5)
-
-                BigDecimal currentRemaining = batch.getRemainingQuantity() != null ? batch.getRemainingQuantity() : BigDecimal.ZERO;
-                BigDecimal newRemaining = currentRemaining.add(quantityToRestore)
-                        .setScale(3, java.math.RoundingMode.HALF_UP);
-
-                // Solo lanzamos la excepción si es una REDUCCIÓN de stock (reversión de una ENTRADA)
-                // Para una adición (reversión de una SALIDA/Cocinada), no debería haber problema de stock negativo.
-                if (quantityToRestore.compareTo(BigDecimal.ZERO) < 0 && newRemaining.compareTo(BigDecimal.ZERO) < 0) {
+                // Verificar que ningún lote original esté caducado
+                if (batch.getExpirationDate() != null && batch.getExpirationDate().isBefore(java.time.LocalDate.now())) {
                     throw new InvalidOperationException(
-                            "No se puede deshacer la entrada del lote #" + batch.getId() + 
-                            " porque resultará en stock negativo (" + newRemaining + "). " +
-                            "El stock probablemente ya ha sido consumido.");
+                        i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRED_CANNOT_REVERT,
+                                new Object[]{batch.getId(), batch.getProduct().getName(), batch.getExpirationDate()}));
                 }
 
-                log.info("Iniciando registro de contra-asiento en ledger para lote #{}", batch.getId());
+                BigDecimal quantityToRestore = detail.getQuantity().negate();
+                totalToRestore = totalToRestore.add(quantityToRestore);
+                originalBatchIds.add(batch.getId());
 
-                // 3. Registrar contra-asiento en el ledger PARA ESTE LOTE
-                // IMPORTANTE: NO actualizamos el batch manualmente aquí arriba porque recordStockMovementInternal 
-                // con targetBatchId ya llama a productBatchService.addStockToBatch o consumeFromSpecificBatch.
-                recordStockMovementInternal(
-                        originalTx.getProduct().getId(),
-                        quantityToRestore, 
-                        MovementType.REVERSION,
-                        "REVERSIÓN: " + reason + " (Lote #" + batch.getId() + ")",
-                        currentUser,
-                        originalTx.getOrderId(),
-                        originalTx.getExpirationDate(),
-                        reversalCorrelationId,
-                        batch.getId());
+                if (batch.getExpirationDate() != null) {
+                    if (earliestExpiration == null || batch.getExpirationDate().isBefore(earliestExpiration)) {
+                        earliestExpiration = batch.getExpirationDate();
+                    }
+                }
             }
+
+            // Validar que la reversión de una ENTRADA (totalToRestore < 0) no cause stock negativo
+            if (totalToRestore.compareTo(BigDecimal.ZERO) < 0) {
+                com.economato.inventory.domain.model.StockSnapshot snapshot =
+                        snapshotRepository.findById(originalTx.getProduct().getId()).orElse(null);
+                if (snapshot != null) {
+                    BigDecimal resultingStock = snapshot.getCurrentStock().add(totalToRestore);
+                    if (resultingStock.compareTo(BigDecimal.ZERO) < 0) {
+                        throw new InvalidOperationException(
+                            "No se puede deshacer la entrada: resultaría en stock negativo (" + resultingStock + ").");
+                    }
+                }
+            }
+
+            String batchIdsStr = originalBatchIds.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(", "));
+            String description = "REVERSIÓN: " + reason + " [lotes originales: " + batchIdsStr + "]";
+
+            // Registrar UN ÚNICO contra-asiento consolidado que creará un lote nuevo
+            recordStockMovementInternal(
+                    originalTx.getProduct().getId(),
+                    totalToRestore,
+                    MovementType.REVERSION,
+                    description,
+                    currentUser,
+                    originalTx.getOrderId(),
+                    earliestExpiration,
+                    reversalCorrelationId,
+                    null); // null → se creará automáticamente un lote nuevo consolidado
         }
     }
 
@@ -298,11 +325,10 @@ public class StockLedgerService {
                 batchMovements = productBatchService.consumeFromSpecificBatch(targetBatchId, quantityDelta.abs());
             } else if (quantityDelta.compareTo(BigDecimal.ZERO) > 0) {
                 productBatchService.addStockToBatch(targetBatchId, quantityDelta);
-                batchMovements.add(new BatchConsumptionDetail(targetBatchId, quantityDelta.negate())); // Negative so it becomes positive when negated below
+                batchMovements.add(new BatchConsumptionDetail(targetBatchId, quantityDelta.negate()));
             }
-        } else if (quantityDelta.compareTo(BigDecimal.ZERO) < 0
-                && (movementType == MovementType.SALIDA || movementType == MovementType.MODIFICACION
-                        || movementType == MovementType.MERMA)) {
+        } else if (quantityDelta.compareTo(BigDecimal.ZERO) < 0) {
+            // Toda salida de stock DEBE consumir de lotes vía FEFO
             BigDecimal toConsume = quantityDelta.abs();
             batchMovements = productBatchService.consumeStock(productId, toConsume);
         }
@@ -344,9 +370,9 @@ public class StockLedgerService {
         transaction = ledgerRepository.saveAndFlush(transaction);
 
         // Crear lote automáticamente para cualquier delta positivo sin targetBatchId
+        // (incluye REVERSION para que se cree el lote consolidado)
         if (targetBatchId == null
-                && quantityDelta.compareTo(BigDecimal.ZERO) > 0
-                && movementType != MovementType.REVERSION) {
+                && quantityDelta.compareTo(BigDecimal.ZERO) > 0) {
             ProductBatch newBatch = productBatchService.createBatch(
                     product,
                     normalizedDelta,
@@ -806,15 +832,15 @@ public class StockLedgerService {
         BigDecimal quantity = batch.getRemainingQuantity();
         Integer productId = batch.getProduct().getId();
 
-        // Use recordManualAdjustment with targetBatchId to correctly handle the withdrawal.
-        // This will internally call consumeFromSpecificBatch, which updates the batch and records the movement.
+        // Retirada de lote caducado: es una salida, no necesita expirationDate (no crea lote nuevo)
         recordManualAdjustment(
                 productId,
                 quantity.negate(),
                 MovementType.MERMA,
                 "Retirada de lote caducado #" + batchId,
                 user,
-                batchId);
+                batchId,
+                null);
 
         log.info("Lote caducado retirado: batchId={}, productId={}, qty={}", batchId, productId, quantity);
     }

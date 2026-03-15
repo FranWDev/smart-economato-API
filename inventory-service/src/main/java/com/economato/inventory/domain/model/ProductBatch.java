@@ -47,7 +47,8 @@ public class ProductBatch {
     @JoinColumn(name = "product_id", nullable = false, foreignKey = @ForeignKey(name = "fk_batch_product"))
     private Product product;
 
-    @Column(name = "expiration_date")
+    @NotNull(message = "La fecha de caducidad es obligatoria")
+    @Column(name = "expiration_date", nullable = false)
     private LocalDate expirationDate;
 
     @NotNull

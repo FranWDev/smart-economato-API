@@ -61,6 +61,7 @@ public class ProductAliasIntegrationTest extends BaseIntegrationTest {
                                 "\"supplierId\":" + supplierId + "," +
                                 "\"price\":3.15," +
                                 "\"stock\":100," +
+                                "\"expirationDate\":\"2030-01-01\"," +
                                 "\"minStock\":10" +
                                 "}";
 

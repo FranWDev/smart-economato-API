@@ -113,6 +113,7 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
         movement1.setProductId(product1.getId());
         movement1.setQuantityDelta(new BigDecimal("10.0"));
         movement1.setMovementType(MovementType.MODIFICACION);
+        movement1.setExpirationDate(java.time.LocalDate.now().plusDays(30));
         movement1.setDescription("Devolver harina");
         movements.add(movement1);
 
@@ -120,6 +121,7 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
         movement2.setProductId(product2.getId());
         movement2.setQuantityDelta(new BigDecimal("5.0"));
         movement2.setMovementType(MovementType.MODIFICACION);
+        movement2.setExpirationDate(java.time.LocalDate.now().plusDays(30));
         movement2.setDescription("Devolver azúcar");
         movements.add(movement2);
 
@@ -127,6 +129,7 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
         movement3.setProductId(product3.getId());
         movement3.setQuantityDelta(new BigDecimal("20.0"));
         movement3.setMovementType(MovementType.MODIFICACION);
+        movement3.setExpirationDate(java.time.LocalDate.now().plusDays(30));
         movement3.setDescription("Devolver huevos");
         movements.add(movement3);
 
@@ -168,12 +171,14 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
         movement1.setProductId(product1.getId());
         movement1.setQuantityDelta(new BigDecimal("10.0"));
         movement1.setMovementType(MovementType.ENTRADA);
+        movement1.setExpirationDate(java.time.LocalDate.now().plusDays(30));
         movements.add(movement1);
 
         StockMovementItemDTO movement2 = new StockMovementItemDTO();
         movement2.setProductId(product2.getId());
         movement2.setQuantityDelta(new BigDecimal("-1000.0"));
         movement2.setMovementType(MovementType.SALIDA);
+        movement2.setExpirationDate(java.time.LocalDate.now().plusDays(30));
         movements.add(movement2);
 
         batchRequest.setMovements(movements);
@@ -225,12 +230,14 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
         movement1.setProductId(product1.getId());
         movement1.setQuantityDelta(new BigDecimal("5.0"));
         movement1.setMovementType(MovementType.MODIFICACION);
+        movement1.setExpirationDate(java.time.LocalDate.now().plusDays(30));
         movements.add(movement1);
 
         StockMovementItemDTO movement2 = new StockMovementItemDTO();
         movement2.setProductId(product2.getId());
         movement2.setQuantityDelta(new BigDecimal("-3.0"));
         movement2.setMovementType(MovementType.MODIFICACION);
+        movement2.setExpirationDate(java.time.LocalDate.now().plusDays(30));
         movements.add(movement2);
 
         batchRequest.setMovements(movements);
