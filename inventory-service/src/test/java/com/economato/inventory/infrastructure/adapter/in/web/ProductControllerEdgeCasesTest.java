@@ -129,6 +129,7 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
                 productRequest.setType("INGREDIENT");
                 productRequest.setUnit("KG");
                 productRequest.setCurrentStock(new BigDecimal("5.0"));
+                productRequest.setExpirationDate(java.time.LocalDate.now().plusDays(30));
                 productRequest.setUnitPrice(new BigDecimal("10.0"));
                 productRequest.setProductCode("TEST001");
                 productRequest.setMinimumStock(BigDecimal.ZERO);
@@ -191,6 +192,7 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
                         productRequest.setType("INGREDIENT");
                         productRequest.setUnit("KG");
                         productRequest.setCurrentStock(new BigDecimal("5.0"));
+                        productRequest.setExpirationDate(java.time.LocalDate.now().plusDays(30));
                         productRequest.setUnitPrice(new BigDecimal("10.0"));
                         productRequest.setProductCode("CODE" + i);
                         productRequest.setMinimumStock(BigDecimal.ZERO);
@@ -223,6 +225,7 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
                 ingredientProduct.setType("INGREDIENT");
                 ingredientProduct.setUnit("KG");
                 ingredientProduct.setCurrentStock(new BigDecimal("10.0"));
+                ingredientProduct.setExpirationDate(java.time.LocalDate.now().plusDays(30));
                 ingredientProduct.setUnitPrice(new BigDecimal("5.0"));
                 ingredientProduct.setProductCode("FLOUR001");
                 ingredientProduct.setMinimumStock(BigDecimal.ZERO);

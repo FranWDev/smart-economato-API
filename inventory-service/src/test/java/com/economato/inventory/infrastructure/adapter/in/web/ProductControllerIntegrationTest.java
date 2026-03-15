@@ -465,6 +465,7 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 "\"unit\":\"KG\"," +
                                 "\"price\":5.50," +
                                 "\"stock\":100," +
+                                "\"expirationDate\":\"2030-01-01\"," +
                                 "\"minStock\":10" +
                                 "}";
 

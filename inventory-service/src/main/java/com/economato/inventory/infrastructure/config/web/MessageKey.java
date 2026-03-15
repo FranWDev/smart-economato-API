@@ -184,7 +184,17 @@ public enum MessageKey {
     TRACEABILITY_SUMMARY_REVERSE("traceability.summary.reverse"),
     REPORT_LABEL_CRISIS_ID("report.label.crisis.id"),
     REPORT_LABEL_REASON("report.label.reason"),
-    REPORT_COLUMN_LATEST_HASH("report.column.latest.hash");
+    REPORT_COLUMN_LATEST_HASH("report.column.latest.hash"),
+
+    // Batch & Reversion
+    ERROR_BATCH_EXPIRATION_REQUIRED("error.batch.expiration.required"),
+    ERROR_BATCH_EXPIRATION_PAST("error.batch.expiration.past"),
+    ERROR_BATCH_EXPIRED_CANNOT_ADD_STOCK("error.batch.expired.cannot.add.stock"),
+    ERROR_BATCH_EXPIRED_CANNOT_REVERT("error.batch.expired.cannot.revert"),
+    ERROR_REVERSION_ALREADY_DONE("error.reversion.already.done"),
+    ERROR_REVERSION_NO_BATCH_TRACEABILITY("error.reversion.no.batch.traceability"),
+    ERROR_COOKING_ALREADY_REVERTED("error.cooking.already.reverted"),
+    ERROR_BATCH_DEPLETED_CANNOT_UPDATE("error.batch.depleted.cannot.update");
 
     private final String key;
 

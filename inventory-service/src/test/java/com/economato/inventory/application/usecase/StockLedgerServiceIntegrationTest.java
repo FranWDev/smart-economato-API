@@ -107,8 +107,7 @@ class StockLedgerServiceIntegrationTest {
                                 delta,
                                 movementType,
                                 description,
-                                testUser,
-                                123);
+                                testUser, 123, java.time.LocalDate.now().plusDays(30));
 
                 assertNotNull(transaction);
                 assertEquals(testProduct.getId(), transaction.getProduct().getId());
@@ -173,8 +172,7 @@ class StockLedgerServiceIntegrationTest {
                                 new BigDecimal("-12.0"),
                                 MovementType.SALIDA,
                                 "Consumo FEFO",
-                                testUser,
-                                null);
+                                testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 List<ProductBatch> activeBatches = productBatchRepository.findActiveByProductIdOrderByExpiration(testProduct.getId());
 
@@ -199,8 +197,7 @@ class StockLedgerServiceIntegrationTest {
                                 delta,
                                 MovementType.MODIFICACION,
                                 "Test",
-                                testUser,
-                                null);
+                                testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 Optional<StockSnapshot> snapshot = snapshotRepository.findById(testProduct.getId());
                 assertTrue(snapshot.isPresent());
@@ -215,16 +212,13 @@ class StockLedgerServiceIntegrationTest {
         void testRecordStockMovement_ChainMultipleTransactions() {
 
                 StockLedger tx1 = stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX1", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX1", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 StockLedger tx2 = stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("-5.0"), MovementType.SALIDA, "TX2", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("-5.0"), MovementType.SALIDA, "TX2", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 StockLedger tx3 = stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("15.0"), MovementType.ENTRADA, "TX3", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("15.0"), MovementType.ENTRADA, "TX3", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 assertEquals(Long.valueOf(1), tx1.getSequenceNumber());
                 assertEquals("GENESIS", tx1.getPreviousHash());
@@ -251,8 +245,7 @@ class StockLedgerServiceIntegrationTest {
                                         excessiveDelta,
                                         MovementType.SALIDA,
                                         "Intento de salida excesiva",
-                                        testUser,
-                                        null);
+                                        testUser, null, java.time.LocalDate.now().plusDays(30));
                 });
         }
 
@@ -267,8 +260,7 @@ class StockLedgerServiceIntegrationTest {
                                         new BigDecimal(i * 10),
                                         MovementType.MODIFICACION,
                                         "TX" + i,
-                                        testUser,
-                                        null);
+                                        testUser, null, java.time.LocalDate.now().plusDays(30));
                 }
 
                 IntegrityCheckResult result = stockLedgerService
@@ -289,12 +281,10 @@ class StockLedgerServiceIntegrationTest {
 
                 @SuppressWarnings("unused")
                 StockLedger tx1 = stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("50.0"), MovementType.ENTRADA, "TX1", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("50.0"), MovementType.ENTRADA, "TX1", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 StockLedger tx2 = stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("30.0"), MovementType.ENTRADA, "TX2", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("30.0"), MovementType.ENTRADA, "TX2", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 entityManager.flush();
                 entityManager.clear();
@@ -321,32 +311,25 @@ class StockLedgerServiceIntegrationTest {
         void testVerifyChainIntegrity_ValidAfterDatabaseRoundTripWithSmallDecimals() {
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.005"), MovementType.MODIFICACION, "TX1", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("0.005"), MovementType.MODIFICACION, "TX1", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.002"), MovementType.MODIFICACION, "TX2", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("0.002"), MovementType.MODIFICACION, "TX2", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.003"), MovementType.MODIFICACION, "TX3", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("0.003"), MovementType.MODIFICACION, "TX3", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.001"), MovementType.MODIFICACION, "TX4", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("0.001"), MovementType.MODIFICACION, "TX4", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("-0.011"), MovementType.MODIFICACION, "TX5", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("-0.011"), MovementType.MODIFICACION, "TX5", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("-2.000"), MovementType.SALIDA, "TX6", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("-2.000"), MovementType.SALIDA, "TX6", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("1.000"), MovementType.ENTRADA, "TX7", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("1.000"), MovementType.ENTRADA, "TX7", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 entityManager.flush();
                 entityManager.clear();
@@ -363,8 +346,7 @@ class StockLedgerServiceIntegrationTest {
         void testVerifyChainIntegrity_DetectsQuantityCorruption() {
 
                 StockLedger tx1 = stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("20.0"), MovementType.ENTRADA, "TX1", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("20.0"), MovementType.ENTRADA, "TX1", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 entityManager.flush();
                 entityManager.clear();
@@ -387,12 +369,10 @@ class StockLedgerServiceIntegrationTest {
 
                 @SuppressWarnings("unused")
                 StockLedger tx1 = stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX1", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX1", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 StockLedger tx2 = stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX2", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX2", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 entityManager.flush();
                 entityManager.clear();
@@ -416,17 +396,14 @@ class StockLedgerServiceIntegrationTest {
 
                 @SuppressWarnings("unused")
                 StockLedger tx1 = stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX1", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX1", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 StockLedger tx2 = stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX2", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX2", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 @SuppressWarnings("unused")
                 StockLedger tx3 = stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX3", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "TX3", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 // Corromper la cadena eliminando una transacción intermedia (TX2) directamente vía JDBC
                 List<StockLedger> history = stockLedgerService.getProductHistory(testProduct.getId());
@@ -449,14 +426,11 @@ class StockLedgerServiceIntegrationTest {
         void testRepairProductLedger_ShouldFixCorruptedChain() {
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.005"), MovementType.MODIFICACION, "TX1", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("0.005"), MovementType.MODIFICACION, "TX1", testUser, null, java.time.LocalDate.now().plusDays(30));
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.002"), MovementType.MODIFICACION, "TX2", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("0.002"), MovementType.MODIFICACION, "TX2", testUser, null, java.time.LocalDate.now().plusDays(30));
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.003"), MovementType.MODIFICACION, "TX3", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("0.003"), MovementType.MODIFICACION, "TX3", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 List<StockLedger> historyBeforeCorruption = stockLedgerService.getProductHistory(testProduct.getId());
                 Long secondTxId = historyBeforeCorruption.get(1).getId();
@@ -493,14 +467,11 @@ class StockLedgerServiceIntegrationTest {
         void testGetProductHistory() {
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "Compra 1", testUser,
-                                1);
+                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "Compra 1", testUser, 1, java.time.LocalDate.now().plusDays(30));
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("-5.0"), MovementType.SALIDA, "Venta 1", testUser,
-                                2);
+                                testProduct.getId(), new BigDecimal("-5.0"), MovementType.SALIDA, "Venta 1", testUser, 2, java.time.LocalDate.now().plusDays(30));
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("20.0"), MovementType.ENTRADA, "Compra 2", testUser,
-                                3);
+                                testProduct.getId(), new BigDecimal("20.0"), MovementType.ENTRADA, "Compra 2", testUser, 3, java.time.LocalDate.now().plusDays(30));
 
                 List<StockLedger> history = stockLedgerService.getProductHistory(testProduct.getId());
 
@@ -519,8 +490,7 @@ class StockLedgerServiceIntegrationTest {
         void testGetCurrentStock() {
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("75.0"), MovementType.ENTRADA, "Test", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("75.0"), MovementType.ENTRADA, "Test", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 Optional<StockSnapshot> snapshot = stockLedgerService.getCurrentStock(testProduct.getId());
 
@@ -539,7 +509,7 @@ class StockLedgerServiceIntegrationTest {
                 BigDecimal delta = new BigDecimal("33.5");
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), delta, MovementType.MODIFICACION, "Test", testUser, null);
+                                testProduct.getId(), delta, MovementType.MODIFICACION, "Test", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 Product updatedProduct = productRepository.findById(testProduct.getId()).orElseThrow();
                 assertEquals(0, initialStock.add(delta).compareTo(updatedProduct.getCurrentStock()));
@@ -561,11 +531,9 @@ class StockLedgerServiceIntegrationTest {
                 product2 = productRepository.save(product2);
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "P1-TX1", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "P1-TX1", testUser, null, java.time.LocalDate.now().plusDays(30));
                 stockLedgerService.recordStockMovement(
-                                product2.getId(), new BigDecimal("20.0"), MovementType.ENTRADA, "P2-TX1", testUser,
-                                null);
+                                product2.getId(), new BigDecimal("20.0"), MovementType.ENTRADA, "P2-TX1", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 List<IntegrityCheckResult> results = stockLedgerService.verifyAllChains();
 
@@ -587,8 +555,7 @@ class StockLedgerServiceIntegrationTest {
         void testHashCalculation_Consistency() {
 
                 StockLedger tx1 = stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "Test", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("10.0"), MovementType.ENTRADA, "Test", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 String hash = tx1.getCurrentHash();
 
@@ -604,8 +571,7 @@ class StockLedgerServiceIntegrationTest {
         void testVerifyChainIntegrity_UpdatesVerificationStatus() {
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("25.0"), MovementType.ENTRADA, "Test", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("25.0"), MovementType.ENTRADA, "Test", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 stockLedgerService.verifyChainIntegrity(testProduct.getId());
 
@@ -619,14 +585,11 @@ class StockLedgerServiceIntegrationTest {
         void testResetProductLedger() {
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("50.0"), MovementType.ENTRADA, "TX1", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("50.0"), MovementType.ENTRADA, "TX1", testUser, null, java.time.LocalDate.now().plusDays(30));
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("30.0"), MovementType.ENTRADA, "TX2", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("30.0"), MovementType.ENTRADA, "TX2", testUser, null, java.time.LocalDate.now().plusDays(30));
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("-20.0"), MovementType.SALIDA, "TX3", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("-20.0"), MovementType.SALIDA, "TX3", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 List<StockLedger> historyBefore = stockLedgerService.getProductHistory(testProduct.getId());
                 assertEquals(3, historyBefore.size(), "Debe haber 3 transacciones");
@@ -647,14 +610,12 @@ class StockLedgerServiceIntegrationTest {
         void testResetProductLedger_AllowsNewTransactions() {
 
                 stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("100.0"), MovementType.ENTRADA, "Old TX", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("100.0"), MovementType.ENTRADA, "Old TX", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 stockLedgerService.resetProductLedger(testProduct.getId());
 
                 StockLedger newTx = stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("50.0"), MovementType.ENTRADA, "New TX", testUser,
-                                null);
+                                testProduct.getId(), new BigDecimal("50.0"), MovementType.ENTRADA, "New TX", testUser, null, java.time.LocalDate.now().plusDays(30));
 
                 assertNotNull(newTx);
                 assertEquals(1L, newTx.getSequenceNumber(), "Debe empezar en secuencia 1");

@@ -290,6 +290,7 @@ class ProductServiceTest {
 
     @Test
     void save_WhenNameDoesNotExist_ShouldCreateProduct() {
+        testProductRequestDTO.setExpirationDate(java.time.LocalDate.now().plusDays(30)); // obligatoria con stock > 0
 
         when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
         when(productMapper.toEntity(testProductRequestDTO)).thenReturn(testProduct);
@@ -302,7 +303,20 @@ class ProductServiceTest {
         assertEquals(testProductResponseDTO.getName(), result.getName());
         verify(repository).existsByName(testProductRequestDTO.getName());
         verify(repository).saveAndFlush(testProduct);
-        verify(stockLedgerService).recordStockMovement(eq(1), any(BigDecimal.class), eq(MovementType.ENTRADA), anyString(), any(User.class), ArgumentMatchers.isNull(), ArgumentMatchers.isNull());
+        verify(stockLedgerService).recordStockMovement(eq(1), any(BigDecimal.class), eq(MovementType.ENTRADA), anyString(), any(User.class), ArgumentMatchers.isNull(), ArgumentMatchers.any(java.time.LocalDate.class));
+    }
+
+    @Test
+    void save_shouldFail_whenInitialStockPositiveAndNoExpirationDate() {
+        testProductRequestDTO.setCurrentStock(new BigDecimal("5.0")); // stock inicial positivo
+        testProductRequestDTO.setExpirationDate(null); // sin fecha de caducidad
+
+        when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
+        when(repository.existsByProductCode(testProductRequestDTO.getProductCode())).thenReturn(false);
+        when(productMapper.toEntity(testProductRequestDTO)).thenReturn(testProduct);
+        when(repository.saveAndFlush(testProduct)).thenReturn(testProduct);
+
+        assertThrows(InvalidOperationException.class, () -> productService.save(testProductRequestDTO));
     }
 
     @Test
@@ -343,6 +357,7 @@ class ProductServiceTest {
 
         for (String unit : validUnits) {
             testProductRequestDTO.setUnit(unit);
+            testProductRequestDTO.setExpirationDate(java.time.LocalDate.now().plusDays(30)); // obligatoria
             when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
             when(productMapper.toEntity(testProductRequestDTO)).thenReturn(testProduct);
             when(repository.saveAndFlush(testProduct)).thenReturn(testProduct);
@@ -549,8 +564,8 @@ class ProductServiceTest {
     void updateStockManually_WhenStockIncreases_ShouldRecordMovement() {
 
         testProduct.setCurrentStock(new BigDecimal("10.0"));
-
         testProductRequestDTO.setCurrentStock(new BigDecimal("50.0"));
+        testProductRequestDTO.setExpirationDate(java.time.LocalDate.now().plusDays(30));
 
         Product updatedProduct = new Product();
         updatedProduct.setId(1);

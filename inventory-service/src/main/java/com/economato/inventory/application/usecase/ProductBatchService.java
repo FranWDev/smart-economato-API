@@ -30,12 +30,20 @@ public class ProductBatchService {
 
     @Transactional(rollbackFor = Exception.class)
     public ProductBatch createBatch(Product product, BigDecimal quantity, LocalDate expirationDate, StockLedger ledgerTx) {
+        if (expirationDate == null) {
+            throw new InvalidOperationException(
+                i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_REQUIRED));
+        }
+        if (expirationDate.isBefore(LocalDate.now())) {
+            throw new InvalidOperationException(
+                i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_PAST, new Object[]{expirationDate}));
+        }
         BigDecimal normalizedQuantity = quantity.setScale(3, java.math.RoundingMode.HALF_UP);
         ProductBatch batch = ProductBatch.builder()
                 .product(product)
                 .expirationDate(expirationDate)
-            .initialQuantity(normalizedQuantity)
-            .remainingQuantity(normalizedQuantity)
+                .initialQuantity(normalizedQuantity)
+                .remainingQuantity(normalizedQuantity)
                 .receivedAt(LocalDateTime.now())
                 .ledgerTransaction(ledgerTx)
                 .depleted(false)
@@ -101,6 +109,12 @@ public class ProductBatchService {
         ProductBatch batch = batchRepository.findById(batchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lote no encontrado"));
 
+        if (batch.getExpirationDate() != null && batch.getExpirationDate().isBefore(LocalDate.now())) {
+            throw new InvalidOperationException(
+                i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRED_CANNOT_REVERT,
+                        new Object[]{batchId, batch.getProduct().getName(), batch.getExpirationDate()}));
+        }
+
         if (batch.isDepleted() || batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) == 0) {
             throw new InvalidOperationException("El lote específico está agotado.");
         }
@@ -109,7 +123,7 @@ public class ProductBatchService {
         BigDecimal newRemaining = batch.getRemainingQuantity()
                 .subtract(toConsume)
                 .setScale(3, java.math.RoundingMode.HALF_UP);
-                
+
         batch.setRemainingQuantity(newRemaining);
         if (batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) == 0) {
             batch.setDepleted(true);
@@ -130,16 +144,51 @@ public class ProductBatchService {
         }
         ProductBatch batch = batchRepository.findById(batchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lote no encontrado"));
-                
+
+        if (batch.getExpirationDate() != null && batch.getExpirationDate().isBefore(LocalDate.now())) {
+            throw new InvalidOperationException(
+                i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRED_CANNOT_ADD_STOCK, new Object[]{batchId}));
+        }
+
         BigDecimal newRemaining = batch.getRemainingQuantity()
                 .add(quantity)
                 .setScale(3, java.math.RoundingMode.HALF_UP);
-                
+
         batch.setRemainingQuantity(newRemaining);
         if (newRemaining.compareTo(BigDecimal.ZERO) > 0) {
             batch.setDepleted(false);
         }
         batchRepository.save(batch);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ProductBatch updateExpirationDate(Long batchId, LocalDate newExpirationDate, String reason) {
+        ProductBatch batch = batchRepository.findById(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Lote no encontrado: " + batchId));
+
+        if (batch.isDepleted()) {
+            throw new InvalidOperationException(
+                i18nService.getMessage(MessageKey.ERROR_BATCH_DEPLETED_CANNOT_UPDATE));
+        }
+
+        if (newExpirationDate == null) {
+            throw new InvalidOperationException(
+                i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_REQUIRED));
+        }
+
+        if (newExpirationDate.isBefore(LocalDate.now())) {
+            throw new InvalidOperationException(
+                i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_PAST, new Object[]{newExpirationDate}));
+        }
+
+        LocalDate previousDate = batch.getExpirationDate();
+        batch.setExpirationDate(newExpirationDate);
+        ProductBatch saved = batchRepository.save(batch);
+
+        log.info("Caducidad actualizada: batchId={}, anterior={}, nueva={}, motivo={}",
+                batchId, previousDate, newExpirationDate, reason);
+
+        return saved;
     }
 
     @Transactional(readOnly = true)

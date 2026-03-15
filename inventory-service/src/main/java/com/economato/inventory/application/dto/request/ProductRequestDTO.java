@@ -62,6 +62,9 @@ public class ProductRequestDTO {
     @Schema(description = "ID del proveedor del producto", example = "1")
     private Integer supplierId;
 
+    @Schema(description = "ID del lote al que aplicar la modificación de stock. Si se omite, se aplica FEFO para salidas o se crea lote nuevo para entradas.", example = "12")
+    private Long batchId;
+
     @Schema(description = "Fecha de expiración para el stock inicial", example = "2026-12-31")
     private java.time.LocalDate expirationDate;
 }

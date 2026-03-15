@@ -138,6 +138,10 @@ public class ProductService {
         Product product = repository.saveAndFlush(productMapper.toEntity(requestDTO));
 
         if (initialStock != null && initialStock.compareTo(BigDecimal.ZERO) > 0) {
+            if (requestDTO.getExpirationDate() == null) {
+                throw new InvalidOperationException(
+                    i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_REQUIRED));
+            }
             User currentUser = securityContextHelper.getCurrentUser();
             stockLedgerService.recordStockMovement(
                     product.getId(),
@@ -318,17 +322,15 @@ public class ProductService {
                     if (stockDelta.compareTo(BigDecimal.ZERO) != 0) {
                         User currentUser = securityContextHelper.getCurrentUser();
 
-                        StockLedger ledgerTx = stockLedgerService.recordStockMovement(
+                        stockLedgerService.recordManualAdjustment(
                                 existing.getId(),
                                 stockDelta,
                                 MovementType.MODIFICACION,
                                 i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_MANUAL_ADJUSTMENT,
                                         new Object[] { existing.getName() }),
                                 currentUser,
-                                null,
+                                requestDTO.getBatchId(),
                                 requestDTO.getExpirationDate());
-
-
 
                         Product updated = repository.findById(id).orElseThrow();
                         return productMapper.toResponseDTO(updated);

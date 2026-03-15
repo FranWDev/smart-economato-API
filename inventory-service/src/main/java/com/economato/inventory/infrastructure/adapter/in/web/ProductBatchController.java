@@ -1,12 +1,16 @@
 package com.economato.inventory.infrastructure.adapter.in.web;
 
+import com.economato.inventory.application.dto.request.UpdateBatchExpirationRequestDTO;
 import com.economato.inventory.application.dto.response.ProductBatchResponseDTO;
 import com.economato.inventory.application.mapper.ProductBatchMapper;
 import com.economato.inventory.application.usecase.ProductBatchService;
 import com.economato.inventory.application.usecase.StockLedgerService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -62,5 +66,22 @@ public class ProductBatchController {
     public ResponseEntity<Void> withdrawBatch(@PathVariable Long batchId) {
         stockLedgerService.withdrawExpiredBatch(batchId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+    @Operation(summary = "Actualizar fecha de caducidad de un lote",
+               description = "Permite corregir o actualizar la fecha de caducidad de un lote activo.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Caducidad actualizada correctamente"),
+        @ApiResponse(responseCode = "400", description = "Datos inválidos o lote agotado"),
+        @ApiResponse(responseCode = "404", description = "Lote no encontrado")
+    })
+    @PatchMapping("/{batchId}/expiration")
+    public ResponseEntity<ProductBatchResponseDTO> updateBatchExpiration(
+            @PathVariable Long batchId,
+            @Valid @RequestBody UpdateBatchExpirationRequestDTO request) {
+        var updated = productBatchService.updateExpirationDate(
+                batchId, request.getExpirationDate(), request.getReason());
+        return ResponseEntity.ok(productBatchMapper.toResponseDTO(updated));
     }
 }

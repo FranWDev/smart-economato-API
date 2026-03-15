@@ -345,8 +345,14 @@ public class RecipeService {
                     .orElseThrow(() -> new ResourceNotFoundException("Auditoría de cocinado no encontrada (ID: " + auditId + ")"));
             
             if (audit.getCorrelationId() == null) {
-                log.warn("Intento de revertir auditoría sin correlationId: auditId={}", auditId);
-                throw new InvalidOperationException("Esta auditoría no tiene ID de correlación y no puede revertirse automáticamente.");
+                log.warn("Intento de revertir audi toría sin correlationId: auditId={}", auditId);
+                throw new InvalidOperationException("Esta audi toría no tiene ID de correlación y no puede revertirse automáticamente.");
+            }
+
+            // Prevenir doble reversión: verificar si ya fue revertido antes
+            if (audit.getDetails() != null && audit.getDetails().contains("[REVERTIDO:")) {
+                throw new InvalidOperationException(
+                    i18nService.getMessage(com.economato.inventory.infrastructure.config.web.MessageKey.ERROR_COOKING_ALREADY_REVERTED));
             }
 
             stockLedgerService.revertMovement(audit.getCorrelationId(), "Deshacer cocinado: " + reason);

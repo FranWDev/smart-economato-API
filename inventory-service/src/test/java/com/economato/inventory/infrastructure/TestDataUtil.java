@@ -214,6 +214,7 @@ public class TestDataUtil {
         dto.setUnitPrice(new BigDecimal("2.50"));
         dto.setProductCode("HAR002");
         dto.setCurrentStock(new BigDecimal("100.0"));
+        dto.setExpirationDate(java.time.LocalDate.now().plusDays(30));
         dto.setMinimumStock(BigDecimal.ZERO); // Default for tests
         return dto;
     }

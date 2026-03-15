@@ -139,7 +139,8 @@ class StockBatchInvariantIntegrationTest extends BaseIntegrationTest {
                 MovementType.MODIFICACION,
                 "Ajuste positivo",
                 testUser,
-                null);
+                null,
+                LocalDate.now().plusDays(20)); // nueva fecha de caducidad para el lote generado
         verifyInvariant();
 
         // 6. MERMA
