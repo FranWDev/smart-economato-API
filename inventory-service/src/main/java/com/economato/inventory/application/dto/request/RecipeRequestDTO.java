@@ -36,6 +36,9 @@ public class RecipeRequestDTO {
     @Schema(description = "Lista de componentes de la receta")
     private List<RecipeComponentRequestDTO> components;
 
+    @Schema(description = "Indica si la receta está oculta", example = "false")
+    private boolean isHidden;
+
     @Schema(description = "IDs de alérgenos asociados a la receta", example = "[1, 3, 5]")
     private List<Integer> allergenIds;
 }
