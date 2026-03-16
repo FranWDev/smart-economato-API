@@ -53,7 +53,7 @@ public interface RecipeMapper {
     @Mapping(target = "totalCost", ignore = true)
     @Mapping(target = "components", ignore = true)
     @Mapping(target = "allergens", ignore = true)
-    @Mapping(target = "isHidden", ignore = true)
+    @Mapping(target = "hidden", source = "isHidden")
     @Mapping(target = "version", ignore = true)
     Recipe toEntity(RecipeRequestDTO requestDTO);
 
@@ -65,7 +65,7 @@ public interface RecipeMapper {
     @Mapping(target = "totalCost", ignore = true)
     @Mapping(target = "components", ignore = true)
     @Mapping(target = "allergens", ignore = true)
-    @Mapping(target = "hidden", ignore = true)
+    @Mapping(target = "hidden", source = "isHidden")
     @Mapping(target = "version", ignore = true)
     void updateEntity(RecipeRequestDTO requestDTO, @MappingTarget Recipe recipe);
 }
