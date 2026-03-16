@@ -19,7 +19,8 @@ import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Token blacklist service that uses Redis as primary cache with automatic fallback to database.
+ * Token blacklist service that uses Redis as primary cache with automatic
+ * fallback to database.
  * 
  * When Redis is available: Stores tokens in Redis with TTL
  * When Redis fails: Falls back to checking the database
@@ -55,7 +56,6 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
         if (token != null && !token.isEmpty() && expirationDate != null) {
             if (!isRedisCircuitOpen()) {
                 try {
-                    // Try to save to Redis with TTL
                     long ttlMillis = expirationDate.getTime() - System.currentTimeMillis();
                     if (ttlMillis > 0) {
                         redisTemplate.opsForValue().set(
@@ -65,7 +65,6 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
                         recordSuccess();
                     }
                 } catch (Exception e) {
-                    // Redis failed, log warning but continue
                     log.warn("Failed to blacklist token in Redis, falling back to database: {}", e.getMessage());
                     recordFailure(e);
                 }
@@ -73,7 +72,6 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
                 log.debug("Redis circuit breaker OPEN, skipping Redis blacklist write");
             }
 
-            // Always save to database as backup
             try {
                 revokedTokenRepository.save(new RevokedToken(token, expirationDate));
             } catch (Exception e) {
@@ -81,7 +79,6 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
                 throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_AUTH_TOKEN_REVOKE_FAILED), e);
             }
 
-            // Invalidate locale cache
             tokenLocaleCache.invalidate(token);
         }
     }
@@ -94,29 +91,23 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
 
         if (!isRedisCircuitOpen()) {
             try {
-                // Try Redis first (faster)
                 Boolean exists = redisTemplate.hasKey(BLACKLIST_PREFIX + token);
                 recordSuccess();
                 if (exists != null && exists) {
                     return true;
                 }
             } catch (Exception e) {
-                // Redis failed or circuit breaker is open
                 log.debug("Redis unavailable for token lookup, falling back to database: {}", e.getMessage());
                 recordFailure(e);
-                // Continue to database fallback below
             }
         } else {
             log.debug("Redis circuit breaker OPEN, skipping Redis blacklist lookup");
         }
 
-        // Fallback to database if Redis fails or token not found in Redis
         try {
             return revokedTokenRepository.existsByToken(token);
         } catch (Exception e) {
             log.error("Failed to check token blacklist in database: {}", e.getMessage());
-            // In case of database errors too, DENY access (fail secure)
-            // This is safer than allowing unknown tokens through
             log.warn("Both Redis and Database failed for token check. Denying access for token to be safe.");
             return true;
         }
@@ -174,8 +165,6 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
     @Override
     public void cleanExpiredTokens() {
         try {
-            // Redis manages TTL automatically
-            // Clean database of expired tokens
             int deletedCount = revokedTokenRepository.deleteExpiredTokens(new Date());
             if (deletedCount > 0) {
                 log.debug("Cleaned {} expired tokens from database", deletedCount);
@@ -222,4 +211,3 @@ public class RedisTokenBlacklistService implements TokenBlacklistService {
         return current != null ? current : exception;
     }
 }
-
