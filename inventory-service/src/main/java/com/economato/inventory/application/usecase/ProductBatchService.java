@@ -160,11 +160,15 @@ public class ProductBatchService {
                 .add(quantity)
                 .setScale(3, java.math.RoundingMode.HALF_UP);
 
+        log.info("Añadiendo stock al lote {}: anterior={}, añadir={}, nuevo={}, antes_depleted={}", 
+                batchId, batch.getRemainingQuantity(), quantity, newRemaining, batch.isDepleted());
+
         batch.setRemainingQuantity(newRemaining);
         if (newRemaining.compareTo(BigDecimal.ZERO) > 0) {
             batch.setDepleted(false);
+            log.info("Lote {} marcado como NO agotado", batchId);
         }
-        batchRepository.save(batch);
+        batchRepository.saveAndFlush(batch);
     }
 
     @Transactional(rollbackFor = Exception.class)
