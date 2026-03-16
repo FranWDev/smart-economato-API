@@ -24,12 +24,15 @@ class McpUtilityControllerIntegrationTest extends BaseIntegrationTest {
     private ProductRepository productRepository;
 
     @Autowired
+    private com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository userRepository;
+
+    @Autowired
     private ObjectMapper objectMapper;
 
     @BeforeEach
     void setUp() {
         clearDatabase();
-        createDefaultAdmin();
+        userRepository.saveAndFlush(TestDataUtil.createAdminUser());
     }
 
     @Test

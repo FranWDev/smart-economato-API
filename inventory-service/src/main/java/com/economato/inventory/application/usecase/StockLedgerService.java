@@ -222,11 +222,6 @@ public class StockLedgerService {
                             new Object[]{originalTx.getId()}));
             }
 
-            // Agregar cantidad total a restaurar y hallar la caducidad más temprana
-            BigDecimal totalToRestore = BigDecimal.ZERO;
-            java.time.LocalDate earliestExpiration = null;
-            List<Long> originalBatchIds = new java.util.ArrayList<>();
-
             for (StockLedgerBatchDetail detail : details) {
                 ProductBatch batch = detail.getBatch();
                 if (batch == null) {
@@ -234,7 +229,7 @@ public class StockLedgerService {
                     continue;
                 }
 
-                // Verificar que ningún lote original esté caducado
+                // Verificar que el lote original no esté caducado
                 if (batch.getExpirationDate() != null && batch.getExpirationDate().isBefore(java.time.LocalDate.now())) {
                     throw new InvalidOperationException(
                         i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRED_CANNOT_REVERT,
@@ -242,43 +237,34 @@ public class StockLedgerService {
                 }
 
                 BigDecimal quantityToRestore = detail.getQuantity().negate();
-                totalToRestore = totalToRestore.add(quantityToRestore);
-                originalBatchIds.add(batch.getId());
-
-                if (batch.getExpirationDate() != null) {
-                    if (earliestExpiration == null || batch.getExpirationDate().isBefore(earliestExpiration)) {
-                        earliestExpiration = batch.getExpirationDate();
+                
+                // Validar que la reversión de una ENTRADA (quantityToRestore < 0) no cause stock negativo
+                if (quantityToRestore.compareTo(BigDecimal.ZERO) < 0) {
+                    com.economato.inventory.domain.model.StockSnapshot snapshot =
+                            snapshotRepository.findById(originalTx.getProduct().getId()).orElse(null);
+                    if (snapshot != null) {
+                        BigDecimal resultingStock = snapshot.getCurrentStock().add(quantityToRestore);
+                        if (resultingStock.compareTo(BigDecimal.ZERO) < 0) {
+                            throw new InvalidOperationException(
+                                "No se puede deshacer la entrada: resultaría en stock negativo (" + resultingStock + ").");
+                        }
                     }
                 }
+
+                String description = "REVERSIÓN: " + reason + " [lote original: " + batch.getId() + "]";
+
+                // Registrar contra-asiento para el lote específico
+                recordStockMovementInternal(
+                        originalTx.getProduct().getId(),
+                        quantityToRestore,
+                        MovementType.REVERSION,
+                        description,
+                        currentUser,
+                        originalTx.getOrderId(),
+                        batch.getExpirationDate(),
+                        reversalCorrelationId,
+                        batch.getId()); 
             }
-
-            // Validar que la reversión de una ENTRADA (totalToRestore < 0) no cause stock negativo
-            if (totalToRestore.compareTo(BigDecimal.ZERO) < 0) {
-                com.economato.inventory.domain.model.StockSnapshot snapshot =
-                        snapshotRepository.findById(originalTx.getProduct().getId()).orElse(null);
-                if (snapshot != null) {
-                    BigDecimal resultingStock = snapshot.getCurrentStock().add(totalToRestore);
-                    if (resultingStock.compareTo(BigDecimal.ZERO) < 0) {
-                        throw new InvalidOperationException(
-                            "No se puede deshacer la entrada: resultaría en stock negativo (" + resultingStock + ").");
-                    }
-                }
-            }
-
-            String batchIdsStr = originalBatchIds.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(", "));
-            String description = "REVERSIÓN: " + reason + " [lotes originales: " + batchIdsStr + "]";
-
-            // Registrar UN ÚNICO contra-asiento consolidado que creará un lote nuevo
-            recordStockMovementInternal(
-                    originalTx.getProduct().getId(),
-                    totalToRestore,
-                    MovementType.REVERSION,
-                    description,
-                    currentUser,
-                    originalTx.getOrderId(),
-                    earliestExpiration,
-                    reversalCorrelationId,
-                    null); // null → se creará automáticamente un lote nuevo consolidado
         }
     }
 

@@ -67,7 +67,9 @@ public class McpUtilityService {
     @Transactional(readOnly = true)
     public List<McpOrderDto> getPendingOrders() {
         return orderRepository.findAll().stream()
-                .filter(o -> o.getStatus() == OrderStatus.PENDING || o.getStatus() == OrderStatus.ORDERED)
+                .filter(o -> o.getStatus() == OrderStatus.PENDING || 
+                             o.getStatus() == OrderStatus.REVIEW || 
+                             o.getStatus() == OrderStatus.CREATED)
                 .map(this::mapToOrderDto)
                 .collect(Collectors.toList());
     }
@@ -118,7 +120,7 @@ public class McpUtilityService {
                 .id(o.getId())
                 .status(o.getStatus().name())
                 .totalAmount(o.getDetails().stream()
-                        .map(d -> d.getUnitPrice().multiply(d.getQuantity()))
+                        .map(d -> d.getProduct().getUnitPrice().multiply(d.getQuantity()))
                         .reduce(BigDecimal.ZERO, BigDecimal::add))
                 .itemCount(o.getDetails().size())
                 .supplierName(o.getSupplier() != null ? o.getSupplier().getName() : "N/A")

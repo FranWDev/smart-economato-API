@@ -130,6 +130,9 @@ class StockAlertServiceTest {
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of());
         when(productRepository.findAll()).thenReturn(List.of(product));
+        when(productBatchService.getAllActiveBatches()).thenReturn(List.of(
+            ProductBatch.builder().product(product).remainingQuantity(BigDecimal.valueOf(1.0)).build()
+        ));
         when(cookingAuditRepository.findTopConsumingRecipesByProduct(eq(productId), any()))
                 .thenReturn(List.of("Gazpacho"));
 
@@ -213,6 +216,9 @@ class StockAlertServiceTest {
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of(pending));
         when(productRepository.findAll()).thenReturn(List.of(product));
+        when(productBatchService.getAllActiveBatches()).thenReturn(List.of(
+            ProductBatch.builder().product(product).remainingQuantity(BigDecimal.valueOf(1.0)).build()
+        ));
 
         // --- Execute ---
         List<StockAlertDTO> alerts = stockAlertService.getActiveAlerts();
@@ -258,6 +264,9 @@ class StockAlertServiceTest {
         when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of());
         when(productRepository.findAll()).thenReturn(List.of(product));
+        when(productBatchService.getAllActiveBatches()).thenReturn(List.of(
+            ProductBatch.builder().product(product).remainingQuantity(BigDecimal.valueOf(effectiveStock)).build()
+        ));
 
         List<StockAlertDTO> alerts = stockAlertService.getActiveAlerts();
 
