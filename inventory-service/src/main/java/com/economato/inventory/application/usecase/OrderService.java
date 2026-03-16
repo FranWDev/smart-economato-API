@@ -121,7 +121,6 @@ public class OrderService {
                 }
 
                 Order savedOrder = repository.save(order);
-                // Return using the same mapper for consistency
                 return orderMapper.toResponseDTO(savedOrder);
         }
 
@@ -146,7 +145,8 @@ public class OrderService {
                                         existing.setUser(user);
 
                                         if (requestDTO.getSupplierId() != null) {
-                                                Supplier supplier = supplierRepository.findById(requestDTO.getSupplierId())
+                                                Supplier supplier = supplierRepository
+                                                                .findById(requestDTO.getSupplierId())
                                                                 .orElseThrow(() -> new ResourceNotFoundException(
                                                                                 "El proveedor especificado no existe."));
                                                 existing.setSupplier(supplier);
@@ -212,7 +212,8 @@ public class OrderService {
                         Integer supplierId,
                         Integer orderId) {
                 if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
-                        throw new InvalidOperationException("La fecha de inicio no puede ser mayor que la fecha de fin.");
+                        throw new InvalidOperationException(
+                                        "La fecha de inicio no puede ser mayor que la fecha de fin.");
                 }
 
                 Specification<Order> spec = (root, query, cb) -> cb.conjunction();
@@ -279,52 +280,54 @@ public class OrderService {
 
                 boolean isComplete = true;
 
-        for (var receptionItem : receptionData.getItems()) {
-                OrderDetail detail = order.getDetails().stream()
-                                .filter(d -> d.getProduct().getId().equals(receptionItem.getProductId()))
-                                .findFirst()
-                                .orElseThrow(() -> new ResourceNotFoundException(
-                                                i18nService.getMessage(
-                                                                MessageKey.ERROR_ORDER_PRODUCT_NOT_FOUND)));
-
-                if (receptionItem.getQuantityReceived().compareTo(detail.getQuantity()) < 0) {
-                        isComplete = false;
-                }
-                detail.setQuantityReceived(receptionItem.getQuantityReceived());
-        }
-
-        order.setStatus(isComplete ? OrderStatus.CONFIRMED : OrderStatus.INCOMPLETE);
-
-        log.info("Procesando recepción de orden {} con estado final {} - Registrando en ledger inmutable", order.getId(), order.getStatus());
-
-        Map<Integer, com.economato.inventory.application.dto.request.OrderReceptionDetailRequestDTO> receptionByProductId = new HashMap<>();
-        for (var item : receptionData.getItems()) {
-                receptionByProductId.put(item.getProductId(), item);
-        }
-
-        for (OrderDetail detail : order.getDetails()) {
-                // If received quantity is greater than 0, register it in the ledger
-                if (detail.getQuantityReceived() != null && detail.getQuantityReceived().compareTo(java.math.BigDecimal.ZERO) > 0) {
-                        Product product = productRepository.findByIdForUpdate(detail.getProduct().getId())
+                for (var receptionItem : receptionData.getItems()) {
+                        OrderDetail detail = order.getDetails().stream()
+                                        .filter(d -> d.getProduct().getId().equals(receptionItem.getProductId()))
+                                        .findFirst()
                                         .orElseThrow(() -> new ResourceNotFoundException(
                                                         i18nService.getMessage(
-                                                                        MessageKey.ERROR_PRODUCT_NOT_FOUND)));
+                                                                        MessageKey.ERROR_ORDER_PRODUCT_NOT_FOUND)));
 
-                        var receptionItem = receptionByProductId.get(detail.getProduct().getId());
-                        StockLedger ledgerTx = stockLedgerService.recordStockMovement(
-                                        product.getId(),
-                                        detail.getQuantityReceived(),
-                                        MovementType.ENTRADA,
-                                          i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_RECEPTION,
-                                                          new Object[] { order.getId(), product.getName() }),
-                                        order.getUser(),
-                                        order.getId(),
-                                        receptionItem != null ? receptionItem.getExpirationDate() : null);
-
+                        if (receptionItem.getQuantityReceived().compareTo(detail.getQuantity()) < 0) {
+                                isComplete = false;
+                        }
+                        detail.setQuantityReceived(receptionItem.getQuantityReceived());
                 }
-        }
 
-        log.info("Orden {} procesada - movimientos registrados en ledger", order.getId());
+                order.setStatus(isComplete ? OrderStatus.CONFIRMED : OrderStatus.INCOMPLETE);
+
+                log.info("Procesando recepción de orden {} con estado final {} - Registrando en ledger inmutable",
+                                order.getId(), order.getStatus());
+
+                Map<Integer, com.economato.inventory.application.dto.request.OrderReceptionDetailRequestDTO> receptionByProductId = new HashMap<>();
+                for (var item : receptionData.getItems()) {
+                        receptionByProductId.put(item.getProductId(), item);
+                }
+
+                for (OrderDetail detail : order.getDetails()) {
+                        // If received quantity is greater than 0, register it in the ledger
+                        if (detail.getQuantityReceived() != null
+                                        && detail.getQuantityReceived().compareTo(java.math.BigDecimal.ZERO) > 0) {
+                                Product product = productRepository.findByIdForUpdate(detail.getProduct().getId())
+                                                .orElseThrow(() -> new ResourceNotFoundException(
+                                                                i18nService.getMessage(
+                                                                                MessageKey.ERROR_PRODUCT_NOT_FOUND)));
+
+                                var receptionItem = receptionByProductId.get(detail.getProduct().getId());
+                                StockLedger ledgerTx = stockLedgerService.recordStockMovement(
+                                                product.getId(),
+                                                detail.getQuantityReceived(),
+                                                MovementType.ENTRADA,
+                                                i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_RECEPTION,
+                                                                new Object[] { order.getId(), product.getName() }),
+                                                order.getUser(),
+                                                order.getId(),
+                                                receptionItem != null ? receptionItem.getExpirationDate() : null);
+
+                        }
+                }
+
+                log.info("Orden {} procesada - movimientos registrados en ledger", order.getId());
 
                 Order savedOrder = repository.save(order);
                 return orderMapper.toResponseDTO(savedOrder);
@@ -351,7 +354,8 @@ public class OrderService {
         }
 
         @Transactional(readOnly = true)
-        public java.util.List<com.economato.inventory.application.dto.response.OrderDetailResponseDTO> getMissingItems(Integer orderId) {
+        public java.util.List<com.economato.inventory.application.dto.response.OrderDetailResponseDTO> getMissingItems(
+                        Integer orderId) {
                 Order order = repository.findByIdWithDetails(orderId)
                                 .orElseThrow(() -> new ResourceNotFoundException(
                                                 i18nService.getMessage(MessageKey.ERROR_ORDER_NOT_FOUND)));
@@ -362,7 +366,9 @@ public class OrderService {
 
                 return order.getDetails().stream()
                                 .filter(detail -> {
-                                        java.math.BigDecimal received = detail.getQuantityReceived() != null ? detail.getQuantityReceived() : java.math.BigDecimal.ZERO;
+                                        java.math.BigDecimal received = detail.getQuantityReceived() != null
+                                                        ? detail.getQuantityReceived()
+                                                        : java.math.BigDecimal.ZERO;
                                         return detail.getQuantity().compareTo(received) > 0;
                                 })
                                 .map(detail -> {
@@ -370,11 +376,13 @@ public class OrderService {
                                         dto.setOrderId(order.getId());
                                         dto.setProductId(detail.getProduct().getId());
                                         dto.setProductName(detail.getProduct().getName());
-                                        
-                                        java.math.BigDecimal received = detail.getQuantityReceived() != null ? detail.getQuantityReceived() : java.math.BigDecimal.ZERO;
+
+                                        java.math.BigDecimal received = detail.getQuantityReceived() != null
+                                                        ? detail.getQuantityReceived()
+                                                        : java.math.BigDecimal.ZERO;
                                         dto.setQuantity(detail.getQuantity().subtract(received)); // Faltante
                                         dto.setQuantityReceived(java.math.BigDecimal.ZERO);
-                                        
+
                                         return dto;
                                 })
                                 .toList();

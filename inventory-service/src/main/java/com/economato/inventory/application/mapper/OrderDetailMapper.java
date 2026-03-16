@@ -52,11 +52,6 @@ public interface OrderDetailMapper {
 
     @Named("calculateSubtotalFromProjection")
     default BigDecimal calculateSubtotalFromProjection(OrderDetailProjection projection) {
-        // The provided code edit contained controller-related annotations and method
-        // signature
-        // within this mapper's default method, which is syntactically incorrect.
-        // I am applying the rest of the original method's body as it was before the
-        // edit.
         if (projection.getQuantity() == null || projection.getProduct() == null ||
                 projection.getProduct().getUnitPrice() == null) {
             return BigDecimal.ZERO;
