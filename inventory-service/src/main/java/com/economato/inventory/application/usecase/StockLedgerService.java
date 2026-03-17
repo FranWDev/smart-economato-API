@@ -35,6 +35,8 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -97,6 +99,9 @@ public class StockLedgerService {
     private final Timer ledgerHashTimer;
 
     private static final String GENESIS_HASH = "GENESIS";
+    
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public StockLedgerService(
             I18nService i18nService,
@@ -249,6 +254,7 @@ public class StockLedgerService {
                     i18nService.getMessage(MessageKey.ERROR_REVERSION_ALREADY_DONE, new Object[] { correlationId }));
         }
 
+        // FASE 1: Verificación de integridad y uso de lotes
         for (StockLedger originalTx : transactions) {
             List<StockLedgerBatchDetail> details = batchDetailRepository.findByLedgerTransactionId(originalTx.getId());
 
@@ -261,10 +267,7 @@ public class StockLedgerService {
 
             for (StockLedgerBatchDetail detail : details) {
                 ProductBatch batch = detail.getBatch();
-                if (batch == null) {
-                    log.error("Lote nulo en detalle de transacción {}. Saltando.", detail.getId());
-                    continue;
-                }
+                if (batch == null) continue;
 
                 // Verificar que el lote original no esté caducado
                 if (batch.getExpirationDate() != null
@@ -274,7 +277,39 @@ public class StockLedgerService {
                                     new Object[] { batch.getId(), batch.getProduct().getName(),
                                             batch.getExpirationDate() }));
                 }
+            }
 
+            // Si la transacción original creó lotes, verificar que no hayan sido usados externamente
+            List<ProductBatch> createdBatches = batchRepository.findByLedgerTransactionId(originalTx.getId());
+            for (ProductBatch createdBatch : createdBatches) {
+                List<StockLedgerBatchDetail> usage = batchDetailRepository.findByBatchId(createdBatch.getId());
+                
+                // Si hay más de un uso, significa que alguien más (receta, ajuste) tocó este lote
+                // En este punto, no hay reversiones todavía registradas.
+                List<StockLedger> externalUsage = usage.stream()
+                        .map(StockLedgerBatchDetail::getLedgerTransaction)
+                        .filter(tx -> !tx.getId().equals(originalTx.getId()))
+                        .toList();
+
+                if (!externalUsage.isEmpty()) {
+                    String otherActions = externalUsage.stream()
+                            .map(StockLedger::getDescription)
+                            .distinct()
+                            .collect(Collectors.joining(", "));
+
+                    throw new InvalidOperationException(
+                            "No se puede revertir la entrada: el lote #" + createdBatch.getId() +
+                                    " ya ha sido utilizado en: " + otherActions);
+                }
+            }
+        }
+
+        // FASE 2: Registro de contra-asientos
+        for (StockLedger originalTx : transactions) {
+            List<StockLedgerBatchDetail> details = batchDetailRepository.findByLedgerTransactionId(originalTx.getId());
+
+            for (StockLedgerBatchDetail detail : details) {
+                ProductBatch batch = detail.getBatch();
                 BigDecimal quantityToRestore = detail.getQuantity().negate();
 
                 // Validar que la reversión de una ENTRADA (quantityToRestore < 0) no cause
@@ -305,6 +340,18 @@ public class StockLedgerService {
                         batch.getExpirationDate(),
                         reversalCorrelationId,
                         batch.getId());
+            }
+
+            // FASE 3: Eliminación de lotes creados (si aplica)
+            entityManager.flush();
+            List<ProductBatch> createdBatches = batchRepository.findByLedgerTransactionId(originalTx.getId());
+            for (ProductBatch createdBatch : createdBatches) {
+                log.info("Borrando lote creado por transacción revertida: batchId={}, txId={}",
+                        createdBatch.getId(), originalTx.getId());
+                
+                List<StockLedgerBatchDetail> usage = batchDetailRepository.findByBatchId(createdBatch.getId());
+                batchDetailRepository.deleteAll(usage);
+                batchRepository.delete(createdBatch);
             }
         }
     }
