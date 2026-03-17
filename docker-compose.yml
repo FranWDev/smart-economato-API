@@ -204,6 +204,7 @@ services:
       SPRING_MAIN_BANNER_MODE: "off"
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION}
+      LEDGER_HMAC_SECRET: ${LEDGER_HMAC_SECRET}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       
       # Limite de RAM para el contenedor Java
