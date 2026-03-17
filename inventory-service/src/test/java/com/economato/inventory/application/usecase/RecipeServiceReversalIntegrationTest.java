@@ -159,6 +159,9 @@ class RecipeServiceReversalIntegrationTest extends BaseIntegrationTest {
 
         // 3. Revert cooking
         recipeService.revertCooking(manualAudit.getId(), "Test reversal");
+ 
+        // Verify audit is deleted
+        assertFalse(recipeCookingAuditRepository.existsById(manualAudit.getId()), "Audit should be deleted after reversal");
 
         // 4. Verify original batches are restored
         ProductBatch restoredBatch1 = productBatchRepository.findById(batch1.getId()).orElseThrow();
