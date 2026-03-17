@@ -18,6 +18,7 @@ import com.economato.inventory.application.dto.response.ProductConsumptionRespon
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.application.dto.BatchConsumptionDetail;
 import com.economato.inventory.domain.model.MovementType;
+import com.economato.inventory.domain.model.Order;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.domain.model.StockLedger;
@@ -47,6 +48,7 @@ import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -207,14 +209,20 @@ public class StockLedgerService {
             return;
         }
 
-        User currentUser = securityContextHelper.getCurrentUser();
-        String reversalCorrelationId = "REV-" + correlationId;
+        executeReversal(transactions, reason, correlationId);
+    }
 
-        // Prevenir doble reversión
-        List<StockLedger> existingReversals = ledgerRepository.findByCorrelationId(reversalCorrelationId);
-        if (!existingReversals.isEmpty()) {
-            throw new InvalidOperationException(
-                i18nService.getMessage(MessageKey.ERROR_REVERSION_ALREADY_DONE, new Object[]{correlationId}));
+    private void executeReversal(List<StockLedger> transactions, String reason, String originalCorrelationId) {
+        User currentUser = securityContextHelper.getCurrentUser();
+        String reversalCorrelationId = "REV-" + (originalCorrelationId != null ? originalCorrelationId : java.util.UUID.randomUUID().toString());
+
+        // Prevenir doble reversión si hay correlationId
+        if (originalCorrelationId != null) {
+            List<StockLedger> existingReversals = ledgerRepository.findByCorrelationId(reversalCorrelationId);
+            if (!existingReversals.isEmpty()) {
+                throw new InvalidOperationException(
+                    i18nService.getMessage(MessageKey.ERROR_REVERSION_ALREADY_DONE, new Object[]{originalCorrelationId}));
+            }
         }
 
         // FASE 1: Verificación de integridad y uso de lotes
@@ -246,7 +254,6 @@ public class StockLedgerService {
                 List<StockLedgerBatchDetail> usage = batchDetailRepository.findByBatchId(createdBatch.getId());
                 
                 // Si hay más de un uso, significa que alguien más (receta, ajuste) tocó este lote
-                // En este punto, no hay reversiones todavía registradas.
                 List<StockLedger> externalUsage = usage.stream()
                         .map(StockLedgerBatchDetail::getLedgerTransaction)
                         .filter(tx -> !tx.getId().equals(originalTx.getId()))
@@ -748,7 +755,47 @@ public class StockLedgerService {
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public List<StockLedger> processBatchMovements(BatchStockMovementRequestDTO request) {
         User currentUser = securityContextHelper.getCurrentUser();
+        String reason = request.getReason() != null ? request.getReason() : "Reversión batch";
 
+        if (request.getOrderId() != null) {
+            log.info("Procesando reversión automática de orden: orderId={}", request.getOrderId());
+            List<StockLedger> transactions = ledgerRepository.findByOrderId(request.getOrderId());
+            
+            if (!transactions.isEmpty()) {
+                executeReversal(transactions, reason, null);
+            }
+
+            Order order = orderRepository.findByIdWithDetails(request.getOrderId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada: " + request.getOrderId()));
+            
+            order.setStatus(com.economato.inventory.domain.model.OrderStatus.CREATED);
+            for (var detail : order.getDetails()) {
+                detail.setQuantityReceived(null);
+            }
+            orderRepository.save(order);
+            
+            log.info("Reversión de orden completada: orderId={}, estado vuelto a CREATED", request.getOrderId());
+            return List.of(); // En este caso no devolvemos los nuevos movimientos de la reversión para no confundir al DTO
+        }
+
+        if (request.getRecipeCookingAuditId() != null) {
+            log.info("Procesando reversión automática de cocinado: recipeAuditId={}", request.getRecipeCookingAuditId());
+            com.economato.inventory.domain.model.RecipeCookingAudit audit = recipeCookingAuditRepository.findById(request.getRecipeCookingAuditId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Auditoría de cocinado no encontrada: " + request.getRecipeCookingAuditId()));
+            
+            if (audit.getCorrelationId() != null) {
+                List<StockLedger> transactions = ledgerRepository.findByCorrelationId(audit.getCorrelationId());
+                if (!transactions.isEmpty()) {
+                    executeReversal(transactions, reason, audit.getCorrelationId());
+                }
+            }
+            
+            recipeCookingAuditRepository.delete(audit);
+            log.info("Reversión de cocinado completada: recipeAuditId={}", request.getRecipeCookingAuditId());
+            return List.of();
+        }
+
+        // Lógica original para compatibilidad
         List<BatchMovementItem> movements = request.getMovements().stream()
                 .map(item -> new BatchMovementItem(
                         item.getProductId(),
@@ -758,21 +805,7 @@ public class StockLedgerService {
                         item.getExpirationDate()))
                 .collect(Collectors.toList());
 
-        List<StockLedger> transactions = recordBatchStockMovements(movements, currentUser, request.getOrderId());
-
-        if (request.getOrderId() != null) {
-            orderRepository.findById(request.getOrderId()).ifPresent(orderRepository::delete);
-            log.info("Operación batch: Orden eliminada ID={}", request.getOrderId());
-        }
-
-        if (request.getRecipeCookingAuditId() != null) {
-            recipeCookingAuditRepository.findById(request.getRecipeCookingAuditId())
-                    .ifPresent(recipeCookingAuditRepository::delete);
-            log.info("Operación batch: Auditoría de receta cocinada eliminada ID={}",
-                    request.getRecipeCookingAuditId());
-        }
-
-        return transactions;
+        return recordBatchStockMovements(movements, currentUser, request.getOrderId());
     }
 
     /**

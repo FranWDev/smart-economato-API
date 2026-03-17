@@ -21,6 +21,7 @@ import java.util.Optional;
 public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> {
 
     List<StockLedger> findByCorrelationId(String correlationId);
+    List<StockLedger> findByOrderId(Integer orderId);
 
     @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.product.id = :productId ORDER BY l.sequenceNumber ASC")
     List<StockLedger> findByProductIdOrderBySequenceNumber(@Param("productId") Integer productId);
