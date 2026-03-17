@@ -10,6 +10,8 @@ import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.domain.model.Supplier;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
 import com.economato.inventory.infrastructure.TestDataUtil;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -37,6 +39,9 @@ public class OrderDetailControllerIntegrationTest extends BaseIntegrationTest {
 
         @Autowired
         private OrderRepository orderRepository;
+
+        @Autowired
+        private SupplierRepository supplierRepository;
 
         private String jwtToken;
         private User testUser;
@@ -73,8 +78,16 @@ public class OrderDetailControllerIntegrationTest extends BaseIntegrationTest {
                 testProduct.setMinimumStock(BigDecimal.ZERO); // Required field
                 productRepository.save(testProduct);
 
+                Supplier supplier = Supplier.builder()
+                        .name("Test Supplier ODCIT")
+                        .email("odcit@test.com")
+                        .phone("111222333")
+                        .build();
+                supplier = supplierRepository.saveAndFlush(supplier);
+
                 testOrder = new Order();
                 testOrder.setUser(testUser);
+                testOrder.setSupplier(supplier);
                 testOrder.setOrderDate(LocalDateTime.now());
                 testOrder.setStatus(OrderStatus.PENDING);
                 orderRepository.save(testOrder);

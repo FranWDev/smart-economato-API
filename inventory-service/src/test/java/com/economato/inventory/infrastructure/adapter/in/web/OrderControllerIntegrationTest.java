@@ -48,6 +48,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
         private User testUser;
         private Product testProduct1;
         private Product testProduct2;
+        private Supplier testSupplier;
 
         @BeforeEach
         public void setUp() throws Exception {
@@ -60,8 +61,22 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
                 testProduct1 = TestDataUtil.createFlour();
                 testProduct1 = productRepository.saveAndFlush(testProduct1);
 
-                testProduct2 = TestDataUtil.createSugar();
+                testProduct2 = new Product();
+                testProduct2.setName("Sugar");
+                testProduct2.setProductCode("SUGAR-" + System.currentTimeMillis());
+                testProduct2.setUnit("KG");
+                testProduct2.setType("ALIMENTO");
+                testProduct2.setUnitPrice(new BigDecimal("1.5"));
+                testProduct2.setCurrentStock(BigDecimal.ZERO);
+                testProduct2.setMinimumStock(BigDecimal.ZERO);
                 testProduct2 = productRepository.saveAndFlush(testProduct2);
+                
+                testSupplier = Supplier.builder()
+                        .name("Test Supplier")
+                        .email("test@supplier.com")
+                        .phone("123456789")
+                        .build();
+                testSupplier = supplierRepository.saveAndFlush(testSupplier);
 
                 LoginRequestDTO loginRequest = new LoginRequestDTO();
                 loginRequest.setName(testUser.getName());
@@ -91,6 +106,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
                 OrderRequestDTO orderRequest = new OrderRequestDTO();
                 orderRequest.setUserId(testUser.getId());
+                orderRequest.setSupplierId(testSupplier.getId());
 
                 List<OrderDetailRequestDTO> details = new ArrayList<>();
                 OrderDetailRequestDTO detail = new OrderDetailRequestDTO();
@@ -115,6 +131,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
                 OrderRequestDTO orderRequest = new OrderRequestDTO();
                 orderRequest.setUserId(testUser.getId());
+                orderRequest.setSupplierId(testSupplier.getId());
 
                 List<OrderDetailRequestDTO> details = new ArrayList<>();
                 OrderDetailRequestDTO detail = new OrderDetailRequestDTO();
@@ -145,6 +162,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
                 OrderRequestDTO orderRequest = new OrderRequestDTO();
                 orderRequest.setUserId(testUser.getId());
+                orderRequest.setSupplierId(testSupplier.getId());
 
                 List<OrderDetailRequestDTO> details = new ArrayList<>();
                 OrderDetailRequestDTO detail = new OrderDetailRequestDTO();
@@ -184,6 +202,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
                 OrderRequestDTO orderRequest = new OrderRequestDTO();
                 orderRequest.setUserId(testUser.getId());
+                orderRequest.setSupplierId(testSupplier.getId());
 
                 List<OrderDetailRequestDTO> details = new ArrayList<>();
                 OrderDetailRequestDTO detail = new OrderDetailRequestDTO();
@@ -215,6 +234,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
                 OrderRequestDTO orderRequest = new OrderRequestDTO();
                 orderRequest.setUserId(testUser.getId());
+                orderRequest.setSupplierId(testSupplier.getId());
                 List<OrderDetailRequestDTO> details = new ArrayList<>();
                 OrderDetailRequestDTO detail = new OrderDetailRequestDTO();
                 detail.setProductId(testProduct1.getId());
@@ -299,6 +319,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
         void whenGetGlobalOrdersTotalCost_thenReturnsAggregatedTotal() throws Exception {
                 OrderRequestDTO orderRequest = new OrderRequestDTO();
                 orderRequest.setUserId(testUser.getId());
+                orderRequest.setSupplierId(testSupplier.getId());
 
                 List<OrderDetailRequestDTO> details = new ArrayList<>();
                 OrderDetailRequestDTO detail = new OrderDetailRequestDTO();
@@ -333,6 +354,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
                 OrderRequestDTO orderRequest = new OrderRequestDTO();
                 orderRequest.setUserId(testUser.getId());
+                orderRequest.setSupplierId(testSupplier.getId());
                 List<OrderDetailRequestDTO> details = new ArrayList<>();
                 OrderDetailRequestDTO detail = new OrderDetailRequestDTO();
                 detail.setProductId(testProduct1.getId());
@@ -382,6 +404,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
                 OrderRequestDTO orderRequest = new OrderRequestDTO();
                 orderRequest.setUserId(testUser.getId());
+                orderRequest.setSupplierId(testSupplier.getId());
 
                 List<OrderDetailRequestDTO> details = new ArrayList<>();
                 OrderDetailRequestDTO detail = new OrderDetailRequestDTO();
@@ -419,6 +442,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
                 OrderRequestDTO orderRequest = new OrderRequestDTO();
                 orderRequest.setUserId(testUser.getId());
+                orderRequest.setSupplierId(testSupplier.getId());
 
                 List<OrderDetailRequestDTO> details = new ArrayList<>();
                 OrderDetailRequestDTO detail1 = new OrderDetailRequestDTO();
@@ -465,6 +489,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
                 OrderRequestDTO orderRequest = new OrderRequestDTO();
                 orderRequest.setUserId(longNameUser.getId());
+                orderRequest.setSupplierId(testSupplier.getId());
 
                 List<OrderDetailRequestDTO> details = new ArrayList<>();
                 OrderDetailRequestDTO detail = new OrderDetailRequestDTO();
