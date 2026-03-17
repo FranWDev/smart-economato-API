@@ -10,7 +10,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.time.LocalDate;
 import com.economato.inventory.application.dto.request.BatchStockMovementRequestDTO;
 import com.economato.inventory.application.dto.request.BatchMovementItem;
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
@@ -401,6 +401,12 @@ public class StockLedgerService {
                 productId,
                 normalizedDelta,
                 normalizedStock,
+                movementType,
+                description,
+                user != null ? user.getId() : null,
+                orderId,
+                expirationDate,
+                correlationId,
                 now,
                 previousHash,
                 nextSequence);
@@ -475,16 +481,28 @@ public class StockLedgerService {
             Integer productId,
             BigDecimal quantityDelta,
             BigDecimal resultingStock,
+            MovementType movementType,
+            String description,
+            Integer userId,
+            Integer orderId,
+            LocalDate expirationDate,
+            String correlationId,
             LocalDateTime timestamp,
             String previousHash,
             Long sequenceNumber) {
 
         return ledgerHashTimer.record(() -> {
             try {
-                String data = String.format("%d|%s|%s|%s|%s|%d",
+                String data = String.format("%d|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d",
                         productId,
                         quantityDelta.toPlainString(),
                         resultingStock.toPlainString(),
+                        movementType.name(),
+                        description != null ? description : "NULL",
+                        userId != null ? userId.toString() : "NULL",
+                        orderId != null ? orderId.toString() : "NULL",
+                        expirationDate != null ? expirationDate.toString() : "NULL",
+                        correlationId != null ? correlationId : "NULL",
                         timestamp.toString(),
                         previousHash,
                         sequenceNumber);
@@ -546,6 +564,12 @@ public class StockLedgerService {
                     productId,
                     normalizedDelta,
                     normalizedStock,
+                    tx.getMovementType(),
+                    tx.getDescription(),
+                    tx.getUser() != null ? tx.getUser().getId() : null,
+                    tx.getOrderId(),
+                    tx.getExpirationDate(),
+                    tx.getCorrelationId(),
                     normalizedTimestamp,
                     tx.getPreviousHash(),
                     tx.getSequenceNumber());
@@ -689,6 +713,12 @@ public class StockLedgerService {
                     productId,
                     normalizedDelta,
                     normalizedStock,
+                    tx.getMovementType(),
+                    tx.getDescription(),
+                    tx.getUser() != null ? tx.getUser().getId() : null,
+                    tx.getOrderId(),
+                    tx.getExpirationDate(),
+                    tx.getCorrelationId(),
                     normalizedTimestamp,
                     expectedPreviousHash,
                     tx.getSequenceNumber());
