@@ -345,8 +345,8 @@ public class RecipeService {
                     .orElseThrow(() -> new ResourceNotFoundException("Auditoría de cocinado no encontrada (ID: " + auditId + ")"));
             
             if (audit.getCorrelationId() == null) {
-                log.warn("Intento de revertir audi toría sin correlationId: auditId={}", auditId);
-                throw new InvalidOperationException("Esta audi toría no tiene ID de correlación y no puede revertirse automáticamente.");
+                log.warn("Intento de revertir auditoría sin correlationId: auditId={}", auditId);
+                throw new InvalidOperationException("Esta auditoría no tiene ID de correlación y no puede revertirse automáticamente.");
             }
 
             // Prevenir doble reversión: verificar si ya fue revertido antes
