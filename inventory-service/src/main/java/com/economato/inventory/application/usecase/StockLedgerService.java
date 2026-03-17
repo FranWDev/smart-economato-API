@@ -12,13 +12,13 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.request.BatchStockMovementRequestDTO;
-import com.economato.inventory.application.dto.request.ManualStockAdjustmentRequestDTO;
 import com.economato.inventory.application.dto.request.BatchMovementItem;
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.application.dto.BatchConsumptionDetail;
 import com.economato.inventory.domain.model.MovementType;
+import com.economato.inventory.domain.model.Order;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.domain.model.StockLedger;
@@ -48,35 +48,11 @@ import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-/*
- * SERVICIO DE LEDGER DE STOCK CRIPTOGRÁFICO CON TRAZABILIDAD DE LOTES. NO TOCAR BAJO NINGUN CONCEPTO.
- * Diseñado por: https://github.com/FranWDev
- * 
- * Esta es probablemente el servicio mas critico e importante de todo el sistema, ya que es el encargado de 
- * registrar cada movimiento de stock de forma inmutable y con trazabilidad de lotes.
- * 
- * Implementa un ledger criptográfico donde cada transacción incluye el hash de la anterior, garantizando la integridad de la cadena.
- * 
- * Cada movimiento se registra con aislamiento SERIALIZABLE para evitar condiciones de carrera, y se mantiene un snapshot actualizado para consultas rápidas.
- * 
- * Adicionalmente, se registran detalles de consumo por lote para cada movimiento que afecta stock, lo que permite trazabilidad total y reversión segura de movimientos.
- * 
- * El servicio también expone un método de verificación de integridad que recorre la cadena de transacciones y valida los hashes, detectando cualquier inconsistencia o manipulación.
- * 
- * Se han añadido métricas con Micrometer para monitorear el número de movimientos registrados y la latencia del cálculo de hashes, lo cual 
- * es crítico para detectar posibles problemas de rendimiento, especialmente al usar Virtual Threads.
- * 
- * En resumen, este servicio es el corazón del sistema de inventario, garantizando la precisión, trazabilidad e integridad de todos los movimientos de stock. 
- * Cualquier fallo o inconsistencia aquí podría comprometer toda la gestión de inventario, por lo que se han tomado medidas rigurosas para asegurar su robustez y fiabilidad.
- * 
- * Si eres alguien de los que esta en 2do de DAW y te ha tocado echarle un vistazo a este proyecto (porque los del CIFP virgen de la candelaria quieren cambios)
- * BAJO NINGUN CONCEPTO toques cualquier aspecto de esta clase, ni su lógica, ni su estructura, ni su forma de calcular hashes, ni sus transacciones, ni sus métricas, ni nada.
- * Si rompes algo de aqui, obligas al CIFP a borrar media base de datos.
- */
 @Slf4j
 @Service
 @Transactional(rollbackFor = Exception.class)
@@ -139,16 +115,6 @@ public class StockLedgerService {
                 .register(meterRegistry);
     }
 
-    /**
-     * Registra un movimiento de stock garantizando integridad referencial y
-     * cronológica.
-     * * Se utiliza Isolation.SERIALIZABLE para evitar el fenómeno de 'Phantom
-     * Reads' y
-     * asegurar que el cálculo del hash basado en la transacción anterior
-     * (previousHash)
-     * sea atómico y secuencial, impidiendo que dos hilos generen bifurcaciones en
-     * la cadena.
-     */
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public StockLedger recordStockMovement(
             Integer productId,
@@ -200,12 +166,11 @@ public class StockLedgerService {
             Long targetBatchId,
             java.time.LocalDate expirationDate) {
 
-        return recordStockMovementInternal(productId, quantityDelta, movementType, description, user, null,
-                expirationDate, null, targetBatchId);
+        return recordStockMovementInternal(productId, quantityDelta, movementType, description, user, null, expirationDate, null, targetBatchId);
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
-    public StockLedger processManualAdjustment(ManualStockAdjustmentRequestDTO request) {
+    public StockLedger processManualAdjustment(com.economato.inventory.application.dto.request.ManualStockAdjustmentRequestDTO request) {
         User currentUser = securityContextHelper.getCurrentUser();
 
         // Validación: si delta es positivo y no hay batchId, exigir expirationDate
@@ -213,15 +178,15 @@ public class StockLedgerService {
                 && request.getBatchId() == null
                 && request.getExpirationDate() == null) {
             throw new InvalidOperationException(
-                    i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_REQUIRED));
+                i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_REQUIRED));
         }
 
         // Validación: expirationDate no puede ser pasada
         if (request.getExpirationDate() != null
                 && request.getExpirationDate().isBefore(java.time.LocalDate.now())) {
             throw new InvalidOperationException(
-                    i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_PAST,
-                            new Object[] { request.getExpirationDate() }));
+                i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_PAST,
+                        new Object[]{request.getExpirationDate()}));
         }
 
         return recordManualAdjustment(
@@ -244,14 +209,20 @@ public class StockLedgerService {
             return;
         }
 
-        User currentUser = securityContextHelper.getCurrentUser();
-        String reversalCorrelationId = "REV-" + correlationId;
+        executeReversal(transactions, reason, correlationId);
+    }
 
-        // Prevenir doble reversión
-        List<StockLedger> existingReversals = ledgerRepository.findByCorrelationId(reversalCorrelationId);
-        if (!existingReversals.isEmpty()) {
-            throw new InvalidOperationException(
-                    i18nService.getMessage(MessageKey.ERROR_REVERSION_ALREADY_DONE, new Object[] { correlationId }));
+    private void executeReversal(List<StockLedger> transactions, String reason, String originalCorrelationId) {
+        User currentUser = securityContextHelper.getCurrentUser();
+        String reversalCorrelationId = "REV-" + (originalCorrelationId != null ? originalCorrelationId : java.util.UUID.randomUUID().toString());
+
+        // Prevenir doble reversión si hay correlationId
+        if (originalCorrelationId != null) {
+            List<StockLedger> existingReversals = ledgerRepository.findByCorrelationId(reversalCorrelationId);
+            if (!existingReversals.isEmpty()) {
+                throw new InvalidOperationException(
+                    i18nService.getMessage(MessageKey.ERROR_REVERSION_ALREADY_DONE, new Object[]{originalCorrelationId}));
+            }
         }
 
         // FASE 1: Verificación de integridad y uso de lotes
@@ -261,8 +232,8 @@ public class StockLedgerService {
             // Sin trazabilidad de lotes → no se puede revertir de forma segura
             if (details.isEmpty()) {
                 throw new InvalidOperationException(
-                        i18nService.getMessage(MessageKey.ERROR_REVERSION_NO_BATCH_TRACEABILITY,
-                                new Object[] { originalTx.getId() }));
+                    i18nService.getMessage(MessageKey.ERROR_REVERSION_NO_BATCH_TRACEABILITY,
+                            new Object[]{originalTx.getId()}));
             }
 
             for (StockLedgerBatchDetail detail : details) {
@@ -270,12 +241,10 @@ public class StockLedgerService {
                 if (batch == null) continue;
 
                 // Verificar que el lote original no esté caducado
-                if (batch.getExpirationDate() != null
-                        && batch.getExpirationDate().isBefore(java.time.LocalDate.now())) {
+                if (batch.getExpirationDate() != null && batch.getExpirationDate().isBefore(java.time.LocalDate.now())) {
                     throw new InvalidOperationException(
-                            i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRED_CANNOT_REVERT,
-                                    new Object[] { batch.getId(), batch.getProduct().getName(),
-                                            batch.getExpirationDate() }));
+                        i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRED_CANNOT_REVERT,
+                                new Object[]{batch.getId(), batch.getProduct().getName(), batch.getExpirationDate()}));
                 }
             }
 
@@ -285,7 +254,6 @@ public class StockLedgerService {
                 List<StockLedgerBatchDetail> usage = batchDetailRepository.findByBatchId(createdBatch.getId());
                 
                 // Si hay más de un uso, significa que alguien más (receta, ajuste) tocó este lote
-                // En este punto, no hay reversiones todavía registradas.
                 List<StockLedger> externalUsage = usage.stream()
                         .map(StockLedgerBatchDetail::getLedgerTransaction)
                         .filter(tx -> !tx.getId().equals(originalTx.getId()))
@@ -311,18 +279,16 @@ public class StockLedgerService {
             for (StockLedgerBatchDetail detail : details) {
                 ProductBatch batch = detail.getBatch();
                 BigDecimal quantityToRestore = detail.getQuantity().negate();
-
-                // Validar que la reversión de una ENTRADA (quantityToRestore < 0) no cause
-                // stock negativo
+                
+                // Validar que la reversión de una ENTRADA (quantityToRestore < 0) no cause stock negativo
                 if (quantityToRestore.compareTo(BigDecimal.ZERO) < 0) {
-                    com.economato.inventory.domain.model.StockSnapshot snapshot = snapshotRepository
-                            .findById(originalTx.getProduct().getId()).orElse(null);
+                    com.economato.inventory.domain.model.StockSnapshot snapshot =
+                            snapshotRepository.findById(originalTx.getProduct().getId()).orElse(null);
                     if (snapshot != null) {
                         BigDecimal resultingStock = snapshot.getCurrentStock().add(quantityToRestore);
                         if (resultingStock.compareTo(BigDecimal.ZERO) < 0) {
                             throw new InvalidOperationException(
-                                    "No se puede deshacer la entrada: resultaría en stock negativo (" + resultingStock
-                                            + ").");
+                                "No se puede deshacer la entrada: resultaría en stock negativo (" + resultingStock + ").");
                         }
                     }
                 }
@@ -339,7 +305,7 @@ public class StockLedgerService {
                         originalTx.getOrderId(),
                         batch.getExpirationDate(),
                         reversalCorrelationId,
-                        batch.getId());
+                        batch.getId()); 
             }
 
             // FASE 3: Eliminación de lotes creados (si aplica)
@@ -356,12 +322,6 @@ public class StockLedgerService {
         }
     }
 
-    // --- LÓGICA DE TRAZABILIDAD POR LOTES ---
-    // 1. Si es SALIDA (delta < 0): Se aplica política FEFO (First Expired, First
-    // Out).
-    // 2. Si es ENTRADA (delta > 0): Se crea un nuevo lote o se añade al existente.
-    // 3. Si es REVERSIÓN: Se busca el lote original para restaurar el balance
-    // exacto.
     private StockLedger recordStockMovementInternal(
             Integer productId,
             BigDecimal quantityDelta,
@@ -399,7 +359,7 @@ public class StockLedgerService {
         }
 
         List<BatchConsumptionDetail> batchMovements = new ArrayList<>();
-
+        
         if (targetBatchId != null) {
             if (quantityDelta.compareTo(BigDecimal.ZERO) < 0) {
                 batchMovements = productBatchService.consumeFromSpecificBatch(targetBatchId, quantityDelta.abs());
@@ -496,14 +456,6 @@ public class StockLedgerService {
         return transaction;
     }
 
-    /**
-     * Genera el sello criptográfico de la transacción.
-     * * IMPORTANTE: El orden de los campos en la cadena 'data' es parte del
-     * contrato de integridad. Cualquier modificación en el formato
-     * String.format(...)
-     * invalidará todas las verificaciones de integridad futuras.
-     * * @return Hash SHA-256 en formato Hexadecimal.
-     */
     private String calculateTransactionHash(
             Integer productId,
             BigDecimal quantityDelta,
@@ -694,16 +646,6 @@ public class StockLedgerService {
                 new Object[] { deletedCount, product.getName(), product.getCurrentStock(), product.getUnit() });
     }
 
-    /**
-     * RECONSTRUCCIÓN DE CADENA (DISASTER RECOVERY).
-     * * Este método recalcula todos los hashes de un producto de principio a fin.
-     * Úsese SOLO si se ha confirmado una corrupción de datos por causas externas
-     * (ej. error de hardware o manipulación manual de DB) y se desea normalizar el
-     * estado.
-     * 
-     * No tiene integracion en el frontend, deberas hacer un curl o usar Postman para invocarlo. Se recomienda ejecutar 
-     * verifyChainIntegrity antes y después para comparar resultados.
-     */
     @Transactional(rollbackFor = Exception.class)
     public IntegrityCheckResult repairProductLedger(Integer productId) {
         Product product = productRepository.findById(productId)
@@ -813,7 +755,47 @@ public class StockLedgerService {
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public List<StockLedger> processBatchMovements(BatchStockMovementRequestDTO request) {
         User currentUser = securityContextHelper.getCurrentUser();
+        String reason = request.getReason() != null ? request.getReason() : "Reversión batch";
 
+        if (request.getOrderId() != null) {
+            log.info("Procesando reversión automática de orden: orderId={}", request.getOrderId());
+            List<StockLedger> transactions = ledgerRepository.findByOrderId(request.getOrderId());
+            
+            if (!transactions.isEmpty()) {
+                executeReversal(transactions, reason, null);
+            }
+
+            Order order = orderRepository.findByIdWithDetails(request.getOrderId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada: " + request.getOrderId()));
+            
+            order.setStatus(com.economato.inventory.domain.model.OrderStatus.CREATED);
+            for (var detail : order.getDetails()) {
+                detail.setQuantityReceived(null);
+            }
+            orderRepository.save(order);
+            
+            log.info("Reversión de orden completada: orderId={}, estado vuelto a CREATED", request.getOrderId());
+            return List.of(); // En este caso no devolvemos los nuevos movimientos de la reversión para no confundir al DTO
+        }
+
+        if (request.getRecipeCookingAuditId() != null) {
+            log.info("Procesando reversión automática de cocinado: recipeAuditId={}", request.getRecipeCookingAuditId());
+            com.economato.inventory.domain.model.RecipeCookingAudit audit = recipeCookingAuditRepository.findById(request.getRecipeCookingAuditId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Auditoría de cocinado no encontrada: " + request.getRecipeCookingAuditId()));
+            
+            if (audit.getCorrelationId() != null) {
+                List<StockLedger> transactions = ledgerRepository.findByCorrelationId(audit.getCorrelationId());
+                if (!transactions.isEmpty()) {
+                    executeReversal(transactions, reason, audit.getCorrelationId());
+                }
+            }
+            
+            recipeCookingAuditRepository.delete(audit);
+            log.info("Reversión de cocinado completada: recipeAuditId={}", request.getRecipeCookingAuditId());
+            return List.of();
+        }
+
+        // Lógica original para compatibilidad
         List<BatchMovementItem> movements = request.getMovements().stream()
                 .map(item -> new BatchMovementItem(
                         item.getProductId(),
@@ -823,27 +805,14 @@ public class StockLedgerService {
                         item.getExpirationDate()))
                 .collect(Collectors.toList());
 
-        List<StockLedger> transactions = recordBatchStockMovements(movements, currentUser, request.getOrderId());
-
-        if (request.getOrderId() != null) {
-            orderRepository.findById(request.getOrderId()).ifPresent(orderRepository::delete);
-            log.info("Operación batch: Orden eliminada ID={}", request.getOrderId());
-        }
-
-        if (request.getRecipeCookingAuditId() != null) {
-            recipeCookingAuditRepository.findById(request.getRecipeCookingAuditId())
-                    .ifPresent(recipeCookingAuditRepository::delete);
-            log.info("Operación batch: Auditoría de receta cocinada eliminada ID={}",
-                    request.getRecipeCookingAuditId());
-        }
-
-        return transactions;
+        return recordBatchStockMovements(movements, currentUser, request.getOrderId());
     }
 
     /**
      * Obtiene la lista de IDs de productos que tienen historial de ledger.
      * Solo devuelve productos que tienen al menos una transacción registrada.
      * 
+     * @return Lista de IDs de productos con historial
      */
     @Transactional(readOnly = true)
     public List<Integer> getProductsWithLedger() {
@@ -862,6 +831,7 @@ public class StockLedgerService {
      * transacciones,
      * evitando procesar productos sin historial.
      * 
+     * @return Lista de resultados de verificación de integridad
      */
     @Transactional(readOnly = true)
     public List<IntegrityCheckResult> verifyProductsWithLedger() {
@@ -928,8 +898,7 @@ public class StockLedgerService {
         BigDecimal quantity = batch.getRemainingQuantity();
         Integer productId = batch.getProduct().getId();
 
-        // Retirada de lote caducado: es una salida, no necesita expirationDate (no crea
-        // lote nuevo)
+        // Retirada de lote caducado: es una salida, no necesita expirationDate (no crea lote nuevo)
         recordManualAdjustment(
                 productId,
                 quantity.negate(),
