@@ -53,7 +53,7 @@ public class CustomUserDetailsService implements UserDetailsService {
                     i18nService.getMessage(MessageKey.ERROR_AUTH_USER_HIDDEN, new Object[] { username }));
         }
 
-        CachedEntry entry = new CachedEntry(user.getName(), user.getPassword(), "ROLE_" + user.getRole());
+        CachedEntry entry = new CachedEntry(user.getId(), user.getName(), user.getPassword(), "ROLE_" + user.getRole());
         cache.put(username, entry);
         return entry.toUserDetails();
     }
@@ -65,15 +65,16 @@ public class CustomUserDetailsService implements UserDetailsService {
     public void clearCache() {
         cache.clear();
     }
-
     private static class CachedEntry {
         private final long timestamp;
+        private final Integer userId;
         private final String username;
         private final String password;
         private final String authority;
 
-        CachedEntry(String username, String password, String authority) {
+        CachedEntry(Integer userId, String username, String password, String authority) {
             this.timestamp = System.currentTimeMillis();
+            this.userId = userId;
             this.username = username;
             this.password = password;
             this.authority = authority;
@@ -85,17 +86,24 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         UserDetails toUserDetails() {
             List<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(authority));
-            return new FastUserDetails(username, password, authorities);
+            return new FastUserDetails(userId, username, password, authorities);
         }
     }
 
     /**
      * Reusable UserDetails implementation.
      */
-    private static class FastUserDetails extends org.springframework.security.core.userdetails.User {
-        public FastUserDetails(String username, String password,
+    public static class FastUserDetails extends org.springframework.security.core.userdetails.User {
+        private final Integer userId;
+
+        public FastUserDetails(Integer userId, String username, String password,
                 Collection<? extends GrantedAuthority> authorities) {
             super(username, password, authorities);
+            this.userId = userId;
+        }
+
+        public Integer getUserId() {
+            return userId;
         }
     }
 }
