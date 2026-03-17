@@ -206,7 +206,8 @@ public class RecipeService {
             for (RecipeComponentRequestDTO componentDTO : mergedComponents) {
                 Product product = productRepository.findById(componentDTO.getProductId())
                         .orElseThrow(() -> new ResourceNotFoundException(
-                                i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND, new Object[] { componentDTO.getProductId() })));
+                                i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND,
+                                        new Object[] { componentDTO.getProductId() })));
 
                 RecipeComponent existingComponent = recipe.getComponents().stream()
                         .filter(c -> c.getProduct().getId().equals(componentDTO.getProductId()))
@@ -281,7 +282,8 @@ public class RecipeService {
 
         Recipe recipe = repository.findByIdWithDetails(cookingRequest.getRecipeId())
                 .orElseThrow(
-                        () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RECIPE_NOT_FOUND, new Object[] { cookingRequest.getRecipeId() })));
+                        () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RECIPE_NOT_FOUND,
+                                new Object[] { cookingRequest.getRecipeId() })));
 
         if (recipe.getComponents() == null || recipe.getComponents().isEmpty()) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_RECIPE_NO_COMPONENTS));
@@ -292,7 +294,8 @@ public class RecipeService {
         for (RecipeComponent component : recipe.getComponents()) {
             Product product = productRepository.findById(component.getProduct().getId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND, new Object[] { component.getProduct().getId() })));
+                            i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND,
+                                    new Object[] { component.getProduct().getId() })));
 
             BigDecimal requiredQuantity = component.getQuantity().multiply(cookingRequest.getQuantity());
 
@@ -316,7 +319,7 @@ public class RecipeService {
                     requiredQuantity.negate(),
                     MovementType.SALIDA,
                     i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_COOKING,
-                                    new Object[] { recipe.getName(), cookingRequest.getQuantity() }),
+                            new Object[] { recipe.getName(), cookingRequest.getQuantity() }),
                     currentUser,
                     null,
                     null,
@@ -339,30 +342,24 @@ public class RecipeService {
     @Transactional(rollbackFor = Exception.class)
     public void revertCooking(Long auditId, String reason) {
         log.info("Iniciando reversión de cocinado: auditId={}, motivo={}", auditId, reason);
-        
+
         try {
             var audit = recipeCookingAuditRepository.findById(auditId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Auditoría de cocinado no encontrada (ID: " + auditId + ")"));
-            
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Auditoría de cocinado no encontrada (ID: " + auditId + ")"));
+
             if (audit.getCorrelationId() == null) {
                 log.warn("Intento de revertir auditoría sin correlationId: auditId={}", auditId);
-                throw new InvalidOperationException("Esta auditoría no tiene ID de correlación y no puede revertirse automáticamente.");
-            }
-
-            // Prevenir doble reversión: verificar si ya fue revertido antes
-            if (audit.getDetails() != null && audit.getDetails().contains("[REVERTIDO:")) {
                 throw new InvalidOperationException(
-                    i18nService.getMessage(com.economato.inventory.infrastructure.config.web.MessageKey.ERROR_COOKING_ALREADY_REVERTED));
+                        "Esta auditoría no tiene ID de correlación y no puede revertirse automáticamente.");
             }
 
             stockLedgerService.revertMovement(audit.getCorrelationId(), "Deshacer cocinado: " + reason);
             
-            // Marcar la auditoría como revertida en los detalles
-            String previousDetails = audit.getDetails() != null ? audit.getDetails() : "";
-            audit.setDetails(previousDetails + " [REVERTIDO: " + reason + "]");
-            recipeCookingAuditRepository.save(audit);
+            // Eliminar la auditoría: si se revierte es que nunca ocurrió
+            recipeCookingAuditRepository.delete(audit);
             
-            log.info("Cocinado revertido exitosamente: auditId={}, correlationId={}", auditId, audit.getCorrelationId());
+            log.info("Cocinado revertido y auditoría eliminada exitosamente: auditId={}, correlationId={}", auditId, audit.getCorrelationId());
         } catch (ResourceNotFoundException | InvalidOperationException e) {
             log.warn("Error validado al revertir cocinado: {}", e.getMessage());
             throw e;
