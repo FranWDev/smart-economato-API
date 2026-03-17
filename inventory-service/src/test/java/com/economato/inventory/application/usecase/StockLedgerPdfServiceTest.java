@@ -32,6 +32,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
+import com.economato.inventory.infrastructure.config.security.LedgerProperties;
 
 @ExtendWith(MockitoExtension.class)
 class StockLedgerPdfServiceTest {
@@ -47,6 +48,9 @@ class StockLedgerPdfServiceTest {
 
         @Mock
         private StockLedgerService stockLedgerService;
+
+        @Mock
+        private LedgerProperties ledgerProperties;
 
         @InjectMocks
         private StockLedgerPdfService stockLedgerPdfService;
@@ -92,6 +96,8 @@ class StockLedgerPdfServiceTest {
                                                 true,
                                                 "Cadena íntegra",
                                                 null));
+
+                lenient().when(ledgerProperties.getHmacSecret()).thenReturn("test-hmac-secret-for-ledger-integrity-verification");
         }
 
         private List<StockLedger> createTestLedgerEntries() {
