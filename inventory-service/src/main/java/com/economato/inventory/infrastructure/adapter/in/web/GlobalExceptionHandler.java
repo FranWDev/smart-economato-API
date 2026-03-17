@@ -141,7 +141,7 @@ public class GlobalExceptionHandler {
             throw (RuntimeException) ex;
         }
 
-        log.debug("Error no controlado", ex);
+        log.error("Error no controlado", ex);
         ErrorResponse error = new ErrorResponse(
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 i18nService.getMessage(MessageKey.ERROR_INTERNAL_SERVER_ERROR),
