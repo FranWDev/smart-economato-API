@@ -58,7 +58,6 @@ public class SecurityConfig {
 
                                                 // Autenticación
                                                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
-                                                .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
 
                                                 // Vistas públicas
                                                 .requestMatchers("/login", "/")
