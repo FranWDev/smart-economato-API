@@ -3,8 +3,8 @@ package com.economato.inventory.infrastructure;
 import lombok.Getter;
 
 /**
- * Event published when a new WebSocket connection is successfully authenticated.
- * Listeners can use this to send initial state notifications to the newly connected user.
+ * Evento publicado cuando un cliente se conecta a través de WebSocket, 
+ * para que el frontend pueda mostrar un mensaje de bienvenida o actualizar la lista de usuarios conectados
  */
 @Getter
 public class WebSocketConnectedEvent {

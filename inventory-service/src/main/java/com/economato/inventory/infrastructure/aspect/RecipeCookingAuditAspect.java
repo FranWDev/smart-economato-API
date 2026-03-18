@@ -146,11 +146,11 @@ public class RecipeCookingAuditAspect {
     }
 
     /**
-     * Queries the last 90 days of consumption for each recipe component and
-     * returns the daily breakdown keyed by productId.
+     * Consulta los últimos 90 días de consumo para cada componente de la receta y
+     * devuelve el desglose diario agrupado por productId.
      *
-     * This data is embedded in the Kafka cooking event so that the predictor
-     * service can run Prophet without making any HTTP calls back to the backend.
+     * Estos datos se incluyen en el evento de cocinado de Kafka para que el servicio
+     * predictor pueda ejecutar Prophet sin realizar llamadas HTTP de vuelta al backend.
      */
     private Map<Integer, List<DailyConsumption>> buildProductHistories(Recipe recipe) {
         if (recipe.getComponents() == null || recipe.getComponents().isEmpty()) {

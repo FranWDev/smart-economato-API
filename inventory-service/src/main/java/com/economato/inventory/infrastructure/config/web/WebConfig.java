@@ -12,7 +12,6 @@ public class WebConfig implements WebMvcConfigurer {
 
         @Override
         public void addResourceHandlers(ResourceHandlerRegistry registry) {
-                // Cache static resources for 1 year with must-revalidate
                 registry.addResourceHandler("/scripts/**")
                                 .addResourceLocations("classpath:/static/scripts/")
                                 .setCacheControl(CacheControl.maxAge(365, TimeUnit.DAYS)
@@ -27,7 +26,6 @@ public class WebConfig implements WebMvcConfigurer {
                                                 .mustRevalidate())
                                 .resourceChain(true);
 
-                // Cache robots.txt for 1 day
                 registry.addResourceHandler("/robots.txt", "/sitemap.xml")
                                 .addResourceLocations("classpath:/static/")
                                 .setCacheControl(CacheControl.maxAge(1, TimeUnit.DAYS)

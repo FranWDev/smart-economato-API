@@ -90,7 +90,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                             accessor.setUser(authentication);
                             log.debug("WebSocket authenticated user: {} with role: {}", username, role);
                             
-                            // Publish event for new WebSocket connection
                             eventPublisher.publishEvent(new WebSocketConnectedEvent(username));
                         } else {
                             throw new MessageDeliveryException(

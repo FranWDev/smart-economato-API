@@ -11,13 +11,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
-/**
- * Unit tests for JSON serialization/deserialization of {@link ForecastResultEvent}.
- *
- * These tests are lightweight and do not require any Spring context, allowing
- * them to run in environments where Docker (and therefore Testcontainers) is
- * unavailable.
- */
 public class ForecastResultEventJsonTest {
 
     private final ObjectMapper mapper = new ObjectMapper()
@@ -55,8 +48,6 @@ public class ForecastResultEventJsonTest {
             .build();
 
         String out = mapper.writeValueAsString(evt);
-        // The ISO representation may use 'Z' for UTC or '+00:00'; both are acceptable
-        // so we parse the value back and assert equality with the original offset.
         com.fasterxml.jackson.databind.JsonNode node = mapper.readTree(out);
         String ts = node.get("calculatedAt").asText();
         assertThat(OffsetDateTime.parse(ts)).isEqualTo(evt.getCalculatedAt());

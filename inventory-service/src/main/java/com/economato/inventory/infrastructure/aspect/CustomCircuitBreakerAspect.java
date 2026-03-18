@@ -20,8 +20,7 @@ public class CustomCircuitBreakerAspect {
     private final CircuitBreakerRegistry circuitBreakerRegistry;
 
     /**
-     * Intercept all public methods in classes annotated with @Repository
-     * or any class under com.economato.inventory.repository
+     * Intercepta todas las operaciones de base de datos, incluyendo repositorios y cualquier clase anotada con @Repository.
      */
     @Pointcut("within(com.economato.inventory.repository..*) || @within(org.springframework.stereotype.Repository)")
     public void databaseOperations() {

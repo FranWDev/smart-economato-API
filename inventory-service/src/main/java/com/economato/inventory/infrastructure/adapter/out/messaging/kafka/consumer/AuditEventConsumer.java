@@ -28,6 +28,12 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 
 import lombok.extern.slf4j.Slf4j;
 
+/*
+ * Consumidor de eventos de auditoría desde Kafka.
+ * Escucha en los topics: inventory-audit-events, recipe-audit-events, order-audit-events, recipe-cooking-audit-events.
+ * Por cada evento recibido, extrae la información relevante, consulta las entidades relacionadas (productos, recetas, órdenes, usuarios) 
+ * y persiste un registro de auditoría en la db
+ */
 @Slf4j
 @Service
 @Profile({ "!test", "kafka-test" })
@@ -201,7 +207,7 @@ public class AuditEventConsumer {
 
             log.info(
                     "Evento de cocinado persistido para receta {}. " +
-                    "La predicción oficial será generada exclusivamente por el predictor de IA vía Kafka.",
+                            "La predicción oficial será generada exclusivamente por el predictor de IA vía Kafka.",
                     event.getRecipeId());
 
         } catch (Exception e) {

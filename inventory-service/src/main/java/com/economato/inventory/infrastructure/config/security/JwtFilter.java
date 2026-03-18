@@ -66,15 +66,12 @@ public class JwtFilter extends OncePerRequestFilter {
 
         if (jwt != null) {
             try {
-                // Check if token is blacklisted
-                // If Redis is down, the service will fall back to database
                 boolean isBlacklisted = tokenBlacklistService.isBlacklisted(jwt);
                 
                 if (!isBlacklisted) {
                     String username = jwtUtils.validateAndExtractUsername(jwt);
 
                     if (username != null) {
-                        // Cache username in request for audit/other components
                         request.setAttribute("jwt_username", username);
 
                         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
@@ -88,11 +85,10 @@ public class JwtFilter extends OncePerRequestFilter {
                     }
                 }
             } catch (Exception e) {
-                // Log the error but don't crash the filter
-                // This can happen if there are issues with token validation or blacklist check
+                // Logea los errores de validación del JWT o de la consulta a la blacklist, pero no bloquea la solicitud
                 log.debug("Error during JWT validation or blacklist check: {}", e.getMessage());
-                // Token will not be authenticated, request will proceed as unauthenticated
-                // (unless endpoint requires authentication, it will be allowed)
+                // El token no es válido o está en la blacklist, pero no se bloquea la solicitud aquí 
+                // porque el filtro de seguridad de Spring Security se encargará de rechazarla si el endpoint requiere autenticación 
             }
         }
 
@@ -103,19 +99,16 @@ public class JwtFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
 
-        // Check exact public URLs
         if (PUBLIC_URLS.contains(path)) {
             return true;
         }
 
-        // Check static prefixes
         for (String prefix : STATIC_PREFIXES) {
             if (path.startsWith(prefix)) {
                 return true;
             }
         }
 
-        // Special case for /api/auth/ public sub-paths
         if (path.startsWith("/api/auth/") &&
                 !path.equals("/api/auth/validate") &&
                 !path.equals("/api/auth/logout") &&

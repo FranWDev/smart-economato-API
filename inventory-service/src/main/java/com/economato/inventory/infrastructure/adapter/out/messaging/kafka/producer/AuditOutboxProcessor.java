@@ -26,6 +26,21 @@ import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.ObjectMapper;
 
+/*
+ * Procesador de Outbox para eventos de auditoría.
+ * Lee eventos pendientes de la tabla Outbox, los envía a Kafka y los marca como procesados eliminándolos de la tabla.
+ * Implementa un mecanismo de detección de fallos en Kafka basado en contar fallos consecutivos y 
+ * abrir un circuit breaker para evitar procesar eventos innecesariamente cuando Kafka está caído.
+ * 
+ * Vale si, muy bonita la explicacion, pero que es un Outbox? 
+ * El patrón Outbox es una técnica para garantizar la consistencia entre la base de datos 
+ * y los sistemas externos (como Kafka) en arquitecturas de microservicios. 
+ * En lugar de enviar eventos directamente a Kafka dentro de la misma transacción que actualiza la base de datos,
+ * el servicio escribe un registro en una tabla "Outbox" dentro de la misma transacción. Luego, un proceso separado (como este AuditOutboxProcessor) 
+ * lee periódicamente los registros pendientes de la tabla Outbox, los envía a Kafka y los marca como procesados (generalmente eliminándolos). 
+ * Esto asegura que no se pierdan eventos incluso si Kafka está temporalmente inalcanzable, 
+ * ya que los eventos permanecen en la tabla Outbox hasta que se envían con éxito.
+ */
 @Slf4j
 @Service
 @Profile({ "!test", "kafka-test" })
@@ -81,7 +96,8 @@ public class AuditOutboxProcessor {
         }
 
         int consecutiveKafkaFailures = 0;
-        final int MAX_CONSECUTIVE_FAILURES = 3; // Fail fast after 3 consecutive Kafka failures
+        final int MAX_CONSECUTIVE_FAILURES = 3; // Umbral para detectar caída de Kafka y evitar procesar eventos
+                                                // innecesariamente
 
         for (AuditOutbox event : outboxEvents) {
             try {
@@ -106,7 +122,7 @@ public class AuditOutboxProcessor {
                             continue;
                     }
                 } catch (CallNotPermittedException e) {
-                    throw e; // Propagate to outer catch to log DB problem correctly
+                    throw e; // Propagar para que el proceso se detenga si la db está inalcanzable
                 } catch (Exception e) {
                     log.debug("Corrupted event payload in Outbox: id={}, topic={}, error={}",
                             event.getId(), event.getTopic(), e.getMessage());
@@ -156,14 +172,12 @@ public class AuditOutboxProcessor {
                     log.debug("Evento de Outbox enviado a Kafka con éxito: topic={}, key={}", event.getTopic(),
                             event.getEventKey());
 
-                    // Reset consecutive failure counter on success
                     consecutiveKafkaFailures = 0;
                 }
             } catch (ExecutionException | TimeoutException e) {
                 log.error("Error procesando evento Outbox (Kafka): id={}, error={}", event.getId(), e.getMessage());
                 recordKafkaFailure(e);
 
-                // Increment consecutive failure counter
                 consecutiveKafkaFailures++;
                 if (consecutiveKafkaFailures >= MAX_CONSECUTIVE_FAILURES) {
                     log.warn(
@@ -177,7 +191,6 @@ public class AuditOutboxProcessor {
                 break;
             } catch (Exception e) {
                 log.error("Unexpected error processing event Outbox: id={}, error={}", event.getId(), e.getMessage());
-                // Don't reset Kafka failure counter here
             }
         }
     }

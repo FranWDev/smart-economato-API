@@ -36,8 +36,6 @@ public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
 
-    // ========== PRODUCER CONFIGURATION ==========
-
     /**
      * Configuración común del productor
      */
@@ -46,7 +44,11 @@ public class KafkaConfig {
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-        props.put(ProducerConfig.ACKS_CONFIG, "all"); // Required for idempotent producer
+        /* Que es acks_config = all? 
+         * Garantiza que el productor reciba una confirmación de que el mensaje ha sido replicado a todas las réplicas ISR 
+         * (In-Sync Replicas) antes de considerarlo enviado con éxito.
+         */
+        props.put(ProducerConfig.ACKS_CONFIG, "all"); 
         props.put(ProducerConfig.RETRIES_CONFIG, 3); // Reintentos en caso de fallo
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true); // Evita duplicados
         return props;
@@ -102,8 +104,6 @@ public class KafkaConfig {
         return new KafkaTemplate<>(forecastResultProducerFactory());
     }
 
-    // ========== CONSUMER CONFIGURATION ==========
-
     /**
      * Configuración común del consumidor
      */
@@ -141,7 +141,7 @@ public class KafkaConfig {
     public ConcurrentKafkaListenerContainerFactory<String, InventoryAuditEvent> inventoryAuditKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, InventoryAuditEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(inventoryAuditConsumerFactory());
-        factory.setConcurrency(3); // 3 hilos concurrentes
+        factory.setConcurrency(3); 
         factory.getContainerProperties().setAckMode(
                 org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
         return factory;
@@ -176,7 +176,6 @@ public class KafkaConfig {
 
     @Bean
     public ConsumerFactory<String, OrderAuditEvent> orderAuditConsumerFactory() {
-        // Configurar el deserializer SOLO programáticamente
         JsonDeserializer<OrderAuditEvent> deserializer = new JsonDeserializer<>(OrderAuditEvent.class);
         deserializer.addTrustedPackages("*");
         deserializer.setRemoveTypeHeaders(false);
@@ -195,7 +194,7 @@ public class KafkaConfig {
     public ConcurrentKafkaListenerContainerFactory<String, OrderAuditEvent> orderAuditKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, OrderAuditEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(orderAuditConsumerFactory());
-        factory.setConcurrency(3); // 3 hilos concurrentes
+        factory.setConcurrency(3);
         factory.getContainerProperties().setAckMode(
                 org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
         return factory;
@@ -203,7 +202,6 @@ public class KafkaConfig {
 
     @Bean
     public ConsumerFactory<String, RecipeCookingAuditEvent> recipeCookingAuditConsumerFactory() {
-        // Configurar el deserializer SOLO programáticamente
         JsonDeserializer<RecipeCookingAuditEvent> deserializer = new JsonDeserializer<>(RecipeCookingAuditEvent.class);
         deserializer.addTrustedPackages("*");
         deserializer.setRemoveTypeHeaders(false);
@@ -222,7 +220,7 @@ public class KafkaConfig {
     public ConcurrentKafkaListenerContainerFactory<String, RecipeCookingAuditEvent> recipeCookingAuditKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, RecipeCookingAuditEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(recipeCookingAuditConsumerFactory());
-        factory.setConcurrency(3); // 3 hilos concurrentes
+        factory.setConcurrency(3);
         factory.getContainerProperties().setAckMode(
                 org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
         return factory;

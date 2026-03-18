@@ -18,6 +18,12 @@ import java.util.concurrent.TimeUnit;
 import com.economato.inventory.infrastructure.config.database.DataSourceType;
 import com.economato.inventory.infrastructure.config.database.DbContextHolder;
 
+
+/**
+ * Aspecto para enrutar dinámicamente entre datasources de lectura y escritura (CQRS).
+ * Aplica un fallback automático a la datasource de escritura si la de lectura falla por problemas de conexión.
+ * También integra circuit breakers para monitorear la salud de las conexiones a las bases de datos.
+ */
 @Slf4j
 @Aspect
 @Component
@@ -32,7 +38,7 @@ public class DataSourceAspect {
     public Object proceed(ProceedingJoinPoint pjp, Transactional transactional) throws Throwable {
         DataSourceType type = transactional.readOnly() ? DataSourceType.READER : DataSourceType.WRITER;
         
-        // Check if DB or replica circuit breaker is open to use writer as fallback
+        // Revisar el estado de los circuit breakers para decidir si se debe usar el datasource de escritura como fallback para lecturas
         CircuitBreaker dbCircuitBreaker = circuitBreakerRegistry.circuitBreaker("db");
         CircuitBreaker replicaCircuitBreaker = circuitBreakerRegistry.circuitBreaker("replica");
         boolean useWriterFallback = type == DataSourceType.READER
@@ -51,13 +57,12 @@ public class DataSourceAspect {
                     try {
                         return pjp.proceed();
                     } catch (Throwable t) {
-                        // If reading from READER fails with connection error, retry with WRITER as fallback
+                        // Si es una operación de lectura y falla por un problema de conexión, intentar con el datasource de escritura como fallback.
                         if (finalType == DataSourceType.READER && isConnectionException(t) && transactional.readOnly()) {
                             log.warn("Read operation failed on READER datasource, retrying with WRITER as fallback: {}", 
                                     t.getMessage());
 
-                            // Register READER failure in replica circuit breaker to notify frontend
-                            // while still allowing graceful fallback to WRITER.
+                            // Registra el error en los circuit breakers correspondientes
                                 replicaCircuitBreaker.onError(0, TimeUnit.MILLISECONDS,
                                     resolveRootCause(t));
 
@@ -94,7 +99,7 @@ public class DataSourceAspect {
     private boolean isConnectionException(Throwable t) {
         if (t == null) return false;
         
-        // Check the exception and its causes for connection-related issues
+        // Revisar toda la cadena de causas para detectar excepciones relacionadas con problemas de conexión a la base de datos
         Throwable current = t;
         while (current != null) {
             String className = current.getClass().getName();

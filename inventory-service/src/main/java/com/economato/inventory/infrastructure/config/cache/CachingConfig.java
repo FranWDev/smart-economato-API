@@ -8,11 +8,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 
 /**
- * Caching configuration that registers a custom CacheErrorHandler.
+ * Configuración de caché que registra un CacheErrorHandler personalizado.
  * 
- * This replaces the problematic CustomCircuitBreakerAspect approach for cache operations.
- * Spring's CacheErrorHandler is the idiomatic way to handle cache failures gracefully.
- * Cache failures are recorded in the Redis circuit breaker for tracking and alerting.
+ * Esto reemplaza el enfoque problemático de CustomCircuitBreakerAspect para las operaciones de caché.
+ * CacheErrorHandler de Spring es la forma idiomática de manejar fallos de caché de manera elegante.
+ * Los fallos de caché se registran en el circuito de Redis para su seguimiento y alertas.
  */
 @Configuration
 @Profile("!test")

@@ -43,19 +43,19 @@ public class RedisConfig {
         private long redisTimeout;
 
         /**
-         * Configure Lettuce Redis connection factory with aggressive timeouts.
-         * This ensures fast failure when Redis is down.
+         * Configurar la fábrica de conexiones Lettuce Redis con tiempos de espera agresivos.
+         * Esto asegura fallos rápidos cuando Redis no está disponible
          */
+        
         @Bean
         public RedisConnectionFactory redisConnectionFactory() {
                 RedisStandaloneConfiguration redisConfig = new RedisStandaloneConfiguration();
                 redisConfig.setHostName(redisHost);
                 redisConfig.setPort(redisPort);
 
-                // Aggressive timeouts: fail fast when Redis is down
                 LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
-                                .commandTimeout(Duration.ofMillis(redisTimeout)) // Command timeout
-                                .shutdownTimeout(Duration.ofMillis(100)) // Shutdown timeout
+                                .commandTimeout(Duration.ofMillis(redisTimeout))
+                                .shutdownTimeout(Duration.ofMillis(100)) 
                                 .build();
 
                 return new LettuceConnectionFactory(redisConfig, clientConfig);
@@ -66,8 +66,8 @@ public class RedisConfig {
                                 .allowIfBaseType(Object.class)
                                 .build();
 
-                // copy() produces an independent instance: the application-wide singleton
-                // is never mutated by activateDefaultTyping.
+                // copy() para evitar mutar el ObjectMapper global que Spring Boot configura, ya que --
+                // activateDefaultTyping es una operación global que afectaría a toda la aplicación y podría causar problemas de seguridad o serialización en otros contextos.
                 ObjectMapper redisMapper = baseMapper.copy();
                 redisMapper.activateDefaultTyping(
                                 ptv,

@@ -14,8 +14,6 @@ public interface AllergenRepository extends JpaRepository<Allergen, Integer> {
 
     List<Allergen> findByNameContainingIgnoreCase(String namePart);
 
-    // --- Proyecciones ---
-
     Page<AllergenProjection> findAllProjectedBy(Pageable pageable);
 
     Optional<AllergenProjection> findProjectedById(Integer id);

@@ -10,26 +10,6 @@ import java.util.List;
  *
  * Implementación de Holt-Winters Triple Exponential Smoothing en Java puro.
  *
- * <p>
- * Modela tres componentes sobre una serie temporal de consumo semanal:
- * </p>
- * <ul>
- * <li><b>Nivel (L)</b>: valor base de la demanda.</li>
- * <li><b>Tendencia (T)</b>: crecimiento o decrecimiento sostenido.</li>
- * <li><b>Estacionalidad (S)</b>: patrón cíclico de periodo {@code m} (días de
- * la semana).</li>
- * </ul>
- *
- * <p>
- * Antes de ajustar el modelo se filtran las observaciones que superen
- * un Z-score de {@value #Z_SCORE_THRESHOLD} para evitar que semanas
- * atípicas (eventos especiales, cierres) distorsionen la predicción.
- * </p>
- *
- * <p>
- * Si el historial disponible es inferior a {@value #MIN_WEEKS_FOR_HW}
- * semanas completas, se aplica una media simple como fallback.
- * </p>
  */
 @Deprecated
 public class HoltWintersForecaster {
