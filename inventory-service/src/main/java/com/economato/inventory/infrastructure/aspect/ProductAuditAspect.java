@@ -108,10 +108,8 @@ public class ProductAuditAspect {
             // Mapear acción de auditoría a tipo de movimiento válido
             String movementType = mapActionToMovementType(actionDescription);
 
-            // Construir estado posterior
             String newState = buildProductState(productAfter);
 
-            // Construir evento de auditoría
             InventoryAuditEvent event = InventoryAuditEvent.builder()
                     .productId(productAfter.getId())
                     .productName(productAfter.getName())

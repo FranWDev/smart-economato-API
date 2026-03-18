@@ -113,16 +113,12 @@ public class StockLedgerPdfService {
             PdfFont boldFont = PdfFontFactory.createFont("Helvetica-Bold");
             PdfFont regularFont = footerFont;
 
-            // Header
             addHeader(document, i18nService.getMessage(MessageKey.REPORT_LEDGER_TITLE_PREFIX, new Object[] { product.getName() }), boldFont);
 
-            // Product info
             addProductInfoSection(document, product, boldFont, regularFont);
 
-            // Ledger table
             addLedgerTable(document, ledgerEntries, corruptedSequences, boldFont, regularFont);
 
-            // Signature & authentication section
             String contentHash = generateContentHash(ledgerEntries);
             addAuthenticationSignature(document, ledgerEntries, integrityResult, corruptedSequences, contentHash,
                     boldFont, regularFont);
@@ -135,18 +131,9 @@ public class StockLedgerPdfService {
         }
     }
 
-    /**
-     * Genera el PDF del ledger con información adicional sobre la integridad de la cadena.
-     * Verifica automáticamente la integridad y devuelve el resultado junto con el PDF.
-     * 
-     * @param productId ID del producto
-     * @return DTO con el PDF y la información de integridad
-     */
     public LedgerPdfResponseDTO generateStockLedgerPdfWithIntegrity(Integer productId) {
-        // Generar el PDF
         byte[] pdfContent = generateStockLedgerPdf(productId);
         
-        // Verificar la integridad de la cadena
         IntegrityCheckResult integrityResult = stockLedgerService.verifyChainIntegrity(productId);
         
         log.info("PDF generado para producto {}: {} bytes. Integridad: {}", 
@@ -160,10 +147,6 @@ public class StockLedgerPdfService {
         );
     }
 
-    /**
-     * Verifica la integridad del hash de un ledger comparándolo con el contenido.
-     * Útil para pruebas forenses/legales.
-     */
     public boolean verifyLedgerIntegrity(Integer productId, String providedHash) {
         List<StockLedger> ledgerEntries = stockLedgerRepository
                 .findByProductIdOrderBySequenceNumber(productId);
@@ -181,9 +164,6 @@ public class StockLedgerPdfService {
         return isValid;
     }
 
-    /**
-     * Genera un hash SHA-256 del contenido del ledger para verificación de integridad.
-     */
     private String generateContentHash(List<StockLedger> ledgerEntries) {
         try {
             StringBuilder content = new StringBuilder();
@@ -293,7 +273,6 @@ public class StockLedgerPdfService {
         table.setWidth(UnitValue.createPercentValue(100));
         table.setMarginBottom(20);
 
-        // Header row
         addHeaderCell(table, "#", boldFont);
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_LABEL_TYPE), boldFont);
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_QUANTITY), boldFont);
@@ -302,7 +281,6 @@ public class StockLedgerPdfService {
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_DESCRIPTION_USER), boldFont);
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_VERIFICATION), boldFont);
 
-        // Data rows
         for (int i = 0; i < ledgerEntries.size(); i++) {
             StockLedger entry = ledgerEntries.get(i);
             boolean isEven = i % 2 == 0;
@@ -377,7 +355,6 @@ public class StockLedgerPdfService {
         signatureTable.setWidth(UnitValue.createPercentValue(100));
         signatureTable.setMarginBottom(20);
 
-        // Hash verification status
         StockLedger lastEntry = ledgerEntries.get(ledgerEntries.size() - 1);
         boolean chainValid = integrityResult != null && integrityResult.isValid();
 
@@ -414,7 +391,6 @@ public class StockLedgerPdfService {
                 .setBackgroundColor(SIGNATURE_BG);
         signatureTable.addCell(corruptedCell);
 
-        // Hash details
         Cell hashLabelCell = new Cell()
                 .add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_CONTENT_HASH))
                         .setFont(boldFont)
@@ -435,7 +411,6 @@ public class StockLedgerPdfService {
                 .setBorder(new SolidBorder(BORDER_COLOR, 1));
         signatureTable.addCell(hashValueCell);
 
-        // Timestamp
         LocalDateTime generatedAt = LocalDateTime.now();
         String formattedTimestamp = generatedAt.format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"));
 
@@ -447,7 +422,6 @@ public class StockLedgerPdfService {
                 .setBackgroundColor(SIGNATURE_BG);
         signatureTable.addCell(timestampCell);
 
-        // Last hash reference
         Cell lastHashCell = new Cell()
                 .add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_LAST_HASH))
                         .setFont(boldFont)
@@ -462,7 +436,6 @@ public class StockLedgerPdfService {
 
         document.add(signatureTable);
 
-        // Legal notice
         Paragraph legalNotice = new Paragraph(
                 i18nService.getMessage(MessageKey.REPORT_LEGAL_NOTICE))
                 .setFont(regularFont)

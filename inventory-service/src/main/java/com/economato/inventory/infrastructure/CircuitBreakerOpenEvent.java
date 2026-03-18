@@ -4,7 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Event published when a Circuit Breaker enters the OPEN state.
+ * publicado cuando el circuito se abre, para que el frontend pueda mostrar un mensaje de error específico
  */
 @Getter
 @RequiredArgsConstructor

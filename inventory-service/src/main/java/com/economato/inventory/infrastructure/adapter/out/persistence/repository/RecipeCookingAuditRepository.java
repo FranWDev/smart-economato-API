@@ -48,10 +48,6 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
   /**
    * Devuelve el consumo semanal de cada ingrediente agrupado por semana natural.
    * El índice de semana es 0 para la semana más antigua dentro del rango.
-   *
-   * @param since   fecha de inicio (normalmente NOW - 12 semanas)
-   * @param refDate fecha de referencia para el cálculo del índice de semana
-   *                (puede ser igual a {@code since} para empezar en índice 0)
    */
   @Query(value = """
       SELECT CAST(FLOOR(EXTRACT(EPOCH FROM (rca.cooking_date - :refDate)) / 86400 / 7) AS INTEGER) AS weekIndex,

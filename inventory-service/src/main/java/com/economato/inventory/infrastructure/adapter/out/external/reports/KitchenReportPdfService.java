@@ -64,12 +64,11 @@ public class KitchenReportPdfService {
             PdfWriter writer = new PdfWriter(baos);
             PdfDocument pdfDoc = new PdfDocument(writer);
 
-            // Register footer before adding any content so every page gets it on END_PAGE
             PdfFont footerFont = PdfFontFactory.createFont("Helvetica");
             pdfDoc.addEventHandler(PdfDocumentEvent.END_PAGE, new FooterEventHandler(footerFont));
 
             try (Document document = new Document(pdfDoc, PageSize.A4)) {
-                document.setMargins(40, 40, 50, 40); // extra bottom margin for footer
+                document.setMargins(40, 40, 50, 40); 
 
                 PdfFont regularFont = footerFont;
                 PdfFont boldFont = PdfFontFactory.createFont("Helvetica-Bold");
@@ -93,9 +92,6 @@ public class KitchenReportPdfService {
         }
     }
 
-    /**
-     * Draws page number + branding at the bottom of every page as it is rendered.
-     */
     private class FooterEventHandler implements IEventHandler {
         private final PdfFont font;
 
@@ -114,7 +110,6 @@ public class KitchenReportPdfService {
             try {
                 PdfCanvas canvas = new PdfCanvas(page.newContentStreamAfter(), page.getResources(), pdf);
 
-                // Page number – centered, small, black
                 try (Canvas c = new Canvas(canvas, new Rectangle(0, 18, pageWidth, 16))) {
                     c.add(new Paragraph(String.valueOf(pageNum))
                             .setFont(font)
@@ -123,7 +118,6 @@ public class KitchenReportPdfService {
                             .setTextAlignment(TextAlignment.CENTER));
                 }
 
-                // Branding – below page number
                 try (Canvas c = new Canvas(canvas, new Rectangle(0, 4, pageWidth, 14))) {
                     c.add(new Paragraph(i18nService.getMessage(MessageKey.GENERAL_POWERED_BY))
                             .setFont(font)
@@ -134,7 +128,7 @@ public class KitchenReportPdfService {
 
                 canvas.release();
             } catch (Exception ignored) {
-                // Never break PDF generation over a footer error
+                // No romper la generación del PDF por un error en el footer
             }
         }
     }

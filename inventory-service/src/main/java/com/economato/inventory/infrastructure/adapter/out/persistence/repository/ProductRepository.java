@@ -52,8 +52,6 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
 
         boolean existsBySupplierId(Integer supplierId);
 
-        // --- Proyecciones ---
-
         Page<ProductProjection> findByIsHiddenFalse(Pageable pageable);
 
         Page<ProductProjection> findByIsHiddenTrue(Pageable pageable);

@@ -27,7 +27,6 @@ class OrderMapperTest {
         orderMapper = Mappers.getMapper(OrderMapper.class);
         ReflectionTestUtils.setField(orderMapper, "orderDetailMapper", Mappers.getMapper(OrderDetailMapper.class));
 
-        // Create OrderProjection implementation using static inner classes
         TestOrderProjection projection = new TestOrderProjection();
         projection.setId(1);
         projection.setUser(new TestUserInfo(1, "Test User"));
@@ -40,7 +39,6 @@ class OrderMapperTest {
         orderProjection = projection;
     }
 
-    // Static inner classes for projection mocks to avoid NoClassDefFound with anonymous classes
     private static class TestOrderProjection implements OrderProjection {
         private Integer id;
         private UserInfo user;
@@ -93,10 +91,8 @@ class OrderMapperTest {
 
     @Test
     void testToResponseDTOFromProjectionCalculatesTotalPrice() {
-        // When
         OrderResponseDTO result = orderMapper.toResponseDTO(orderProjection);
 
-        // Then
         assertNotNull(result);
         assertNotNull(result.getTotalPrice());
 
@@ -106,7 +102,6 @@ class OrderMapperTest {
 
     @Test
     void testToResponseDTOFromProjectionWithEmptyDetails() {
-        // Given an empty projection
         TestOrderProjection emptyProjection = new TestOrderProjection();
         emptyProjection.setId(1);
         emptyProjection.setUser(new TestUserInfo(1, "Test User"));

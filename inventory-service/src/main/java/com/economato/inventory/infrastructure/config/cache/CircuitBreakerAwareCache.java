@@ -10,8 +10,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Cache wrapper that checks Redis circuit breaker before every operation.
- * When circuit breaker is OPEN, returns null (cache miss) to bypass Redis entirely.
+ * Implementación de Cache que es consciente del estado del circuito de Redis.
+ * Si el circuito de Redis está abierto, esta implementación devuelve null para las operaciones de lectura
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -84,7 +84,6 @@ public class CircuitBreakerAwareCache implements Cache {
         } catch (Exception e) {
             log.debug("Cache GET error for key '{}': {}", key, e.getMessage());
             recordFailure(e);
-            // Fall back to calling valueLoader directly
             try {
                 return valueLoader.call();
             } catch (Exception ex) {

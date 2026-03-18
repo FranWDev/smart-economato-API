@@ -56,7 +56,6 @@ public class SecurityConfig {
                                                 .dispatcherTypeMatchers(DispatcherType.ASYNC)
                                                 .permitAll()
 
-                                                // ===== RUTAS PÚBLICAS =====
                                                 // Autenticación
                                                 .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
                                                 .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
@@ -96,7 +95,6 @@ public class SecurityConfig {
                                                                                 clientIp.equals("127.0.0.1")));
                                                 })
 
-                                                // ===== RUTAS PROTEGIDAS =====
                                                 // El control de acceso específico se maneja con @PreAuthorize en los
                                                 // controladores
                                                 // Todas las demás rutas requieren autenticación
@@ -119,15 +117,11 @@ public class SecurityConfig {
                                                                                 "base-uri 'self'; " +
                                                                                 "form-action 'self'; " +
                                                                                 "upgrade-insecure-requests"))
-                                                // X-Frame-Options
                                                 .frameOptions(frame -> frame.deny())
-                                                // X-Content-Type-Options
                                                 .contentTypeOptions(contentType -> {
                                                 })
-                                                // X-XSS-Protection
                                                 .xssProtection(xss -> {
                                                 })
-                                                // Referrer-Policy
                                                 .referrerPolicy(referrer -> referrer.policy(
                                                                 ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
                                 .sessionManagement(session -> session

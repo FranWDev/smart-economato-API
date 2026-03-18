@@ -22,8 +22,6 @@ public interface OrderDetailRepository extends JpaRepository<OrderDetail, OrderD
         @Query("SELECT od FROM OrderDetail od WHERE od.id.productId = :productId")
         List<OrderDetail> findByProductId(@Param("productId") Integer productId);
 
-        // --- Proyecciones ---
-
         @Query("SELECT od FROM OrderDetail od")
         Page<OrderDetailProjection> findAllProjectedBy(Pageable pageable);
 

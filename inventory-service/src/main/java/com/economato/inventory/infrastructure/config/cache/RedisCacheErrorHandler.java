@@ -11,7 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Handles Redis cache failures by logging, recording in circuit breaker, and allowing degraded operation.
+ * Manejo de errores de caché que registra fallos en el circuito de Redis.
  */
 @Slf4j
 @RequiredArgsConstructor

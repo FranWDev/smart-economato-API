@@ -41,8 +41,6 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
     long countByRoleAndIsHiddenFalse(Role role);
 
-    // --- Proyecciones ---
-
     Page<UserProjection> findAllProjectedBy(Pageable pageable);
 
     @Query("SELECT u FROM User u WHERE u.isHidden = false")

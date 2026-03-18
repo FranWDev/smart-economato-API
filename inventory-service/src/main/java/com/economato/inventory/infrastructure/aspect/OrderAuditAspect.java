@@ -24,6 +24,8 @@ import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
+
+/* Aspecto para auditar las acciones sobre las órdenes */
 @Aspect
 @Component
 @Profile({ "!test", "kafka-test" })
@@ -58,9 +60,8 @@ public class OrderAuditAspect {
             if (arg instanceof OrderReceptionRequestDTO) {
                 receptionDto = (OrderReceptionRequestDTO) arg;
                 orderId = receptionDto.getOrderId();
-                // Status is now determined internally by OrderService, so it's not present in the DTO
             } else if (arg instanceof Integer) {
-                // If it's just an ID and we don't have a status yet, we can't get it from the receptionDto anymore
+                // Si es un Integer, podría ser el ID de la orden en métodos como updateStatus(Integer orderId, OrderStatus newStatus)
             } else if (arg instanceof OrderStatus && orderId != null) {
                 newStatus = ((OrderStatus) arg).name();
             }

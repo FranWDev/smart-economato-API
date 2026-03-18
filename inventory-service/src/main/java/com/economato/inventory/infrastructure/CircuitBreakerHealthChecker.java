@@ -21,9 +21,9 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Proactively monitors database, Redis, and Kafka health.
- * When a circuit breaker is OPEN, it periodically tests recovery.
- * Also performs aggressive upfront health checks to detect failures early.
+ * Revisa proactivamente la salud de las dependencias críticas (DB, Redis, Kafka) y abre los circuit breakers inmediatamente al detectar fallos.
+ * También revisa periódicamente la recuperación de estas dependencias para cerrar los circuit breakers.
+ * Este enfoque agresivo de health check permite detectar y reaccionar a fallos en segundos, minimizando el impacto en los usuarios.
  */
 @Slf4j
 @Service
@@ -49,24 +49,17 @@ public class CircuitBreakerHealthChecker {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    /**
-     * Aggressive proactive health check - runs every 3 seconds
-     * Detects failures early and opens circuit breaker immediately
-     * Only opens the circuit breaker if WRITER (primary) fails.
-     */
+
     @Scheduled(fixedDelay = 3000)
     public void proactiveDbHealthCheck() {
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("db");
         
-        // Only perform proactive checks if circuit is still CLOSED
-        // to avoid hammering dead services
         if (circuitBreaker.getState() != CircuitBreaker.State.CLOSED) {
             return;
         }
 
         boolean writerHealthy = testDatabaseConnection(writerDataSource, "WRITER", 2);
 
-        // ONLY open if WRITER (primary) is down
         if (!writerHealthy) {
             log.warn("PRIMARY DATABASE (WRITER) IS DOWN! Opening circuit breaker immediately");
             RuntimeException error = new org.hibernate.exception.JDBCConnectionException(
@@ -77,15 +70,10 @@ public class CircuitBreakerHealthChecker {
         }
     }
 
-    /**
-     * Proactive health check for Read Replica - runs every 3 seconds
-     * Opens replica circuit breaker when READER (replica) is down to alert frontend
-     */
     @Scheduled(fixedDelay = 3000)
     public void proactiveReplicaHealthCheck() {
         CircuitBreaker replicaCircuitBreaker = circuitBreakerRegistry.circuitBreaker("replica");
         
-        // Only perform proactive checks if circuit is still CLOSED
         if (replicaCircuitBreaker.getState() != CircuitBreaker.State.CLOSED) {
             return;
         }
@@ -102,10 +90,6 @@ public class CircuitBreakerHealthChecker {
         }
     }
 
-    /**
-     * Recovery check - runs every 10 seconds
-     * Only closes the circuit breaker when database is healthy
-     */
     @Scheduled(fixedDelay = 10000)
     public void checkDatabaseRecovery() {
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("db");
@@ -122,10 +106,6 @@ public class CircuitBreakerHealthChecker {
         }
     }
 
-    /**
-     * Recovery check for Read Replica - runs every 10 seconds
-     * Closes replica circuit breaker when reader recovers
-     */
     @Scheduled(fixedDelay = 10000)
     public void checkReplicaRecovery() {
         CircuitBreaker replicaCircuitBreaker = circuitBreakerRegistry.circuitBreaker("replica");
@@ -157,9 +137,6 @@ public class CircuitBreakerHealthChecker {
         }
     }
 
-    /**
-     * Proactive Redis health check - every 5 seconds
-     */
     @Scheduled(fixedDelay = 5000)
     public void proactiveRedisHealthCheck() {
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("redis");
@@ -177,9 +154,6 @@ public class CircuitBreakerHealthChecker {
         }
     }
 
-    /**
-     * Recovery check for Redis - every 15 seconds
-     */
     @Scheduled(fixedDelay = 15000)
     public void checkRedisRecovery() {
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("redis");
@@ -210,9 +184,6 @@ public class CircuitBreakerHealthChecker {
         }
     }
 
-    /**
-     * Proactive Kafka health check - every 5 seconds
-     */
     @Scheduled(fixedDelay = 5000)
     public void proactiveKafkaHealthCheck() {
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("kafka");
@@ -230,9 +201,6 @@ public class CircuitBreakerHealthChecker {
         }
     }
 
-    /**
-     * Recovery check for Kafka - every 15 seconds
-     */
     @Scheduled(fixedDelay = 15000)
     public void checkKafkaRecovery() {
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("kafka");

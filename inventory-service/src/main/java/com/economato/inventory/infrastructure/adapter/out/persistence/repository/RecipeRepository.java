@@ -65,8 +65,6 @@ public interface RecipeRepository extends JpaRepository<Recipe, Integer> {
                         @Param("namePart") String namePart,
                         Pageable pageable);
 
-        // --- Proyecciones ---
-
         @EntityGraph(attributePaths = { "components", "components.product", "allergens" })
         Page<RecipeProjection> findByIsHiddenFalse(Pageable pageable);
 

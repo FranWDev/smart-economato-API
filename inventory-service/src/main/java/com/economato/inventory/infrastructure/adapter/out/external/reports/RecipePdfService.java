@@ -100,9 +100,6 @@ public class RecipePdfService {
         }
     }
 
-    // ===== HEADER =====
-    // Mimics .modal-header: full-width gradient banner with centered title
-
     private void addHeader(Document document, String recipeName, PdfFont boldFont) {
         Paragraph header = new Paragraph(recipeName)
                 .setFont(boldFont)
@@ -114,7 +111,6 @@ public class RecipePdfService {
                 .setMarginBottom(0);
         document.add(header);
 
-        // Thin accent line below header
         Paragraph accent = new Paragraph("")
                 .setBackgroundColor(SECONDARY_COLOR)
                 .setPaddingTop(3)
@@ -122,9 +118,6 @@ public class RecipePdfService {
                 .setMarginBottom(24);
         document.add(accent);
     }
-
-    // ===== SECTION TITLE =====
-    // Mimics .modal-section h4: bold title with primary-colored bottom border
 
     private void addSectionTitle(Document document, String title, PdfFont boldFont) {
         Paragraph sectionTitle = new Paragraph(title)
@@ -136,8 +129,6 @@ public class RecipePdfService {
                 .setBorderBottom(new SolidBorder(PRIMARY_COLOR, 2));
         document.add(sectionTitle);
     }
-
-    // ===== TEXT SECTION =====
 
     private void addSection(Document document, String title, String content, PdfFont boldFont, PdfFont regularFont) {
         addSectionTitle(document, title, boldFont);
@@ -151,9 +142,6 @@ public class RecipePdfService {
                 .setMarginBottom(20);
         document.add(sectionContent);
     }
-
-    // ===== ELABORATION =====
-    // Mimics .elaboration-steps: numbered list with clean spacing
 
     private void addElaborationSection(Document document, String elaboration, PdfFont boldFont, PdfFont regularFont) {
         addSectionTitle(document, i18nService.getMessage(MessageKey.REPORT_SECTION_ELABORATION), boldFont);
@@ -189,9 +177,6 @@ public class RecipePdfService {
         }
     }
 
-    // ===== INGREDIENTS TABLE =====
-    // Mimics .ingredients-table: clean header, subtle row dividers
-
     private void addIngredientsTable(Document document, List<RecipeComponentResponseDTO> components,
             PdfFont boldFont, PdfFont regularFont) {
         addSectionTitle(document, i18nService.getMessage(MessageKey.REPORT_SECTION_INGREDIENTS), boldFont);
@@ -201,7 +186,6 @@ public class RecipePdfService {
                 .setMarginTop(8)
                 .setMarginBottom(8);
 
-        // Header row - primary color bg, white text
         table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_PRODUCT), boldFont));
         table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_QUANTITY), boldFont));
         table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_SUBTOTAL), boldFont));
@@ -260,9 +244,6 @@ public class RecipePdfService {
                 .setTextAlignment(TextAlignment.LEFT);
     }
 
-    // ===== COST BANNER =====
-    // Mimics .ingredients-table tfoot: accent row with total cost
-
     private void addCostBanner(Document document, BigDecimal totalCost, PdfFont boldFont) {
         Table costTable = new Table(UnitValue.createPercentArray(new float[] { 1, 1 }))
                 .setWidth(UnitValue.createPercentValue(100))
@@ -293,9 +274,6 @@ public class RecipePdfService {
         costTable.addCell(valueCell);
         document.add(costTable);
     }
-
-    // ===== ALLERGENS =====
-    // Mimics .allergens-list with .allergen-tag badges
 
     private void addAllergensSection(Document document, List<AllergenResponseDTO> allergens,
             PdfFont boldFont, PdfFont regularFont) {
@@ -328,8 +306,6 @@ public class RecipePdfService {
             document.add(allergensLine);
         }
     }
-
-    // ===== FOOTER =====
 
     private class FooterEventHandler implements IEventHandler {
         private final PdfFont font;
@@ -370,8 +346,6 @@ public class RecipePdfService {
             }
         }
     }
-
-    // ===== HELPERS =====
 
     private List<String> parseElaborationSteps(String elaboration) {
         List<String> lines = Arrays.asList(elaboration.split("\\n"));

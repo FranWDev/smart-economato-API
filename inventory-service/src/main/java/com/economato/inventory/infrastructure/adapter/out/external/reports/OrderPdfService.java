@@ -82,7 +82,6 @@ public class OrderPdfService {
 		}
 	}
 
-	// ===== HEADER =====
 	private void addHeader(Document document, OrderResponseDTO order, PdfFont boldFont) {
 		Table headerTable = new Table(UnitValue.createPercentArray(new float[] { 3, 1 }))
 				.setWidth(UnitValue.createPercentValue(100))
@@ -120,7 +119,6 @@ public class OrderPdfService {
 		document.add(accent);
 	}
 
-	// ===== ORDER INFO =====
 	private void addOrderInfoSection(Document document, OrderResponseDTO order, PdfFont boldFont,
 			PdfFont regularFont) {
 		addSectionTitle(document, i18nService.getMessage(MessageKey.REPORT_SECTION_ORDER_INFO), boldFont);
@@ -176,7 +174,6 @@ public class OrderPdfService {
 		table.addCell(valueCell);
 	}
 
-	// ===== PRODUCTS TABLE =====
 	private void addProductsTable(Document document, List<OrderDetailResponseDTO> details,
 			PdfFont boldFont, PdfFont regularFont) {
 		addSectionTitle(document, i18nService.getMessage(MessageKey.REPORT_SECTION_PRODUCTS_TITLE_PREFIX, new Object[] { (details == null ? 0 : details.size()) }), boldFont);
@@ -252,7 +249,6 @@ public class OrderPdfService {
 				.setTextAlignment(TextAlignment.LEFT);
 	}
 
-	// ===== TOTAL BANNER =====
 	private void addTotalBanner(Document document, BigDecimal totalPrice, PdfFont boldFont) {
 		Table totalTable = new Table(UnitValue.createPercentArray(new float[] { 1, 1 }))
 				.setWidth(UnitValue.createPercentValue(100))
@@ -284,7 +280,6 @@ public class OrderPdfService {
 		document.add(totalTable);
 	}
 
-	// ===== FOOTER =====
 	private class FooterEventHandler implements IEventHandler {
 		private final PdfFont font;
 
@@ -326,7 +321,6 @@ public class OrderPdfService {
 		}
 	}
 
-	// ===== HELPERS =====
 	private String formatCurrency(BigDecimal value) {
 		if (value == null) {
 			return "0.00 \u20ac";

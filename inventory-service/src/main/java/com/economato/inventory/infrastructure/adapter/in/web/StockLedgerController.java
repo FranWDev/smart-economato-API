@@ -216,7 +216,6 @@ public class StockLedgerController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            // Error - la transacción se ha revertido automáticamente
             BatchStockMovementResponseDTO errorResponse = BatchStockMovementResponseDTO.builder()
                     .success(false)
                     .processedCount(0)

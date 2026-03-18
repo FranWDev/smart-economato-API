@@ -31,8 +31,6 @@ public interface RecipeComponentRepository extends JpaRepository<RecipeComponent
                      "WHERE c.parentRecipe.id = :recipeId")
        List<RecipeComponent> findAllByRecipeIdWithRelations(@Param("recipeId") Integer recipeId);
 
-       // --- Proyecciones ---
-
        Page<RecipeComponentProjection> findAllProjectedBy(Pageable pageable);
 
        Optional<RecipeComponentProjection> findProjectedById(Integer id);

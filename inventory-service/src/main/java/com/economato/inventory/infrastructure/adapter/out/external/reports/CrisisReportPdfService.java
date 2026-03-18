@@ -43,7 +43,7 @@ public class CrisisReportPdfService {
     private final OrderRepository orderRepository;
     private final RecipeCookingAuditRepository cookingAuditRepository;
 
-    private static final DeviceRgb PRIMARY_COLOR = new DeviceRgb(220, 38, 38); // Red for Crisis
+    private static final DeviceRgb PRIMARY_COLOR = new DeviceRgb(220, 38, 38);
     private static final DeviceRgb TEXT_DARK = new DeviceRgb(51, 51, 51);
     private static final DeviceRgb TEXT_GRAY = new DeviceRgb(107, 114, 128);
     private static final DeviceRgb BG_GRAY = new DeviceRgb(243, 244, 246);
@@ -60,19 +60,14 @@ public class CrisisReportPdfService {
             PdfFont bold = PdfFontFactory.createFont("Helvetica-Bold");
             PdfFont regular = PdfFontFactory.createFont("Helvetica");
 
-            // Header
             addHeader(document, crisisData, bold);
 
-            // Affected Products Section
             addProductsSection(document, crisisData, bold, regular);
 
-            // Affected Orders Section
             addOrdersSection(document, crisisData.getAffectedOrderIds(), bold, regular);
 
-            // Affected Cookings Section
             addCookingsSection(document, crisisData.getAffectedCookingAuditIds(), bold, regular);
 
-            // Traceability & Integrity Section
             addIntegritySection(document, crisisData, bold, regular);
 
             document.close();

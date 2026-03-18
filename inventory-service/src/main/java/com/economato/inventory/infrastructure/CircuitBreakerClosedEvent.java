@@ -1,8 +1,5 @@
 package com.economato.inventory.infrastructure;
 
-/**
- * Event published when a CircuitBreaker transitions to CLOSED state (recovery).
- */
 public class CircuitBreakerClosedEvent {
     private final String instanceName;
 

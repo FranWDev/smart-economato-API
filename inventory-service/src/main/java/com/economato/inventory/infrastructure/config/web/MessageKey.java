@@ -168,7 +168,6 @@ public enum MessageKey {
     STOCK_ALERT_MESSAGE_EXPIRING("stock.alert.message.expiring"),
     REPORT_COLUMN_NEAREST_EXPIRATION("report.column.nearest.expiration"),
 
-    // Traceability and Crisis
     CRISIS_ACTIVATION_TITLE("crisis.activation.title"),
     CRISIS_ACTIVATION_MESSAGE("crisis.activation.message"),
     CRISIS_LIFT_TITLE("crisis.lift.title"),
@@ -186,7 +185,6 @@ public enum MessageKey {
     REPORT_LABEL_REASON("report.label.reason"),
     REPORT_COLUMN_LATEST_HASH("report.column.latest.hash"),
 
-    // Batch & Reversion
     ERROR_BATCH_EXPIRATION_REQUIRED("error.batch.expiration.required"),
     ERROR_BATCH_EXPIRATION_PAST("error.batch.expiration.past"),
     ERROR_BATCH_EXPIRED_CANNOT_ADD_STOCK("error.batch.expired.cannot.add.stock"),

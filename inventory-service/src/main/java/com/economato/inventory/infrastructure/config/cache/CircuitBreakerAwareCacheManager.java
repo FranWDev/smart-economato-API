@@ -24,7 +24,7 @@ public class CircuitBreakerAwareCacheManager implements CacheManager {
             return noOpCacheManager.getCache(name);
         }
 
-        // Wrap cache to check circuit breaker before every operation
+        // Envolver la caché de Redis con una capa de Circuit Breaker
         return new CircuitBreakerAwareCache(cache, circuitBreakerRegistry);
     }
 
