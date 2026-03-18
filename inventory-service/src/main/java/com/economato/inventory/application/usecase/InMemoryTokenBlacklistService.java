@@ -1,22 +1,23 @@
 package com.economato.inventory.application.usecase;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Date;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.economato.inventory.domain.model.RevokedToken;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RevokedTokenRepository;
+import com.github.benmanes.caffeine.cache.Cache;
 
-import java.util.Date;
-import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * In-memory token blacklist for testing.
- * Also backs up to database for consistency with production behavior.
+ * Lista negra de tokens en memoria.
+ * También respalda en la base de datos para mantener consistencia con el comportamiento de producción.
  */
 @Slf4j
 @Service
@@ -52,12 +53,10 @@ public class InMemoryTokenBlacklistService implements TokenBlacklistService {
             return false;
         }
         
-        // Check in-memory cache first
         if (blacklistedTokens.containsKey(token)) {
             return true;
         }
-        
-        // Check database as fallback
+        // Como fallback, consulta a la db
         try {
             return revokedTokenRepository.existsByToken(token);
         } catch (Exception e) {

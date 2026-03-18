@@ -57,8 +57,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Genera alertas predictivas de stock bajo combinando:
- * Proyección Holt-Winters del consumo de ingredientes (12 semanas históricas).
- * Stock físico actual ({@code product.currentStock}).
+ * Predicciones oficiales recibidas desde el predictor de IA (Kafka).
  * Cantidades pendientes de recibir en pedidos activos (CREATED / PENDING /
  * REVIEW).
  */
@@ -501,7 +500,6 @@ public class StockAlertService {
             double projectedRaw = forecaster.forecast(consumption, SEASON_PERIOD, HORIZON_DAYS);
             BigDecimal projected = BigDecimal.valueOf(projectedRaw).setScale(4, RoundingMode.HALF_UP);
 
-            // Guardar o actualizar predicción
             StockPrediction prediction = predictionRepository.findById(productId)
                 .orElseGet(() -> StockPrediction.builder()
                     .product(product)
@@ -522,7 +520,6 @@ public class StockAlertService {
             LocalDateTime since,
             Map<Integer, List<ProductBatch>> activeBatchesByProduct) {
 
-        // Recuperar nombre y unidad del producto
         var productOpt = productRepository.findById(productId);
         if (productOpt.isEmpty())
             return null;
@@ -531,10 +528,9 @@ public class StockAlertService {
         BigDecimal effective = currentStock.add(pending);
         BigDecimal gap = projected.subtract(effective).setScale(3, RoundingMode.HALF_UP);
 
-        // Días cubiertos por el stock efectivo
         int daysRemaining;
         if (projected.compareTo(BigDecimal.ZERO) <= 0) {
-            daysRemaining = Integer.MAX_VALUE; // sin consumo proyectado → sin problema
+            daysRemaining = Integer.MAX_VALUE; 
         } else {
             BigDecimal dailyRate = projected.divide(BigDecimal.valueOf(HORIZON_DAYS), 6, RoundingMode.HALF_UP);
             if (dailyRate.compareTo(BigDecimal.ZERO) == 0) {
@@ -667,11 +663,9 @@ public class StockAlertService {
      * Las semanas sin consumo se rellenan con 0.0 para mantener la continuidad.
      */
     private Map<Integer, List<Double>> groupByProduct(List<WeeklyIngredientConsumption> rows) {
-        // Rango de índices de semana
         int minWeek = rows.stream().mapToInt(WeeklyIngredientConsumption::getWeekIndex).min().orElse(0);
         int maxWeek = rows.stream().mapToInt(WeeklyIngredientConsumption::getWeekIndex).max().orElse(0);
 
-        // productId → (weekIndex → consumption)
         Map<Integer, Map<Integer, Double>> byProduct = new HashMap<>();
         for (WeeklyIngredientConsumption row : rows) {
             byProduct
@@ -680,7 +674,6 @@ public class StockAlertService {
                             row.getTotalConsumed() != null ? row.getTotalConsumed().doubleValue() : 0.0);
         }
 
-        // Expandir a lista continua rellenando semanas vacías con 0
         Map<Integer, List<Double>> result = new HashMap<>();
         for (Map.Entry<Integer, Map<Integer, Double>> entry : byProduct.entrySet()) {
             List<Double> series = new ArrayList<>();

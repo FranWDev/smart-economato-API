@@ -4,9 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 import java.time.LocalDateTime;
 
-/**
- * WebSocket notification message sent to specific roles.
- */
 @Getter
 @Builder
 @NoArgsConstructor

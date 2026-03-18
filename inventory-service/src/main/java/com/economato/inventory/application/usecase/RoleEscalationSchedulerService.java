@@ -1,13 +1,13 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.domain.model.TemporaryRoleEscalation;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.TemporaryRoleEscalationRepository;
+import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import com.economato.inventory.domain.model.TemporaryRoleEscalation;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.TemporaryRoleEscalationRepository;
 
 @Service
 public class RoleEscalationSchedulerService {
@@ -22,7 +22,7 @@ public class RoleEscalationSchedulerService {
         this.userService = userService;
     }
 
-    @Scheduled(cron = "0 * * * * *") // Run every minute
+    @Scheduled(cron = "0 * * * * *") // Se comprueba cada minuto
     public void expireEscalations() {
         List<TemporaryRoleEscalation> activeEscalations = escalationRepository.findAll();
         LocalDateTime now = LocalDateTime.now();

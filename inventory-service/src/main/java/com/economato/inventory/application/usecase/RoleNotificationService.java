@@ -6,6 +6,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+/**
+ * Utilidad para enviar notificaciones filtrando por rol (o a un usuario específico) a través de WebSocket.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -13,16 +16,10 @@ public class RoleNotificationService {
 
     private final SimpMessagingTemplate messagingTemplate;
 
-    /**
-     * Send notification to all users with a specific role via WebSocket.
-     */
     public void sendNotificationToRole(Role role, String title, String message) {
         sendNotificationToRole(role, new RoleNotificationMessage(title, message));
     }
 
-    /**
-     * Send pre-built notification message to a specific role.
-     */
     public void sendNotificationToRole(Role role, RoleNotificationMessage notification) {
         try {
             String destination = "/topic/roles/" + role.name();
@@ -36,9 +33,6 @@ public class RoleNotificationService {
         }
     }
 
-    /**
-     * Send notification to a specific user.
-     */
     public void sendNotificationToUser(String username, String title, String message) {
         try {
             RoleNotificationMessage notification = new RoleNotificationMessage(title, message);

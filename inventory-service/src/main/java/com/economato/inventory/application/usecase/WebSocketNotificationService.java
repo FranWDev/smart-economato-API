@@ -22,7 +22,8 @@ public class WebSocketNotificationService {
     private final CircuitBreakerRegistry circuitBreakerRegistry;
 
     /**
-     * Handle circuit breaker OPEN events (failures).
+     * Maneja eventos de circuit breaker OPEN y envía alertas al frontend a través de WebSocket.
+     * El frontend debe traducir el código de alerta a un mensaje legible para el usuario y determinar si es un fallo parcial o crítico.
      */
     @EventListener
     public void handleCircuitBreakerOpen(CircuitBreakerOpenEvent event) {
@@ -41,7 +42,7 @@ public class WebSocketNotificationService {
     }
 
     /**
-     * Handle circuit breaker CLOSED events (recovery).
+     * Maneja eventos de circuit breaker CLOSED (recuperación) y envía alertas al frontend a través de WebSocket.
      */
     @EventListener
     public void handleCircuitBreakerClosed(CircuitBreakerClosedEvent event) {
@@ -60,8 +61,7 @@ public class WebSocketNotificationService {
     }
 
     /**
-     * Send alert with error code to frontend via WebSocket.
-     * Frontend is responsible for translating the code to user's locale.
+     * Envía una alerta de sistema a todos los clientes WebSocket suscritos al tópico de alertas.
      */
     public void sendCircuitBreakerAlert(AlertCode alertCode) {
         try {
@@ -74,10 +74,6 @@ public class WebSocketNotificationService {
         }
     }
 
-    /**
-     * Send alert to a specific user session.
-     * Used when a new WebSocket connection is established to notify about open circuit breakers.
-     */
     public void sendCircuitBreakerAlertToUser(String username, AlertCode alertCode) {
         try {
             AlertMessage message = new AlertMessage(alertCode.getCode(), alertCode.getDescription());
@@ -90,8 +86,8 @@ public class WebSocketNotificationService {
     }
 
     /**
-     * Handle new WebSocket connections.
-     * Check all circuit breakers and notify the user about any that are currently OPEN.
+     * Si se conecta un nuevo cliente WebSocket, revisa el estado de todos los circuit breakers y 
+     * envía alertas de cualquier recurso que esté actualmente en estado OPEN.
      */
     @EventListener
     public void handleWebSocketConnected(WebSocketConnectedEvent event) {

@@ -1,7 +1,8 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,19 +13,17 @@ import com.economato.inventory.application.dto.RestPage;
 import com.economato.inventory.application.dto.request.RecipeComponentRequestDTO;
 import com.economato.inventory.application.dto.response.RecipeComponentResponseDTO;
 import com.economato.inventory.application.dto.response.RecipeResponseDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.application.mapper.RecipeComponentMapper;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.Recipe;
 import com.economato.inventory.domain.model.RecipeComponent;
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeComponentRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
-
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
@@ -107,16 +106,14 @@ public class RecipeComponentService {
     }
 
     private void updateEntity(RecipeComponent component, RecipeComponentRequestDTO requestDTO) {
-        // Asignar propiedades simples del DTO usando el mapper
+
         recipeComponentMapper.updateEntity(requestDTO, component);
 
-        // Asignar el producto
         Product product = productRepository.findById(requestDTO.getProductId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND)));
         component.setProduct(product);
 
-        // Asignar la receta
         if (requestDTO.getRecipeId() != null) {
             Recipe recipe = recipeRepository.findById(requestDTO.getRecipeId())
                     .orElseThrow(() -> new ResourceNotFoundException(

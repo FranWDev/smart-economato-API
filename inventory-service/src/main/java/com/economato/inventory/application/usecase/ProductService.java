@@ -15,26 +15,25 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.economato.inventory.domain.ProductAuditable;
 import com.economato.inventory.application.dto.RestPage;
 import com.economato.inventory.application.dto.request.ProductRequestDTO;
 import com.economato.inventory.application.dto.response.ProductResponseDTO;
 import com.economato.inventory.application.dto.response.ProductStatsResponseDTO;
+import com.economato.inventory.application.mapper.ProductMapper;
+import com.economato.inventory.domain.ProductAuditable;
+import com.economato.inventory.domain.model.MovementType;
+import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.ConcurrencyException;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
-import com.economato.inventory.application.mapper.ProductMapper;
-import com.economato.inventory.domain.model.MovementType;
-import com.economato.inventory.domain.model.Product;
-import com.economato.inventory.domain.model.StockLedger;
-import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.InventoryAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeComponentRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
@@ -248,7 +247,6 @@ public class ProductService {
                     i18nService.getMessage(MessageKey.ERROR_PRODUCT_INVALID_UNIT));
         }
 
-        // Validar que el supplier existe si se proporciona
         if (requestDTO.getSupplierId() != null) {
             if (!supplierRepository.existsById(requestDTO.getSupplierId())) {
                 throw new InvalidOperationException(
@@ -287,6 +285,9 @@ public class ProductService {
         return unit != null && VALID_UNITS.contains(unit.toUpperCase());
     }
 
+    /* Por que se limpia TODA la caché?
+     * Porque, al usarse normalmente con páginas, alterar un producto provoca que se altere su posición en la página.
+     */
     @CacheEvict(value = { "products_page", "product" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
             Exception.class }, isolation = Isolation.REPEATABLE_READ)

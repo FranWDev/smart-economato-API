@@ -1,5 +1,18 @@
 package com.economato.inventory.application.usecase;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.economato.inventory.application.dto.BatchConsumptionDetail;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.ProductBatch;
@@ -9,23 +22,16 @@ import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundExc
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+
+/**-
+ * Servicio para gestionar lotes de productos, incluyendo creación, consumo, actualización de caducidad y consultas.
+ * Encapsula la lógica de negocio relacionada con el manejo de lotes, como validaciones de fechas, cálculos de stock
+ * restante y manejo de estados (agotado/no agotado).
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
