@@ -84,6 +84,7 @@ class OrderMapperTest {
             return new OrderProjection.OrderDetailSummary.ProductInfo() {
                 @Override public Integer getId() { return 1; }
                 @Override public String getName() { return "Test Product"; }
+                @Override public String getUnit() { return "KG"; }
                 @Override public BigDecimal getUnitPrice() { return unitPrice; }
             };
         }
