@@ -175,6 +175,7 @@ public enum MessageKey {
     CRISIS_REPORT_TITLE("crisis.report.title"),
     CRISIS_REPORT_SECTION_AFFECTED_ORDERS("crisis.report.section.affected.orders"),
     CRISIS_REPORT_SECTION_AFFECTED_COOKINGS("crisis.report.section.affected.cookings"),
+    CRISIS_REPORT_SECTION_AFFECTED_BATCHES("crisis.report.section.affected.batches"),
     CRISIS_REPORT_SECTION_QUARANTINE_PRODUCTS("crisis.report.section.quarantine.products"),
     CRISIS_REPORT_SECTION_TRACEABILITY_CHAIN("crisis.report.section.traceability.chain"),
     LEDGER_DESCRIPTION_QUARANTINE("ledger.description.quarantine"),
@@ -184,6 +185,10 @@ public enum MessageKey {
     REPORT_LABEL_CRISIS_ID("report.label.crisis.id"),
     REPORT_LABEL_REASON("report.label.reason"),
     REPORT_COLUMN_LATEST_HASH("report.column.latest.hash"),
+    REPORT_COLUMN_EXPIRATION_DATE("report.column.expiration.date"),
+    BATCH_STATUS_ACTIVE("batch.status.active"),
+    BATCH_STATUS_EXPIRED("batch.status.expired"),
+    BATCH_STATUS_DEPLETED("batch.status.depleted"),
 
     ERROR_BATCH_EXPIRATION_REQUIRED("error.batch.expiration.required"),
     ERROR_BATCH_EXPIRATION_PAST("error.batch.expiration.past"),
