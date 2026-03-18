@@ -10,6 +10,7 @@ import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
+import com.economato.inventory.infrastructure.config.security.LedgerProperties;
 import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.colors.DeviceRgb;
 import com.itextpdf.kernel.events.Event;
@@ -38,8 +39,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
@@ -67,15 +70,18 @@ public class StockLedgerPdfService {
     private final ProductRepository productRepository;
     private final I18nService i18nService;
     private final StockLedgerService stockLedgerService;
+    private final LedgerProperties ledgerProperties;
 
     public StockLedgerPdfService(StockLedgerRepository stockLedgerRepository,
             ProductRepository productRepository,
             I18nService i18nService,
-            StockLedgerService stockLedgerService) {
+            StockLedgerService stockLedgerService,
+            LedgerProperties ledgerProperties) {
         this.stockLedgerRepository = stockLedgerRepository;
         this.productRepository = productRepository;
         this.i18nService = i18nService;
         this.stockLedgerService = stockLedgerService;
+        this.ledgerProperties = ledgerProperties;
     }
 
     public byte[] generateStockLedgerPdf(Integer productId) {
@@ -192,11 +198,15 @@ public class StockLedgerPdfService {
                         .append("||");
             }
 
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(content.toString().getBytes(StandardCharsets.UTF_8));
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKey = new SecretKeySpec(
+                    ledgerProperties.getHmacSecret().getBytes(StandardCharsets.UTF_8),
+                    "HmacSHA256");
+            mac.init(secretKey);
+            byte[] hashBytes = mac.doFinal(content.toString().getBytes(StandardCharsets.UTF_8));
 
             StringBuilder hexHash = new StringBuilder();
-            for (byte b : hash) {
+            for (byte b : hashBytes) {
                 hexHash.append(String.format("%02x", b));
             }
             return hexHash.toString();

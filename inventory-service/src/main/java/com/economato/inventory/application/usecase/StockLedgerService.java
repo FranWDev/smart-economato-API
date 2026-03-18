@@ -10,7 +10,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
-
+import java.time.LocalDate;
 import com.economato.inventory.application.dto.request.BatchStockMovementRequestDTO;
 import com.economato.inventory.application.dto.request.ManualStockAdjustmentRequestDTO;
 import com.economato.inventory.application.dto.request.BatchMovementItem;
@@ -19,6 +19,7 @@ import com.economato.inventory.application.dto.response.ProductConsumptionRespon
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.application.dto.BatchConsumptionDetail;
 import com.economato.inventory.domain.model.MovementType;
+import com.economato.inventory.domain.model.Order;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.domain.model.StockLedger;
@@ -35,10 +36,13 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import com.economato.inventory.infrastructure.config.security.LedgerProperties;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -46,6 +50,7 @@ import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -91,12 +96,16 @@ public class StockLedgerService {
     private final StockLedgerBatchDetailRepository batchDetailRepository;
     private final ProductBatchRepository batchRepository;
     private final Environment environment;
+    private final LedgerProperties ledgerProperties;
 
     // Métricas declaradas como final para thread-safety
     private final Counter stockMovementsCounter;
     private final Timer ledgerHashTimer;
 
     private static final String GENESIS_HASH = "GENESIS";
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public StockLedgerService(
             I18nService i18nService,
@@ -110,6 +119,7 @@ public class StockLedgerService {
             StockLedgerBatchDetailRepository batchDetailRepository,
             ProductBatchRepository batchRepository,
             Environment environment,
+            LedgerProperties ledgerProperties,
             MeterRegistry meterRegistry) {
         this.i18nService = i18nService;
         this.ledgerRepository = ledgerRepository;
@@ -122,6 +132,7 @@ public class StockLedgerService {
         this.batchDetailRepository = batchDetailRepository;
         this.batchRepository = batchRepository;
         this.environment = environment;
+        this.ledgerProperties = ledgerProperties;
 
         // Inicializar métricas
         this.stockMovementsCounter = Counter.builder("stock.ledger.movements.total")
@@ -129,7 +140,7 @@ public class StockLedgerService {
                 .register(meterRegistry);
 
         this.ledgerHashTimer = Timer.builder("stock.ledger.hash.duration")
-                .description("Latencia del cómputo SHA-256")
+                .description("Latencia del cómputo HMAC-SHA256")
                 .publishPercentiles(0.95, 0.99) // Crítico para detectar outliers en Virtual Threads
                 .register(meterRegistry);
     }
@@ -200,7 +211,8 @@ public class StockLedgerService {
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
-    public StockLedger processManualAdjustment(ManualStockAdjustmentRequestDTO request) {
+    public StockLedger processManualAdjustment(
+            com.economato.inventory.application.dto.request.ManualStockAdjustmentRequestDTO request) {
         User currentUser = securityContextHelper.getCurrentUser();
 
         // Validación: si delta es positivo y no hay batchId, exigir expirationDate
@@ -239,16 +251,25 @@ public class StockLedgerService {
             return;
         }
 
-        User currentUser = securityContextHelper.getCurrentUser();
-        String reversalCorrelationId = "REV-" + correlationId;
+        executeReversal(transactions, reason, correlationId);
+    }
 
-        // Prevenir doble reversión
-        List<StockLedger> existingReversals = ledgerRepository.findByCorrelationId(reversalCorrelationId);
-        if (!existingReversals.isEmpty()) {
-            throw new InvalidOperationException(
-                    i18nService.getMessage(MessageKey.ERROR_REVERSION_ALREADY_DONE, new Object[] { correlationId }));
+    private void executeReversal(List<StockLedger> transactions, String reason, String originalCorrelationId) {
+        User currentUser = securityContextHelper.getCurrentUser();
+        String reversalCorrelationId = "REV-"
+                + (originalCorrelationId != null ? originalCorrelationId : java.util.UUID.randomUUID().toString());
+
+        // Prevenir doble reversión si hay correlationId
+        if (originalCorrelationId != null) {
+            List<StockLedger> existingReversals = ledgerRepository.findByCorrelationId(reversalCorrelationId);
+            if (!existingReversals.isEmpty()) {
+                throw new InvalidOperationException(
+                        i18nService.getMessage(MessageKey.ERROR_REVERSION_ALREADY_DONE,
+                                new Object[] { originalCorrelationId }));
+            }
         }
 
+        // FASE 1: Verificación de integridad y uso de lotes
         for (StockLedger originalTx : transactions) {
             List<StockLedgerBatchDetail> details = batchDetailRepository.findByLedgerTransactionId(originalTx.getId());
 
@@ -261,10 +282,8 @@ public class StockLedgerService {
 
             for (StockLedgerBatchDetail detail : details) {
                 ProductBatch batch = detail.getBatch();
-                if (batch == null) {
-                    log.error("Lote nulo en detalle de transacción {}. Saltando.", detail.getId());
+                if (batch == null)
                     continue;
-                }
 
                 // Verificar que el lote original no esté caducado
                 if (batch.getExpirationDate() != null
@@ -274,7 +293,40 @@ public class StockLedgerService {
                                     new Object[] { batch.getId(), batch.getProduct().getName(),
                                             batch.getExpirationDate() }));
                 }
+            }
 
+            // Si la transacción original creó lotes, verificar que no hayan sido usados
+            // externamente
+            List<ProductBatch> createdBatches = batchRepository.findByLedgerTransactionId(originalTx.getId());
+            for (ProductBatch createdBatch : createdBatches) {
+                List<StockLedgerBatchDetail> usage = batchDetailRepository.findByBatchId(createdBatch.getId());
+
+                // Si hay más de un uso, significa que alguien más (receta, ajuste) tocó este
+                // lote
+                List<StockLedger> externalUsage = usage.stream()
+                        .map(StockLedgerBatchDetail::getLedgerTransaction)
+                        .filter(tx -> !tx.getId().equals(originalTx.getId()))
+                        .toList();
+
+                if (!externalUsage.isEmpty()) {
+                    String otherActions = externalUsage.stream()
+                            .map(StockLedger::getDescription)
+                            .distinct()
+                            .collect(Collectors.joining(", "));
+
+                    throw new InvalidOperationException(
+                            "No se puede revertir la entrada: el lote #" + createdBatch.getId() +
+                                    " ya ha sido utilizado en: " + otherActions);
+                }
+            }
+        }
+
+        // FASE 2: Registro de contra-asientos
+        for (StockLedger originalTx : transactions) {
+            List<StockLedgerBatchDetail> details = batchDetailRepository.findByLedgerTransactionId(originalTx.getId());
+
+            for (StockLedgerBatchDetail detail : details) {
+                ProductBatch batch = detail.getBatch();
                 BigDecimal quantityToRestore = detail.getQuantity().negate();
 
                 // Validar que la reversión de una ENTRADA (quantityToRestore < 0) no cause
@@ -306,15 +358,21 @@ public class StockLedgerService {
                         reversalCorrelationId,
                         batch.getId());
             }
+
+            // FASE 3: Eliminación de lotes creados (si aplica)
+            entityManager.flush();
+            List<ProductBatch> createdBatches = batchRepository.findByLedgerTransactionId(originalTx.getId());
+            for (ProductBatch createdBatch : createdBatches) {
+                log.info("Borrando lote creado por transacción revertida: batchId={}, txId={}",
+                        createdBatch.getId(), originalTx.getId());
+
+                List<StockLedgerBatchDetail> usage = batchDetailRepository.findByBatchId(createdBatch.getId());
+                batchDetailRepository.deleteAll(usage);
+                batchRepository.delete(createdBatch);
+            }
         }
     }
 
-    // --- LÓGICA DE TRAZABILIDAD POR LOTES ---
-    // 1. Si es SALIDA (delta < 0): Se aplica política FEFO (First Expired, First
-    // Out).
-    // 2. Si es ENTRADA (delta > 0): Se crea un nuevo lote o se añade al existente.
-    // 3. Si es REVERSIÓN: Se busca el lote original para restaurar el balance
-    // exacto.
     private StockLedger recordStockMovementInternal(
             Integer productId,
             BigDecimal quantityDelta,
@@ -379,6 +437,12 @@ public class StockLedgerService {
                 productId,
                 normalizedDelta,
                 normalizedStock,
+                movementType,
+                description,
+                user != null ? user.getId() : null,
+                orderId,
+                expirationDate,
+                correlationId,
                 now,
                 previousHash,
                 nextSequence);
@@ -461,26 +525,42 @@ public class StockLedgerService {
             Integer productId,
             BigDecimal quantityDelta,
             BigDecimal resultingStock,
+            MovementType movementType,
+            String description,
+            Integer userId,
+            Integer orderId,
+            LocalDate expirationDate,
+            String correlationId,
             LocalDateTime timestamp,
             String previousHash,
             Long sequenceNumber) {
 
         return ledgerHashTimer.record(() -> {
             try {
-                String data = String.format("%d|%s|%s|%s|%s|%d",
+                String data = String.format("%d|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d",
                         productId,
                         quantityDelta.toPlainString(),
                         resultingStock.toPlainString(),
+                        movementType.name(),
+                        description != null ? description : "NULL",
+                        userId != null ? userId.toString() : "NULL",
+                        orderId != null ? orderId.toString() : "NULL",
+                        expirationDate != null ? expirationDate.toString() : "NULL",
+                        correlationId != null ? correlationId : "NULL",
                         timestamp.toString(),
                         previousHash,
                         sequenceNumber);
 
-                MessageDigest digest = MessageDigest.getInstance("SHA-256");
-                byte[] hashBytes = digest.digest(data.getBytes(StandardCharsets.UTF_8));
+                Mac mac = Mac.getInstance("HmacSHA256");
+                SecretKeySpec secretKey = new SecretKeySpec(
+                        ledgerProperties.getHmacSecret().getBytes(StandardCharsets.UTF_8),
+                        "HmacSHA256");
+                mac.init(secretKey);
+                byte[] hashBytes = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
 
                 return HexFormat.of().formatHex(hashBytes);
 
-            } catch (NoSuchAlgorithmException e) {
+            } catch (Exception e) {
                 throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_STOCK_HASH_CALCULATION), e);
             }
         });
@@ -528,6 +608,12 @@ public class StockLedgerService {
                     productId,
                     normalizedDelta,
                     normalizedStock,
+                    tx.getMovementType(),
+                    tx.getDescription(),
+                    tx.getUser() != null ? tx.getUser().getId() : null,
+                    tx.getOrderId(),
+                    tx.getExpirationDate(),
+                    tx.getCorrelationId(),
                     normalizedTimestamp,
                     tx.getPreviousHash(),
                     tx.getSequenceNumber());
@@ -681,6 +767,12 @@ public class StockLedgerService {
                     productId,
                     normalizedDelta,
                     normalizedStock,
+                    tx.getMovementType(),
+                    tx.getDescription(),
+                    tx.getUser() != null ? tx.getUser().getId() : null,
+                    tx.getOrderId(),
+                    tx.getExpirationDate(),
+                    tx.getCorrelationId(),
                     normalizedTimestamp,
                     expectedPreviousHash,
                     tx.getSequenceNumber());
@@ -766,7 +858,51 @@ public class StockLedgerService {
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public List<StockLedger> processBatchMovements(BatchStockMovementRequestDTO request) {
         User currentUser = securityContextHelper.getCurrentUser();
+        String reason = request.getReason() != null ? request.getReason() : "Reversión batch";
 
+        if (request.getOrderId() != null) {
+            log.info("Procesando reversión automática de orden: orderId={}", request.getOrderId());
+            List<StockLedger> transactions = ledgerRepository.findByOrderId(request.getOrderId());
+
+            if (!transactions.isEmpty()) {
+                executeReversal(transactions, reason, null);
+            }
+
+            Order order = orderRepository.findByIdWithDetails(request.getOrderId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada: " + request.getOrderId()));
+
+            order.setStatus(com.economato.inventory.domain.model.OrderStatus.CREATED);
+            for (var detail : order.getDetails()) {
+                detail.setQuantityReceived(null);
+            }
+            orderRepository.save(order);
+
+            log.info("Reversión de orden completada: orderId={}, estado vuelto a CREATED", request.getOrderId());
+            return List.of(); // En este caso no devolvemos los nuevos movimientos de la reversión para no
+                              // confundir al DTO
+        }
+
+        if (request.getRecipeCookingAuditId() != null) {
+            log.info("Procesando reversión automática de cocinado: recipeAuditId={}",
+                    request.getRecipeCookingAuditId());
+            com.economato.inventory.domain.model.RecipeCookingAudit audit = recipeCookingAuditRepository
+                    .findById(request.getRecipeCookingAuditId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Auditoría de cocinado no encontrada: " + request.getRecipeCookingAuditId()));
+
+            if (audit.getCorrelationId() != null) {
+                List<StockLedger> transactions = ledgerRepository.findByCorrelationId(audit.getCorrelationId());
+                if (!transactions.isEmpty()) {
+                    executeReversal(transactions, reason, audit.getCorrelationId());
+                }
+            }
+
+            recipeCookingAuditRepository.delete(audit);
+            log.info("Reversión de cocinado completada: recipeAuditId={}", request.getRecipeCookingAuditId());
+            return List.of();
+        }
+
+        // Lógica original para compatibilidad
         List<BatchMovementItem> movements = request.getMovements().stream()
                 .map(item -> new BatchMovementItem(
                         item.getProductId(),
@@ -776,21 +912,7 @@ public class StockLedgerService {
                         item.getExpirationDate()))
                 .collect(Collectors.toList());
 
-        List<StockLedger> transactions = recordBatchStockMovements(movements, currentUser, request.getOrderId());
-
-        if (request.getOrderId() != null) {
-            orderRepository.findById(request.getOrderId()).ifPresent(orderRepository::delete);
-            log.info("Operación batch: Orden eliminada ID={}", request.getOrderId());
-        }
-
-        if (request.getRecipeCookingAuditId() != null) {
-            recipeCookingAuditRepository.findById(request.getRecipeCookingAuditId())
-                    .ifPresent(recipeCookingAuditRepository::delete);
-            log.info("Operación batch: Auditoría de receta cocinada eliminada ID={}",
-                    request.getRecipeCookingAuditId());
-        }
-
-        return transactions;
+        return recordBatchStockMovements(movements, currentUser, request.getOrderId());
     }
 
     /**

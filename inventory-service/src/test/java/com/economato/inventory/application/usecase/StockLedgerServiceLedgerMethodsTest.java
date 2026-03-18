@@ -29,6 +29,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
+import com.economato.inventory.infrastructure.config.security.LedgerProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.core.env.Environment;
@@ -69,6 +70,9 @@ class StockLedgerServiceLedgerMethodsTest {
         @Mock
         private Environment environment;
 
+        @Mock
+        private LedgerProperties ledgerProperties;
+
         private StockLedgerService stockLedgerService;
 
         private MeterRegistry meterRegistry;
@@ -95,8 +99,11 @@ class StockLedgerServiceLedgerMethodsTest {
                         batchDetailRepository,
                         batchRepository,
                         environment,
+                        ledgerProperties,
                         meterRegistry
                 );
+
+                lenient().when(ledgerProperties.getHmacSecret()).thenReturn("test-hmac-secret-for-ledger-integrity-verification");
 
                 testUser = new User();
                 testUser.setId(1);

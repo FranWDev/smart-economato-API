@@ -7,6 +7,9 @@ import org.springframework.stereotype.Component;
 
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import com.economato.inventory.application.usecase.CustomUserDetailsService.FastUserDetails;
 
 import java.util.Optional;
 
@@ -14,6 +17,9 @@ import java.util.Optional;
 public class SpringSecurityAuditorAware implements AuditorAware<User> {
 
     private final UserRepository userRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     public SpringSecurityAuditorAware(UserRepository userRepository) {
         this.userRepository = userRepository;
@@ -24,6 +30,12 @@ public class SpringSecurityAuditorAware implements AuditorAware<User> {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
         if (auth != null && auth.isAuthenticated() && !auth.getName().equals("anonymousUser")) {
+            Object principal = auth.getPrincipal();
+
+            if (principal instanceof FastUserDetails fastUser) {
+                return Optional.of(entityManager.getReference(User.class, fastUser.getUserId()));
+            }
+
             String username = auth.getName();
             return userRepository.findByName(username);
         }

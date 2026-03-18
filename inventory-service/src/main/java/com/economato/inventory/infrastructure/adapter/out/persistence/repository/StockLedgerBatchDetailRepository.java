@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 public interface StockLedgerBatchDetailRepository extends JpaRepository<StockLedgerBatchDetail, Long> {
     List<StockLedgerBatchDetail> findByLedgerTransactionId(Long ledgerTransactionId);
 
+    List<StockLedgerBatchDetail> findByBatchId(Long batchId);
+
     @Modifying(clearAutomatically = true)
     @Transactional
     @Query("DELETE FROM StockLedgerBatchDetail d WHERE d.ledgerTransaction.product.id = :productId")
