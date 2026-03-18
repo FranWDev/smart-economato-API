@@ -375,6 +375,7 @@ public class OrderService {
                                         dto.setOrderId(order.getId());
                                         dto.setProductId(detail.getProduct().getId());
                                         dto.setProductName(detail.getProduct().getName());
+                                        dto.setUnit(detail.getProduct().getUnit());
 
                                         java.math.BigDecimal received = detail.getQuantityReceived() != null
                                                         ? detail.getQuantityReceived()

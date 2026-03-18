@@ -42,6 +42,8 @@ public interface OrderProjection {
 
             String getName();
 
+            String getUnit();
+
             BigDecimal getUnitPrice();
         }
     }

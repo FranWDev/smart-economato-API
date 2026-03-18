@@ -21,6 +21,9 @@ public class OrderDetailResponseDTO {
     @Schema(description = "Nombre del producto", example = "Tomate triturado 500g")
     private String productName;
 
+    @Schema(description = "Unidad de medida del producto", example = "KG")
+    private String unit;
+
     @Schema(description = "Cantidad del producto en el pedido", example = "3.5")
     private BigDecimal quantity;
 
