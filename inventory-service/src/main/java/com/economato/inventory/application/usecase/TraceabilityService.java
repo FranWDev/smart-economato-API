@@ -123,7 +123,8 @@ public class TraceabilityService {
                 crisis = foodCrisisRepository.save(crisis);
 
                 List<CrisisAffectedProduct> affectedProducts = new ArrayList<>();
-                List<BatchMovementItem> batchMovements = new ArrayList<>();
+                List<BatchMovementItem> markerMovements = new ArrayList<>();
+                List<StockLedger> txs = new ArrayList<>();
                 for (Product product : products) {
                         affectedProducts.add(CrisisAffectedProduct.builder()
                                         .foodCrisis(crisis)
@@ -133,25 +134,57 @@ public class TraceabilityService {
                                                         : BigDecimal.valueOf(100.00))
                                         .build());
 
-                        batchMovements.add(new BatchMovementItem(
-                                        product.getId(),
-                                        BigDecimal.ZERO,
-                                        MovementType.CUARENTENA,
-                                        i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_QUARANTINE,
-                                                        new Object[] { crisisCode }),
-                                        null));
+                        List<ProductBatch> implicatedBatches = productBatchService.getAllBatches(product.getId())
+                                        .stream()
+                                        .filter(batch -> batch.getRemainingQuantity() != null
+                                                        && batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0)
+                                        .filter(batch -> !batch.isDepleted())
+                                        .filter(batch -> isWithinDateRange(batch.getReceivedAt(), request.getDateFrom(),
+                                                        request.getDateTo()))
+                                        .toList();
+
+                        if (implicatedBatches.isEmpty()) {
+                                markerMovements.add(new BatchMovementItem(
+                                                product.getId(),
+                                                BigDecimal.ZERO,
+                                                MovementType.CUARENTENA,
+                                                i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_QUARANTINE,
+                                                                new Object[] { crisisCode }),
+                                                null));
+                                continue;
+                        }
+
+                        for (ProductBatch batch : implicatedBatches) {
+                                txs.add(ledgerService.recordManualAdjustment(
+                                                product.getId(),
+                                                batch.getRemainingQuantity().negate(),
+                                                MovementType.CUARENTENA,
+                                                i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_QUARANTINE,
+                                                                new Object[] { crisisCode }) + " [batch #"
+                                                                + batch.getId() + "]",
+                                                currentUser,
+                                                batch.getId(),
+                                                batch.getExpirationDate()));
+                        }
                 }
 
                 productRepository.updateAvailabilityForProducts(request.getProductIds(), BigDecimal.ZERO);
                 crisisAffectedProductRepository.saveAll(affectedProducts);
 
-                List<StockLedger> txs = ledgerService.recordBatchStockMovements(batchMovements, currentUser, null);
+                if (!markerMovements.isEmpty()) {
+                        txs.addAll(ledgerService.recordBatchStockMovements(markerMovements, currentUser, null));
+                }
+
                 Map<String, String> quarantinedProducts = txs.stream()
                                 .collect(Collectors.toMap(
                                                 tx -> tx.getProduct().getName(),
                                                 StockLedger::getCurrentHash,
                                                 (left, right) -> left,
                                                 LinkedHashMap::new));
+
+                if (quarantinedProducts.isEmpty()) {
+                        quarantinedProducts = resolveLatestHashesByProduct(affectedProducts);
+                }
 
                 broadcastCrisisNotification(
                                 i18nService.getMessage(MessageKey.CRISIS_ACTIVATION_TITLE),
@@ -384,7 +417,7 @@ public class TraceabilityService {
                                 .reason(crisis.getReason())
                                 .supplierName(crisis.getSupplier().getName())
                                 .quarantinedProducts(quarantinedProducts)
-                                .affectedBatches(buildAffectedBatchDetails(associations))
+                                .affectedBatches(buildAffectedBatchDetails(crisis, associations))
                                 .affectedOrderIds(affectedOrders.stream().map(Order::getId).toList())
                                 .affectedOrders(affectedOrders.stream().map(o -> CrisisAffectedOrderDTO.builder()
                                                 .orderId(o.getId())
@@ -425,7 +458,8 @@ public class TraceabilityService {
                 return map;
         }
 
-        private List<CrisisAffectedBatchDTO> buildAffectedBatchDetails(List<CrisisAffectedProduct> associations) {
+        private List<CrisisAffectedBatchDTO> buildAffectedBatchDetails(FoodCrisis crisis,
+                        List<CrisisAffectedProduct> associations) {
                 if (associations.isEmpty()) {
                         return List.of();
                 }
@@ -437,6 +471,9 @@ public class TraceabilityService {
                 Map<Long, ProductBatch> batchesById = new LinkedHashMap<>();
                 for (Integer productId : productIds) {
                         for (ProductBatch batch : productBatchService.getAllBatches(productId)) {
+                                if (!isWithinDateRange(batch.getReceivedAt(), crisis.getDateFrom(), crisis.getDateTo())) {
+                                        continue;
+                                }
                                 batchesById.put(batch.getId(), batch);
                         }
                 }
@@ -457,6 +494,15 @@ public class TraceabilityService {
                                                 .depleted(batch.isDepleted())
                                                 .build())
                                 .toList();
+        }
+
+        private boolean isWithinDateRange(LocalDateTime value, LocalDateTime from, LocalDateTime to) {
+                if (value == null) {
+                        return false;
+                }
+                boolean afterFrom = from == null || !value.isBefore(from);
+                boolean beforeTo = to == null || !value.isAfter(to);
+                return afterFrom && beforeTo;
         }
 
         private void broadcastCrisisNotification(String title, String body, AlertCode code) {

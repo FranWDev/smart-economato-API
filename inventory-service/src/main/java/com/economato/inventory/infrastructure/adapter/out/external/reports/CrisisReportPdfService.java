@@ -9,13 +9,12 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.economato.inventory.application.dto.response.CrisisAffectedBatchDTO;
+import com.economato.inventory.application.dto.response.CrisisAffectedCookingDTO;
+import com.economato.inventory.application.dto.response.CrisisAffectedOrderDTO;
 import com.economato.inventory.application.dto.response.CrisisResponseDTO;
-import com.economato.inventory.domain.model.Order;
 import com.economato.inventory.domain.model.Product;
-import com.economato.inventory.domain.model.RecipeCookingAudit;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
 import com.itextpdf.kernel.colors.ColorConstants;
@@ -27,6 +26,7 @@ import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.borders.SolidBorder;
+import com.itextpdf.layout.element.AreaBreak;
 import com.itextpdf.layout.element.Cell;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
@@ -44,8 +44,6 @@ public class CrisisReportPdfService {
 
     private final I18nService i18nService;
     private final ProductRepository productRepository;
-    private final OrderRepository orderRepository;
-    private final RecipeCookingAuditRepository cookingAuditRepository;
 
     private static final DeviceRgb PRIMARY_COLOR = new DeviceRgb(220, 38, 38);
     private static final DeviceRgb TEXT_DARK = new DeviceRgb(51, 51, 51);
@@ -68,9 +66,15 @@ public class CrisisReportPdfService {
 
             addProductsSection(document, crisisData, bold, regular);
 
-            addOrdersSection(document, crisisData.getAffectedOrderIds(), bold, regular);
+            if (crisisData.getAffectedBatches() != null && !crisisData.getAffectedBatches().isEmpty()) {
+                addBatchesSection(document, crisisData.getAffectedBatches(), bold, regular);
+            }
 
-            addCookingsSection(document, crisisData.getAffectedCookingAuditIds(), bold, regular);
+            addOrdersSection(document, crisisData.getAffectedOrders(), bold, regular);
+
+            addCookingsSection(document, crisisData.getAffectedCookings(), bold, regular);
+
+            document.add(new AreaBreak());
 
             addIntegritySection(document, crisisData, bold, regular);
 
@@ -123,8 +127,29 @@ public class CrisisReportPdfService {
         document.add(table);
     }
 
-    private void addOrdersSection(Document document, List<Integer> orderIds, PdfFont bold, PdfFont regular) {
-        if (orderIds == null || orderIds.isEmpty()) return;
+    private void addBatchesSection(Document document, List<CrisisAffectedBatchDTO> batches, PdfFont bold, PdfFont regular) {
+        if (batches == null || batches.isEmpty()) return;
+        addSectionTitle(document, i18nService.getMessage(MessageKey.CRISIS_REPORT_SECTION_AFFECTED_BATCHES), bold);
+
+        Table table = new Table(new float[]{1, 2, 2, 1.5f, 1.5f}).setWidth(UnitValue.createPercentValue(100)).setMarginBottom(15);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_ID), bold);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_NAME), bold);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_EXPIRATION_DATE), bold);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_QUANTITY), bold);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_LABEL_STATUS), bold);
+
+        for (CrisisAffectedBatchDTO batch : batches) {
+            addDataCell(table, batch.getBatchId().toString(), regular);
+            addDataCell(table, batch.getProductName(), regular);
+            addDataCell(table, batch.getExpirationDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")), regular);
+            addDataCell(table, batch.getRemainingQuantity().toString(), regular);
+            addDataCell(table, resolveBatchStatus(batch), regular);
+        }
+        document.add(table);
+    }
+
+    private void addOrdersSection(Document document, List<CrisisAffectedOrderDTO> orders, PdfFont bold, PdfFont regular) {
+        if (orders == null || orders.isEmpty()) return;
         addSectionTitle(document, i18nService.getMessage(MessageKey.CRISIS_REPORT_SECTION_AFFECTED_ORDERS), bold);
 
         Table table = new Table(new float[]{1, 2, 2, 2}).setWidth(UnitValue.createPercentValue(100)).setMarginBottom(15);
@@ -133,18 +158,17 @@ public class CrisisReportPdfService {
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_SUPPLIER), bold);
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_LABEL_STATUS), bold);
 
-        List<Order> orders = orderRepository.findAllById(orderIds);
-        for (Order o : orders) {
-            addDataCell(table, o.getId().toString(), regular);
-            addDataCell(table, o.getOrderDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")), regular);
-            addDataCell(table, o.getSupplier().getName(), regular);
-            addDataCell(table, o.getStatus().name(), regular);
+        for (CrisisAffectedOrderDTO order : orders) {
+            addDataCell(table, order.getOrderId().toString(), regular);
+            addDataCell(table, order.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")), regular);
+            addDataCell(table, order.getSupplierName(), regular);
+            addDataCell(table, translateOrderStatus(order.getStatus()), regular);
         }
         document.add(table);
     }
 
-    private void addCookingsSection(Document document, List<Long> cookingIds, PdfFont bold, PdfFont regular) {
-        if (cookingIds == null || cookingIds.isEmpty()) return;
+    private void addCookingsSection(Document document, List<CrisisAffectedCookingDTO> cookings, PdfFont bold, PdfFont regular) {
+        if (cookings == null || cookings.isEmpty()) return;
         addSectionTitle(document, i18nService.getMessage(MessageKey.CRISIS_REPORT_SECTION_AFFECTED_COOKINGS), bold);
 
         Table table = new Table(new float[]{1, 2, 3, 2}).setWidth(UnitValue.createPercentValue(100)).setMarginBottom(15);
@@ -153,12 +177,11 @@ public class CrisisReportPdfService {
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_RECIPE), bold);
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_QUANTITY), bold);
 
-        List<RecipeCookingAudit> cookings = cookingAuditRepository.findAllById(cookingIds);
-        for (RecipeCookingAudit c : cookings) {
-            addDataCell(table, c.getId().toString(), regular);
-            addDataCell(table, c.getCookingDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), regular);
-            addDataCell(table, c.getRecipe().getName(), regular);
-            addDataCell(table, c.getQuantityCooked().toString(), regular);
+        for (CrisisAffectedCookingDTO cooking : cookings) {
+            addDataCell(table, cooking.getCookingAuditId().toString(), regular);
+            addDataCell(table, cooking.getCookingDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")), regular);
+            addDataCell(table, cooking.getRecipeName(), regular);
+            addDataCell(table, cooking.getQuantityCooked().toString(), regular);
         }
         document.add(table);
     }
@@ -175,6 +198,40 @@ public class CrisisReportPdfService {
         Paragraph notice = new Paragraph(i18nService.getMessage(MessageKey.REPORT_LEGAL_NOTICE))
                 .setFont(regular).setFontSize(8).setFontColor(TEXT_GRAY).setMarginTop(10).setPadding(5).setBackgroundColor(BG_GRAY);
         document.add(notice);
+    }
+
+    private String translateOrderStatus(String status) {
+        if (status == null) return "-";
+        return switch (status.toUpperCase()) {
+            case "CREATED" -> i18nService.getMessage(MessageKey.STATUS_CREATED);
+            case "PENDING" -> i18nService.getMessage(MessageKey.STATUS_PENDING);
+            case "REVIEW" -> i18nService.getMessage(MessageKey.STATUS_REVIEW);
+            case "CONFIRMED" -> i18nService.getMessage(MessageKey.STATUS_CONFIRMED);
+            case "INCOMPLETE" -> i18nService.getMessage(MessageKey.STATUS_INCOMPLETE);
+            case "CANCELLED" -> i18nService.getMessage(MessageKey.STATUS_CANCELLED);
+            default -> status;
+        };
+    }
+
+    private String translateBatchStatus(String status) {
+        if (status == null) return "-";
+        return switch (status.toUpperCase()) {
+            case "ACTIVE" -> i18nService.getMessage(MessageKey.BATCH_STATUS_ACTIVE);
+            case "EXPIRED" -> i18nService.getMessage(MessageKey.BATCH_STATUS_EXPIRED);
+            case "DEPLETED" -> i18nService.getMessage(MessageKey.BATCH_STATUS_DEPLETED);
+            default -> status;
+        };
+    }
+
+    private String resolveBatchStatus(CrisisAffectedBatchDTO batch) {
+        if (batch == null) return "-";
+        if (batch.isDepleted()) {
+            return translateBatchStatus("DEPLETED");
+        }
+        if (batch.isExpired()) {
+            return translateBatchStatus("EXPIRED");
+        }
+        return translateBatchStatus("ACTIVE");
     }
 
     private void addSectionTitle(Document document, String title, PdfFont bold) {
