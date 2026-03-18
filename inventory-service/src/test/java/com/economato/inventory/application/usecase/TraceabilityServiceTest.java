@@ -227,6 +227,49 @@ public class TraceabilityServiceTest {
         }
 
     @Test
+    void activateCrisis_ShouldNotConsumeEarlierExpiringNonImplicatedBatch_FEFORegression() {
+        LocalDateTime from = LocalDateTime.of(2026, 7, 10, 0, 0);
+        LocalDateTime to = LocalDateTime.of(2026, 7, 20, 23, 59);
+        CrisisActivationRequestDTO request = buildActivationRequest(from, to);
+
+        ProductBatch earlierExpiringButNotImplicated = buildBatch(
+            41L,
+            new BigDecimal("10.000"),
+            LocalDateTime.of(2026, 7, 1, 9, 0),
+            false);
+        earlierExpiringButNotImplicated.setExpirationDate(LocalDate.of(2026, 7, 25));
+
+        ProductBatch implicated = buildBatch(
+            42L,
+            new BigDecimal("2.500"),
+            LocalDateTime.of(2026, 7, 15, 9, 0),
+            false);
+        implicated.setExpirationDate(LocalDate.of(2026, 8, 10));
+
+        mockCommonActivationDependencies(request, 103L);
+        when(productBatchService.getAllBatches(1)).thenReturn(List.of(earlierExpiringButNotImplicated, implicated));
+        when(ledgerService.recordManualAdjustment(any(), any(), any(), any(), any(), any(), any()))
+            .thenReturn(buildTx("hash-fefo-regression"));
+
+        traceabilityService.activateCrisis(request);
+
+        ArgumentCaptor<Long> batchIdCaptor = ArgumentCaptor.forClass(Long.class);
+        ArgumentCaptor<BigDecimal> deltaCaptor = ArgumentCaptor.forClass(BigDecimal.class);
+
+        verify(ledgerService, times(1)).recordManualAdjustment(
+            eq(1),
+            deltaCaptor.capture(),
+            eq(MovementType.CUARENTENA),
+            any(),
+            eq(admin),
+            batchIdCaptor.capture(),
+            any());
+
+        assertEquals(42L, batchIdCaptor.getValue());
+        assertEquals(0, deltaCaptor.getValue().compareTo(new BigDecimal("-2.500")));
+    }
+
+    @Test
     void liftCrisis_ShouldRestoreOriginalState() {
         CrisisLiftRequestDTO request = new CrisisLiftRequestDTO();
         request.setCrisisId(7L);
