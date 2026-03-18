@@ -16,23 +16,14 @@ import java.util.List;
 @Builder
 public class StockAlertDTO {
 
-    /** ID del producto. */
     private Integer productId;
 
-    /** Nombre del producto. */
     private String productName;
 
-    /** Unidad de medida (kg, L, ud., …). */
     private String unit;
 
-    /** Stock físico actual según `product.currentStock`. */
     private BigDecimal currentStock;
 
-    /**
-     * Suma de cantidades solicitadas en pedidos con estado
-     * CREATED, PENDING o REVIEW (stock "en tránsito").
-     * Cero si no hay pedidos activos.
-     */
     private BigDecimal pendingOrderQuantity;
 
     /**

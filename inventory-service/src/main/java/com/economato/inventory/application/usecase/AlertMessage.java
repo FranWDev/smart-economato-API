@@ -1,13 +1,14 @@
 package com.economato.inventory.application.usecase;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * WebSocket alert message sent to frontend with error code.
- * Frontend translates the code to its user's locale.
+ * Mensaje de alerta enviado por WebSocket al frontend.
+ * Contiene un código de alerta (definido en AlertCode), una descripción legible
  */
 @Getter
 @NoArgsConstructor

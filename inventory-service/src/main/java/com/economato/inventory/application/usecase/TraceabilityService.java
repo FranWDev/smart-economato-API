@@ -58,6 +58,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Servicio de Trazabilidad y Gestión de Crisis Alimentarias.
+ * Se encarga de garantizar la seguridad alimentaria mediante el bloqueo de
+ * productos (quincena),
+ * el seguimiento de la cadena de suministro (Forward Traceability) y la
+ * reconstrucción
+ * de cocinados (Reverse Traceability) para auditorías.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -82,6 +90,9 @@ public class TraceabilityService {
         private final CrisisAffectedProductRepository crisisAffectedProductRepository;
         private final ObjectMapper objectMapper;
 
+        // Usamos aislamiento SERIALIZABLE para evitar que un producto sea vendido o
+        // usado
+        // en una receta mientras se está procesando su entrada en cuarentena.
         @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
         public CrisisResponseDTO activateCrisis(CrisisActivationRequestDTO request) {
                 log.info("Activating food safety crisis for supplier ID: {}", request.getSupplierId());
@@ -117,8 +128,8 @@ public class TraceabilityService {
                         affectedProducts.add(CrisisAffectedProduct.builder()
                                         .foodCrisis(crisis)
                                         .product(product)
-                                        .originalAvailabilityPercentage(product.getAvailabilityPercentage() != null 
-                                                        ? product.getAvailabilityPercentage() 
+                                        .originalAvailabilityPercentage(product.getAvailabilityPercentage() != null
+                                                        ? product.getAvailabilityPercentage()
                                                         : BigDecimal.valueOf(100.00))
                                         .build());
 
@@ -161,10 +172,12 @@ public class TraceabilityService {
                                                 i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
                 if (crisis.getStatus() != FoodCrisis.CrisisStatus.ACTIVE) {
-                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND));
+                        throw new InvalidOperationException(
+                                        i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND));
                 }
 
-                List<CrisisAffectedProduct> associations = crisisAffectedProductRepository.findByFoodCrisisId(crisis.getId());
+                List<CrisisAffectedProduct> associations = crisisAffectedProductRepository
+                                .findByFoodCrisisId(crisis.getId());
                 if (associations.isEmpty()) {
                         throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND));
                 }
@@ -195,7 +208,8 @@ public class TraceabilityService {
                                         BigDecimal.ZERO,
                                         MovementType.MODIFICACION,
                                         i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_QUARANTINE_LIFT,
-                                                        new Object[] { targetAvailability }) + " [" + crisis.getCrisisCode() + "]",
+                                                        new Object[] { targetAvailability }) + " ["
+                                                        + crisis.getCrisisCode() + "]",
                                         null));
                 }
 
@@ -266,74 +280,84 @@ public class TraceabilityService {
                                 .build();
         }
 
+        /**
+         * Reconstruye el árbol de ingredientes de un cocinado específico.
+         * Utiliza el 'componentsState' (instantánea de la receta al momento de cocinar)
+         * para garantizar que la trazabilidad sea real, incluso si la receta original
+         * cambió.
+         */
         @Transactional(readOnly = true)
         public ReverseTraceabilityDTO getReverseTraceability(Long cookingAuditId) {
                 RecipeCookingAudit audit = cookingAuditRepository.findById(cookingAuditId)
                                 .orElseThrow(() -> new InvalidOperationException(
                                                 i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
-        List<ReverseTraceabilityDTO.IngredientTraceDTO> ingredientTrace = new ArrayList<>();
-        
-        // El estado de los componentes se guarda como JSON en componentsState
-        Map<String, Object> state = parseDetails(audit.getComponentsState());
-        if (state != null && state.containsKey("components")) {
-            List<Map<String, Object>> components = (List<Map<String, Object>>) state.get("components");
+                List<ReverseTraceabilityDTO.IngredientTraceDTO> ingredientTrace = new ArrayList<>();
 
-            for (Map<String, Object> comp : components) {
-                // Jackson puede deserializar números como Integer o Long
-                Object rawId = comp.get("productId");
-                Integer productId = rawId instanceof Number ? ((Number) rawId).intValue() : null;
-                String productName = (String) comp.get("productName");
+                Map<String, Object> state = parseDetails(audit.getComponentsState());
+                if (state != null && state.containsKey("components")) {
+                        List<Map<String, Object>> components = (List<Map<String, Object>>) state.get("components");
 
-                if (productId == null) continue;
+                        for (Map<String, Object> comp : components) {
+                                Object rawId = comp.get("productId");
+                                Integer productId = rawId instanceof Number ? ((Number) rawId).intValue() : null;
+                                String productName = (String) comp.get("productName");
 
-                Optional<StockLedger> lastEntrada = ledgerRepository
-                        .findLastEntradaBeforeDate(productId, audit.getCookingDate());
+                                if (productId == null)
+                                        continue;
 
-                ReverseTraceabilityDTO.IngredientTraceDTO.IngredientTraceDTOBuilder builder = ReverseTraceabilityDTO.IngredientTraceDTO
-                        .builder()
-                        .productName(productName);
+                                Optional<StockLedger> lastEntrada = ledgerRepository
+                                                .findLastEntradaBeforeDate(productId, audit.getCookingDate());
 
-                lastEntrada.ifPresent(le -> {
-                    builder.ledgerHash(le.getCurrentHash())
-                           .orderId(le.getOrderId())
-                           .movementType(le.getMovementType() != null ? le.getMovementType().name() : null)
-                           .description(le.getDescription());
+                                ReverseTraceabilityDTO.IngredientTraceDTO.IngredientTraceDTOBuilder builder = ReverseTraceabilityDTO.IngredientTraceDTO
+                                                .builder()
+                                                .productName(productName);
 
-                    if (le.getOrderId() != null) {
-                        orderRepository.findById(le.getOrderId()).ifPresent(
-                                o -> {
-                                    builder.supplierName(o.getSupplier().getName());
-                                    builder.orderDate(o.getOrderDate());
-                                    if (o.getUser() != null) {
-                                        builder.orderUserName(o.getUser().getName());
-                                    }
+                                lastEntrada.ifPresent(le -> {
+                                        builder.ledgerHash(le.getCurrentHash())
+                                                        .orderId(le.getOrderId())
+                                                        .movementType(le.getMovementType() != null
+                                                                        ? le.getMovementType().name()
+                                                                        : null)
+                                                        .description(le.getDescription());
+
+                                        if (le.getOrderId() != null) {
+                                                orderRepository.findById(le.getOrderId()).ifPresent(
+                                                                o -> {
+                                                                        builder.supplierName(o.getSupplier().getName());
+                                                                        builder.orderDate(o.getOrderDate());
+                                                                        if (o.getUser() != null) {
+                                                                                builder.orderUserName(
+                                                                                                o.getUser().getName());
+                                                                        }
+                                                                });
+                                        } else {
+                                                Optional<Product> product = productRepository.findById(productId);
+                                                product.ifPresent(p -> {
+                                                        if (p.getSupplier() != null) {
+                                                                builder.supplierName(p.getSupplier().getName()
+                                                                                + " (Por defecto)");
+                                                        } else {
+                                                                builder.supplierName("Sin proveedor");
+                                                        }
+                                                });
+                                        }
                                 });
-                    } else {
-                        // Si no hay orden, intentar usar el proveedor por defecto del producto
-                        Optional<Product> product = productRepository.findById(productId);
-                        product.ifPresent(p -> {
-                            if (p.getSupplier() != null) {
-                                builder.supplierName(p.getSupplier().getName() + " (Por defecto)");
-                            } else {
-                                builder.supplierName("Sin proveedor");
-                            }
-                        });
-                    }
-                });
 
-                ingredientTrace.add(builder.build());
-            }
+                                ingredientTrace.add(builder.build());
+                        }
+                }
+
+                return ReverseTraceabilityDTO.builder()
+                                .cookingAudit(cookingAuditMapper.toResponseDTO(audit))
+                                .ingredientTrace(ingredientTrace)
+                                .build();
         }
 
-        return ReverseTraceabilityDTO.builder()
-                .cookingAudit(cookingAuditMapper.toResponseDTO(audit))
-                .ingredientTrace(ingredientTrace)
-                .build();
-    }
-
-        private CrisisResponseDTO buildCrisisResponse(FoodCrisis crisis, Map<String, String> quarantinedProductsOverride) {
-                List<CrisisAffectedProduct> associations = crisisAffectedProductRepository.findByFoodCrisisId(crisis.getId());
+        private CrisisResponseDTO buildCrisisResponse(FoodCrisis crisis,
+                        Map<String, String> quarantinedProductsOverride) {
+                List<CrisisAffectedProduct> associations = crisisAffectedProductRepository
+                                .findByFoodCrisisId(crisis.getId());
                 List<Integer> productIds = associations.stream().map(ap -> ap.getProduct().getId()).toList();
 
                 Map<String, String> quarantinedProducts = quarantinedProductsOverride != null
@@ -364,18 +388,22 @@ public class TraceabilityService {
                                 .affectedOrderIds(affectedOrders.stream().map(Order::getId).toList())
                                 .affectedOrders(affectedOrders.stream().map(o -> CrisisAffectedOrderDTO.builder()
                                                 .orderId(o.getId())
-                                                .supplierName(o.getSupplier() != null ? o.getSupplier().getName() : crisis.getSupplier().getName())
+                                                .supplierName(o.getSupplier() != null ? o.getSupplier().getName()
+                                                                : crisis.getSupplier().getName())
                                                 .status(o.getStatus().name())
                                                 .createdAt(o.getOrderDate())
                                                 .totalItems(o.getDetails() != null ? o.getDetails().size() : 0)
                                                 .build()).toList())
-                                .affectedCookingAuditIds(affectedCookings.stream().map(RecipeCookingAudit::getId).toList())
+                                .affectedCookingAuditIds(
+                                                affectedCookings.stream().map(RecipeCookingAudit::getId).toList())
                                 .affectedCookings(affectedCookings.stream().map(c -> CrisisAffectedCookingDTO.builder()
                                                 .cookingAuditId(c.getId())
                                                 .recipeName(c.getRecipe() != null ? c.getRecipe().getName() : "–")
                                                 .userName(c.getUser() != null ? c.getUser().getName() : "–")
                                                 .cookingDate(c.getCookingDate())
-                                                .quantityCooked(c.getQuantityCooked() != null ? c.getQuantityCooked().doubleValue() : 0.0)
+                                                .quantityCooked(c.getQuantityCooked() != null
+                                                                ? c.getQuantityCooked().doubleValue()
+                                                                : 0.0)
                                                 .build()).toList())
                                 .integrityVerified(integrityVerified)
                                 .summary(i18nService.getMessage(MessageKey.TRACEABILITY_SUMMARY_FORWARD,

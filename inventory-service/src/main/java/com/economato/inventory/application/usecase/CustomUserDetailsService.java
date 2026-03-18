@@ -1,11 +1,8 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
-
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -19,7 +16,28 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
+/**
+ * Servicio que adapta entidades de usuario del dominio a UserDetails de Spring Security y añade
+ * un cache en memoria para reducir llamadas a la capa de persistencia.
+ *
+ * Necesidad: centralizar la lógica de carga de usuarios para autenticación (búsqueda por nombre o
+ * usuario, validación de usuarios ocultos y mensajes internacionalizados) y mejorar el rendimiento
+ * evitando hits repetidos a la base de datos mediante un cache con TTL.
+ *
+ * Comportamiento principal:
+ *  - loadUserByUsername(String): devuelve UserDetails (usa cache si la entrada es válida; si no, consulta
+ *    UserRepository y lanza UsernameNotFoundException con mensajes i18n si procede).
+ *  - evictUser(String): elimina la entrada del cache para un usuario concreto.
+ *  - clearCache(): limpia todo el cache.
+ *
+ * Detalles de implementación:
+ *  - Cache en ConcurrentHashMap con TTL de 15 minutos por entrada.
+ *  - Clase marcada como @Transactional(readOnly = true).
+ *  - Thread-safe gracias al uso de colecciones concurrentes.
+ */
 @Service
 @Transactional(readOnly = true)
 public class CustomUserDetailsService implements UserDetailsService {
@@ -89,9 +107,6 @@ public class CustomUserDetailsService implements UserDetailsService {
         }
     }
 
-    /**
-     * Reusable UserDetails implementation.
-     */
     private static class FastUserDetails extends org.springframework.security.core.userdetails.User {
         public FastUserDetails(String username, String password,
                 Collection<? extends GrantedAuthority> authorities) {

@@ -1,8 +1,5 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
-
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -13,11 +10,11 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.economato.inventory.domain.OrderAuditable;
 import com.economato.inventory.application.dto.request.OrderDetailRequestDTO;
 import com.economato.inventory.application.dto.request.OrderReceptionRequestDTO;
 import com.economato.inventory.application.dto.request.OrderRequestDTO;
@@ -25,9 +22,8 @@ import com.economato.inventory.application.dto.response.OrderFilterResponseDTO;
 import com.economato.inventory.application.dto.response.OrderResponseDTO;
 import com.economato.inventory.application.dto.response.OrderTotalCostResponseDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.application.mapper.OrderMapper;
+import com.economato.inventory.domain.OrderAuditable;
 import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Order;
 import com.economato.inventory.domain.model.OrderDetail;
@@ -36,12 +32,15 @@ import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.Supplier;
 import com.economato.inventory.domain.model.User;
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.specification.OrderSpecifications;
-import org.springframework.data.jpa.domain.Specification;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -305,7 +304,7 @@ public class OrderService {
                 }
 
                 for (OrderDetail detail : order.getDetails()) {
-                        // If received quantity is greater than 0, register it in the ledger
+                        // Si la cantidad recibida es mayor a 0, se registra el movimiento en el ledger y se actualiza el stock
                         if (detail.getQuantityReceived() != null
                                         && detail.getQuantityReceived().compareTo(java.math.BigDecimal.ZERO) > 0) {
                                 Product product = productRepository.findByIdForUpdate(detail.getProduct().getId())

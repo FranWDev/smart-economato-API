@@ -2,9 +2,6 @@ package com.economato.inventory.application.dto.response;
 
 import java.util.List;
 
-/**
- * DTO para la respuesta del PDF de ledger con información de integridad.
- */
 public class LedgerPdfResponseDTO {
     private final byte[] pdfContent;
     private final boolean integrityValid;

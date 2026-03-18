@@ -13,9 +13,7 @@ public interface WeeklyIngredientConsumption {
      */
     Integer getWeekIndex();
 
-    /** ID del producto (ingrediente). */
     Integer getProductId();
 
-    /** Consumo total del ingrediente en esa semana (en la unidad del producto). */
     BigDecimal getTotalConsumed();
 }

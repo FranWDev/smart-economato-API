@@ -1,7 +1,8 @@
 package com.economato.inventory.application.usecase;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.domain.Page;
@@ -12,9 +13,14 @@ import org.springframework.stereotype.Component;
 import com.economato.inventory.application.dto.response.RecipeResponseDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+
+/**
+ * Servicio para calentar la caché al iniciar la aplicación.
+ * Precarga productos, recetas y usuarios de forma asíncrona durante el startup.
+ */
 @Slf4j
 @Component
 @Profile("!test")

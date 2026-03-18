@@ -16,5 +16,5 @@ public class ProductStatDTO {
     private String productName;
     private String unit;
     private BigDecimal totalQuantityUsed;
-    private BigDecimal estimatedCost; // Computed dynamically
+    private BigDecimal estimatedCost;
 }

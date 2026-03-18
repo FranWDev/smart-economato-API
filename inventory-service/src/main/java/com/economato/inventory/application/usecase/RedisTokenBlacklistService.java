@@ -1,9 +1,10 @@
 package com.economato.inventory.application.usecase;
 
-import com.github.benmanes.caffeine.cache.Cache;
-import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import lombok.extern.slf4j.Slf4j;
+import java.time.Duration;
+import java.util.Date;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -12,20 +13,20 @@ import com.economato.inventory.domain.model.RevokedToken;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RevokedTokenRepository;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
+import com.github.benmanes.caffeine.cache.Cache;
 
-import java.time.Duration;
-import java.util.Date;
-import java.util.Locale;
-import java.util.concurrent.TimeUnit;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import lombok.extern.slf4j.Slf4j;
 
 /**
- * Token blacklist service that uses Redis as primary cache with automatic
- * fallback to database.
+ * Servicio de lista negra de tokens que utiliza Redis como caché primaria con
+ * retroceso automático a la base de datos.
  * 
- * When Redis is available: Stores tokens in Redis with TTL
- * When Redis fails: Falls back to checking the database
+ * Cuando Redis está disponible: Almacena tokens en Redis con TTL
+ * Cuando Redis falla: Retrocede a verificar en la base de datos
  * 
- * This prevents 401 errors when Redis circuit breaker is open.
+ * Esto previene errores 401 cuando el circuit breaker de Redis está abierto.
  */
 @Slf4j
 @Service
