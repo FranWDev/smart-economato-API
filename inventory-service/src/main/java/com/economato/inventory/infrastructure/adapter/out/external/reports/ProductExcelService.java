@@ -67,7 +67,6 @@ public class ProductExcelService {
             CellStyle bodyStyle = createBodyStyle(workbook);
             CellStyle numberStyle = createNumberStyle(workbook);
 
-            // Fila de cabecera
             String[] headers = {
                     i18nService.getMessage(MessageKey.REPORT_COLUMN_ID),
                     i18nService.getMessage(MessageKey.REPORT_COLUMN_NAME),
@@ -89,7 +88,6 @@ public class ProductExcelService {
             }
             setColumnWidths(sheet);
 
-            // Paginación por chunks — Slice evita la COUNT query de Page
             int rowIndex = 1;
             int page = 0;
             Slice<ProductProjection> slice;

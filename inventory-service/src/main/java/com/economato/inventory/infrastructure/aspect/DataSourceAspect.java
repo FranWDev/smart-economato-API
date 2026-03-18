@@ -51,7 +51,11 @@ public class DataSourceAspect {
         }
         
         DataSourceType finalType = type;
-        
+        /*
+         * ScopedValue es una característica de Java 21 que permite asociar
+         un valor a un contexto de ejecución sin necesidad de pasar 
+         explícitamente ese valor a través de los métodos. 
+         */
         return ScopedValue.where(DbContextHolder.CONTEXT, finalType)
                 .call(() -> {
                     try {

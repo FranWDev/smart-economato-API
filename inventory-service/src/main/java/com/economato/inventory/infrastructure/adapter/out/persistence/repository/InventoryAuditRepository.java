@@ -42,8 +42,6 @@ public interface InventoryAuditRepository extends JpaRepository<InventoryAudit, 
                      @Param("start") LocalDateTime start,
                      @Param("end") LocalDateTime end);
 
-       // --- Proyecciones ---
-
        @Query("SELECT ia FROM InventoryAudit ia")
        Page<InventoryAuditProjection> findAllProjectedBy(Pageable pageable);
 

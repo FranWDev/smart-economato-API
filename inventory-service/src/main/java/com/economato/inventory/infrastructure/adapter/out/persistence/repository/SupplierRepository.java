@@ -18,8 +18,6 @@ public interface SupplierRepository extends JpaRepository<Supplier, Integer> {
 
     boolean existsByName(String name);
 
-    // --- Proyecciones ---
-
     Page<SupplierProjection> findAllProjectedBy(Pageable pageable);
 
     Optional<SupplierProjection> findProjectedById(Integer id);

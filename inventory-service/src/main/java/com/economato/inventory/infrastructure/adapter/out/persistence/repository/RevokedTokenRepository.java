@@ -13,19 +13,10 @@ import java.util.Optional;
 
 public interface RevokedTokenRepository extends JpaRepository<RevokedToken, Long> {
 
-    /**
-     * Check if a token has been revoked
-     */
     boolean existsByToken(String token);
 
-    /**
-     * Find a revoked token by its value
-     */
     Optional<RevokedToken> findByToken(String token);
 
-    /**
-     * Delete all expired revoked tokens (cleanup)
-     */
     @Modifying
     @Transactional
     @Query("DELETE FROM RevokedToken rt WHERE rt.expirationDate < :currentDate")

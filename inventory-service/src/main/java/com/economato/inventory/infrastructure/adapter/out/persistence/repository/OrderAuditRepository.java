@@ -34,8 +34,6 @@ public interface OrderAuditRepository extends JpaRepository<OrderAudit, Integer>
                      @Param("start") LocalDateTime start,
                      @Param("end") LocalDateTime end);
 
-       // --- Proyecciones ---
-
        @Query("SELECT oa FROM OrderAudit oa")
        Page<OrderAuditProjection> findAllProjectedBy(Pageable pageable);
 
