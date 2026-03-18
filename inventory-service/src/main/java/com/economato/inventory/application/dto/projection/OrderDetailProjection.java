@@ -21,6 +21,8 @@ public interface OrderDetailProjection {
 
         String getName();
 
+        String getUnit();
+
         BigDecimal getUnitPrice();
     }
 }

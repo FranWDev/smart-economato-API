@@ -19,6 +19,7 @@ public interface OrderDetailMapper {
     @Mapping(source = "order.id", target = "orderId")
     @Mapping(source = "product.id", target = "productId")
     @Mapping(source = "product.name", target = "productName")
+    @Mapping(source = "product.unit", target = "unit")
     @Mapping(source = "product.unitPrice", target = "unitPrice")
     @Mapping(source = ".", target = "subtotal", qualifiedByName = "calculateSubtotal")
     OrderDetailResponseDTO toResponseDTO(OrderDetail orderDetail);
@@ -26,6 +27,7 @@ public interface OrderDetailMapper {
     @Mapping(source = "projection.order.id", target = "orderId")
     @Mapping(source = "projection.product.id", target = "productId")
     @Mapping(source = "projection.product.name", target = "productName")
+    @Mapping(source = "projection.product.unit", target = "unit")
     @Mapping(source = "projection.product.unitPrice", target = "unitPrice")
     @Mapping(source = "projection.quantity", target = "quantity")
     @Mapping(source = "projection.quantityReceived", target = "quantityReceived")
@@ -35,6 +37,7 @@ public interface OrderDetailMapper {
     @Mapping(target = "orderId", ignore = true)
     @Mapping(source = "summary.product.id", target = "productId")
     @Mapping(source = "summary.product.name", target = "productName")
+    @Mapping(source = "summary.product.unit", target = "unit")
     @Mapping(source = "summary.product.unitPrice", target = "unitPrice")
     @Mapping(source = "summary.quantity", target = "quantity")
     @Mapping(source = "summary.quantityReceived", target = "quantityReceived")
