@@ -52,8 +52,9 @@ public class SecurityConfig {
                                                 // Los dispatches ASYNC son continuaciones de requests ya autenticadas.
                                                 // El JwtFilter (OncePerRequestFilter) no corre en ASYNC, por lo que
                                                 // hay que permitirlos explícitamente para que StreamingResponseBody
-                                                // funcione.
-                                                .dispatcherTypeMatchers(DispatcherType.ASYNC)
+                                                // funcione. También permitimos ERROR para evitar que las excepciones
+                                                // manejadas por el BasicErrorController retornen 401.
+                                                .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR)
                                                 .permitAll()
 
                                                 // Autenticación
