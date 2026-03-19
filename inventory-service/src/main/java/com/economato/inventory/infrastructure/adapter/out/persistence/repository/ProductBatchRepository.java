@@ -11,7 +11,21 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import java.util.Optional;
+
 public interface ProductBatchRepository extends JpaRepository<ProductBatch, Long>, JpaSpecificationExecutor<ProductBatch> {
+
+    @Override
+    @EntityGraph(attributePaths = {"product"})
+    Optional<ProductBatch> findById(Long id);
+
+    @Override
+    @EntityGraph(attributePaths = {"product"})
+    Page<ProductBatch> findAll(Specification<ProductBatch> spec, Pageable pageable);
 
     @Modifying(clearAutomatically = true)
     @Transactional
