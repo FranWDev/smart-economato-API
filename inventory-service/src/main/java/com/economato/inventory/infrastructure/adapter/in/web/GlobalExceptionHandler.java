@@ -68,6 +68,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errors);
     }
 
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        log.warn("Error de formato en la petición: {}", ex.getMessage());
+        ErrorResponse error = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "Formato de datos inválido en la petición.",
+                LocalDateTime.now());
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(jakarta.validation.ConstraintViolationException.class)
     public ResponseEntity<Map<String, String>> handleConstraintViolationException(
             jakarta.validation.ConstraintViolationException ex) {
