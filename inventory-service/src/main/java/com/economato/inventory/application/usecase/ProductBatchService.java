@@ -230,14 +230,7 @@ public class ProductBatchService {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("depleted"), depleted));
         }
 
-        Specification<ProductBatch> fetchSpec = spec.and((root, query, cb) -> {
-            if (Long.class != query.getResultType()) {
-                root.fetch("product");
-            }
-            return null;
-        });
-
-        return batchRepository.findAll(fetchSpec, pageable);
+        return batchRepository.findAll(spec, pageable);
     }
 
     @Transactional(readOnly = true)
