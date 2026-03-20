@@ -50,12 +50,15 @@ import java.sql.Date;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HexFormat;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
 /*
@@ -272,9 +275,30 @@ public class StockLedgerService {
             }
         }
 
+        List<Long> txIds = transactions.stream().map(StockLedger::getId).toList();
+
+        // FASE 0: Pre-cargar datos
+        Map<Long, List<StockLedgerBatchDetail>> detailsByTxId = batchDetailRepository.findByLedgerTransactionIdIn(txIds)
+                .stream()
+                .collect(Collectors.groupingBy(d -> d.getLedgerTransaction().getId()));
+
+        Map<Long, List<ProductBatch>> createdBatchesByTxId = batchRepository.findByLedgerTransactionIdIn(txIds).stream()
+                .collect(Collectors.groupingBy(b -> b.getLedgerTransaction().getId()));
+
+        List<Long> allCreatedBatchIds = createdBatchesByTxId.values().stream()
+                .flatMap(List::stream)
+                .map(ProductBatch::getId)
+                .toList();
+
+        Map<Long, List<StockLedgerBatchDetail>> usageByBatchId = allCreatedBatchIds.isEmpty()
+                ? Collections.emptyMap()
+                : batchDetailRepository.findByBatchIdIn(allCreatedBatchIds).stream()
+                        .collect(Collectors.groupingBy(d -> d.getBatch().getId()));
+
         // FASE 1: Verificación de integridad y uso de lotes
         for (StockLedger originalTx : transactions) {
-            List<StockLedgerBatchDetail> details = batchDetailRepository.findByLedgerTransactionId(originalTx.getId());
+            List<StockLedgerBatchDetail> details = detailsByTxId.getOrDefault(originalTx.getId(),
+                    Collections.emptyList());
 
             // Sin trazabilidad de lotes → no se puede revertir de forma segura
             if (details.isEmpty()) {
@@ -300,9 +324,11 @@ public class StockLedgerService {
 
             // Si la transacción original creó lotes, verificar que no hayan sido usados
             // externamente
-            List<ProductBatch> createdBatches = batchRepository.findByLedgerTransactionId(originalTx.getId());
+            List<ProductBatch> createdBatches = createdBatchesByTxId.getOrDefault(originalTx.getId(),
+                    Collections.emptyList());
             for (ProductBatch createdBatch : createdBatches) {
-                List<StockLedgerBatchDetail> usage = batchDetailRepository.findByBatchId(createdBatch.getId());
+                List<StockLedgerBatchDetail> usage = usageByBatchId.getOrDefault(createdBatch.getId(),
+                        Collections.emptyList());
 
                 // Si hay más de un uso, significa que alguien más (receta, ajuste) tocó este
                 // lote
@@ -326,7 +352,8 @@ public class StockLedgerService {
 
         // FASE 2: Registro de contra-asientos
         for (StockLedger originalTx : transactions) {
-            List<StockLedgerBatchDetail> details = batchDetailRepository.findByLedgerTransactionId(originalTx.getId());
+            List<StockLedgerBatchDetail> details = detailsByTxId.getOrDefault(originalTx.getId(),
+                    Collections.emptyList());
 
             for (StockLedgerBatchDetail detail : details) {
                 ProductBatch batch = detail.getBatch();
@@ -335,7 +362,7 @@ public class StockLedgerService {
                 // Validar que la reversión de una ENTRADA (quantityToRestore < 0) no cause
                 // stock negativo
                 if (quantityToRestore.compareTo(BigDecimal.ZERO) < 0) {
-                    com.economato.inventory.domain.model.StockSnapshot snapshot = snapshotRepository
+                    StockSnapshot snapshot = snapshotRepository
                             .findById(originalTx.getProduct().getId()).orElse(null);
                     if (snapshot != null) {
                         BigDecimal resultingStock = snapshot.getCurrentStock().add(quantityToRestore);
@@ -364,15 +391,17 @@ public class StockLedgerService {
 
             // FASE 3: Eliminación de lotes creados (si aplica)
             entityManager.flush();
-            List<ProductBatch> createdBatches = batchRepository.findByLedgerTransactionId(originalTx.getId());
+            List<ProductBatch> createdBatches = createdBatchesByTxId.getOrDefault(originalTx.getId(),
+                    Collections.emptyList());
             for (ProductBatch createdBatch : createdBatches) {
                 log.info("Borrando lote creado por transacción revertida: batchId={}, txId={}",
                         createdBatch.getId(), originalTx.getId());
 
-                List<StockLedgerBatchDetail> usage = batchDetailRepository.findByBatchId(createdBatch.getId());
-                batchDetailRepository.deleteAll(usage);
+                // Eliminar todos los detalles que vinculan este lote (evita TransientPropertyValueException)
+                batchDetailRepository.deleteAllByBatchId(createdBatch.getId());
                 batchRepository.delete(createdBatch);
             }
+            entityManager.flush();
         }
     }
 
@@ -662,21 +691,122 @@ public class StockLedgerService {
         }
     }
 
+    @Transactional(readOnly = true)
+    public List<IntegrityCheckResult> verifyChainIntegrityBatch(List<Integer> productIds) {
+        log.info("Verificando integridad del ledger para {} productos en batch", productIds.size());
+
+        if (productIds.isEmpty())
+            return java.util.Collections.emptyList();
+
+        Map<Integer, Product> productsById = productRepository.findAllById(productIds).stream()
+                .collect(Collectors.toMap(Product::getId, p -> p));
+
+        List<StockLedger> allChains = ledgerRepository.findByProductIdInOrderBySequenceNumber(productIds);
+        Map<Integer, List<StockLedger>> chainsByProduct = allChains.stream()
+                .collect(Collectors.groupingBy(l -> l.getProduct().getId()));
+
+        List<IntegrityCheckResult> results = new ArrayList<>();
+
+        for (Integer productId : productIds) {
+            Product product = productsById.get(productId);
+            String productName = product != null ? product.getName() : "Desconocido";
+            List<StockLedger> chain = chainsByProduct.getOrDefault(productId, java.util.Collections.emptyList());
+
+            if (chain.isEmpty()) {
+                results.add(new IntegrityCheckResult(productId, productName, true,
+                        i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_NO_TRANSACTIONS),
+                        null));
+                continue;
+            }
+
+            List<String> errors = new ArrayList<>();
+            String expectedPreviousHash = GENESIS_HASH;
+
+            for (int i = 0; i < chain.size(); i++) {
+                StockLedger tx = chain.get(i);
+
+                if (!tx.getPreviousHash().equals(expectedPreviousHash)) {
+                    String error = i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_PREVIOUS_HASH_MISMATCH,
+                            new Object[] {
+                                    tx.getSequenceNumber(),
+                                    expectedPreviousHash.substring(0, Math.min(8, expectedPreviousHash.length())),
+                                    tx.getPreviousHash().substring(0, Math.min(8, tx.getPreviousHash().length()))
+                            });
+                    errors.add(error);
+                }
+
+                BigDecimal normalizedDelta = tx.getQuantityDelta().setScale(3, java.math.RoundingMode.HALF_UP);
+                BigDecimal normalizedStock = tx.getResultingStock().setScale(3, java.math.RoundingMode.HALF_UP);
+                LocalDateTime normalizedTimestamp = normalizeTimestamp(tx.getTransactionTimestamp());
+
+                String recalculatedHash = calculateTransactionHash(
+                        productId,
+                        normalizedDelta,
+                        normalizedStock,
+                        tx.getMovementType(),
+                        tx.getDescription(),
+                        tx.getUser() != null ? tx.getUser().getId() : null,
+                        tx.getOrderId(),
+                        tx.getExpirationDate(),
+                        tx.getCorrelationId(),
+                        normalizedTimestamp,
+                        tx.getPreviousHash(),
+                        tx.getSequenceNumber());
+
+                if (!recalculatedHash.equals(tx.getCurrentHash())) {
+                    String error = i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_HASH_CORRUPT,
+                            new Object[] {
+                                    tx.getSequenceNumber(),
+                                    recalculatedHash.substring(0, Math.min(8, recalculatedHash.length())),
+                                    tx.getCurrentHash().substring(0, Math.min(8, tx.getCurrentHash().length())),
+                                    normalizedDelta,
+                                    normalizedStock
+                            });
+                    errors.add(error);
+                }
+
+                if (tx.getSequenceNumber() != (i + 1L)) {
+                    String error = i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_SEQUENCE_BROKEN,
+                            new Object[] { tx.getSequenceNumber(), (i + 1L) });
+                    errors.add(error);
+                }
+
+                expectedPreviousHash = tx.getCurrentHash();
+            }
+
+            if (errors.isEmpty()) {
+                results.add(new IntegrityCheckResult(productId, productName, true,
+                        i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_VALID, new Object[] { chain.size() }),
+                        null));
+            } else {
+                results.add(new IntegrityCheckResult(productId, productName, false,
+                        i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_CORRUPTED, new Object[] { errors.size() }),
+                        errors));
+            }
+        }
+        return results;
+    }
+
     @Transactional
     public List<IntegrityCheckResult> verifyAllChains() {
         log.info("Verificando integridad de todas las cadenas...");
 
         List<StockSnapshot> snapshots = snapshotRepository.findAll();
-        List<IntegrityCheckResult> results = new ArrayList<>();
+        List<Integer> productIds = snapshots.stream().map(StockSnapshot::getProductId).toList();
+
+        List<IntegrityCheckResult> results = verifyChainIntegrityBatch(productIds);
+
+        Map<Integer, IntegrityCheckResult> resultsByProduct = results.stream()
+                .collect(Collectors.toMap(IntegrityCheckResult::getProductId, r -> r));
 
         for (StockSnapshot snapshot : snapshots) {
-            IntegrityCheckResult result = verifyChainIntegrity(snapshot.getProductId());
-            results.add(result);
-
-            snapshot.setIntegrityStatus(result.isValid() ? "VALID" : "CORRUPTED");
-            snapshot.setLastVerified(LocalDateTime.now());
-            snapshotRepository.save(snapshot);
+            IntegrityCheckResult result = resultsByProduct.get(snapshot.getProductId());
+            if (result != null) {
+                snapshot.setIntegrityStatus(result.isValid() ? "VALID" : "CORRUPTED");
+                snapshot.setLastVerified(LocalDateTime.now());
+            }
         }
+        snapshotRepository.saveAll(snapshots);
 
         long validChains = results.stream().filter(IntegrityCheckResult::isValid).count();
         log.info("Verificación completa: {}/{} cadenas íntegras", validChains, results.size());
@@ -750,7 +880,8 @@ public class StockLedgerService {
      * (ej. error de hardware o manipulación manual de DB) y se desea normalizar el
      * estado.
      * 
-     * No tiene integracion en el frontend, deberas hacer un curl o usar Postman para invocarlo. Se recomienda ejecutar 
+     * No tiene integracion en el frontend, deberas hacer un curl o usar Postman
+     * para invocarlo. Se recomienda ejecutar
      * verifyChainIntegrity antes y después para comparar resultados.
      */
     @Transactional(rollbackFor = Exception.class)
@@ -949,18 +1080,7 @@ public class StockLedgerService {
         log.info("Verificando integridad de productos con ledger...");
 
         List<Integer> productIds = getProductsWithLedger();
-        List<IntegrityCheckResult> results = new ArrayList<>();
-
-        for (Integer productId : productIds) {
-            IntegrityCheckResult result = verifyChainIntegrity(productId);
-            results.add(result);
-        }
-
-        long validChains = results.stream().filter(IntegrityCheckResult::isValid).count();
-        log.info("Verificación de productos con ledger completa: {}/{} cadenas íntegras",
-                validChains, results.size());
-
-        return results;
+        return verifyChainIntegrityBatch(productIds);
     }
 
     @Transactional(readOnly = true)

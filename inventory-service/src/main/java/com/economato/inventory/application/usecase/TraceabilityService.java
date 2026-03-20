@@ -7,6 +7,7 @@ import com.economato.inventory.application.dto.response.CrisisAffectedBatchDTO;
 import com.economato.inventory.application.dto.response.CrisisAffectedCookingDTO;
 import com.economato.inventory.application.dto.response.CrisisAffectedOrderDTO;
 import com.economato.inventory.application.dto.response.CrisisResponseDTO;
+import com.economato.inventory.application.dto.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.response.ForwardTraceabilityDTO;
 import com.economato.inventory.application.dto.response.ReverseTraceabilityDTO;
 import com.economato.inventory.application.mapper.OrderMapper;
@@ -55,10 +56,12 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.Collection;
 
 /**
  * Servicio de Trazabilidad y Gestión de Crisis Alimentarias.
@@ -267,15 +270,15 @@ public class TraceabilityService {
 
         @Transactional(readOnly = true)
         public List<CrisisResponseDTO> getAllCrises() {
-                return foodCrisisRepository.findAll().stream()
-                                .map(crisis -> buildCrisisResponse(crisis, null))
-                                .collect(Collectors.toList());
+                List<FoodCrisis> crises = foodCrisisRepository.findAllWithSupplier();
+                return buildCrisisResponsesBatch(crises);
         }
 
         @Transactional(readOnly = true)
         public Page<CrisisResponseDTO> getCrisisHistory(String search, Pageable pageable) {
-                return foodCrisisRepository.findHistoryWithSearch(search, pageable)
-                                .map(crisis -> buildCrisisResponse(crisis, null));
+                Page<FoodCrisis> crisisPage = foodCrisisRepository.findHistoryWithSearch(search, pageable);
+                List<CrisisResponseDTO> content = buildCrisisResponsesBatch(crisisPage.getContent());
+                return new PageImpl<>(content, pageable, crisisPage.getTotalElements());
         }
 
         @Transactional(readOnly = true)
@@ -345,8 +348,8 @@ public class TraceabilityService {
                                 .filter(Objects::nonNull)
                                 .toList();
 
-                // 1. Pre-cargar Productos
-                Map<Integer, Product> productsById = productRepository.findAllById(productIds).stream()
+                // 1. Pre-cargar Productos con Proveedor (JOIN FETCH)
+                Map<Integer, Product> productsById = productRepository.findAllByIdWithSupplier(productIds).stream()
                                 .collect(Collectors.toMap(Product::getId, p -> p));
 
                 // 2. Pre-cargar Ledger Entries (Last ENTRADA before cooking)
@@ -418,15 +421,67 @@ public class TraceabilityService {
                                 .build();
         }
 
+        private List<CrisisResponseDTO> buildCrisisResponsesBatch(List<FoodCrisis> crises) {
+                if (crises.isEmpty())
+                        return Collections.emptyList();
+
+                List<Long> crisisIds = crises.stream().map(FoodCrisis::getId).toList();
+
+                Map<Long, List<CrisisAffectedProduct>> associationsByCrisis = crisisAffectedProductRepository
+                                .findByFoodCrisisIdIn(crisisIds).stream()
+                                .collect(Collectors.groupingBy(ap -> ap.getFoodCrisis().getId()));
+
+                Set<Integer> allProductIdsSet = associationsByCrisis.values().stream()
+                                .flatMap(List::stream)
+                                .map(ap -> ap.getProduct().getId())
+                                .collect(Collectors.toSet());
+                List<Integer> allProductIds = new ArrayList<>(allProductIdsSet);
+
+                LocalDateTime minDate = crises.stream().map(FoodCrisis::getDateFrom).filter(Objects::nonNull)
+                                .min(LocalDateTime::compareTo).orElse(null);
+                LocalDateTime maxDate = crises.stream().map(FoodCrisis::getDateTo).filter(Objects::nonNull)
+                                .max(LocalDateTime::compareTo).orElse(null);
+
+                List<Order> allAffectedOrders = orderRepository.findConfirmedOrdersByProductIdsAndDateRange(allProductIds,
+                                minDate, maxDate);
+
+                List<RecipeCookingAudit> allAffectedCookings = cookingAuditRepository
+                                .findAffectedCookingsByProductIdsAndDateRange(allProductIds, minDate, maxDate);
+
+                List<IntegrityCheckResult> integrityResultsBatch = ledgerService
+                                .verifyChainIntegrityBatch(allProductIds);
+                Map<Integer, Boolean> integrityByProduct = integrityResultsBatch.stream()
+                                .collect(Collectors.toMap(
+                                                IntegrityCheckResult::getProductId,
+                                                IntegrityCheckResult::isValid));
+
+                return crises.stream().map(crisis -> {
+                        List<CrisisAffectedProduct> associations = associationsByCrisis.getOrDefault(crisis.getId(),
+                                        Collections.emptyList());
+                        List<Integer> crisisProductIds = associations.stream().map(ap -> ap.getProduct().getId()).toList();
+
+                        List<Order> crisisOrders = allAffectedOrders.stream()
+                                        .filter(o -> crisisProductIds.contains(o.getDetails().stream()
+                                                        .map(d -> d.getProduct().getId()).findFirst().orElse(null))
+                                                        && isWithinDateRange(o.getOrderDate(), crisis.getDateFrom(),
+                                                                        crisis.getDateTo()))
+                                        .toList();
+
+                        List<RecipeCookingAudit> crisisCookings = allAffectedCookings.stream()
+                                        .filter(c -> isWithinDateRange(c.getCookingDate(), crisis.getDateFrom(),
+                                                        crisis.getDateTo()))
+                                        .toList();
+
+                        return buildCrisisResponse(crisis, null, associations, crisisOrders, crisisCookings,
+                                        integrityByProduct);
+                }).collect(Collectors.toList());
+        }
+
         private CrisisResponseDTO buildCrisisResponse(FoodCrisis crisis,
                         Map<String, String> quarantinedProductsOverride) {
                 List<CrisisAffectedProduct> associations = crisisAffectedProductRepository
                                 .findByFoodCrisisId(crisis.getId());
                 List<Integer> productIds = associations.stream().map(ap -> ap.getProduct().getId()).toList();
-
-                Map<String, String> quarantinedProducts = quarantinedProductsOverride != null
-                                ? quarantinedProductsOverride
-                                : resolveLatestHashesByProduct(associations);
 
                 List<Order> affectedOrders = orderRepository.findConfirmedOrdersBySupplierAndProductIdsAndDateRange(
                                 crisis.getSupplier().getId(),
@@ -438,8 +493,28 @@ public class TraceabilityService {
                                 .findAffectedCookingsByProductIdsAndDateRange(productIds, crisis.getDateFrom(),
                                                 crisis.getDateTo());
 
+                Map<Integer, Boolean> integrityResults = productIds.stream()
+                                .collect(Collectors.toMap(p -> p, p -> ledgerService.verifyChainIntegrity(p).isValid()));
+
+                return buildCrisisResponse(crisis, quarantinedProductsOverride, associations, affectedOrders,
+                                affectedCookings, integrityResults);
+        }
+
+        private CrisisResponseDTO buildCrisisResponse(
+                        FoodCrisis crisis,
+                        Map<String, String> quarantinedProductsOverride,
+                        List<CrisisAffectedProduct> associations,
+                        List<Order> affectedOrders,
+                        List<RecipeCookingAudit> affectedCookings,
+                        Map<Integer, Boolean> preloadedIntegrityResults) {
+
+                Map<String, String> quarantinedProducts = quarantinedProductsOverride != null
+                                ? quarantinedProductsOverride
+                                : resolveLatestHashesByProduct(associations);
+
+                List<Integer> productIds = associations.stream().map(ap -> ap.getProduct().getId()).toList();
                 boolean integrityVerified = productIds.stream()
-                                .allMatch(p -> ledgerService.verifyChainIntegrity(p).isValid());
+                                .allMatch(p -> preloadedIntegrityResults.getOrDefault(p, false));
 
                 return CrisisResponseDTO.builder()
                                 .crisisId(crisis.getId())

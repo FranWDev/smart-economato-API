@@ -130,6 +130,19 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                      @Param("endDate") LocalDateTime endDate);
 
        @Query("SELECT DISTINCT o FROM Order o " +
+                     "LEFT JOIN FETCH o.supplier " +
+                     "LEFT JOIN FETCH o.user " +
+                     "LEFT JOIN FETCH o.details d " +
+                     "LEFT JOIN FETCH d.product " +
+                     "WHERE d.product.id IN :productIds " +
+                     "AND o.status = OrderStatus.CONFIRMED " +
+                     "AND o.orderDate BETWEEN :startDate AND :endDate")
+       List<Order> findConfirmedOrdersByProductIdsAndDateRange(
+                     @Param("productIds") List<Integer> productIds,
+                     @Param("startDate") LocalDateTime startDate,
+                     @Param("endDate") LocalDateTime endDate);
+
+       @Query("SELECT DISTINCT o FROM Order o " +
                      "LEFT JOIN FETCH o.details d " +
                      "LEFT JOIN FETCH d.product " +
                      "LEFT JOIN FETCH o.user " +

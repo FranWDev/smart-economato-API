@@ -20,7 +20,15 @@ public interface FoodCrisisRepository extends JpaRepository<FoodCrisis, Long> {
            "WHERE f.id = :id")
     Optional<FoodCrisis> findByIdWithDetails(@Param("id") Long id);
 
-    @Query("SELECT f FROM FoodCrisis f WHERE f.status = 'LIFTED' AND " +
+    @Query("SELECT DISTINCT f FROM FoodCrisis f LEFT JOIN FETCH f.supplier")
+    java.util.List<FoodCrisis> findAllWithSupplier();
+
+    @Query(value = "SELECT f FROM FoodCrisis f LEFT JOIN FETCH f.supplier WHERE f.status = 'LIFTED' AND " +
+           "(:searchTerm IS NULL OR :searchTerm = '' OR " +
+           "LOWER(f.crisisCode) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(f.supplier.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+           "LOWER(f.reason) LIKE LOWER(CONCAT('%', :searchTerm, '%')))",
+           countQuery = "SELECT COUNT(f) FROM FoodCrisis f WHERE f.status = 'LIFTED' AND " +
            "(:searchTerm IS NULL OR :searchTerm = '' OR " +
            "LOWER(f.crisisCode) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
            "LOWER(f.supplier.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +

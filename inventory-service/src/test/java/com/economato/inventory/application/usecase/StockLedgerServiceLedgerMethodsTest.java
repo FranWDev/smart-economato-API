@@ -193,10 +193,10 @@ class StockLedgerServiceLedgerMethodsTest {
         @Test
         void verifyProductsWithLedger_VerifiesAllProductsWithLedger() {
                 when(ledgerRepository.findDistinctProductIds()).thenReturn(Arrays.asList(1, 2));
-                when(productRepository.findById(1)).thenReturn(java.util.Optional.of(testProduct1));
-                when(productRepository.findById(2)).thenReturn(java.util.Optional.of(testProduct2));
-                when(ledgerRepository.findByProductIdOrderBySequenceNumber(1)).thenReturn(ledgerEntries1);
-                when(ledgerRepository.findByProductIdOrderBySequenceNumber(2)).thenReturn(ledgerEntries2);
+                List<StockLedger> allEntries = new java.util.ArrayList<>();
+                allEntries.addAll(ledgerEntries1);
+                allEntries.addAll(ledgerEntries2);
+                when(ledgerRepository.findByProductIdInOrderBySequenceNumber(anyList())).thenReturn(allEntries);
 
                 List<IntegrityCheckResult> results = stockLedgerService.verifyProductsWithLedger();
 
@@ -205,8 +205,7 @@ class StockLedgerServiceLedgerMethodsTest {
                 
                 // Verificar que se llamaron los métodos correctos
                 verify(ledgerRepository, times(1)).findDistinctProductIds();
-                verify(ledgerRepository, times(1)).findByProductIdOrderBySequenceNumber(1);
-                verify(ledgerRepository, times(1)).findByProductIdOrderBySequenceNumber(2);
+                verify(ledgerRepository, times(1)).findByProductIdInOrderBySequenceNumber(anyList());
         }
 
         @Test

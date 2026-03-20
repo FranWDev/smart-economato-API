@@ -4,6 +4,8 @@ import com.economato.inventory.domain.model.CrisisAffectedProduct;
 import com.economato.inventory.domain.model.FoodCrisis;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import java.util.Collection;
 import com.economato.inventory.domain.model.Product;
 
@@ -11,4 +13,7 @@ public interface CrisisAffectedProductRepository extends JpaRepository<CrisisAff
     List<CrisisAffectedProduct> findByFoodCrisis(FoodCrisis foodCrisis);
     List<CrisisAffectedProduct> findByFoodCrisisId(Long foodCrisisId);
     List<CrisisAffectedProduct> findByProductInAndFoodCrisisStatus(Collection<Product> products, FoodCrisis.CrisisStatus status);
+
+    @Query("SELECT cap FROM CrisisAffectedProduct cap JOIN FETCH cap.product WHERE cap.foodCrisis.id IN :crisisIds")
+    List<CrisisAffectedProduct> findByFoodCrisisIdIn(@Param("crisisIds") Collection<Long> crisisIds);
 }

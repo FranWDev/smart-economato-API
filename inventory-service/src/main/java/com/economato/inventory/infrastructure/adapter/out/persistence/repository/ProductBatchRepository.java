@@ -37,6 +37,9 @@ public interface ProductBatchRepository extends JpaRepository<ProductBatch, Long
     @Query("SELECT b FROM ProductBatch b WHERE b.ledgerTransaction.id = :id")
     List<ProductBatch> findByLedgerTransactionId(@Param("id") Long id);
 
+    @Query("SELECT b FROM ProductBatch b JOIN FETCH b.product WHERE b.ledgerTransaction.id IN :txIds")
+    List<ProductBatch> findByLedgerTransactionIdIn(@Param("txIds") Collection<Long> txIds);
+
     @Query("SELECT b FROM ProductBatch b JOIN FETCH b.product " +
             "WHERE b.product.id = :productId AND b.depleted = false " +
             "ORDER BY b.expirationDate ASC, b.receivedAt ASC")

@@ -28,6 +28,9 @@ public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> 
     @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.product.id = :productId ORDER BY l.sequenceNumber ASC")
     List<StockLedger> findByProductIdOrderBySequenceNumber(@Param("productId") Integer productId);
 
+    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.product.id IN :productIds ORDER BY l.product.id ASC, l.sequenceNumber ASC")
+    List<StockLedger> findByProductIdInOrderBySequenceNumber(@Param("productIds") Collection<Integer> productIds);
+
     @EntityGraph(attributePaths = { "product", "user" })
     Page<StockLedger> findByProductId(@Param("productId") Integer productId, Pageable pageable);
 

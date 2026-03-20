@@ -68,7 +68,7 @@ public class Recipe {
         component.setParentRecipe(null);
     }
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(name = "recipe_allergen", joinColumns = @JoinColumn(name = "recipe_id"), inverseJoinColumns = @JoinColumn(name = "allergen_id"))
     @JsonManagedReference
     @Builder.Default

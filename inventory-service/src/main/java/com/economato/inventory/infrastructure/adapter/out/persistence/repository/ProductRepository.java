@@ -15,6 +15,7 @@ import com.economato.inventory.domain.model.Product;
 
 import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -44,7 +45,10 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
 
         @Lock(LockModeType.PESSIMISTIC_WRITE)
         @Query("SELECT p FROM Product p WHERE p.id IN :ids")
-        List<Product> findByIdsForUpdate(@Param("ids") List<Integer> ids);
+        List<Product> findByIdsForUpdate(@Param("ids") Collection<Integer> ids);
+
+        @Query("SELECT p FROM Product p LEFT JOIN FETCH p.supplier WHERE p.id IN :ids")
+        List<Product> findAllByIdWithSupplier(@Param("ids") Collection<Integer> ids);
 
         @Lock(LockModeType.PESSIMISTIC_READ)
         @Query("SELECT p FROM Product p WHERE p.id = :id")

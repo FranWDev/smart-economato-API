@@ -18,18 +18,18 @@ import java.util.Optional;
 @Repository
 public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookingAudit, Long> {
 
-  @Query("SELECT rca FROM RecipeCookingAudit rca WHERE rca.recipe.id = :recipeId ORDER BY rca.cookingDate DESC")
+  @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.recipe.id = :recipeId ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findByRecipeId(@Param("recipeId") Integer recipeId);
 
   Optional<RecipeCookingAudit> findByCorrelationId(String correlationId);
 
-  @Query("SELECT rca FROM RecipeCookingAudit rca WHERE rca.user.id = :userId ORDER BY rca.cookingDate DESC")
+  @Query("SELECT rca FROM RecipeCookingAudit rca LEFT JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.user.id = :userId ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findByUserId(@Param("userId") Integer userId);
 
-  @Query("SELECT rca FROM RecipeCookingAudit rca WHERE LOWER(rca.recipe.name) LIKE LOWER(CONCAT('%', :recipeName, '%')) ORDER BY rca.cookingDate DESC")
+  @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE LOWER(rca.recipe.name) LIKE LOWER(CONCAT('%', :recipeName, '%')) ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findByRecipeNameContainingIgnoreCase(@Param("recipeName") String recipeName);
 
-  @Query("SELECT rca FROM RecipeCookingAudit rca WHERE rca.cookingDate BETWEEN :startDate AND :endDate ORDER BY rca.cookingDate DESC")
+  @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.cookingDate BETWEEN :startDate AND :endDate ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findByDateRange(
       @Param("startDate") LocalDateTime startDate,
       @Param("endDate") LocalDateTime endDate);
@@ -39,7 +39,8 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
       @Param("startDate") LocalDateTime startDate,
       @Param("endDate") LocalDateTime endDate);
 
-  @Query("SELECT rca FROM RecipeCookingAudit rca ORDER BY rca.cookingDate DESC")
+  @Query(value = "SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user ORDER BY rca.cookingDate DESC",
+         countQuery = "SELECT COUNT(rca) FROM RecipeCookingAudit rca")
   Page<RecipeCookingAudit> findAllOrderByDateDesc(Pageable pageable);
 
   @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user ORDER BY rca.cookingDate DESC")
