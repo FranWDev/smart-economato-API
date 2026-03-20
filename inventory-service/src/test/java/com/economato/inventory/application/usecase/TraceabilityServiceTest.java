@@ -52,6 +52,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.micrometer.core.instrument.MeterRegistry;
@@ -75,6 +76,7 @@ public class TraceabilityServiceTest {
     @Mock private StockLedgerMapper ledgerMapper;
     @Mock private FoodCrisisRepository foodCrisisRepository;
     @Mock private CrisisAffectedProductRepository crisisAffectedProductRepository;
+    @Mock private ProductBatchRepository productBatchRepository;
     @Mock private ObjectMapper objectMapper;
     @Spy private MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
@@ -113,7 +115,7 @@ public class TraceabilityServiceTest {
         CrisisActivationRequestDTO request = buildActivationRequest(from, to);
 
         mockCommonActivationDependencies(request, 99L);
-        when(productBatchService.getAllBatches(1)).thenReturn(List.of());
+        when(productBatchRepository.findByProductIdInOrderByExpirationDateAsc(any())).thenReturn(List.of());
         when(ledgerService.recordBatchStockMovements(anyList(), any(), any())).thenReturn(List.of(buildTx("hash-1")));
 
         CrisisResponseDTO response = traceabilityService.activateCrisis(request);
@@ -140,7 +142,7 @@ public class TraceabilityServiceTest {
         ProductBatch zeroQty = buildBatch(13L, BigDecimal.ZERO, LocalDateTime.of(2026, 2, 13, 12, 0), false);
 
         mockCommonActivationDependencies(request, 100L);
-        when(productBatchService.getAllBatches(1)).thenReturn(List.of(inRange, outOfRange, depleted, zeroQty));
+        when(productBatchRepository.findByProductIdInOrderByExpirationDateAsc(List.of(1))).thenReturn(List.of(inRange, outOfRange, depleted, zeroQty));
         when(ledgerService.recordManualAdjustment(any(), any(), any(), any(), any(), any(), any()))
             .thenReturn(buildTx("hash-manual"));
 
@@ -178,7 +180,7 @@ public class TraceabilityServiceTest {
             false);
 
         mockCommonActivationDependencies(request, 101L);
-        when(productBatchService.getAllBatches(1)).thenReturn(List.of(onlyOutOfRange));
+        when(productBatchRepository.findByProductIdInOrderByExpirationDateAsc(List.of(1))).thenReturn(List.of(onlyOutOfRange));
         when(ledgerService.recordBatchStockMovements(anyList(), any(), any())).thenReturn(List.of(buildTx("hash-0")));
 
         traceabilityService.activateCrisis(request);
@@ -209,7 +211,7 @@ public class TraceabilityServiceTest {
         ProductBatch afterTo = buildBatch(35L, new BigDecimal("5.000"), to.plusSeconds(1), false);
 
         mockCommonActivationDependencies(request, 102L);
-        when(productBatchService.getAllBatches(1)).thenReturn(List.of(atFrom, inMiddle, atTo, beforeFrom, afterTo));
+        when(productBatchRepository.findByProductIdInOrderByExpirationDateAsc(List.of(1))).thenReturn(List.of(atFrom, inMiddle, atTo, beforeFrom, afterTo));
         when(ledgerService.recordManualAdjustment(any(), any(), any(), any(), any(), any(), any()))
             .thenReturn(buildTx("hash-ranged"));
 
@@ -247,7 +249,7 @@ public class TraceabilityServiceTest {
         implicated.setExpirationDate(LocalDate.of(2026, 8, 10));
 
         mockCommonActivationDependencies(request, 103L);
-        when(productBatchService.getAllBatches(1)).thenReturn(List.of(earlierExpiringButNotImplicated, implicated));
+        when(productBatchRepository.findByProductIdInOrderByExpirationDateAsc(List.of(1))).thenReturn(List.of(earlierExpiringButNotImplicated, implicated));
         when(ledgerService.recordManualAdjustment(any(), any(), any(), any(), any(), any(), any()))
             .thenReturn(buildTx("hash-fefo-regression"));
 
@@ -312,6 +314,7 @@ public class TraceabilityServiceTest {
     private void mockCommonActivationDependencies(CrisisActivationRequestDTO request, Long crisisId) {
         when(supplierRepository.findById(1)).thenReturn(Optional.of(supplier));
         when(productRepository.findByIdsForUpdate(List.of(1))).thenReturn(List.of(product));
+        lenient().when(productBatchRepository.findByProductIdInOrderByExpirationDateAsc(any())).thenReturn(List.of());
         when(securityContextHelper.getCurrentUser()).thenReturn(admin);
         when(foodCrisisRepository.save(any(FoodCrisis.class))).thenAnswer(i -> {
             FoodCrisis crisis = i.getArgument(0);

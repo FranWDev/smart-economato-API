@@ -127,8 +127,6 @@ class StockAlertServiceTest {
 
         // --- Mocks ---
         when(predictionRepository.findAll()).thenReturn(List.of(prediction));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
-        when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of());
         when(productRepository.findAll()).thenReturn(List.of(product));
         when(productBatchService.getAllActiveBatches()).thenReturn(List.of(
             ProductBatch.builder().product(product).remainingQuantity(BigDecimal.valueOf(1.0)).build()
@@ -175,7 +173,6 @@ class StockAlertServiceTest {
 
         // --- Mocks ---
         when(predictionRepository.findAll()).thenReturn(List.of(prediction));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of(pending));
         when(productRepository.findAll()).thenReturn(List.of(product));
 
@@ -213,7 +210,6 @@ class StockAlertServiceTest {
 
         // --- Mocks ---
         when(predictionRepository.findAll()).thenReturn(List.of(prediction));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of(pending));
         when(productRepository.findAll()).thenReturn(List.of(product));
         when(productBatchService.getAllActiveBatches()).thenReturn(List.of(
@@ -261,7 +257,6 @@ class StockAlertServiceTest {
                 .build();
 
         when(predictionRepository.findAll()).thenReturn(List.of(prediction));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of());
         when(productRepository.findAll()).thenReturn(List.of(product));
         when(productBatchService.getAllActiveBatches()).thenReturn(List.of(

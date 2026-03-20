@@ -34,7 +34,7 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
       @Param("startDate") LocalDateTime startDate,
       @Param("endDate") LocalDateTime endDate);
 
-  @Query("SELECT rca FROM RecipeCookingAudit rca WHERE rca.cookingDate BETWEEN :startDate AND :endDate ORDER BY rca.cookingDate DESC")
+  @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.cookingDate BETWEEN :startDate AND :endDate ORDER BY rca.cookingDate DESC")
   Stream<RecipeCookingAudit> streamByDateRange(
       @Param("startDate") LocalDateTime startDate,
       @Param("endDate") LocalDateTime endDate);
@@ -42,7 +42,7 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
   @Query("SELECT rca FROM RecipeCookingAudit rca ORDER BY rca.cookingDate DESC")
   Page<RecipeCookingAudit> findAllOrderByDateDesc(Pageable pageable);
 
-  @Query("SELECT rca FROM RecipeCookingAudit rca ORDER BY rca.cookingDate DESC")
+  @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user ORDER BY rca.cookingDate DESC")
   Stream<RecipeCookingAudit> streamAllOrderByDateDesc();
 
   /**
@@ -82,14 +82,7 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
       @Param("productId") Integer productId,
       @Param("since") LocalDateTime since);
 
-  @Query(value = """
-      SELECT DISTINCT rca.*
-      FROM recipe_cooking_audit rca
-      INNER JOIN recipe_component rc ON rc.parent_recipe_id = rca.recipe_id
-      WHERE rc.product_id IN :productIds
-        AND rca.cooking_date BETWEEN :startDate AND :endDate
-      ORDER BY rca.cooking_date DESC
-      """, nativeQuery = true)
+  @Query("SELECT DISTINCT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user JOIN rca.recipe.components rc WHERE rc.product.id IN :productIds AND rca.cookingDate BETWEEN :startDate AND :endDate ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findAffectedCookingsByProductIdsAndDateRange(
       @Param("productIds") List<Integer> productIds,
       @Param("startDate") LocalDateTime startDate,

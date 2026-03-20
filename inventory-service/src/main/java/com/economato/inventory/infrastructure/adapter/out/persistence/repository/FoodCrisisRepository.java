@@ -11,6 +11,15 @@ import java.util.Optional;
 public interface FoodCrisisRepository extends JpaRepository<FoodCrisis, Long> {
     Optional<FoodCrisis> findByCrisisCode(String crisisCode);
 
+    @Query("SELECT DISTINCT f FROM FoodCrisis f " +
+           "LEFT JOIN FETCH f.supplier " +
+           "LEFT JOIN FETCH f.affectedProducts ap " +
+           "LEFT JOIN FETCH ap.product p " +
+           "LEFT JOIN FETCH f.activatedBy " +
+           "LEFT JOIN FETCH f.liftedBy " +
+           "WHERE f.id = :id")
+    Optional<FoodCrisis> findByIdWithDetails(@Param("id") Long id);
+
     @Query("SELECT f FROM FoodCrisis f WHERE f.status = 'LIFTED' AND " +
            "(:searchTerm IS NULL OR :searchTerm = '' OR " +
            "LOWER(f.crisisCode) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +

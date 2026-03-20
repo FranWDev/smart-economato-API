@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.core.env.Environment;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -88,6 +89,8 @@ class OrderServiceTest {
     private ProductBatchService productBatchService;
     @Mock
     private I18nService i18nService;
+    @Mock
+    private Environment environment;
 
     @InjectMocks
     private OrderService orderService;
@@ -114,6 +117,7 @@ class OrderServiceTest {
                 String argsStr = arg instanceof Object[] ? Arrays.toString((Object[]) arg) : String.valueOf(arg);
                 return ((MessageKey) invocation.getArgument(0)).name() + " " + (argsStr != null ? argsStr : "[]");
             });
+        Mockito.lenient().when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
         testUser = new User();
         testUser.setId(1);
         testUser.setName("Test User");
@@ -399,7 +403,7 @@ class OrderServiceTest {
         testOrder.getDetails().get(0).setQuantityReceived(new BigDecimal("5.0"));
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
-        when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         StockLedger ledger = new StockLedger();
         ledger.setId(1L);
         when(stockLedgerService.recordStockMovement(
@@ -412,7 +416,7 @@ class OrderServiceTest {
 
         assertNotNull(result);
         verify(repository).findByIdWithDetails(1);
-        verify(productRepository).findByIdForUpdate(1);
+        verify(productRepository).findAllById(any());
         verify(stockLedgerService).recordStockMovement(
             anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
         verify(repository).save(testOrder);
@@ -447,7 +451,7 @@ class OrderServiceTest {
         testOrder.getDetails().get(0).setQuantityReceived(new BigDecimal("3.0"));
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
-        when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         StockLedger ledger = new StockLedger();
         when(stockLedgerService.recordStockMovement(
             anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class)))
@@ -464,7 +468,7 @@ class OrderServiceTest {
         assertNotNull(result);
         assertEquals(OrderStatus.INCOMPLETE, result.getStatus());
         verify(repository).findByIdWithDetails(1);
-        verify(productRepository).findByIdForUpdate(1);
+        verify(productRepository).findAllById(any());
         verify(stockLedgerService).recordStockMovement(
             anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
         verify(repository).save(testOrder);
@@ -601,7 +605,7 @@ class OrderServiceTest {
         receptionData.setItems(Arrays.asList(receptionDetail));
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
-        when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         StockLedger ledger = new StockLedger();
         when(stockLedgerService.recordStockMovement(
             anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class)))
@@ -613,7 +617,7 @@ class OrderServiceTest {
 
         assertNotNull(result);
         verify(repository).findByIdWithDetails(1);
-        verify(productRepository).findByIdForUpdate(1);
+        verify(productRepository).findAllById(any());
         verify(stockLedgerService).recordStockMovement(
             anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
         verify(repository).save(any(Order.class));
@@ -634,7 +638,7 @@ class OrderServiceTest {
         testOrder.getDetails().get(0).setQuantityReceived(new BigDecimal("3.0"));
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
-        when(productRepository.findByIdForUpdate(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         StockLedger ledger = new StockLedger();
         when(stockLedgerService.recordStockMovement(
             anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class)))
@@ -651,7 +655,7 @@ class OrderServiceTest {
         assertNotNull(result);
         assertEquals(OrderStatus.INCOMPLETE, result.getStatus());
         verify(repository).findByIdWithDetails(1);
-        verify(productRepository).findByIdForUpdate(1);
+        verify(productRepository).findAllById(any());
         verify(stockLedgerService).recordStockMovement(
             anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
         verify(repository).save(any(Order.class));

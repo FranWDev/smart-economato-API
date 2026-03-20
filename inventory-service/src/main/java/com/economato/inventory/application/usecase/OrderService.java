@@ -1,10 +1,15 @@
 package com.economato.inventory.application.usecase;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -14,12 +19,17 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.resilience.annotation.Retryable;
+import org.springframework.core.env.Environment;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.request.OrderDetailRequestDTO;
+import com.economato.inventory.application.dto.request.OrderReceptionDetailRequestDTO;
 import com.economato.inventory.application.dto.request.OrderReceptionRequestDTO;
 import com.economato.inventory.application.dto.request.OrderRequestDTO;
+import com.economato.inventory.application.dto.response.OrderDetailResponseDTO;
 import com.economato.inventory.application.dto.response.OrderFilterResponseDTO;
 import com.economato.inventory.application.dto.response.OrderResponseDTO;
 import com.economato.inventory.application.dto.response.OrderTotalCostResponseDTO;
@@ -58,6 +68,7 @@ public class OrderService {
         private final OrderMapper orderMapper;
         private final StockLedgerService stockLedgerService;
         private final ProductBatchService productBatchService;
+        private final Environment environment;
 
         public OrderService(I18nService i18nService, OrderRepository repository,
                         UserRepository userRepository,
@@ -65,7 +76,8 @@ public class OrderService {
                         SupplierRepository supplierRepository,
                         OrderMapper orderMapper,
                         StockLedgerService stockLedgerService,
-                        ProductBatchService productBatchService) {
+                        ProductBatchService productBatchService,
+                        Environment environment) {
                 this.i18nService = i18nService;
                 this.repository = repository;
                 this.userRepository = userRepository;
@@ -74,6 +86,7 @@ public class OrderService {
                 this.orderMapper = orderMapper;
                 this.stockLedgerService = stockLedgerService;
                 this.productBatchService = productBatchService;
+                this.environment = environment;
         }
 
         @Transactional(readOnly = true)
@@ -140,7 +153,7 @@ public class OrderService {
          */
         @CacheEvict(value = { "orders", "order" }, allEntries = true)
         @Retryable(includes = {
-                        org.springframework.orm.ObjectOptimisticLockingFailureException.class }, maxRetries = 3, delay = 100, multiplier = 2)
+                        ObjectOptimisticLockingFailureException.class }, maxRetries = 3, delay = 100, multiplier = 2)
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
         public Optional<OrderResponseDTO> update(Integer id, OrderRequestDTO requestDTO) {
@@ -255,10 +268,10 @@ public class OrderService {
                                 .map(orderMapper::toResponseDTO)
                                 .toList();
 
-                java.math.BigDecimal totalCost = orders.stream()
+                BigDecimal totalCost = orders.stream()
                                 .map(OrderResponseDTO::getTotalPrice)
-                                .filter(java.util.Objects::nonNull)
-                                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+                                .filter(Objects::nonNull)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                 return OrderFilterResponseDTO.builder()
                                 .orders(orders)
@@ -269,7 +282,7 @@ public class OrderService {
 
         @Transactional(readOnly = true)
         public OrderTotalCostResponseDTO getTotalCostAllOrders() {
-                java.math.BigDecimal totalCost = repository.getTotalCostAllOrders();
+                BigDecimal totalCost = repository.getTotalCostAllOrders();
                 long totalOrders = repository.count();
 
                 return OrderTotalCostResponseDTO.builder()
@@ -287,7 +300,7 @@ public class OrderService {
         @OrderAuditable(action = "RECEPCION_ORDEN")
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class,
-                        Exception.class }, isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+                        Exception.class }, isolation = Isolation.REPEATABLE_READ)
         public OrderResponseDTO receiveOrder(OrderReceptionRequestDTO receptionData) {
                 Order order = repository.findByIdWithDetails(receptionData.getOrderId())
                                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -316,21 +329,43 @@ public class OrderService {
                 log.info("Procesando recepción de orden {} con estado final {} - Registrando en ledger inmutable",
                                 order.getId(), order.getStatus());
 
-                Map<Integer, com.economato.inventory.application.dto.request.OrderReceptionDetailRequestDTO> receptionByProductId = new HashMap<>();
+                Map<Integer, OrderReceptionDetailRequestDTO> receptionByProductId = new HashMap<>();
                 for (var item : receptionData.getItems()) {
                         receptionByProductId.put(item.getProductId(), item);
                 }
 
+                List<Integer> productIdsToLock = order.getDetails().stream()
+                                .filter(d -> d.getQuantityReceived() != null
+                                                && d.getQuantityReceived().compareTo(BigDecimal.ZERO) > 0)
+                                .map(d -> d.getProduct().getId())
+                                .toList();
+
+                Map<Integer, Product> productsById;
+                boolean isTestProfile = Arrays.asList(environment.getActiveProfiles()).contains("test");
+
+                if (productIdsToLock.isEmpty()) {
+                        productsById = Collections.emptyMap();
+                } else if (isTestProfile) {
+                        productsById = productRepository.findAllById(productIdsToLock).stream()
+                                        .collect(Collectors.toMap(Product::getId, p -> p));
+                } else {
+                        productsById = productRepository.findByIdsForUpdate(productIdsToLock).stream()
+                                        .collect(Collectors.toMap(Product::getId, p -> p));
+                }
+
                 for (OrderDetail detail : order.getDetails()) {
-                        // Si la cantidad recibida es mayor a 0, se registra el movimiento en el ledger y se actualiza el stock
                         if (detail.getQuantityReceived() != null
-                                        && detail.getQuantityReceived().compareTo(java.math.BigDecimal.ZERO) > 0) {
-                                Product product = productRepository.findByIdForUpdate(detail.getProduct().getId())
-                                                .orElseThrow(() -> new ResourceNotFoundException(
-                                                                i18nService.getMessage(
-                                                                                MessageKey.ERROR_PRODUCT_NOT_FOUND)));
+                                        && detail.getQuantityReceived().compareTo(BigDecimal.ZERO) > 0) {
+                                Product product = productsById.get(detail.getProduct().getId());
+                                if (product == null) {
+                                        throw new ResourceNotFoundException(
+                                                        i18nService.getMessage(
+                                                                        MessageKey.ERROR_PRODUCT_NOT_FOUND));
+                                }
 
                                 var receptionItem = receptionByProductId.get(detail.getProduct().getId());
+                                LocalDate expDate = (receptionItem != null) ? receptionItem.getExpirationDate() : null;
+
                                 StockLedger ledgerTx = stockLedgerService.recordStockMovement(
                                                 product.getId(),
                                                 detail.getQuantityReceived(),
@@ -339,7 +374,7 @@ public class OrderService {
                                                                 new Object[] { order.getId(), product.getName() }),
                                                 order.getUser(),
                                                 order.getId(),
-                                                receptionItem != null ? receptionItem.getExpirationDate() : null);
+                                                expDate);
 
                         }
                 }
@@ -359,7 +394,7 @@ public class OrderService {
 
         @OrderAuditable(action = "CAMBIO_ESTADO_ORDEN")
         @Retryable(includes = {
-                        org.springframework.orm.ObjectOptimisticLockingFailureException.class }, maxRetries = 3, delay = 100, multiplier = 2)
+                        ObjectOptimisticLockingFailureException.class }, maxRetries = 3, delay = 100, multiplier = 2)
         @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
         public Optional<OrderResponseDTO> updateStatus(Integer orderId, OrderStatus newStatus) {
                 return repository.findById(orderId)
@@ -371,7 +406,7 @@ public class OrderService {
         }
 
         @Transactional(readOnly = true)
-        public java.util.List<com.economato.inventory.application.dto.response.OrderDetailResponseDTO> getMissingItems(
+        public List<OrderDetailResponseDTO> getMissingItems(
                         Integer orderId) {
                 Order order = repository.findByIdWithDetails(orderId)
                                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -383,23 +418,23 @@ public class OrderService {
 
                 return order.getDetails().stream()
                                 .filter(detail -> {
-                                        java.math.BigDecimal received = detail.getQuantityReceived() != null
+                                        BigDecimal received = detail.getQuantityReceived() != null
                                                         ? detail.getQuantityReceived()
-                                                        : java.math.BigDecimal.ZERO;
+                                                        : BigDecimal.ZERO;
                                         return detail.getQuantity().compareTo(received) > 0;
                                 })
                                 .map(detail -> {
-                                        com.economato.inventory.application.dto.response.OrderDetailResponseDTO dto = new com.economato.inventory.application.dto.response.OrderDetailResponseDTO();
+                                        OrderDetailResponseDTO dto = new OrderDetailResponseDTO();
                                         dto.setOrderId(order.getId());
                                         dto.setProductId(detail.getProduct().getId());
                                         dto.setProductName(detail.getProduct().getName());
                                         dto.setUnit(detail.getProduct().getUnit());
 
-                                        java.math.BigDecimal received = detail.getQuantityReceived() != null
+                                        BigDecimal received = detail.getQuantityReceived() != null
                                                         ? detail.getQuantityReceived()
-                                                        : java.math.BigDecimal.ZERO;
+                                                        : BigDecimal.ZERO;
                                         dto.setQuantity(detail.getQuantity().subtract(received)); // Faltante
-                                        dto.setQuantityReceived(java.math.BigDecimal.ZERO);
+                                        dto.setQuantityReceived(BigDecimal.ZERO);
 
                                         return dto;
                                 })

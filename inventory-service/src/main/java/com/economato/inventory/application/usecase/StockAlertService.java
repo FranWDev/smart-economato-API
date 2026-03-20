@@ -13,6 +13,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -234,7 +235,7 @@ public class StockAlertService {
         }
 
         Map<Integer, BigDecimal> pendingByProduct = buildPendingMap();
-        Map<Integer, BigDecimal> stockByProduct = buildStockMap();
+        Map<Integer, Product> productsById = buildProductMap();
         Map<Integer, List<ProductBatch>> activeBatchesByProduct = buildActiveBatchesMap();
 
         List<StockAlertDTO> alerts = new ArrayList<>();
@@ -242,10 +243,13 @@ public class StockAlertService {
             Integer productId = entry.getKey();
             BigDecimal projected = entry.getValue();
 
-            BigDecimal currentStock = stockByProduct.getOrDefault(productId, BigDecimal.ZERO);
+            Product product = productsById.get(productId);
+            if (product == null) continue;
+
+            BigDecimal currentStock = product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO;
             BigDecimal pending = pendingByProduct.getOrDefault(productId, BigDecimal.ZERO);
 
-            StockAlertDTO alert = buildAlert(productId, currentStock, pending, projected, since, activeBatchesByProduct);
+            StockAlertDTO alert = buildAlert(productId, currentStock, pending, projected, since, activeBatchesByProduct, productsById);
             if (alert != null) {
                 alerts.add(alert);
             }
@@ -278,7 +282,7 @@ public class StockAlertService {
 
                 LocalDate nearestExpiration = batches.stream()
                     .map(ProductBatch::getExpirationDate)
-                    .filter(java.util.Objects::nonNull)
+                    .filter(Objects::nonNull)
                     .min(LocalDate::compareTo)
                     .orElse(null);
 
@@ -518,12 +522,12 @@ public class StockAlertService {
             BigDecimal pending,
             BigDecimal projected,
             LocalDateTime since,
-            Map<Integer, List<ProductBatch>> activeBatchesByProduct) {
+            Map<Integer, List<ProductBatch>> activeBatchesByProduct,
+            Map<Integer, Product> productsById) {
 
-        var productOpt = productRepository.findById(productId);
-        if (productOpt.isEmpty())
+        Product product = productsById.get(productId);
+        if (product == null)
             return null;
-        var product = productOpt.get();
 
         BigDecimal effective = currentStock.add(pending);
         BigDecimal gap = projected.subtract(effective).setScale(3, RoundingMode.HALF_UP);
@@ -693,13 +697,10 @@ public class StockAlertService {
                         p -> p.getPendingQuantity() != null ? p.getPendingQuantity() : BigDecimal.ZERO));
     }
 
-    private Map<Integer, BigDecimal> buildStockMap() {
-        return productRepository.findAll()
-                .stream()
+    private Map<Integer, Product> buildProductMap() {
+        return productRepository.findAll().stream()
                 .filter(p -> !p.isHidden())
-                .collect(Collectors.toMap(
-                        p -> p.getId(),
-                        p -> p.getCurrentStock() != null ? p.getCurrentStock() : BigDecimal.ZERO));
+                .collect(Collectors.toMap(Product::getId, p -> p));
     }
 
     private Map<Integer, BigDecimal> buildPredictionMap() {

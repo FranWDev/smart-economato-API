@@ -1,8 +1,11 @@
 package com.economato.inventory.infrastructure.adapter.out.persistence.repository;
 
 import com.economato.inventory.domain.model.ProductBatch;
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -64,7 +67,12 @@ public interface ProductBatchRepository extends JpaRepository<ProductBatch, Long
             "ORDER BY b.expirationDate ASC, b.receivedAt ASC")
     List<ProductBatch> findByProductIdOrderByExpirationDateAsc(@Param("productId") Integer productId);
 
+    @Query("SELECT b FROM ProductBatch b JOIN FETCH b.product " +
+            "WHERE b.product.id IN :productIds " +
+            "ORDER BY b.expirationDate ASC, b.receivedAt ASC")
+    List<ProductBatch> findByProductIdInOrderByExpirationDateAsc(@Param("productIds") Collection<Integer> productIds);
+
     @Query("SELECT COALESCE(SUM(b.remainingQuantity), 0) FROM ProductBatch b " +
             "WHERE b.product.id = :productId AND b.depleted = false")
-    java.math.BigDecimal sumRemainingQuantityByProductId(@Param("productId") Integer productId);
+    BigDecimal sumRemainingQuantityByProductId(@Param("productId") Integer productId);
 }

@@ -30,6 +30,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.I18nService;
@@ -46,6 +47,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -85,6 +87,7 @@ public class TraceabilityService {
         private final OrderMapper orderMapper;
         private final RecipeCookingAuditMapper cookingAuditMapper;
         private final StockLedgerMapper ledgerMapper;
+        private final ProductBatchRepository productBatchRepository;
         private final MeterRegistry meterRegistry;
         private final FoodCrisisRepository foodCrisisRepository;
         private final CrisisAffectedProductRepository crisisAffectedProductRepository;
@@ -134,7 +137,7 @@ public class TraceabilityService {
                                                         : BigDecimal.valueOf(100.00))
                                         .build());
 
-                        List<ProductBatch> implicatedBatches = productBatchService.getAllBatches(product.getId())
+                        List<ProductBatch> implicatedBatches = productBatchRepository.findByProductIdInOrderByExpirationDateAsc(List.of(product.getId()))
                                         .stream()
                                         .filter(batch -> batch.getRemainingQuantity() != null
                                                         && batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0)
@@ -277,7 +280,7 @@ public class TraceabilityService {
 
         @Transactional(readOnly = true)
         public CrisisResponseDTO getCrisisById(Long crisisId) {
-                FoodCrisis crisis = foodCrisisRepository.findById(crisisId)
+                FoodCrisis crisis = foodCrisisRepository.findByIdWithDetails(crisisId)
                                 .orElseThrow(() -> new InvalidOperationException(
                                                 i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
                 return buildCrisisResponse(crisis, null);
@@ -325,60 +328,88 @@ public class TraceabilityService {
                                 .orElseThrow(() -> new InvalidOperationException(
                                                 i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
+                Map<String, Object> state = parseDetails(audit.getComponentsState());
+                if (state == null || !state.containsKey("components")) {
+                        return ReverseTraceabilityDTO.builder()
+                                        .cookingAudit(cookingAuditMapper.toResponseDTO(audit))
+                                        .ingredientTrace(Collections.emptyList())
+                                        .build();
+                }
+
+                List<Map<String, Object>> components = (List<Map<String, Object>>) state.get("components");
+                List<Integer> productIds = components.stream()
+                                .map(comp -> {
+                                        Object rawId = comp.get("productId");
+                                        return rawId instanceof Number ? ((Number) rawId).intValue() : null;
+                                })
+                                .filter(Objects::nonNull)
+                                .toList();
+
+                // 1. Pre-cargar Productos
+                Map<Integer, Product> productsById = productRepository.findAllById(productIds).stream()
+                                .collect(Collectors.toMap(Product::getId, p -> p));
+
+                // 2. Pre-cargar Ledger Entries (Last ENTRADA before cooking)
+                Map<Integer, StockLedger> lastEntradas = ledgerRepository
+                                .findLastEntradasBeforeDateBatch(productIds, audit.getCookingDate()).stream()
+                                .collect(Collectors.toMap(
+                                                row -> (Integer) row[0],
+                                                row -> (StockLedger) row[1]));
+
+                // 3. Pre-cargar Órdenes
+                List<Integer> orderIds = lastEntradas.values().stream()
+                                .map(StockLedger::getOrderId)
+                                .filter(Objects::nonNull)
+                                .toList();
+
+                Map<Integer, Order> ordersById = orderIds.isEmpty() ? Collections.emptyMap()
+                                : orderRepository.findAllByIdWithDetails(orderIds).stream()
+                                                .collect(Collectors.toMap(Order::getId, o -> o));
+
                 List<ReverseTraceabilityDTO.IngredientTraceDTO> ingredientTrace = new ArrayList<>();
 
-                Map<String, Object> state = parseDetails(audit.getComponentsState());
-                if (state != null && state.containsKey("components")) {
-                        List<Map<String, Object>> components = (List<Map<String, Object>>) state.get("components");
+                for (Map<String, Object> comp : components) {
+                        Object rawId = comp.get("productId");
+                        Integer productId = rawId instanceof Number ? ((Number) rawId).intValue() : null;
+                        String productName = (String) comp.get("productName");
 
-                        for (Map<String, Object> comp : components) {
-                                Object rawId = comp.get("productId");
-                                Integer productId = rawId instanceof Number ? ((Number) rawId).intValue() : null;
-                                String productName = (String) comp.get("productName");
+                        if (productId == null)
+                                continue;
 
-                                if (productId == null)
-                                        continue;
+                        StockLedger le = lastEntradas.get(productId);
+                        ReverseTraceabilityDTO.IngredientTraceDTO.IngredientTraceDTOBuilder builder = ReverseTraceabilityDTO.IngredientTraceDTO
+                                        .builder()
+                                        .productName(productName);
 
-                                Optional<StockLedger> lastEntrada = ledgerRepository
-                                                .findLastEntradaBeforeDate(productId, audit.getCookingDate());
+                        if (le != null) {
+                                builder.ledgerHash(le.getCurrentHash())
+                                                .orderId(le.getOrderId())
+                                                .movementType(le.getMovementType() != null
+                                                                ? le.getMovementType().name()
+                                                                : null)
+                                                .description(le.getDescription());
 
-                                ReverseTraceabilityDTO.IngredientTraceDTO.IngredientTraceDTOBuilder builder = ReverseTraceabilityDTO.IngredientTraceDTO
-                                                .builder()
-                                                .productName(productName);
-
-                                lastEntrada.ifPresent(le -> {
-                                        builder.ledgerHash(le.getCurrentHash())
-                                                        .orderId(le.getOrderId())
-                                                        .movementType(le.getMovementType() != null
-                                                                        ? le.getMovementType().name()
-                                                                        : null)
-                                                        .description(le.getDescription());
-
-                                        if (le.getOrderId() != null) {
-                                                orderRepository.findById(le.getOrderId()).ifPresent(
-                                                                o -> {
-                                                                        builder.supplierName(o.getSupplier().getName());
-                                                                        builder.orderDate(o.getOrderDate());
-                                                                        if (o.getUser() != null) {
-                                                                                builder.orderUserName(
-                                                                                                o.getUser().getName());
-                                                                        }
-                                                                });
-                                        } else {
-                                                Optional<Product> product = productRepository.findById(productId);
-                                                product.ifPresent(p -> {
-                                                        if (p.getSupplier() != null) {
-                                                                builder.supplierName(p.getSupplier().getName()
-                                                                                + " (Por defecto)");
-                                                        } else {
-                                                                builder.supplierName("Sin proveedor");
-                                                        }
-                                                });
+                                if (le.getOrderId() != null && ordersById.containsKey(le.getOrderId())) {
+                                        Order o = ordersById.get(le.getOrderId());
+                                        builder.supplierName(o.getSupplier().getName());
+                                        builder.orderDate(o.getOrderDate());
+                                        if (o.getUser() != null) {
+                                                builder.orderUserName(o.getUser().getName());
                                         }
-                                });
-
-                                ingredientTrace.add(builder.build());
+                                } else {
+                                        Product p = productsById.get(productId);
+                                        if (p != null) {
+                                                if (p.getSupplier() != null) {
+                                                        builder.supplierName(p.getSupplier().getName()
+                                                                        + " (Por defecto)");
+                                                } else {
+                                                        builder.supplierName("Sin proveedor");
+                                                }
+                                        }
+                                }
                         }
+
+                        ingredientTrace.add(builder.build());
                 }
 
                 return ReverseTraceabilityDTO.builder()
@@ -447,12 +478,21 @@ public class TraceabilityService {
         }
 
         private Map<String, String> resolveLatestHashesByProduct(List<CrisisAffectedProduct> associations) {
+                if (associations.isEmpty()) return Collections.emptyMap();
+                
+                List<Integer> productIds = associations.stream()
+                                .map(ap -> ap.getProduct().getId())
+                                .toList();
+                
+                Map<Integer, String> latestHashes = ledgerRepository.findLatestHashesByProductIds(productIds).stream()
+                                .collect(Collectors.toMap(
+                                                row -> (Integer) row[0],
+                                                row -> (String) row[1]));
+                
                 Map<String, String> map = new LinkedHashMap<>();
                 for (CrisisAffectedProduct association : associations) {
                         Product product = association.getProduct();
-                        String hash = ledgerRepository.findLastTransactionByProductId(product.getId())
-                                        .map(StockLedger::getCurrentHash)
-                                        .orElse("-");
+                        String hash = latestHashes.getOrDefault(product.getId(), "-");
                         map.put(product.getName(), hash);
                 }
                 return map;
@@ -464,16 +504,15 @@ public class TraceabilityService {
                         return List.of();
                 }
 
-                Set<Integer> productIds = associations.stream()
+                List<Integer> productIds = associations.stream()
                                 .map(ap -> ap.getProduct().getId())
-                                .collect(Collectors.toSet());
+                                .toList();
 
+                List<ProductBatch> allRelevantBatches = productBatchRepository.findByProductIdInOrderByExpirationDateAsc(productIds);
                 Map<Long, ProductBatch> batchesById = new LinkedHashMap<>();
-                for (Integer productId : productIds) {
-                        for (ProductBatch batch : productBatchService.getAllBatches(productId)) {
-                                if (!isWithinDateRange(batch.getReceivedAt(), crisis.getDateFrom(), crisis.getDateTo())) {
-                                        continue;
-                                }
+                
+                for (ProductBatch batch : allRelevantBatches) {
+                        if (isWithinDateRange(batch.getReceivedAt(), crisis.getDateFrom(), crisis.getDateTo())) {
                                 batchesById.put(batch.getId(), batch);
                         }
                 }

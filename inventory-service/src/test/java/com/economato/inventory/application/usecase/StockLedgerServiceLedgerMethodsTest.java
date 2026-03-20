@@ -168,12 +168,7 @@ class StockLedgerServiceLedgerMethodsTest {
 
         @Test
         void getProductsWithLedger_ReturnsDistinctProductIds() {
-                // Combinar todas las entradas
-                List<StockLedger> allEntries = Arrays.asList(
-                        ledgerEntries1.get(0), ledgerEntries1.get(1), ledgerEntries2.get(0)
-                );
-
-                when(ledgerRepository.findAll()).thenReturn(allEntries);
+                when(ledgerRepository.findDistinctProductIds()).thenReturn(Arrays.asList(1, 2));
 
                 List<Integer> result = stockLedgerService.getProductsWithLedger();
 
@@ -181,28 +176,23 @@ class StockLedgerServiceLedgerMethodsTest {
                 assertEquals(2, result.size());
                 assertTrue(result.contains(1));
                 assertTrue(result.contains(2));
-                verify(ledgerRepository, times(1)).findAll();
+                verify(ledgerRepository, times(1)).findDistinctProductIds();
         }
 
         @Test
         void getProductsWithLedger_WhenNoLedger_ReturnsEmptyList() {
-                when(ledgerRepository.findAll()).thenReturn(Arrays.asList());
+                when(ledgerRepository.findDistinctProductIds()).thenReturn(Arrays.asList());
 
                 List<Integer> result = stockLedgerService.getProductsWithLedger();
 
                 assertNotNull(result);
                 assertTrue(result.isEmpty());
-                verify(ledgerRepository, times(1)).findAll();
+                verify(ledgerRepository, times(1)).findDistinctProductIds();
         }
 
         @Test
         void verifyProductsWithLedger_VerifiesAllProductsWithLedger() {
-                // Combinar todas las entradas
-                List<StockLedger> allEntries = Arrays.asList(
-                        ledgerEntries1.get(0), ledgerEntries1.get(1), ledgerEntries2.get(0)
-                );
-
-                when(ledgerRepository.findAll()).thenReturn(allEntries);
+                when(ledgerRepository.findDistinctProductIds()).thenReturn(Arrays.asList(1, 2));
                 when(productRepository.findById(1)).thenReturn(java.util.Optional.of(testProduct1));
                 when(productRepository.findById(2)).thenReturn(java.util.Optional.of(testProduct2));
                 when(ledgerRepository.findByProductIdOrderBySequenceNumber(1)).thenReturn(ledgerEntries1);
@@ -214,19 +204,19 @@ class StockLedgerServiceLedgerMethodsTest {
                 assertEquals(2, results.size());
                 
                 // Verificar que se llamaron los métodos correctos
-                verify(ledgerRepository, times(1)).findAll();
+                verify(ledgerRepository, times(1)).findDistinctProductIds();
                 verify(ledgerRepository, times(1)).findByProductIdOrderBySequenceNumber(1);
                 verify(ledgerRepository, times(1)).findByProductIdOrderBySequenceNumber(2);
         }
 
         @Test
         void verifyProductsWithLedger_WhenNoProducts_ReturnsEmptyList() {
-                when(ledgerRepository.findAll()).thenReturn(Arrays.asList());
+                when(ledgerRepository.findDistinctProductIds()).thenReturn(Arrays.asList());
 
                 List<IntegrityCheckResult> results = stockLedgerService.verifyProductsWithLedger();
 
                 assertNotNull(results);
                 assertTrue(results.isEmpty());
-                verify(ledgerRepository, times(1)).findAll();
+                verify(ledgerRepository, times(1)).findDistinctProductIds();
         }
 }

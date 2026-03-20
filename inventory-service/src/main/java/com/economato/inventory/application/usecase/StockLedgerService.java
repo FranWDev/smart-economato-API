@@ -39,16 +39,19 @@ import com.economato.inventory.infrastructure.config.security.SecurityContextHel
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import com.economato.inventory.infrastructure.config.security.LedgerProperties;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.sql.Date;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -175,7 +178,7 @@ public class StockLedgerService {
             String description,
             User user,
             Integer orderId,
-            java.time.LocalDate expirationDate) {
+            LocalDate expirationDate) {
 
         return recordStockMovement(productId, quantityDelta, movementType, description, user, orderId, expirationDate,
                 null);
@@ -189,7 +192,7 @@ public class StockLedgerService {
             String description,
             User user,
             Integer orderId,
-            java.time.LocalDate expirationDate,
+            LocalDate expirationDate,
             String correlationId) {
 
         return recordStockMovementInternal(productId, quantityDelta, movementType, description, user, orderId,
@@ -204,7 +207,7 @@ public class StockLedgerService {
             String description,
             User user,
             Long targetBatchId,
-            java.time.LocalDate expirationDate) {
+            LocalDate expirationDate) {
 
         return recordStockMovementInternal(productId, quantityDelta, movementType, description, user, null,
                 expirationDate, null, targetBatchId);
@@ -225,7 +228,7 @@ public class StockLedgerService {
 
         // Validación: expirationDate no puede ser pasada
         if (request.getExpirationDate() != null
-                && request.getExpirationDate().isBefore(java.time.LocalDate.now())) {
+                && request.getExpirationDate().isBefore(LocalDate.now())) {
             throw new InvalidOperationException(
                     i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_PAST,
                             new Object[] { request.getExpirationDate() }));
@@ -257,7 +260,7 @@ public class StockLedgerService {
     private void executeReversal(List<StockLedger> transactions, String reason, String originalCorrelationId) {
         User currentUser = securityContextHelper.getCurrentUser();
         String reversalCorrelationId = "REV-"
-                + (originalCorrelationId != null ? originalCorrelationId : java.util.UUID.randomUUID().toString());
+                + (originalCorrelationId != null ? originalCorrelationId : UUID.randomUUID().toString());
 
         // Prevenir doble reversión si hay correlationId
         if (originalCorrelationId != null) {
@@ -287,7 +290,7 @@ public class StockLedgerService {
 
                 // Verificar que el lote original no esté caducado
                 if (batch.getExpirationDate() != null
-                        && batch.getExpirationDate().isBefore(java.time.LocalDate.now())) {
+                        && batch.getExpirationDate().isBefore(LocalDate.now())) {
                     throw new InvalidOperationException(
                             i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRED_CANNOT_REVERT,
                                     new Object[] { batch.getId(), batch.getProduct().getName(),
@@ -380,7 +383,7 @@ public class StockLedgerService {
             String description,
             User user,
             Integer orderId,
-            java.time.LocalDate expirationDate,
+            LocalDate expirationDate,
             String correlationId,
             Long targetBatchId) {
 
@@ -430,8 +433,8 @@ public class StockLedgerService {
 
         LocalDateTime now = normalizeTimestamp(LocalDateTime.now());
 
-        BigDecimal normalizedDelta = quantityDelta.setScale(3, java.math.RoundingMode.HALF_UP);
-        BigDecimal normalizedStock = newStock.setScale(3, java.math.RoundingMode.HALF_UP);
+        BigDecimal normalizedDelta = quantityDelta.setScale(3, RoundingMode.HALF_UP);
+        BigDecimal normalizedStock = newStock.setScale(3, RoundingMode.HALF_UP);
 
         String currentHash = calculateTransactionHash(
                 productId,
@@ -480,10 +483,17 @@ public class StockLedgerService {
 
         // Guardar detalles de trazabilidad de lotes si existen
         if (!batchMovements.isEmpty()) {
+            List<Long> batchIds = batchMovements.stream()
+                    .map(BatchConsumptionDetail::getBatchId)
+                    .toList();
+            Map<Long, ProductBatch> batchesById = batchRepository.findAllById(batchIds).stream()
+                    .collect(Collectors.toMap(ProductBatch::getId, b -> b));
+
             for (BatchConsumptionDetail detail : batchMovements) {
-                ProductBatch affectedBatch = productBatchService.getBatchById(detail.getBatchId())
-                        .orElseThrow(() -> new ResourceNotFoundException(
-                                "Lote no encontrado durante el registro de trazabilidad"));
+                ProductBatch affectedBatch = batchesById.get(detail.getBatchId());
+                if (affectedBatch == null) {
+                    throw new ResourceNotFoundException("Lote no encontrado durante el registro de trazabilidad");
+                }
 
                 StockLedgerBatchDetail batchDetail = StockLedgerBatchDetail.builder()
                         .ledgerTransaction(transaction)
@@ -599,8 +609,8 @@ public class StockLedgerService {
             }
 
             // Normalizar los BigDecimal con la misma escala usada en la creación
-            BigDecimal normalizedDelta = tx.getQuantityDelta().setScale(3, java.math.RoundingMode.HALF_UP);
-            BigDecimal normalizedStock = tx.getResultingStock().setScale(3, java.math.RoundingMode.HALF_UP);
+            BigDecimal normalizedDelta = tx.getQuantityDelta().setScale(3, RoundingMode.HALF_UP);
+            BigDecimal normalizedStock = tx.getResultingStock().setScale(3, RoundingMode.HALF_UP);
 
             LocalDateTime normalizedTimestamp = normalizeTimestamp(tx.getTransactionTimestamp());
 
@@ -759,8 +769,8 @@ public class StockLedgerService {
         int repairedTransactions = 0;
 
         for (StockLedger tx : chain) {
-            BigDecimal normalizedDelta = tx.getQuantityDelta().setScale(3, java.math.RoundingMode.HALF_UP);
-            BigDecimal normalizedStock = tx.getResultingStock().setScale(3, java.math.RoundingMode.HALF_UP);
+            BigDecimal normalizedDelta = tx.getQuantityDelta().setScale(3, RoundingMode.HALF_UP);
+            BigDecimal normalizedStock = tx.getResultingStock().setScale(3, RoundingMode.HALF_UP);
             LocalDateTime normalizedTimestamp = normalizeTimestamp(tx.getTransactionTimestamp());
 
             String recalculatedHash = calculateTransactionHash(
@@ -923,11 +933,7 @@ public class StockLedgerService {
     @Transactional(readOnly = true)
     public List<Integer> getProductsWithLedger() {
         log.debug("Obteniendo productos con historial de ledger");
-        return ledgerRepository.findAll().stream()
-                .map(ledger -> ledger.getProduct().getId())
-                .distinct()
-                .sorted()
-                .collect(Collectors.toList());
+        return ledgerRepository.findDistinctProductIds();
     }
 
     /**
@@ -974,7 +980,7 @@ public class StockLedgerService {
 
         List<ProductConsumptionResponseDTO.DailyConsumptionDTO> breakdown = results.stream()
                 .map(row -> {
-                    java.sql.Date sqlDate = (java.sql.Date) row[0];
+                    Date sqlDate = (Date) row[0];
                     BigDecimal consumed = (BigDecimal) row[1];
                     return new ProductConsumptionResponseDTO.DailyConsumptionDTO(sqlDate.toLocalDate(), consumed);
                 })
