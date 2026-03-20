@@ -5,6 +5,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.repository.query.Param;
 
 import com.economato.inventory.application.dto.projection.InventoryAuditProjection;
@@ -17,6 +19,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface InventoryAuditRepository extends JpaRepository<InventoryAudit, Integer>, JpaSpecificationExecutor<InventoryAudit> {
+
+       @Override
+       @EntityGraph(attributePaths = {"product", "user"})
+       Page<InventoryAudit> findAll(Specification<InventoryAudit> spec, Pageable pageable);
 
        boolean existsByProductId(Integer productId);
 
@@ -42,19 +48,12 @@ public interface InventoryAuditRepository extends JpaRepository<InventoryAudit, 
                      @Param("start") LocalDateTime start,
                      @Param("end") LocalDateTime end);
 
-       @Query("SELECT ia FROM InventoryAudit ia")
-       Page<InventoryAuditProjection> findAllProjectedBy(Pageable pageable);
+    Page<InventoryAuditProjection> findAllProjectedBy(Pageable pageable);
 
-       @Query("SELECT ia FROM InventoryAudit ia WHERE ia.id = :id")
-       Optional<InventoryAuditProjection> findProjectedById(@Param("id") Integer id);
+    Optional<InventoryAuditProjection> findProjectedById(Integer id);
 
-       @Query("SELECT ia FROM InventoryAudit ia WHERE ia.movementType = :movementType")
-       List<InventoryAuditProjection> findProjectedByMovementType(
-                     @Param("movementType") String movementType);
+    List<InventoryAuditProjection> findProjectedByMovementType(String movementType);
 
-       @Query("SELECT ia FROM InventoryAudit ia WHERE ia.movementDate BETWEEN :start AND :end")
-       List<InventoryAuditProjection> findProjectedByMovementDateBetween(
-                     @Param("start") LocalDateTime start,
-                     @Param("end") LocalDateTime end);
+    List<InventoryAuditProjection> findProjectedByMovementDateBetween(LocalDateTime start, LocalDateTime end);
 
 }

@@ -232,7 +232,7 @@ class RecipeServiceTest {
     @Test
     void save_WhenValidRecipe_ShouldCreateRecipe() {
 
-        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         when(allergenRepository.findAllById(anyList())).thenReturn(Arrays.asList(testAllergen));
         when(repository.save(any(Recipe.class))).thenReturn(testRecipe);
         when(recipeMapper.toResponseDTO(testRecipe)).thenReturn(testRecipeResponseDTO);
@@ -240,7 +240,7 @@ class RecipeServiceTest {
         RecipeResponseDTO result = recipeService.save(testRecipeRequestDTO);
 
         assertNotNull(result);
-        verify(productRepository).findById(1);
+        verify(productRepository).findAllById(any());
         verify(allergenRepository).findAllById(anyList());
         verify(repository).save(any(Recipe.class));
     }
@@ -248,19 +248,19 @@ class RecipeServiceTest {
     @Test
     void save_WhenProductNotFound_ShouldThrowException() {
 
-        when(productRepository.findById(1)).thenReturn(Optional.empty());
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList());
 
         assertThrows(ResourceNotFoundException.class, () -> {
             recipeService.save(testRecipeRequestDTO);
         });
-        verify(productRepository).findById(1);
+        verify(productRepository).findAllById(any());
         verify(repository, never()).save(any(Recipe.class));
     }
 
     @Test
     void save_ShouldCalculateTotalCost() {
 
-        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         when(allergenRepository.findAllById(anyList())).thenReturn(Arrays.asList(testAllergen));
         when(repository.save(any(Recipe.class))).thenAnswer(invocation -> {
             Recipe savedRecipe = invocation.getArgument(0);
@@ -280,7 +280,7 @@ class RecipeServiceTest {
     void update_WhenRecipeExists_ShouldUpdateRecipe() {
 
         when(repository.findById(1)).thenReturn(Optional.of(testRecipe));
-        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         when(allergenRepository.findAllById(anyList())).thenReturn(Arrays.asList(testAllergen));
         when(repository.save(testRecipe)).thenReturn(testRecipe);
         when(recipeMapper.toResponseDTO(testRecipe)).thenReturn(testRecipeResponseDTO);
@@ -310,7 +310,7 @@ class RecipeServiceTest {
         testRecipeRequestDTO.getComponents().get(0).setQuantity(new BigDecimal("3.0"));
 
         when(repository.findById(1)).thenReturn(Optional.of(testRecipe));
-        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         when(allergenRepository.findAllById(anyList())).thenReturn(Arrays.asList(testAllergen));
         when(repository.save(any(Recipe.class))).thenAnswer(invocation -> {
             Recipe savedRecipe = invocation.getArgument(0);
@@ -351,7 +351,7 @@ class RecipeServiceTest {
         testRecipeRequestDTO.setAllergenIds(null);
 
         when(repository.findById(1)).thenReturn(Optional.of(testRecipe));
-        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         when(repository.save(testRecipe)).thenAnswer(invocation -> {
             Recipe savedRecipe = invocation.getArgument(0);
             assertTrue(savedRecipe.getAllergens().isEmpty());
@@ -418,8 +418,7 @@ class RecipeServiceTest {
                 testRecipeRequestDTO.getComponents().get(0),
                 component2DTO));
 
-        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
-        when(productRepository.findById(2)).thenReturn(Optional.of(product2));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct, product2));
         when(allergenRepository.findAllById(anyList())).thenReturn(Arrays.asList(testAllergen));
         when(repository.save(any(Recipe.class))).thenAnswer(invocation -> {
             Recipe savedRecipe = invocation.getArgument(0);
@@ -465,14 +464,14 @@ class RecipeServiceTest {
         testProduct.setCurrentStock(new BigDecimal("100.0"));
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testRecipe));
-        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         when(recipeMapper.toResponseDTO(testRecipe)).thenReturn(testRecipeResponseDTO);
 
         RecipeResponseDTO result = recipeService.cookRecipe(cookingRequest);
 
         assertNotNull(result);
         verify(repository).findByIdWithDetails(1);
-        verify(productRepository).findById(1);
+        verify(productRepository).findAllById(any());
         verify(stockLedgerService).recordStockMovement(
                 eq(1),
                 argThat(amount -> amount.compareTo(new BigDecimal("4.0").negate()) == 0),
@@ -533,7 +532,7 @@ class RecipeServiceTest {
         testProduct.setCurrentStock(new BigDecimal("5.0"));
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testRecipe));
-        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
 
         InvalidOperationException exception = assertThrows(InvalidOperationException.class, () -> {
             recipeService.cookRecipe(cookingRequest);
@@ -552,13 +551,13 @@ class RecipeServiceTest {
         cookingRequest.setQuantity(new BigDecimal("1.0"));
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testRecipe));
-        when(productRepository.findById(1)).thenReturn(Optional.empty());
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList());
 
         assertThrows(ResourceNotFoundException.class, () -> {
             recipeService.cookRecipe(cookingRequest);
         });
 
-        verify(productRepository).findById(1);
+        verify(productRepository).findAllById(any());
         verify(stockLedgerService, never()).recordStockMovement(anyInt(), any(), any(), any(), any(), any(), any(), any());
     }
 
@@ -583,8 +582,7 @@ class RecipeServiceTest {
         testProduct.setCurrentStock(new BigDecimal("100.0"));
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testRecipe));
-        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
-        when(productRepository.findById(2)).thenReturn(Optional.of(product2));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct, product2));
         when(recipeMapper.toResponseDTO(testRecipe)).thenReturn(testRecipeResponseDTO);
 
         RecipeResponseDTO result = recipeService.cookRecipe(cookingRequest);
@@ -612,7 +610,7 @@ class RecipeServiceTest {
         testProduct.setCurrentStock(new BigDecimal("100.0"));
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testRecipe));
-        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         when(recipeMapper.toResponseDTO(testRecipe)).thenReturn(testRecipeResponseDTO);
 
         RecipeResponseDTO result = recipeService.cookRecipe(cookingRequest);
@@ -643,7 +641,7 @@ class RecipeServiceTest {
 
         testRecipeRequestDTO.setComponents(Arrays.asList(comp1, comp2));
 
-        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         when(allergenRepository.findAllById(anyList())).thenReturn(Arrays.asList(testAllergen));
         when(repository.save(any(Recipe.class))).thenAnswer(invocation -> {
             Recipe savedRecipe = invocation.getArgument(0);
@@ -659,7 +657,7 @@ class RecipeServiceTest {
         RecipeResponseDTO result = recipeService.save(testRecipeRequestDTO);
 
         assertNotNull(result);
-        verify(productRepository, times(1)).findById(1);
+        verify(productRepository, times(1)).findAllById(any());
         verify(repository).save(any(Recipe.class));
     }
 

@@ -18,31 +18,32 @@ import java.util.Optional;
 @Repository
 public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookingAudit, Long> {
 
-  @Query("SELECT rca FROM RecipeCookingAudit rca WHERE rca.recipe.id = :recipeId ORDER BY rca.cookingDate DESC")
+  @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.recipe.id = :recipeId ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findByRecipeId(@Param("recipeId") Integer recipeId);
 
   Optional<RecipeCookingAudit> findByCorrelationId(String correlationId);
 
-  @Query("SELECT rca FROM RecipeCookingAudit rca WHERE rca.user.id = :userId ORDER BY rca.cookingDate DESC")
+  @Query("SELECT rca FROM RecipeCookingAudit rca LEFT JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.user.id = :userId ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findByUserId(@Param("userId") Integer userId);
 
-  @Query("SELECT rca FROM RecipeCookingAudit rca WHERE LOWER(rca.recipe.name) LIKE LOWER(CONCAT('%', :recipeName, '%')) ORDER BY rca.cookingDate DESC")
+  @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE LOWER(rca.recipe.name) LIKE LOWER(CONCAT('%', :recipeName, '%')) ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findByRecipeNameContainingIgnoreCase(@Param("recipeName") String recipeName);
 
-  @Query("SELECT rca FROM RecipeCookingAudit rca WHERE rca.cookingDate BETWEEN :startDate AND :endDate ORDER BY rca.cookingDate DESC")
+  @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.cookingDate BETWEEN :startDate AND :endDate ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findByDateRange(
       @Param("startDate") LocalDateTime startDate,
       @Param("endDate") LocalDateTime endDate);
 
-  @Query("SELECT rca FROM RecipeCookingAudit rca WHERE rca.cookingDate BETWEEN :startDate AND :endDate ORDER BY rca.cookingDate DESC")
+  @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.cookingDate BETWEEN :startDate AND :endDate ORDER BY rca.cookingDate DESC")
   Stream<RecipeCookingAudit> streamByDateRange(
       @Param("startDate") LocalDateTime startDate,
       @Param("endDate") LocalDateTime endDate);
 
-  @Query("SELECT rca FROM RecipeCookingAudit rca ORDER BY rca.cookingDate DESC")
+  @Query(value = "SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user ORDER BY rca.cookingDate DESC",
+         countQuery = "SELECT COUNT(rca) FROM RecipeCookingAudit rca")
   Page<RecipeCookingAudit> findAllOrderByDateDesc(Pageable pageable);
 
-  @Query("SELECT rca FROM RecipeCookingAudit rca ORDER BY rca.cookingDate DESC")
+  @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user ORDER BY rca.cookingDate DESC")
   Stream<RecipeCookingAudit> streamAllOrderByDateDesc();
 
   /**
@@ -83,13 +84,22 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
       @Param("since") LocalDateTime since);
 
   @Query(value = """
-      SELECT DISTINCT rca.*
-      FROM recipe_cooking_audit rca
-      INNER JOIN recipe_component rc ON rc.parent_recipe_id = rca.recipe_id
-      WHERE rc.product_id IN :productIds
-        AND rca.cooking_date BETWEEN :startDate AND :endDate
-      ORDER BY rca.cooking_date DESC
+      SELECT product_id, recipe_name FROM (
+          SELECT rc.product_id, r.recipe_name, SUM(rca.quantity_cooked * rc.quantity) as total,
+                 ROW_NUMBER() OVER(PARTITION BY rc.product_id ORDER BY SUM(rca.quantity_cooked * rc.quantity) DESC) as rn
+          FROM recipe_cooking_audit rca
+          INNER JOIN recipe r       ON r.recipe_id = rca.recipe_id
+          INNER JOIN recipe_component rc ON rc.parent_recipe_id = rca.recipe_id
+          WHERE rc.product_id IN :productIds
+            AND rca.cooking_date >= :since
+          GROUP BY rc.product_id, r.recipe_id, r.recipe_name
+      ) t WHERE rn <= 3
       """, nativeQuery = true)
+  List<Object[]> findTopConsumingRecipesByProducts(
+      @Param("productIds") List<Integer> productIds,
+      @Param("since") LocalDateTime since);
+
+  @Query("SELECT DISTINCT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user JOIN rca.recipe.components rc WHERE rc.product.id IN :productIds AND rca.cookingDate BETWEEN :startDate AND :endDate ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findAffectedCookingsByProductIdsAndDateRange(
       @Param("productIds") List<Integer> productIds,
       @Param("startDate") LocalDateTime startDate,

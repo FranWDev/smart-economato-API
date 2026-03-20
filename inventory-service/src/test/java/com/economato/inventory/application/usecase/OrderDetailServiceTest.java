@@ -96,7 +96,7 @@ class OrderDetailServiceTest {
     @Test
     void findByOrder_ShouldReturnOrderDetails() {
 
-        when(repository.findProjectedByOrderId(1)).thenReturn(Arrays.asList(testProjection));
+        when(repository.findProjectedByIdOrderId(1)).thenReturn(Arrays.asList(testProjection));
         when(orderDetailMapper.toResponseDTO(any(OrderDetailProjection.class))).thenReturn(testOrderDetailResponseDTO);
 
         List<OrderDetailResponseDTO> result = orderDetailService.findByOrder(testOrder);
@@ -104,26 +104,26 @@ class OrderDetailServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(1, result.get(0).getProductId());
-        verify(repository).findProjectedByOrderId(1);
+        verify(repository).findProjectedByIdOrderId(1);
     }
 
     @Test
     void findByOrder_WhenNoDetailsFound_ShouldReturnEmptyList() {
 
         testOrder.setId(999);
-        when(repository.findProjectedByOrderId(999)).thenReturn(Arrays.asList());
+        when(repository.findProjectedByIdOrderId(999)).thenReturn(Arrays.asList());
 
         List<OrderDetailResponseDTO> result = orderDetailService.findByOrder(testOrder);
 
         assertNotNull(result);
         assertTrue(result.isEmpty());
-        verify(repository).findProjectedByOrderId(999);
+        verify(repository).findProjectedByIdOrderId(999);
     }
 
     @Test
     void findByProduct_ShouldReturnOrderDetails() {
 
-        when(repository.findProjectedByProductId(1)).thenReturn(Arrays.asList(testProjection));
+        when(repository.findProjectedByIdProductId(1)).thenReturn(Arrays.asList(testProjection));
         when(orderDetailMapper.toResponseDTO(any(OrderDetailProjection.class))).thenReturn(testOrderDetailResponseDTO);
 
         List<OrderDetailResponseDTO> result = orderDetailService.findByProduct(testProduct);
@@ -131,6 +131,6 @@ class OrderDetailServiceTest {
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals(1, result.get(0).getProductId());
-        verify(repository).findProjectedByProductId(1);
+        verify(repository).findProjectedByIdProductId(1);
     }
 }

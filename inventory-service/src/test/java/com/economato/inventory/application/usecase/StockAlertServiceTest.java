@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -127,14 +128,14 @@ class StockAlertServiceTest {
 
         // --- Mocks ---
         when(predictionRepository.findAll()).thenReturn(List.of(prediction));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
-        when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of());
-        when(productRepository.findAll()).thenReturn(List.of(product));
+        when(productRepository.findAllActive()).thenReturn(List.of(product));
         when(productBatchService.getAllActiveBatches()).thenReturn(List.of(
             ProductBatch.builder().product(product).remainingQuantity(BigDecimal.valueOf(1.0)).build()
         ));
-        when(cookingAuditRepository.findTopConsumingRecipesByProduct(eq(productId), any()))
-                .thenReturn(List.of("Gazpacho"));
+        List<Object[]> topRecipes = new java.util.ArrayList<>();
+        topRecipes.add(new Object[]{productId, "Gazpacho"});
+        when(cookingAuditRepository.findTopConsumingRecipesByProducts(anyList(), any()))
+                .thenReturn(topRecipes);
 
         // --- Execute ---
         List<StockAlertDTO> alerts = stockAlertService.getActiveAlerts();
@@ -175,9 +176,8 @@ class StockAlertServiceTest {
 
         // --- Mocks ---
         when(predictionRepository.findAll()).thenReturn(List.of(prediction));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of(pending));
-        when(productRepository.findAll()).thenReturn(List.of(product));
+        when(productRepository.findAllActive()).thenReturn(List.of(product));
 
         // --- Execute ---
         // DaysRemaining = (2+15) / (10/14) = 17 / 0.714 = ~23.8 days -> OK
@@ -213,9 +213,8 @@ class StockAlertServiceTest {
 
         // --- Mocks ---
         when(predictionRepository.findAll()).thenReturn(List.of(prediction));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of(pending));
-        when(productRepository.findAll()).thenReturn(List.of(product));
+        when(productRepository.findAllActive()).thenReturn(List.of(product));
         when(productBatchService.getAllActiveBatches()).thenReturn(List.of(
             ProductBatch.builder().product(product).remainingQuantity(BigDecimal.valueOf(1.0)).build()
         ));
@@ -261,9 +260,8 @@ class StockAlertServiceTest {
                 .build();
 
         when(predictionRepository.findAll()).thenReturn(List.of(prediction));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
         when(orderDetailRepository.findPendingQuantityPerProduct()).thenReturn(List.of());
-        when(productRepository.findAll()).thenReturn(List.of(product));
+        when(productRepository.findAllActive()).thenReturn(List.of(product));
         when(productBatchService.getAllActiveBatches()).thenReturn(List.of(
             ProductBatch.builder().product(product).remainingQuantity(BigDecimal.valueOf(effectiveStock)).build()
         ));
@@ -343,7 +341,7 @@ class StockAlertServiceTest {
 
         when(predictionRepository.findAll()).thenReturn(List.of());
         when(productBatchService.getExpiringBatches(7)).thenReturn(List.of(batch));
-        when(productRepository.findById(productId)).thenReturn(Optional.of(product));
+        when(productRepository.findAllActive()).thenReturn(List.of(product));
 
         List<StockAlertDTO> alerts = stockAlertService.getActiveAlerts();
 

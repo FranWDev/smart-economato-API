@@ -60,8 +60,8 @@ public class OrderAuditAspect {
             if (arg instanceof OrderReceptionRequestDTO) {
                 receptionDto = (OrderReceptionRequestDTO) arg;
                 orderId = receptionDto.getOrderId();
-            } else if (arg instanceof Integer) {
-                // Si es un Integer, podría ser el ID de la orden en métodos como updateStatus(Integer orderId, OrderStatus newStatus)
+            } else if (arg instanceof Integer && orderId == null) {
+                orderId = (Integer) arg;
             } else if (arg instanceof OrderStatus && orderId != null) {
                 newStatus = ((OrderStatus) arg).name();
             }
@@ -69,7 +69,7 @@ public class OrderAuditAspect {
 
         String previousState = null;
         if (orderId != null) {
-            Order orderBefore = orderRepository.findById(orderId).orElse(null);
+            Order orderBefore = orderRepository.findByIdWithDetails(orderId).orElse(null);
             if (orderBefore != null) {
                 previousState = buildOrderState(orderBefore);
             }
@@ -83,7 +83,7 @@ public class OrderAuditAspect {
                 return result;
             }
 
-            Order orderAfter = orderRepository.findById(orderId).orElse(null);
+            Order orderAfter = orderRepository.findByIdWithDetails(orderId).orElse(null);
             if (orderAfter == null) {
                 log.warn("Orden no encontrada para auditoría: {}", orderId);
                 return result;

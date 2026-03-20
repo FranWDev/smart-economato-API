@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -66,10 +68,10 @@ public class McpUtilityService {
 
     @Transactional(readOnly = true)
     public List<McpOrderDto> getPendingOrders() {
-        return orderRepository.findAll().stream()
-                .filter(o -> o.getStatus() == OrderStatus.PENDING || 
-                             o.getStatus() == OrderStatus.REVIEW || 
-                             o.getStatus() == OrderStatus.CREATED)
+        return orderRepository.findByStatusInWithDetails(Arrays.asList(
+                OrderStatus.PENDING, 
+                OrderStatus.REVIEW, 
+                OrderStatus.CREATED)).stream()
                 .map(this::mapToOrderDto)
                 .collect(Collectors.toList());
     }
@@ -91,14 +93,14 @@ public class McpUtilityService {
 
     @Transactional(readOnly = true)
     public List<McpOrderDto> getOrdersBulk(List<Integer> ids) {
-        return orderRepository.findAllById(ids).stream()
+        return orderRepository.findAllByIdWithDetails(ids).stream()
                 .map(this::mapToOrderDto)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public List<McpRecipeDto> getRecipesBulk(List<Integer> ids) {
-        return recipeRepository.findAllById(ids).stream()
+        return recipeRepository.findAllByIdWithAllergens(ids).stream()
                 .map(this::mapToRecipeDto)
                 .collect(Collectors.toList());
     }

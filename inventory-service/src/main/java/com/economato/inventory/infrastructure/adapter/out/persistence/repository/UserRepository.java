@@ -14,8 +14,11 @@ import com.economato.inventory.domain.model.User;
 import java.util.Optional;
 import java.util.List;
 
+import org.springframework.data.jpa.repository.EntityGraph;
+
 public interface UserRepository extends JpaRepository<User, Integer> {
 
+    @EntityGraph(attributePaths = {"teacher"})
     Optional<User> findByName(String username);
 
     Optional<User> findByUser(String user);
@@ -43,22 +46,23 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
     Page<UserProjection> findAllProjectedBy(Pageable pageable);
 
-    @Query("SELECT u FROM User u WHERE u.isHidden = false")
     Page<UserProjection> findByIsHiddenFalse(Pageable pageable);
 
-    @Query("SELECT u FROM User u WHERE u.isHidden = true")
     Page<UserProjection> findByIsHiddenTrue(Pageable pageable);
 
     Optional<UserProjection> findProjectedById(Integer id);
 
     List<UserProjection> findProjectedByRole(Role role);
 
+    @EntityGraph(attributePaths = {"teacher"})
     @Query("SELECT u FROM User u WHERE u.role = :role AND u.isHidden = false")
     List<UserProjection> findProjectedByRoleAndIsHiddenFalse(@Param("role") Role role);
 
+    @EntityGraph(attributePaths = {"teacher"})
     @Query("SELECT u FROM User u WHERE u.role IN :roles AND u.isHidden = false")
     List<UserProjection> findProjectedByRoleInAndIsHiddenFalse(@Param("roles") List<Role> roles);
 
+    @EntityGraph(attributePaths = {"teacher"})
     @Query("SELECT u FROM User u WHERE u.teacher.id = :teacherId AND u.isHidden = false")
     List<UserProjection> findProjectedByTeacherIdAndIsHiddenFalse(@Param("teacherId") Integer teacherId);
 }

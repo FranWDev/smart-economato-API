@@ -22,18 +22,14 @@ public interface OrderDetailRepository extends JpaRepository<OrderDetail, OrderD
         @Query("SELECT od FROM OrderDetail od WHERE od.id.productId = :productId")
         List<OrderDetail> findByProductId(@Param("productId") Integer productId);
 
-        @Query("SELECT od FROM OrderDetail od")
         Page<OrderDetailProjection> findAllProjectedBy(Pageable pageable);
 
-        @Query("SELECT od FROM OrderDetail od WHERE od.id.orderId = :orderId AND od.id.productId = :productId")
-        Optional<OrderDetailProjection> findProjectedById(
-                        @Param("orderId") Integer orderId, @Param("productId") Integer productId);
+        Optional<OrderDetailProjection> findProjectedByIdOrderIdAndIdProductId(
+                        Integer orderId, Integer productId);
 
-        @Query("SELECT od FROM OrderDetail od WHERE od.id.orderId = :orderId")
-        List<OrderDetailProjection> findProjectedByOrderId(@Param("orderId") Integer orderId);
+        List<OrderDetailProjection> findProjectedByIdOrderId(Integer orderId);
 
-        @Query("SELECT od FROM OrderDetail od WHERE od.id.productId = :productId")
-        List<OrderDetailProjection> findProjectedByProductId(@Param("productId") Integer productId);
+        List<OrderDetailProjection> findProjectedByIdProductId(Integer productId);
 
         /**
          * Suma la cantidad solicitada de cada producto en pedidos activos

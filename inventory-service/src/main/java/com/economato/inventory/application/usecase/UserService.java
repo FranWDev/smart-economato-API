@@ -324,24 +324,25 @@ public class UserService {
         }
 
         // Validar todos los alumnos antes de aplicar cambios
-        List<User> students = new ArrayList<>();
-        for (Integer studentId : studentIds) {
-            User student = repository.findById(studentId)
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { studentId })));
+        List<User> students = repository.findAllById(studentIds);
+        if (students.size() != studentIds.size()) {
+            List<Integer> foundIds = students.stream().map(User::getId).toList();
+            List<Integer> missingIds = studentIds.stream().filter(id -> !foundIds.contains(id)).toList();
+            throw new ResourceNotFoundException(
+                    i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { missingIds }));
+        }
+
+        for (User student : students) {
             if (teacherId != null && (Role.CHEF.equals(student.getRole()) || Role.ADMIN.equals(student.getRole()))) {
                 throw new InvalidOperationException(
                         i18nService.getMessage(MessageKey.ERROR_USER_ADMIN_CANNOT_HAVE_TEACHER));
             }
-            students.add(student);
         }
 
         // Asignar el profesor a todos los alumnos validados
         final User finalTeacher = teacher;
-        students.forEach(s -> {
-            s.setTeacher(finalTeacher);
-            repository.save(s);
-        });
+        students.forEach(s -> s.setTeacher(finalTeacher));
+        repository.saveAll(students);
 
         String message = finalTeacher != null
                 ? "Todos los alumnos fueron asignados al profesor correctamente"

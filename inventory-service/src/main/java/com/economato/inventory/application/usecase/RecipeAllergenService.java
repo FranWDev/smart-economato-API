@@ -134,7 +134,7 @@ public class RecipeAllergenService {
         if (recipeOpt.isEmpty()) {
             return Optional.empty();
         }
-        List<RecipeAllergen> associations = repository.findByRecipe(recipeOpt.get());
+        List<RecipeAllergen> associations = repository.findByRecipeWithAllergen(recipeOpt.get());
         List<AllergenResponseDTO> allergens = associations.stream()
                 .map(ra -> allergenMapper.toResponseDTO(ra.getAllergen()))
                 .toList();

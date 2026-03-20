@@ -56,7 +56,7 @@ class McpSearchServiceTest {
     @Test
     void unifiedSearch_ShouldReturnMatchesFromBothEntities() {
         when(productRepository.findAll()).thenReturn(Arrays.asList(testProduct));
-        when(recipeRepository.findAll()).thenReturn(Arrays.asList(testRecipe));
+        when(recipeRepository.findAllWithAllergens()).thenReturn(Arrays.asList(testRecipe));
 
         McpSearchResultDto result = mcpSearchService.unifiedSearch("Tomato");
 
@@ -70,7 +70,7 @@ class McpSearchServiceTest {
     @Test
     void unifiedSearch_WhenNoMatches_ShouldReturnEmptyLists() {
         when(productRepository.findAll()).thenReturn(Arrays.asList(testProduct));
-        when(recipeRepository.findAll()).thenReturn(Arrays.asList(testRecipe));
+        when(recipeRepository.findAllWithAllergens()).thenReturn(Arrays.asList(testRecipe));
 
         McpSearchResultDto result = mcpSearchService.unifiedSearch("Cucumber");
 

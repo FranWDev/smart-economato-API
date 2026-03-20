@@ -11,6 +11,7 @@ import com.economato.inventory.application.dto.event.RecipeCookingAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeCookingAuditEvent.DailyConsumption;
 import com.economato.inventory.application.dto.request.RecipeCookingRequestDTO;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO;
+import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO.DailyConsumptionDTO;
 import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.application.usecase.StockLedgerService;
 import com.economato.inventory.domain.model.Recipe;
@@ -164,25 +165,26 @@ public class RecipeCookingAuditAspect {
 
         Map<Integer, List<DailyConsumption>> result = new HashMap<>();
 
-        for (var comp : recipe.getComponents()) {
-            Integer productId = comp.getProduct().getId();
-            try {
-                ProductConsumptionResponseDTO dto =
-                        stockLedgerService.getProductConsumption(productId, start, end);
+        List<Integer> productIds = recipe.getComponents().stream()
+                .map(comp -> comp.getProduct().getId())
+                .collect(Collectors.toList());
 
-                int entriesCount = (dto.getBreakdown() != null) ? dto.getBreakdown().size() : 0;
-                log.info("Historial para producto {}: {} entradas encontradas", productId, entriesCount);
+        Map<Integer, List<DailyConsumptionDTO>> batchResults;
+        try {
+            batchResults = stockLedgerService.getDailyConsumptionBatch(productIds, start, end);
+        } catch (Exception e) {
+            log.error("Error al obtener historial de consumo en lote: {}", e.getMessage());
+            batchResults = Collections.emptyMap();
+        }
 
-                List<DailyConsumption> history = dto.getBreakdown() == null
-                        ? Collections.emptyList()
-                        : dto.getBreakdown().stream()
-                                .map(d -> new DailyConsumption(d.getDate(), d.getConsumed()))
-                                .collect(Collectors.toList());
-
+        for (Integer productId : productIds) {
+            List<DailyConsumptionDTO> breakdown = batchResults.get(productId);
+            if (breakdown != null) {
+                List<DailyConsumption> history = breakdown.stream()
+                        .map(d -> new DailyConsumption(d.getDate(), d.getConsumed()))
+                        .collect(Collectors.toList());
                 result.put(productId, history);
-            } catch (Exception e) {
-                log.warn("No se pudo obtener historial para producto {}: {}",
-                        productId, e.getMessage());
+            } else {
                 result.put(productId, Collections.emptyList());
             }
         }

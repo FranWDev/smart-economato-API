@@ -56,7 +56,7 @@ public class OrderDetailService {
 
         @Transactional(readOnly = true)
         public Optional<OrderDetailResponseDTO> findById(Integer orderId, Integer productId) {
-                return repository.findProjectedById(orderId, productId)
+                return repository.findProjectedByIdOrderIdAndIdProductId(orderId, productId)
                                 .map(orderDetailMapper::toResponseDTO);
         }
 
@@ -78,7 +78,7 @@ public class OrderDetailService {
 
                 repository.save(orderDetail);
 
-                return repository.findProjectedById(orderDetail.getOrder().getId(), orderDetail.getProduct().getId())
+                return repository.findProjectedByIdOrderIdAndIdProductId(orderDetail.getOrder().getId(), orderDetail.getProduct().getId())
                                 .map(orderDetailMapper::toResponseDTO)
                                 .orElseThrow(() -> new RuntimeException(
                                                 i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
@@ -93,7 +93,7 @@ public class OrderDetailService {
                                         orderDetailMapper.updateEntityFromDto(requestDTO, existing);
                                         repository.save(existing);
 
-                                        return repository.findProjectedById(orderId, productId)
+                                        return repository.findProjectedByIdOrderIdAndIdProductId(orderId, productId)
                                                         .map(orderDetailMapper::toResponseDTO)
                                                         .orElseThrow(() -> new RuntimeException(
                                                                         "Updated detail not found"));
@@ -113,7 +113,7 @@ public class OrderDetailService {
 
         @Transactional(readOnly = true)
         public List<OrderDetailResponseDTO> findByOrderId(Integer orderId) {
-                return repository.findProjectedByOrderId(orderId).stream()
+                return repository.findProjectedByIdOrderId(orderId).stream()
                                 .map(orderDetailMapper::toResponseDTO)
                                 .toList();
         }
@@ -125,7 +125,7 @@ public class OrderDetailService {
 
         @Transactional(readOnly = true)
         public List<OrderDetailResponseDTO> findByProductId(Integer productId) {
-                return repository.findProjectedByProductId(productId).stream()
+                return repository.findProjectedByIdProductId(productId).stream()
                                 .map(orderDetailMapper::toResponseDTO)
                                 .toList();
         }

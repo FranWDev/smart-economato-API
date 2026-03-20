@@ -39,7 +39,7 @@ public class McpSearchService {
                 .map(this::mapToProductDto)
                 .collect(Collectors.toList());
 
-        List<McpRecipeDto> recipes = recipeRepository.findAll().stream()
+        List<McpRecipeDto> recipes = recipeRepository.findAllWithAllergens().stream()
                 .filter(r -> r.getName().toLowerCase().contains(query.toLowerCase()))
                 .limit(10)
                 .map(this::mapToRecipeDto)

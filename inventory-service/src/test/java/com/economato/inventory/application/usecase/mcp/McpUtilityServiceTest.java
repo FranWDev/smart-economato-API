@@ -74,7 +74,7 @@ class McpUtilityServiceTest {
     void getSystemContext_ShouldReturnAggregatedStats() {
         when(productRepository.count()).thenReturn(10L);
         when(productRepository.findAll()).thenReturn(Arrays.asList(testProduct));
-        when(orderRepository.findAll()).thenReturn(Arrays.asList(testOrder));
+        when(orderRepository.findByStatusInWithDetails(any())).thenReturn(Arrays.asList(testOrder));
         when(recipeRepository.count()).thenReturn(5L);
 
         McpSystemContextDto result = mcpUtilityService.getSystemContext();
