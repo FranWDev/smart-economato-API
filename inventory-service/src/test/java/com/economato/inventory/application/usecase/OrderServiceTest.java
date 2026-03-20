@@ -219,7 +219,7 @@ class OrderServiceTest {
     void save_WhenValidOrder_ShouldCreateOrder() {
 
         when(userRepository.findById(1)).thenReturn(Optional.of(testUser));
-        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         when(repository.save(any(Order.class))).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
 
@@ -227,7 +227,7 @@ class OrderServiceTest {
 
         assertNotNull(result);
         verify(userRepository).findById(1);
-        verify(productRepository).findById(1);
+        verify(productRepository).findAllById(any());
         verify(repository).save(any(Order.class));
     }
 
@@ -247,12 +247,12 @@ class OrderServiceTest {
     void save_WhenProductNotFound_ShouldThrowException() {
 
         when(userRepository.findById(1)).thenReturn(Optional.of(testUser));
-        when(productRepository.findById(1)).thenReturn(Optional.empty());
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList());
 
         assertThrows(ResourceNotFoundException.class, () -> {
             orderService.save(testOrderRequestDTO);
         });
-        verify(productRepository).findById(1);
+        verify(productRepository).findAllById(any());
         verify(repository, never()).save(any(Order.class));
     }
 
@@ -261,7 +261,7 @@ class OrderServiceTest {
 
         when(repository.findById(1)).thenReturn(Optional.of(testOrder));
         when(userRepository.findById(1)).thenReturn(Optional.of(testUser));
-        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         when(repository.saveAndFlush(any(Order.class))).thenReturn(testOrder);
         when(repository.save(any(Order.class))).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
@@ -576,7 +576,7 @@ class OrderServiceTest {
         testOrder.setVersion(1L);
         when(repository.findById(1)).thenReturn(Optional.of(testOrder));
         when(userRepository.findById(1)).thenReturn(Optional.of(testUser));
-        when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         when(repository.saveAndFlush(any(Order.class))).thenReturn(testOrder);
         when(repository.save(any(Order.class))).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(any(Order.class))).thenReturn(testOrderResponseDTO);

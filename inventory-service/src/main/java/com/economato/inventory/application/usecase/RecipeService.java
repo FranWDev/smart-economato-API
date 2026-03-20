@@ -39,7 +39,9 @@ import com.economato.inventory.infrastructure.config.security.SecurityContextHel
 import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -201,13 +203,20 @@ public class RecipeService {
                     .map(RecipeComponentRequestDTO::getProductId)
                     .collect(Collectors.toSet());
 
+            Map<Integer, Product> productsById = productRepository.findAllById(requestedProductIds).stream()
+                    .collect(Collectors.toMap(Product::getId, p -> p));
+            if (productsById.size() != requestedProductIds.size()) {
+                Set<Integer> missingIds = new HashSet<>(requestedProductIds);
+                missingIds.removeAll(productsById.keySet());
+                throw new ResourceNotFoundException(
+                        i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND,
+                                new Object[] { missingIds.iterator().next() }));
+            }
+
             recipe.getComponents().removeIf(existing -> !requestedProductIds.contains(existing.getProduct().getId()));
 
             for (RecipeComponentRequestDTO componentDTO : mergedComponents) {
-                Product product = productRepository.findById(componentDTO.getProductId())
-                        .orElseThrow(() -> new ResourceNotFoundException(
-                                i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND,
-                                        new Object[] { componentDTO.getProductId() })));
+                Product product = productsById.get(componentDTO.getProductId());
 
                 RecipeComponent existingComponent = recipe.getComponents().stream()
                         .filter(c -> c.getProduct().getId().equals(componentDTO.getProductId()))
@@ -215,10 +224,8 @@ public class RecipeService {
                         .orElse(null);
 
                 if (existingComponent != null) {
-
                     existingComponent.setQuantity(componentDTO.getQuantity());
                 } else {
-
                     RecipeComponent newComponent = new RecipeComponent();
                     newComponent.setProduct(product);
                     newComponent.setQuantity(componentDTO.getQuantity());
@@ -291,11 +298,18 @@ public class RecipeService {
 
         User currentUser = securityContextHelper.getCurrentUser();
 
+        List<Integer> componentProductIds = recipe.getComponents().stream()
+                .map(c -> c.getProduct().getId())
+                .toList();
+        Map<Integer, Product> productsById = productRepository.findAllById(componentProductIds).stream()
+                .collect(Collectors.toMap(Product::getId, p -> p));
+        if (productsById.size() != componentProductIds.size()) {
+            throw new ResourceNotFoundException(
+                    i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND, new Object[] { "multiple" }));
+        }
+
         for (RecipeComponent component : recipe.getComponents()) {
-            Product product = productRepository.findById(component.getProduct().getId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND,
-                                    new Object[] { component.getProduct().getId() })));
+            Product product = productsById.get(component.getProduct().getId());
 
             BigDecimal requiredQuantity = component.getQuantity().multiply(cookingRequest.getQuantity());
 

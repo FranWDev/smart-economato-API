@@ -2,9 +2,11 @@ package com.economato.inventory.application.usecase;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -107,11 +109,18 @@ public class OrderService {
                         order.setSupplier(supplier);
                 }
 
-                for (OrderDetailRequestDTO detailDTO : requestDTO.getDetails()) {
-                        Product product = productRepository.findById(detailDTO.getProductId())
-                                        .orElseThrow(() -> new ResourceNotFoundException(
-                                                        i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND)));
+                List<Integer> productIds = requestDTO.getDetails().stream()
+                                .map(OrderDetailRequestDTO::getProductId)
+                                .toList();
+                Map<Integer, Product> productsById = productRepository.findAllById(productIds).stream()
+                                .collect(Collectors.toMap(Product::getId, p -> p));
+                if (productsById.size() != new HashSet<>(productIds).size()) {
+                        throw new ResourceNotFoundException(
+                                        i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND));
+                }
 
+                for (OrderDetailRequestDTO detailDTO : requestDTO.getDetails()) {
+                        Product product = productsById.get(detailDTO.getProductId());
                         OrderDetail detail = new OrderDetail();
                         detail.setOrder(order);
                         detail.setProduct(product);
@@ -157,11 +166,20 @@ public class OrderService {
 
                                         repository.saveAndFlush(existing);
 
+                                        List<Integer> productIds = requestDTO.getDetails().stream()
+                                                        .map(OrderDetailRequestDTO::getProductId)
+                                                        .toList();
+                                        Map<Integer, Product> productsById = productRepository.findAllById(productIds)
+                                                        .stream()
+                                                        .collect(Collectors.toMap(Product::getId, p -> p));
+                                        if (productsById.size() != new HashSet<>(productIds).size()) {
+                                                throw new ResourceNotFoundException(
+                                                                i18nService.getMessage(
+                                                                                MessageKey.ERROR_PRODUCT_NOT_FOUND));
+                                        }
+
                                         for (OrderDetailRequestDTO detailDTO : requestDTO.getDetails()) {
-                                                Product product = productRepository.findById(detailDTO.getProductId())
-                                                                .orElseThrow(() -> new ResourceNotFoundException(
-                                                                                i18nService.getMessage(
-                                                                                                MessageKey.ERROR_PRODUCT_NOT_FOUND)));
+                                                Product product = productsById.get(detailDTO.getProductId());
 
                                                 OrderDetail detail = new OrderDetail();
                                                 detail.setOrder(existing);
