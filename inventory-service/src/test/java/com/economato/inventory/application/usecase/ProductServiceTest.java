@@ -372,7 +372,7 @@ class ProductServiceTest {
     @Test
     void update_WhenProductExists_ShouldUpdateProduct() {
 
-        when(repository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(repository.findByIdWithSupplier(1)).thenReturn(Optional.of(testProduct));
         when(repository.save(testProduct)).thenReturn(testProduct);
         when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
         doNothing().when(productMapper).updateEntity(testProductRequestDTO, testProduct);
@@ -381,7 +381,7 @@ class ProductServiceTest {
 
         assertTrue(result.isPresent());
         assertEquals(testProductResponseDTO.getName(), result.get().getName());
-        verify(repository).findById(1);
+        verify(repository).findByIdWithSupplier(1);
         verify(productMapper).updateEntity(testProductRequestDTO, testProduct);
         verify(repository).save(testProduct);
     }
@@ -390,13 +390,13 @@ class ProductServiceTest {
     void update_WhenNameExists_ShouldThrowException() {
         testProduct.setName("Old Name");
         testProductRequestDTO.setName("New Name");
-        when(repository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(repository.findByIdWithSupplier(1)).thenReturn(Optional.of(testProduct));
         when(repository.existsByName("New Name")).thenReturn(true);
 
         assertThrows(InvalidOperationException.class, () -> {
             productService.update(1, testProductRequestDTO);
         });
-        verify(repository).findById(1);
+        verify(repository).findByIdWithSupplier(1);
         verify(repository).existsByName("New Name");
         verify(repository, never()).save(any(Product.class));
     }
@@ -405,13 +405,13 @@ class ProductServiceTest {
     void update_WhenProductCodeExists_ShouldThrowException() {
         testProduct.setProductCode("OLDCODE");
         testProductRequestDTO.setProductCode("NEWCODE");
-        when(repository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(repository.findByIdWithSupplier(1)).thenReturn(Optional.of(testProduct));
         when(repository.existsByProductCode("NEWCODE")).thenReturn(true);
 
         assertThrows(InvalidOperationException.class, () -> {
             productService.update(1, testProductRequestDTO);
         });
-        verify(repository).findById(1);
+        verify(repository).findByIdWithSupplier(1);
         verify(repository).existsByProductCode("NEWCODE");
         verify(repository, never()).save(any(Product.class));
     }
@@ -419,26 +419,26 @@ class ProductServiceTest {
     @Test
     void update_WhenOptimisticLockingFails_ShouldThrowConcurrencyException() {
 
-        when(repository.findById(1)).thenReturn(Optional.of(testProduct));
+        when(repository.findByIdWithSupplier(1)).thenReturn(Optional.of(testProduct));
         doNothing().when(productMapper).updateEntity(testProductRequestDTO, testProduct);
         when(repository.save(testProduct)).thenThrow(new OptimisticLockingFailureException("Lock failure"));
 
         assertThrows(ConcurrencyException.class, () -> {
             productService.update(1, testProductRequestDTO);
         });
-        verify(repository).findById(1);
+        verify(repository).findByIdWithSupplier(1);
         verify(repository).save(testProduct);
     }
 
     @Test
     void update_WhenProductDoesNotExist_ShouldReturnEmpty() {
 
-        when(repository.findById(999)).thenReturn(Optional.empty());
+        when(repository.findByIdWithSupplier(999)).thenReturn(Optional.empty());
 
         Optional<ProductResponseDTO> result = productService.update(999, testProductRequestDTO);
 
         assertFalse(result.isPresent());
-        verify(repository).findById(999);
+        verify(repository).findByIdWithSupplier(999);
         verify(repository, never()).save(any(Product.class));
     }
 
@@ -571,7 +571,7 @@ class ProductServiceTest {
         updatedProduct.setId(1);
         updatedProduct.setCurrentStock(new BigDecimal("50.0"));
 
-        lenient().when(repository.findById(1)).thenReturn(Optional.of(testProduct), Optional.of(updatedProduct));
+        lenient().when(repository.findByIdWithSupplier(1)).thenReturn(Optional.of(testProduct), Optional.of(updatedProduct));
         lenient().when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
         lenient().when(userRepository.findByName(anyString())).thenReturn(Optional.empty());
         lenient().when(productMapper.toResponseDTO(any(Product.class))).thenReturn(testProductResponseDTO);
@@ -593,7 +593,7 @@ class ProductServiceTest {
         updatedProduct.setId(1);
         updatedProduct.setCurrentStock(new BigDecimal("60.0"));
 
-        lenient().when(repository.findById(1)).thenReturn(Optional.of(testProduct), Optional.of(updatedProduct));
+        lenient().when(repository.findByIdWithSupplier(1)).thenReturn(Optional.of(testProduct), Optional.of(updatedProduct));
         lenient().when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
         lenient().when(userRepository.findByName(anyString())).thenReturn(Optional.empty());
         lenient().when(productMapper.toResponseDTO(any(Product.class))).thenReturn(testProductResponseDTO);
@@ -610,7 +610,7 @@ class ProductServiceTest {
 
         testProductRequestDTO.setCurrentStock(new BigDecimal("10.0"));
 
-        lenient().when(repository.findById(1)).thenReturn(Optional.of(testProduct));
+        lenient().when(repository.findByIdWithSupplier(1)).thenReturn(Optional.of(testProduct));
         lenient().when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
         lenient().when(repository.save(any(Product.class))).thenReturn(testProduct);
         lenient().when(productMapper.toResponseDTO(any(Product.class))).thenReturn(testProductResponseDTO);
@@ -622,12 +622,12 @@ class ProductServiceTest {
 
     @Test
     void updateStockManually_WhenProductDoesNotExist_ShouldReturnEmpty() {
-        when(repository.findById(999)).thenReturn(Optional.empty());
+        when(repository.findByIdWithSupplier(999)).thenReturn(Optional.empty());
 
         Optional<ProductResponseDTO> result = productService.updateStockManually(999, testProductRequestDTO);
 
         assertFalse(result.isPresent());
-        verify(repository).findById(999);
+        verify(repository).findByIdWithSupplier(999);
         verify(repository, never()).save(any(Product.class));
     }
 
@@ -636,7 +636,7 @@ class ProductServiceTest {
         testProduct.setCurrentStock(new BigDecimal("10.0"));
         testProductRequestDTO.setCurrentStock(new BigDecimal("10.0")); // Sin cambio de stock
 
-        lenient().when(repository.findById(1)).thenReturn(Optional.of(testProduct));
+        lenient().when(repository.findByIdWithSupplier(1)).thenReturn(Optional.of(testProduct));
         lenient().when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
         lenient().when(repository.save(any(Product.class)))
                 .thenThrow(new OptimisticLockingFailureException("Lock failure"));

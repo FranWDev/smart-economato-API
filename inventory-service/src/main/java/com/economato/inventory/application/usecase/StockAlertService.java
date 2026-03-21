@@ -230,13 +230,22 @@ public class StockAlertService {
             persistedPredictions.keySet().retainAll(filterIds);
         }
 
+        Map<Integer, Product> productsById = buildProductMap();
         if (persistedPredictions.isEmpty()) {
-            return mergeExpirationAlerts(List.of(), filterIds);
+            return mergeExpirationAlerts(List.of(), filterIds, productsById);
         }
 
         Map<Integer, BigDecimal> pendingByProduct = buildPendingMap();
-        Map<Integer, Product> productsById = buildProductMap();
         Map<Integer, List<ProductBatch>> activeBatchesByProduct = buildActiveBatchesMap();
+
+        List<Integer> productIdsToProcess = new ArrayList<>(persistedPredictions.keySet());
+        List<Object[]> topRecipesData = cookingAuditRepository.findTopConsumingRecipesByProducts(productIdsToProcess, since);
+        Map<Integer, List<String>> topRecipesByProduct = new HashMap<>();
+        for (Object[] row : topRecipesData) {
+            Integer pId = (Integer) row[0];
+            String rName = (String) row[1];
+            topRecipesByProduct.computeIfAbsent(pId, k -> new ArrayList<>()).add(rName);
+        }
 
         List<StockAlertDTO> alerts = new ArrayList<>();
         for (Map.Entry<Integer, BigDecimal> entry : persistedPredictions.entrySet()) {
@@ -249,16 +258,19 @@ public class StockAlertService {
             BigDecimal currentStock = product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO;
             BigDecimal pending = pendingByProduct.getOrDefault(productId, BigDecimal.ZERO);
 
-            StockAlertDTO alert = buildAlert(productId, currentStock, pending, projected, since, activeBatchesByProduct, productsById);
+            List<String> topRecipes = topRecipesByProduct.getOrDefault(productId, List.of());
+            if (topRecipes.size() > 3) topRecipes = topRecipes.subList(0, 3);
+
+            StockAlertDTO alert = buildAlert(productId, currentStock, pending, projected, activeBatchesByProduct, productsById, topRecipes);
             if (alert != null) {
                 alerts.add(alert);
             }
         }
 
-            return mergeExpirationAlerts(alerts, filterIds);
+            return mergeExpirationAlerts(alerts, filterIds, productsById);
     }
 
-            private List<StockAlertDTO> mergeExpirationAlerts(List<StockAlertDTO> baseAlerts, Set<Integer> filterIds) {
+            private List<StockAlertDTO> mergeExpirationAlerts(List<StockAlertDTO> baseAlerts, Set<Integer> filterIds, Map<Integer, Product> productsById) {
             List<ProductBatch> expiringBatches = productBatchService.getExpiringBatches(7);
             if (filterIds != null && !filterIds.isEmpty()) {
                 expiringBatches = expiringBatches.stream()
@@ -304,7 +316,7 @@ public class StockAlertService {
 
                 StockAlertDTO existing = alertsByProduct.get(productId);
                 if (existing == null) {
-                Product product = productRepository.findById(productId).orElse(null);
+                Product product = productsById.get(productId);
                 if (product == null) {
                     continue;
                 }
@@ -521,9 +533,9 @@ public class StockAlertService {
             BigDecimal currentStock,
             BigDecimal pending,
             BigDecimal projected,
-            LocalDateTime since,
             Map<Integer, List<ProductBatch>> activeBatchesByProduct,
-            Map<Integer, Product> productsById) {
+            Map<Integer, Product> productsById,
+            List<String> topRecipes) {
 
         Product product = productsById.get(productId);
         if (product == null)
@@ -553,8 +565,6 @@ public class StockAlertService {
         String message = buildMessage(product.getName(), currentStock, pending, projected, gap,
                 resolution, product.getUnit());
 
-        List<String> topRecipes = cookingAuditRepository
-                .findTopConsumingRecipesByProduct(productId, since);
 
         return StockAlertDTO.builder()
                 .productId(productId)
@@ -698,8 +708,7 @@ public class StockAlertService {
     }
 
     private Map<Integer, Product> buildProductMap() {
-        return productRepository.findAll().stream()
-                .filter(p -> !p.isHidden())
+        return productRepository.findAllActive().stream()
                 .collect(Collectors.toMap(Product::getId, p -> p));
     }
 

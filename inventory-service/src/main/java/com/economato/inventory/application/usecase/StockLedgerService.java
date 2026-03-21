@@ -1116,6 +1116,49 @@ public class StockLedgerService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public Map<Integer, ProductConsumptionResponseDTO> getProductConsumptionBatch(List<Integer> productIds, LocalDateTime startDate,
+            LocalDateTime endDate) {
+        if (productIds.isEmpty()) return Collections.emptyMap();
+        
+        if (startDate.isAfter(endDate)) {
+            throw new InvalidOperationException(
+                    i18nService.getMessage(MessageKey.ERROR_CONSUMPTION_INVALID_DATE_RANGE));
+        }
+
+        Map<Integer, Product> products = productRepository.findAllById(productIds).stream()
+                .collect(Collectors.toMap(Product::getId, p -> p));
+
+        List<Object[]> results = ledgerRepository.getConsumptionByProductIdsAndDateRange(productIds, startDate, endDate);
+
+        Map<Integer, List<ProductConsumptionResponseDTO.DailyConsumptionDTO>> breakdownByProduct = new java.util.HashMap<>();
+        for (Object[] row : results) {
+            Integer productId = (Integer) row[0];
+            java.sql.Date sqlDate = (java.sql.Date) row[1];
+            BigDecimal consumed = (BigDecimal) row[2];
+            
+            breakdownByProduct.computeIfAbsent(productId, k -> new ArrayList<>())
+                    .add(new ProductConsumptionResponseDTO.DailyConsumptionDTO(sqlDate.toLocalDate(), consumed));
+        }
+
+        return productIds.stream()
+                .filter(products::containsKey)
+                .collect(Collectors.toMap(
+                        id -> id,
+                        id -> {
+                            Product p = products.get(id);
+                            return ProductConsumptionResponseDTO.builder()
+                                    .productId(id)
+                                    .productName(p.getName())
+                                    .breakdown(breakdownByProduct.getOrDefault(id, Collections.emptyList()))
+                                    .unit(p.getUnit())
+                                    .startDate(startDate)
+                                    .endDate(endDate)
+                                    .build();
+                        }
+                ));
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public void withdrawExpiredBatch(Long batchId) {
         User user = securityContextHelper.getCurrentUser();

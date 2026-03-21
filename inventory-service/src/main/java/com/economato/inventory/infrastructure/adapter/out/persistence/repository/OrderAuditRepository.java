@@ -12,7 +12,13 @@ import org.springframework.data.repository.query.Param;
 import com.economato.inventory.application.dto.projection.OrderAuditProjection;
 import com.economato.inventory.domain.model.OrderAudit;
 
+import org.springframework.data.jpa.repository.EntityGraph;
+import java.util.Optional;
+
 public interface OrderAuditRepository extends JpaRepository<OrderAudit, Integer> {
+
+       @EntityGraph(attributePaths = {"user", "order"})
+       Optional<OrderAudit> findById(Integer id);
 
        List<OrderAudit> findByOrderId(Integer id);
 

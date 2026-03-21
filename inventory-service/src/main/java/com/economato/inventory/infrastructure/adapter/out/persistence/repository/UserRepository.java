@@ -14,8 +14,11 @@ import com.economato.inventory.domain.model.User;
 import java.util.Optional;
 import java.util.List;
 
+import org.springframework.data.jpa.repository.EntityGraph;
+
 public interface UserRepository extends JpaRepository<User, Integer> {
 
+    @EntityGraph(attributePaths = {"teacher"})
     Optional<User> findByName(String username);
 
     Optional<User> findByUser(String user);

@@ -16,4 +16,7 @@ public interface CrisisAffectedProductRepository extends JpaRepository<CrisisAff
 
     @Query("SELECT cap FROM CrisisAffectedProduct cap JOIN FETCH cap.product WHERE cap.foodCrisis.id IN :crisisIds")
     List<CrisisAffectedProduct> findByFoodCrisisIdIn(@Param("crisisIds") Collection<Long> crisisIds);
+
+    @Query("SELECT cap FROM CrisisAffectedProduct cap JOIN FETCH cap.product WHERE cap.foodCrisis.id = :crisisId")
+    List<CrisisAffectedProduct> findByFoodCrisisIdWithProduct(@Param("crisisId") Long crisisId);
 }

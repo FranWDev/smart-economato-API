@@ -40,6 +40,7 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                      "LEFT JOIN FETCH o.details d " +
                      "LEFT JOIN FETCH d.product " +
                      "LEFT JOIN FETCH o.user " +
+                     "LEFT JOIN FETCH o.supplier " +
                      "WHERE o.id = :id")
        Optional<Order> findByIdWithDetails(@Param("id") Integer id);
 
@@ -55,13 +56,15 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
        @Query("SELECT DISTINCT o FROM Order o " +
                      "LEFT JOIN FETCH o.details d " +
                      "LEFT JOIN FETCH d.product " +
-                     "LEFT JOIN FETCH o.user")
+                     "LEFT JOIN FETCH o.user " +
+                     "LEFT JOIN FETCH o.supplier")
        List<Order> findAllWithDetails();
 
        @Query("SELECT DISTINCT o FROM Order o " +
                      "LEFT JOIN FETCH o.details d " +
                      "LEFT JOIN FETCH d.product " +
                      "LEFT JOIN FETCH o.user " +
+                     "LEFT JOIN FETCH o.supplier " +
                      "WHERE o.status = :status")
        List<Order> findByStatusWithDetails(@Param("status") OrderStatus status);
 
@@ -69,6 +72,7 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                      "LEFT JOIN FETCH o.details d " +
                      "LEFT JOIN FETCH d.product " +
                      "LEFT JOIN FETCH o.user u " +
+                     "LEFT JOIN FETCH o.supplier " +
                      "WHERE u.id = :userId")
        List<Order> findByUserIdWithDetails(@Param("userId") Integer userId);
 
@@ -76,33 +80,34 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                      "LEFT JOIN FETCH o.details d " +
                      "LEFT JOIN FETCH d.product " +
                      "LEFT JOIN FETCH o.user " +
+                     "LEFT JOIN FETCH o.supplier " +
                      "WHERE o.orderDate BETWEEN :start AND :end")
        List<Order> findByOrderDateBetweenWithDetails(
                      @Param("start") LocalDateTime start,
                      @Param("end") LocalDateTime end);
 
-       @EntityGraph(attributePaths = { "details", "details.product", "user" })
+       @EntityGraph(attributePaths = { "details", "details.product", "user", "supplier" })
        @Query("SELECT o FROM Order o WHERE o.status = :status")
        Page<Order> findByStatusWithDetailsPageable(@Param("status") OrderStatus status, Pageable pageable);
 
-       @EntityGraph(attributePaths = { "details", "details.product", "user" })
+       @EntityGraph(attributePaths = { "details", "details.product", "user", "supplier" })
        Page<Order> findAll(Pageable pageable);
 
        // --- Proyecciones ---
 
-       @EntityGraph(attributePaths = { "details", "details.product", "user" })
+       @EntityGraph(attributePaths = { "details", "details.product", "user", "supplier" })
        Page<OrderProjection> findAllProjectedBy(Pageable pageable);
 
-       @EntityGraph(attributePaths = { "details", "details.product", "user" })
+       @EntityGraph(attributePaths = { "details", "details.product", "user", "supplier" })
        Optional<OrderProjection> findProjectedById(Integer id);
 
-       @EntityGraph(attributePaths = { "details", "details.product", "user" })
+       @EntityGraph(attributePaths = { "details", "details.product", "user", "supplier" })
        Page<OrderProjection> findProjectedByStatus(OrderStatus status, Pageable pageable);
 
-       @EntityGraph(attributePaths = { "details", "details.product", "user" })
+       @EntityGraph(attributePaths = { "details", "details.product", "user", "supplier" })
        List<OrderProjection> findProjectedByUserId(Integer userId);
 
-       @EntityGraph(attributePaths = { "details", "details.product", "user" })
+       @EntityGraph(attributePaths = { "details", "details.product", "user", "supplier" })
        List<OrderProjection> findProjectedByOrderDateBetween(LocalDateTime start, LocalDateTime end);
 
        @EntityGraph(attributePaths = { "details", "details.product", "user", "supplier" })

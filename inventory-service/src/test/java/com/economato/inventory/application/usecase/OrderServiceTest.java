@@ -263,7 +263,7 @@ class OrderServiceTest {
     @Test
     void update_WhenOrderExists_ShouldUpdateOrder() {
 
-        when(repository.findById(1)).thenReturn(Optional.of(testOrder));
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
         when(userRepository.findById(1)).thenReturn(Optional.of(testUser));
         when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         when(repository.saveAndFlush(any(Order.class))).thenReturn(testOrder);
@@ -273,19 +273,19 @@ class OrderServiceTest {
         Optional<OrderResponseDTO> result = orderService.update(1, testOrderRequestDTO);
 
         assertTrue(result.isPresent());
-        verify(repository).findById(1);
+        verify(repository).findByIdWithDetails(1);
         verify(repository).save(any(Order.class));
     }
 
     @Test
     void update_WhenOrderDoesNotExist_ShouldReturnEmpty() {
 
-        when(repository.findById(999)).thenReturn(Optional.empty());
+        when(repository.findByIdWithDetails(999)).thenReturn(Optional.empty());
 
         Optional<OrderResponseDTO> result = orderService.update(999, testOrderRequestDTO);
 
         assertFalse(result.isPresent());
-        verify(repository).findById(999);
+        verify(repository).findByIdWithDetails(999);
         verify(repository, never()).save(any(Order.class));
     }
 
@@ -511,14 +511,14 @@ class OrderServiceTest {
     @Test
     void updateStatus_WhenValidStatus_ShouldUpdateOrder() {
 
-        when(repository.findById(1)).thenReturn(Optional.of(testOrder));
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
         when(repository.save(testOrder)).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
 
         Optional<OrderResponseDTO> result = orderService.updateStatus(1, OrderStatus.CONFIRMED);
 
         assertTrue(result.isPresent());
-        verify(repository).findById(1);
+        verify(repository).findByIdWithDetails(1);
         verify(repository).save(testOrder);
     }
 
@@ -534,7 +534,7 @@ class OrderServiceTest {
     void updateStatus_WithAllValidStatuses_ShouldSucceed() {
 
         for (OrderStatus status : OrderStatus.values()) {
-            when(repository.findById(1)).thenReturn(Optional.of(testOrder));
+            when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
             when(repository.save(testOrder)).thenReturn(testOrder);
             when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
 
@@ -549,12 +549,12 @@ class OrderServiceTest {
     @Test
     void updateStatus_WhenOrderDoesNotExist_ShouldReturnEmpty() {
 
-        when(repository.findById(999)).thenReturn(Optional.empty());
+        when(repository.findByIdWithDetails(999)).thenReturn(Optional.empty());
 
         Optional<OrderResponseDTO> result = orderService.updateStatus(999, OrderStatus.CANCELLED);
 
         assertFalse(result.isPresent());
-        verify(repository).findById(999);
+        verify(repository).findByIdWithDetails(999);
         verify(repository, never()).save(any(Order.class));
     }
 
@@ -562,7 +562,7 @@ class OrderServiceTest {
     void updateStatus_WithVersion_ShouldUseOptimisticLocking() {
 
         testOrder.setVersion(1L);
-        when(repository.findById(1)).thenReturn(Optional.of(testOrder));
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
         when(repository.save(testOrder)).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
 
@@ -570,7 +570,7 @@ class OrderServiceTest {
 
         assertTrue(result.isPresent());
         assertNotNull(testOrder.getVersion());
-        verify(repository).findById(1);
+        verify(repository).findByIdWithDetails(1);
         verify(repository).save(testOrder);
     }
 
@@ -578,7 +578,7 @@ class OrderServiceTest {
     void update_WithVersion_ShouldUseOptimisticLocking() {
 
         testOrder.setVersion(1L);
-        when(repository.findById(1)).thenReturn(Optional.of(testOrder));
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
         when(userRepository.findById(1)).thenReturn(Optional.of(testUser));
         when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         when(repository.saveAndFlush(any(Order.class))).thenReturn(testOrder);
@@ -589,7 +589,7 @@ class OrderServiceTest {
 
         assertTrue(result.isPresent());
         assertNotNull(testOrder.getVersion());
-        verify(repository).findById(1);
+        verify(repository).findByIdWithDetails(1);
     }
 
     @Test

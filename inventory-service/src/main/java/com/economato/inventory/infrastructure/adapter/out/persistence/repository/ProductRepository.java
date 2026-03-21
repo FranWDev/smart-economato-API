@@ -24,6 +24,9 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
         boolean existsByName(String name);
         boolean existsByProductCode(String productCode);
 
+        @Query("SELECT p FROM Product p WHERE p.isHidden = false")
+        List<Product> findAllActive();
+
         List<Product> findByType(String type);
 
         List<Product> findByNameContainingIgnoreCase(String namePart);
@@ -42,6 +45,9 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
         @Lock(LockModeType.PESSIMISTIC_WRITE)
         @Query("SELECT p FROM Product p WHERE p.id = :id")
         Optional<Product> findByIdForUpdate(@Param("id") Integer id);
+
+        @Query("SELECT p FROM Product p LEFT JOIN FETCH p.supplier WHERE p.id = :id")
+        Optional<Product> findByIdWithSupplier(@Param("id") Integer id);
 
         @Lock(LockModeType.PESSIMISTIC_WRITE)
         @Query("SELECT p FROM Product p WHERE p.id IN :ids")
@@ -81,11 +87,11 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
         List<ProductProjection> findByUnitPriceBetweenAndIsHiddenFalse(BigDecimal min,
                         BigDecimal max);
 
-        @Query("SELECT p FROM Product p WHERE p.isHidden = false " +
+        @Query("SELECT p FROM Product p LEFT JOIN FETCH p.supplier WHERE p.isHidden = false " +
                         "AND EXISTS (SELECT 1 FROM StockLedger l WHERE l.product.id = p.id)")
         Page<Product> findProductsWithLedger(Pageable pageable);
 
-        @Query("SELECT p FROM Product p WHERE p.isHidden = false " +
+        @Query("SELECT p FROM Product p LEFT JOIN FETCH p.supplier WHERE p.isHidden = false " +
                         "AND EXISTS (SELECT 1 FROM StockLedger l WHERE l.product.id = p.id) " +
                         "AND LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))")
         Page<Product> findProductsWithLedgerByName(@Param("name") String name, Pageable pageable);

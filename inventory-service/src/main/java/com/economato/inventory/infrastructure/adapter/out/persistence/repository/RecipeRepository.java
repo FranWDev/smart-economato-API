@@ -16,6 +16,7 @@ import java.util.Optional;
 
 public interface RecipeRepository extends JpaRepository<Recipe, Integer> {
 
+        @EntityGraph(attributePaths = { "components", "components.product", "allergens" })
         Optional<Recipe> findByName(String name);
 
         List<Recipe> findByNameContainingIgnoreCase(String namePart);
@@ -36,23 +37,27 @@ public interface RecipeRepository extends JpaRepository<Recipe, Integer> {
         @Query("SELECT DISTINCT r FROM Recipe r " +
                         "LEFT JOIN FETCH r.components c " +
                         "LEFT JOIN FETCH c.product " +
+                        "LEFT JOIN FETCH r.allergens " +
                         "WHERE r.id = :id")
         Optional<Recipe> findByIdWithDetails(@Param("id") Integer id);
 
         @Query("SELECT DISTINCT r FROM Recipe r " +
                         "LEFT JOIN FETCH r.components c " +
-                        "LEFT JOIN FETCH c.product")
+                        "LEFT JOIN FETCH c.product " +
+                        "LEFT JOIN FETCH r.allergens")
         List<Recipe> findAllWithDetails();
 
         @Query("SELECT DISTINCT r FROM Recipe r " +
                         "LEFT JOIN FETCH r.components c " +
                         "LEFT JOIN FETCH c.product " +
+                        "LEFT JOIN FETCH r.allergens " +
                         "WHERE LOWER(r.name) LIKE LOWER(CONCAT('%', :namePart, '%'))")
         List<Recipe> findByNameContainingIgnoreCaseWithDetails(@Param("namePart") String namePart);
 
         @Query("SELECT DISTINCT r FROM Recipe r " +
                         "LEFT JOIN FETCH r.components c " +
                         "LEFT JOIN FETCH c.product " +
+                        "LEFT JOIN FETCH r.allergens " +
                         "WHERE r.totalCost < :maxCost")
         List<Recipe> findByTotalCostLessThanWithDetails(@Param("maxCost") BigDecimal maxCost);
 

@@ -126,11 +126,13 @@ class RecipeCookingAuditAspectTest {
         given(securityContextHelper.getCurrentUser()).willReturn(null);
         given(objectMapper.writeValueAsString(any())).willReturn("{\"components\":[]}");
 
-        // Mock history: PRODUCT_A has 30 data points, PRODUCT_B has 15
-        given(stockLedgerService.getProductConsumption(eq(PRODUCT_A), any(), any()))
-                .willReturn(historyFor(PRODUCT_A, 30));
-        given(stockLedgerService.getProductConsumption(eq(PRODUCT_B), any(), any()))
-                .willReturn(historyFor(PRODUCT_B, 15));
+        // Mock history batch: PRODUCT_A has 30 data points, PRODUCT_B has 15
+        java.util.Map<Integer, ProductConsumptionResponseDTO> historyMap = new java.util.HashMap<>();
+        historyMap.put(PRODUCT_A, historyFor(PRODUCT_A, 30));
+        historyMap.put(PRODUCT_B, historyFor(PRODUCT_B, 15));
+
+        given(stockLedgerService.getProductConsumptionBatch(anyList(), any(), any()))
+                .willReturn(historyMap);
 
         // when
         aspect.logCookingAction(joinPoint, auditable);
@@ -174,16 +176,14 @@ class RecipeCookingAuditAspectTest {
         given(securityContextHelper.getCurrentUser()).willReturn(null);
         given(objectMapper.writeValueAsString(any())).willReturn("{\"components\":[]}");
 
-        // One product throws, the other succeeds
-        given(stockLedgerService.getProductConsumption(eq(PRODUCT_A), any(), any()))
+        // Batch throws
+        given(stockLedgerService.getProductConsumptionBatch(anyList(), any(), any()))
                 .willThrow(new RuntimeException("DB unavailable"));
-        given(stockLedgerService.getProductConsumption(eq(PRODUCT_B), any(), any()))
-                .willReturn(historyFor(PRODUCT_B, 10));
 
         // when
         aspect.logCookingAction(joinPoint, auditable);
 
-        // then — event must still be published, with partial data
+        // then — event must still be published, with empty data
         ArgumentCaptor<RecipeCookingAuditEvent> captor =
                 ArgumentCaptor.forClass(RecipeCookingAuditEvent.class);
         verify(auditEventProducer).publishRecipeCookingAudit(captor.capture());
@@ -193,7 +193,6 @@ class RecipeCookingAuditAspectTest {
         assertThat(event.getProductHistories().get(PRODUCT_A))
                 .as("Failed product should have empty list (not null)")
                 .isEmpty();
-        assertThat(event.getProductHistories().get(PRODUCT_B)).hasSize(10);
     }
 
     @Test
@@ -211,11 +210,13 @@ class RecipeCookingAuditAspectTest {
         given(securityContextHelper.getCurrentUser()).willReturn(null);
         given(objectMapper.writeValueAsString(any())).willReturn("{\"components\":[]}");
 
-        // No consumption data for either product
-        given(stockLedgerService.getProductConsumption(any(), any(), any()))
-                .willReturn(ProductConsumptionResponseDTO.builder()
-                        .breakdown(List.of())
-                        .build());
+        // No consumption data for either product in the batch
+        java.util.Map<Integer, ProductConsumptionResponseDTO> historyMap = new java.util.HashMap<>();
+        historyMap.put(PRODUCT_A, ProductConsumptionResponseDTO.builder().productId(PRODUCT_A).breakdown(List.of()).build());
+        historyMap.put(PRODUCT_B, ProductConsumptionResponseDTO.builder().productId(PRODUCT_B).breakdown(List.of()).build());
+
+        given(stockLedgerService.getProductConsumptionBatch(anyList(), any(), any()))
+                .willReturn(historyMap);
 
         // when
         aspect.logCookingAction(joinPoint, auditable);

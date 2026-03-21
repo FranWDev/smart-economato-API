@@ -157,7 +157,7 @@ public class OrderService {
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
         public Optional<OrderResponseDTO> update(Integer id, OrderRequestDTO requestDTO) {
-                return repository.findById(id)
+                return repository.findByIdWithDetails(id)
                                 .map(existing -> {
                                         User user = userRepository.findById(requestDTO.getUserId())
                                                         .orElseThrow(() -> new ResourceNotFoundException(
@@ -397,7 +397,7 @@ public class OrderService {
                         ObjectOptimisticLockingFailureException.class }, maxRetries = 3, delay = 100, multiplier = 2)
         @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
         public Optional<OrderResponseDTO> updateStatus(Integer orderId, OrderStatus newStatus) {
-                return repository.findById(orderId)
+                return repository.findByIdWithDetails(orderId)
                                 .map(order -> {
                                         order.setStatus(newStatus);
                                         Order updatedOrder = repository.save(order);

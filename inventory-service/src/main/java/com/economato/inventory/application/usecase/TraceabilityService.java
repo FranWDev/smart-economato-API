@@ -216,7 +216,7 @@ public class TraceabilityService {
                 }
 
                 List<CrisisAffectedProduct> associations = crisisAffectedProductRepository
-                                .findByFoodCrisisId(crisis.getId());
+                                .findByFoodCrisisIdWithProduct(crisis.getId());
                 if (associations.isEmpty()) {
                         throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND));
                 }
@@ -480,7 +480,7 @@ public class TraceabilityService {
         private CrisisResponseDTO buildCrisisResponse(FoodCrisis crisis,
                         Map<String, String> quarantinedProductsOverride) {
                 List<CrisisAffectedProduct> associations = crisisAffectedProductRepository
-                                .findByFoodCrisisId(crisis.getId());
+                                .findByFoodCrisisIdWithProduct(crisis.getId());
                 List<Integer> productIds = associations.stream().map(ap -> ap.getProduct().getId()).toList();
 
                 List<Order> affectedOrders = orderRepository.findConfirmedOrdersBySupplierAndProductIdsAndDateRange(
@@ -493,8 +493,9 @@ public class TraceabilityService {
                                 .findAffectedCookingsByProductIdsAndDateRange(productIds, crisis.getDateFrom(),
                                                 crisis.getDateTo());
 
-                Map<Integer, Boolean> integrityResults = productIds.stream()
-                                .collect(Collectors.toMap(p -> p, p -> ledgerService.verifyChainIntegrity(p).isValid()));
+                List<IntegrityCheckResult> batchResults = ledgerService.verifyChainIntegrityBatch(productIds);
+                Map<Integer, Boolean> integrityResults = batchResults.stream()
+                                .collect(Collectors.toMap(IntegrityCheckResult::getProductId, IntegrityCheckResult::isValid));
 
                 return buildCrisisResponse(crisis, quarantinedProductsOverride, associations, affectedOrders,
                                 affectedCookings, integrityResults);

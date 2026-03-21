@@ -61,6 +61,16 @@ public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> 
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
 
+    @Query("SELECT l.product.id, CAST(l.transactionTimestamp AS date), SUM(ABS(l.quantityDelta)) " +
+           "FROM StockLedger l WHERE l.product.id IN :productIds " +
+           "AND l.transactionTimestamp BETWEEN :startDate AND :endDate " +
+           "AND l.quantityDelta < 0 " +
+           "GROUP BY l.product.id, CAST(l.transactionTimestamp AS date)")
+    List<Object[]> getConsumptionByProductIdsAndDateRange(
+            @Param("productIds") List<Integer> productIds,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate);
+
     @Modifying(clearAutomatically = true)
     @Transactional
     void deleteAllByProductId(Integer productId);

@@ -152,7 +152,7 @@ public class ProductService {
                     requestDTO.getExpirationDate());
 
             // Recargamos el producto para obtener el stock actualizado por el ledger
-            product = repository.findById(product.getId()).orElse(product);
+            product = repository.findByIdWithSupplier(product.getId()).orElse(product);
         }
 
         return productMapper.toResponseDTO(product);
@@ -164,7 +164,7 @@ public class ProductService {
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
             Exception.class }, isolation = Isolation.REPEATABLE_READ)
     public Optional<ProductResponseDTO> update(Integer id, ProductRequestDTO requestDTO) {
-        return repository.findById(id)
+        return repository.findByIdWithSupplier(id)
                 .map(existing -> {
                     if (!existing.getName().equals(requestDTO.getName()) &&
                             repository.existsByName(requestDTO.getName())) {
@@ -292,7 +292,7 @@ public class ProductService {
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
             Exception.class }, isolation = Isolation.REPEATABLE_READ)
     public Optional<ProductResponseDTO> updateStockManually(Integer id, ProductRequestDTO requestDTO) {
-        return repository.findById(id)
+        return repository.findByIdWithSupplier(id)
                 .map(existing -> {
                     BigDecimal previousStock = existing.getCurrentStock();
                     BigDecimal newStock = requestDTO.getCurrentStock();
@@ -333,7 +333,7 @@ public class ProductService {
                                 requestDTO.getBatchId(),
                                 requestDTO.getExpirationDate());
 
-                        Product updated = repository.findById(id).orElseThrow();
+                        Product updated = repository.findByIdWithSupplier(id).orElseThrow();
                         return productMapper.toResponseDTO(updated);
                     } else {
 

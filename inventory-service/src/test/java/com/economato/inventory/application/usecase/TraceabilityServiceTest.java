@@ -289,7 +289,7 @@ public class TraceabilityServiceTest {
         product.setAvailabilityPercentage(BigDecimal.ZERO);
 
         when(foodCrisisRepository.findById(7L)).thenReturn(Optional.of(crisis));
-        when(crisisAffectedProductRepository.findByFoodCrisisId(7L)).thenReturn(List.of(association));
+        when(crisisAffectedProductRepository.findByFoodCrisisIdWithProduct(7L)).thenReturn(List.of(association));
         when(productRepository.findByIdsForUpdate(List.of(1))).thenReturn(List.of(product));
         when(securityContextHelper.getCurrentUser()).thenReturn(admin);
 
@@ -328,14 +328,14 @@ public class TraceabilityServiceTest {
         assoc.setFoodCrisis(FoodCrisis.builder().id(crisisId).dateFrom(request.getDateFrom()).dateTo(request.getDateTo()).build());
         assoc.setProduct(product);
         assoc.setOriginalAvailabilityPercentage(new BigDecimal("100.00"));
-        when(crisisAffectedProductRepository.findByFoodCrisisId(crisisId)).thenReturn(List.of(assoc));
+        when(crisisAffectedProductRepository.findByFoodCrisisIdWithProduct(crisisId)).thenReturn(List.of(assoc));
 
         when(orderRepository.findConfirmedOrdersBySupplierAndProductIdsAndDateRange(any(), anyList(), any(), any()))
                 .thenReturn(List.of());
         when(cookingAuditRepository.findAffectedCookingsByProductIdsAndDateRange(anyList(), any(), any()))
                 .thenReturn(List.of());
-        when(ledgerService.verifyChainIntegrity(1))
-                .thenReturn(new IntegrityCheckResult(1, "Test Product", true, "ok", List.of()));
+        when(ledgerService.verifyChainIntegrityBatch(anyList()))
+                .thenReturn(List.of(new IntegrityCheckResult(1, "Test Product", true, "ok", List.of())));
     }
 
     private ProductBatch buildBatch(Long id, BigDecimal remainingQty, LocalDateTime receivedAt, boolean depleted) {

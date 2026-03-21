@@ -164,25 +164,26 @@ public class RecipeCookingAuditAspect {
 
         Map<Integer, List<DailyConsumption>> result = new HashMap<>();
 
-        for (var comp : recipe.getComponents()) {
-            Integer productId = comp.getProduct().getId();
-            try {
-                ProductConsumptionResponseDTO dto =
-                        stockLedgerService.getProductConsumption(productId, start, end);
+        List<Integer> productIds = recipe.getComponents().stream()
+                .map(comp -> comp.getProduct().getId())
+                .collect(Collectors.toList());
 
-                int entriesCount = (dto.getBreakdown() != null) ? dto.getBreakdown().size() : 0;
-                log.info("Historial para producto {}: {} entradas encontradas", productId, entriesCount);
+        Map<Integer, ProductConsumptionResponseDTO> batchResults;
+        try {
+            batchResults = stockLedgerService.getProductConsumptionBatch(productIds, start, end);
+        } catch (Exception e) {
+            log.error("Error al obtener historial de consumo en lote: {}", e.getMessage());
+            batchResults = Collections.emptyMap();
+        }
 
-                List<DailyConsumption> history = dto.getBreakdown() == null
-                        ? Collections.emptyList()
-                        : dto.getBreakdown().stream()
-                                .map(d -> new DailyConsumption(d.getDate(), d.getConsumed()))
-                                .collect(Collectors.toList());
-
+        for (Integer productId : productIds) {
+            ProductConsumptionResponseDTO dto = batchResults.get(productId);
+            if (dto != null && dto.getBreakdown() != null) {
+                List<DailyConsumption> history = dto.getBreakdown().stream()
+                        .map(d -> new DailyConsumption(d.getDate(), d.getConsumed()))
+                        .collect(Collectors.toList());
                 result.put(productId, history);
-            } catch (Exception e) {
-                log.warn("No se pudo obtener historial para producto {}: {}",
-                        productId, e.getMessage());
+            } else {
                 result.put(productId, Collections.emptyList());
             }
         }
