@@ -11,6 +11,7 @@ import com.economato.inventory.application.dto.projection.RecipeProjection;
 import com.economato.inventory.domain.model.Recipe;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -84,4 +85,10 @@ public interface RecipeRepository extends JpaRepository<Recipe, Integer> {
 
         @EntityGraph(attributePaths = { "components", "components.product", "allergens" })
         List<RecipeProjection> findByTotalCostLessThanAndIsHiddenFalse(BigDecimal maxCost);
+
+        @Query("SELECT DISTINCT r FROM Recipe r LEFT JOIN FETCH r.allergens WHERE r.isHidden = false")
+        List<Recipe> findAllWithAllergens();
+
+        @Query("SELECT DISTINCT r FROM Recipe r LEFT JOIN FETCH r.allergens WHERE r.id IN :ids")
+        List<Recipe> findAllByIdWithAllergens(@Param("ids") Collection<Integer> ids);
 }

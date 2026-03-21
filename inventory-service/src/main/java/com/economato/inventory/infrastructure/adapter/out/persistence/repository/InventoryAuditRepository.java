@@ -48,19 +48,12 @@ public interface InventoryAuditRepository extends JpaRepository<InventoryAudit, 
                      @Param("start") LocalDateTime start,
                      @Param("end") LocalDateTime end);
 
-       @Query("SELECT ia FROM InventoryAudit ia")
-       Page<InventoryAuditProjection> findAllProjectedBy(Pageable pageable);
+    Page<InventoryAuditProjection> findAllProjectedBy(Pageable pageable);
 
-       @Query("SELECT ia FROM InventoryAudit ia WHERE ia.id = :id")
-       Optional<InventoryAuditProjection> findProjectedById(@Param("id") Integer id);
+    Optional<InventoryAuditProjection> findProjectedById(Integer id);
 
-       @Query("SELECT ia FROM InventoryAudit ia WHERE ia.movementType = :movementType")
-       List<InventoryAuditProjection> findProjectedByMovementType(
-                     @Param("movementType") String movementType);
+    List<InventoryAuditProjection> findProjectedByMovementType(String movementType);
 
-       @Query("SELECT ia FROM InventoryAudit ia WHERE ia.movementDate BETWEEN :start AND :end")
-       List<InventoryAuditProjection> findProjectedByMovementDateBetween(
-                     @Param("start") LocalDateTime start,
-                     @Param("end") LocalDateTime end);
+    List<InventoryAuditProjection> findProjectedByMovementDateBetween(LocalDateTime start, LocalDateTime end);
 
 }

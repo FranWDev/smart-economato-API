@@ -24,13 +24,11 @@ public class RoleEscalationSchedulerService {
 
     @Scheduled(cron = "0 * * * * *") // Se comprueba cada minuto
     public void expireEscalations() {
-        List<TemporaryRoleEscalation> activeEscalations = escalationRepository.findAll();
         LocalDateTime now = LocalDateTime.now();
+        List<TemporaryRoleEscalation> expired = escalationRepository.findExpiredWithUser(now);
 
-        for (TemporaryRoleEscalation escalation : activeEscalations) {
-            if (escalation.getExpirationTime().isBefore(now)) {
-                userService.deescalateRole(escalation.getUser().getId());
-            }
+        for (TemporaryRoleEscalation escalation : expired) {
+            userService.deescalateRole(escalation.getUser().getId());
         }
     }
 }

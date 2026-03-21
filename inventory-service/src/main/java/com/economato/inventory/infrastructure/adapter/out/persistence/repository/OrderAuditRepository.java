@@ -40,17 +40,11 @@ public interface OrderAuditRepository extends JpaRepository<OrderAudit, Integer>
                      @Param("start") LocalDateTime start,
                      @Param("end") LocalDateTime end);
 
-       @Query("SELECT oa FROM OrderAudit oa")
-       Page<OrderAuditProjection> findAllProjectedBy(Pageable pageable);
+    Page<OrderAuditProjection> findAllProjectedBy(Pageable pageable);
 
-       @Query("SELECT oa FROM OrderAudit oa WHERE oa.order.id = :orderId")
-       List<OrderAuditProjection> findProjectedByOrderId(@Param("orderId") Integer orderId);
+    List<OrderAuditProjection> findProjectedByOrderId(Integer orderId);
 
-       @Query("SELECT oa FROM OrderAudit oa WHERE oa.user.id = :userId")
-       List<OrderAuditProjection> findProjectedByUserId(@Param("userId") Integer userId);
+    List<OrderAuditProjection> findProjectedByUserId(Integer userId);
 
-       @Query("SELECT oa FROM OrderAudit oa WHERE oa.auditDate BETWEEN :start AND :end")
-       List<OrderAuditProjection> findProjectedByAuditDateBetween(
-                     @Param("start") LocalDateTime start,
-                     @Param("end") LocalDateTime end);
+    List<OrderAuditProjection> findProjectedByAuditDateBetween(LocalDateTime start, LocalDateTime end);
 }

@@ -2,17 +2,22 @@ package com.economato.inventory.infrastructure.adapter.out.persistence.repositor
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.repository.query.Param;
 
 import com.economato.inventory.application.dto.projection.RecipeAuditProjection;
 import com.economato.inventory.domain.model.RecipeAudit;
 
 public interface RecipeAuditRepository extends JpaRepository<RecipeAudit, Integer> {
+
+        @EntityGraph(attributePaths = {"recipe", "user"})
+        Optional<RecipeAudit> findById(Integer id);
 
         List<RecipeAudit> findByRecipeId(Integer id);
 
@@ -36,17 +41,11 @@ public interface RecipeAuditRepository extends JpaRepository<RecipeAudit, Intege
 
         // --- Proyecciones ---
 
-        @Query("SELECT ra FROM RecipeAudit ra")
         Page<RecipeAuditProjection> findAllProjectedBy(Pageable pageable);
 
-        @Query("SELECT ra FROM RecipeAudit ra WHERE ra.recipe.id = :recipeId")
-        List<RecipeAuditProjection> findProjectedByRecipeId(@Param("recipeId") Integer recipeId);
+        List<RecipeAuditProjection> findProjectedByRecipeId(Integer recipeId);
 
-        @Query("SELECT ra FROM RecipeAudit ra WHERE ra.user.id = :userId")
-        List<RecipeAuditProjection> findProjectedByUserId(@Param("userId") Integer userId);
+        List<RecipeAuditProjection> findProjectedByUserId(Integer userId);
 
-        @Query("SELECT ra FROM RecipeAudit ra WHERE ra.auditDate BETWEEN :start AND :end")
-        List<RecipeAuditProjection> findProjectedByAuditDateBetween(
-                        @Param("start") LocalDateTime start,
-                        @Param("end") LocalDateTime end);
+        List<RecipeAuditProjection> findProjectedByAuditDateBetween(LocalDateTime start, LocalDateTime end);
 }
