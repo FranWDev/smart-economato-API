@@ -194,7 +194,7 @@ services:
       DB_READER_URL: jdbc:postgresql://postgres-replica:5432/${POSTGRES_DB}
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
-      SPRING_JPA_HIBERNATE_DDL_AUTO: validate
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update # Solo por ahora en desarrollo (liquibase en proceso)
       SPRING_JPA_SHOW_SQL: "false"
       SPRING_JPA_PROPERTIES_HIBERNATE_GENERATE_STATISTICS: "false"
       LOGGING_LEVEL_ROOT: "ERROR"
@@ -205,6 +205,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION}
       LEDGER_HMAC_SECRET: ${LEDGER_HMAC_SECRET}
+      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-Admin}
+      SEED_ADMIN_USER: ${SEED_ADMIN_USER:-admin}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin123}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       
       # Limite de RAM para el contenedor Java
