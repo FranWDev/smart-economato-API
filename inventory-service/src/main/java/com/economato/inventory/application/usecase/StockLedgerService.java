@@ -16,6 +16,7 @@ import com.economato.inventory.application.dto.request.ManualStockAdjustmentRequ
 import com.economato.inventory.application.dto.request.BatchMovementItem;
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO;
+import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO.DailyConsumptionDTO;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.application.dto.BatchConsumptionDetail;
 import com.economato.inventory.domain.model.MovementType;
@@ -52,6 +53,7 @@ import java.util.Arrays;
 import java.util.HexFormat;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1117,6 +1119,25 @@ public class StockLedgerService {
     }
 
     @Transactional(readOnly = true)
+    public Map<Integer, List<DailyConsumptionDTO>> getDailyConsumptionBatch(
+            List<Integer> productIds, LocalDateTime startDate, LocalDateTime endDate) {
+        if (productIds.isEmpty()) return Collections.emptyMap();
+        
+        List<Object[]> results = ledgerRepository.getConsumptionByProductIdsAndDateRange(productIds, startDate, endDate);
+        
+        Map<Integer, List<DailyConsumptionDTO>> breakdownByProduct = new HashMap<>();
+        for (Object[] row : results) {
+            Integer productId = (Integer) row[0];
+            Date sqlDate = (Date) row[1];
+            BigDecimal consumed = (BigDecimal) row[2];
+            
+            breakdownByProduct.computeIfAbsent(productId, k -> new ArrayList<>())
+                    .add(new DailyConsumptionDTO(sqlDate.toLocalDate(), consumed));
+        }
+        return breakdownByProduct;
+    }
+
+    @Transactional(readOnly = true)
     public Map<Integer, ProductConsumptionResponseDTO> getProductConsumptionBatch(List<Integer> productIds, LocalDateTime startDate,
             LocalDateTime endDate) {
         if (productIds.isEmpty()) return Collections.emptyMap();
@@ -1129,17 +1150,7 @@ public class StockLedgerService {
         Map<Integer, Product> products = productRepository.findAllById(productIds).stream()
                 .collect(Collectors.toMap(Product::getId, p -> p));
 
-        List<Object[]> results = ledgerRepository.getConsumptionByProductIdsAndDateRange(productIds, startDate, endDate);
-
-        Map<Integer, List<ProductConsumptionResponseDTO.DailyConsumptionDTO>> breakdownByProduct = new java.util.HashMap<>();
-        for (Object[] row : results) {
-            Integer productId = (Integer) row[0];
-            java.sql.Date sqlDate = (java.sql.Date) row[1];
-            BigDecimal consumed = (BigDecimal) row[2];
-            
-            breakdownByProduct.computeIfAbsent(productId, k -> new ArrayList<>())
-                    .add(new ProductConsumptionResponseDTO.DailyConsumptionDTO(sqlDate.toLocalDate(), consumed));
-        }
+        Map<Integer, List<DailyConsumptionDTO>> breakdownByProduct = getDailyConsumptionBatch(productIds, startDate, endDate);
 
         return productIds.stream()
                 .filter(products::containsKey)

@@ -87,13 +87,18 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
         List<ProductProjection> findByUnitPriceBetweenAndIsHiddenFalse(BigDecimal min,
                         BigDecimal max);
 
-        @Query("SELECT p FROM Product p LEFT JOIN FETCH p.supplier WHERE p.isHidden = false " +
-                        "AND EXISTS (SELECT 1 FROM StockLedger l WHERE l.product.id = p.id)")
+        @Query(value = "SELECT p FROM Product p LEFT JOIN FETCH p.supplier WHERE p.isHidden = false " +
+                        "AND EXISTS (SELECT 1 FROM StockLedger l WHERE l.product.id = p.id)",
+                countQuery = "SELECT COUNT(p) FROM Product p WHERE p.isHidden = false " +
+                             "AND EXISTS (SELECT 1 FROM StockLedger l WHERE l.product.id = p.id)")
         Page<Product> findProductsWithLedger(Pageable pageable);
 
-        @Query("SELECT p FROM Product p LEFT JOIN FETCH p.supplier WHERE p.isHidden = false " +
+        @Query(value = "SELECT p FROM Product p LEFT JOIN FETCH p.supplier WHERE p.isHidden = false " +
                         "AND EXISTS (SELECT 1 FROM StockLedger l WHERE l.product.id = p.id) " +
-                        "AND LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))")
+                        "AND LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))",
+                countQuery = "SELECT COUNT(p) FROM Product p WHERE p.isHidden = false " +
+                             "AND EXISTS (SELECT 1 FROM StockLedger l WHERE l.product.id = p.id) " +
+                             "AND LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))")
         Page<Product> findProductsWithLedgerByName(@Param("name") String name, Pageable pageable);
 
         @Query("SELECT COUNT(p) FROM Product p WHERE p.isHidden = false")

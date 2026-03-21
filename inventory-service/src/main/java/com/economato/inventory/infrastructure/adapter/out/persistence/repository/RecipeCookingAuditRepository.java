@@ -84,14 +84,16 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
       @Param("since") LocalDateTime since);
 
   @Query(value = """
-      SELECT rc.product_id, r.recipe_name, SUM(rca.quantity_cooked * rc.quantity) as total
-      FROM recipe_cooking_audit rca
-      INNER JOIN recipe r       ON r.recipe_id = rca.recipe_id
-      INNER JOIN recipe_component rc ON rc.parent_recipe_id = rca.recipe_id
-      WHERE rc.product_id IN :productIds
-        AND rca.cooking_date >= :since
-      GROUP BY rc.product_id, r.recipe_id, r.recipe_name
-      ORDER BY rc.product_id, total DESC
+      SELECT product_id, recipe_name FROM (
+          SELECT rc.product_id, r.recipe_name, SUM(rca.quantity_cooked * rc.quantity) as total,
+                 ROW_NUMBER() OVER(PARTITION BY rc.product_id ORDER BY SUM(rca.quantity_cooked * rc.quantity) DESC) as rn
+          FROM recipe_cooking_audit rca
+          INNER JOIN recipe r       ON r.recipe_id = rca.recipe_id
+          INNER JOIN recipe_component rc ON rc.parent_recipe_id = rca.recipe_id
+          WHERE rc.product_id IN :productIds
+            AND rca.cooking_date >= :since
+          GROUP BY rc.product_id, r.recipe_id, r.recipe_name
+      ) t WHERE rn <= 3
       """, nativeQuery = true)
   List<Object[]> findTopConsumingRecipesByProducts(
       @Param("productIds") List<Integer> productIds,

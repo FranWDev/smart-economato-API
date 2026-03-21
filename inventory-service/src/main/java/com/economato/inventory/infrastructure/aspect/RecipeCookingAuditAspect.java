@@ -11,6 +11,7 @@ import com.economato.inventory.application.dto.event.RecipeCookingAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeCookingAuditEvent.DailyConsumption;
 import com.economato.inventory.application.dto.request.RecipeCookingRequestDTO;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO;
+import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO.DailyConsumptionDTO;
 import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.application.usecase.StockLedgerService;
 import com.economato.inventory.domain.model.Recipe;
@@ -168,18 +169,18 @@ public class RecipeCookingAuditAspect {
                 .map(comp -> comp.getProduct().getId())
                 .collect(Collectors.toList());
 
-        Map<Integer, ProductConsumptionResponseDTO> batchResults;
+        Map<Integer, List<DailyConsumptionDTO>> batchResults;
         try {
-            batchResults = stockLedgerService.getProductConsumptionBatch(productIds, start, end);
+            batchResults = stockLedgerService.getDailyConsumptionBatch(productIds, start, end);
         } catch (Exception e) {
             log.error("Error al obtener historial de consumo en lote: {}", e.getMessage());
             batchResults = Collections.emptyMap();
         }
 
         for (Integer productId : productIds) {
-            ProductConsumptionResponseDTO dto = batchResults.get(productId);
-            if (dto != null && dto.getBreakdown() != null) {
-                List<DailyConsumption> history = dto.getBreakdown().stream()
+            List<DailyConsumptionDTO> breakdown = batchResults.get(productId);
+            if (breakdown != null) {
+                List<DailyConsumption> history = breakdown.stream()
                         .map(d -> new DailyConsumption(d.getDate(), d.getConsumed()))
                         .collect(Collectors.toList());
                 result.put(productId, history);

@@ -127,11 +127,11 @@ class RecipeCookingAuditAspectTest {
         given(objectMapper.writeValueAsString(any())).willReturn("{\"components\":[]}");
 
         // Mock history batch: PRODUCT_A has 30 data points, PRODUCT_B has 15
-        java.util.Map<Integer, ProductConsumptionResponseDTO> historyMap = new java.util.HashMap<>();
-        historyMap.put(PRODUCT_A, historyFor(PRODUCT_A, 30));
-        historyMap.put(PRODUCT_B, historyFor(PRODUCT_B, 15));
+        java.util.Map<Integer, List<DailyConsumptionDTO>> historyMap = new java.util.HashMap<>();
+        historyMap.put(PRODUCT_A, historyFor(PRODUCT_A, 30).getBreakdown());
+        historyMap.put(PRODUCT_B, historyFor(PRODUCT_B, 15).getBreakdown());
 
-        given(stockLedgerService.getProductConsumptionBatch(anyList(), any(), any()))
+        given(stockLedgerService.getDailyConsumptionBatch(anyList(), any(), any()))
                 .willReturn(historyMap);
 
         // when
@@ -177,7 +177,7 @@ class RecipeCookingAuditAspectTest {
         given(objectMapper.writeValueAsString(any())).willReturn("{\"components\":[]}");
 
         // Batch throws
-        given(stockLedgerService.getProductConsumptionBatch(anyList(), any(), any()))
+        given(stockLedgerService.getDailyConsumptionBatch(anyList(), any(), any()))
                 .willThrow(new RuntimeException("DB unavailable"));
 
         // when
@@ -211,11 +211,11 @@ class RecipeCookingAuditAspectTest {
         given(objectMapper.writeValueAsString(any())).willReturn("{\"components\":[]}");
 
         // No consumption data for either product in the batch
-        java.util.Map<Integer, ProductConsumptionResponseDTO> historyMap = new java.util.HashMap<>();
-        historyMap.put(PRODUCT_A, ProductConsumptionResponseDTO.builder().productId(PRODUCT_A).breakdown(List.of()).build());
-        historyMap.put(PRODUCT_B, ProductConsumptionResponseDTO.builder().productId(PRODUCT_B).breakdown(List.of()).build());
+        java.util.Map<Integer, List<DailyConsumptionDTO>> historyMap = new java.util.HashMap<>();
+        historyMap.put(PRODUCT_A, List.of());
+        historyMap.put(PRODUCT_B, List.of());
 
-        given(stockLedgerService.getProductConsumptionBatch(anyList(), any(), any()))
+        given(stockLedgerService.getDailyConsumptionBatch(anyList(), any(), any()))
                 .willReturn(historyMap);
 
         // when
