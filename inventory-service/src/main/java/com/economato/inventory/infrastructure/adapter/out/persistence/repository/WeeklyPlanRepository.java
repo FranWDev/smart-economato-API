@@ -55,7 +55,7 @@ public interface WeeklyPlanRepository extends JpaRepository<WeeklyPlan, Long> {
            "GROUP BY rc.product.id")
     List<Object[]> calculateRequiredStockForPlan(@Param("planId") Long planId);
 
-    @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.students", "slots.students.student", "chef"})
+    @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.recipe.components", "slots.recipe.components.product", "slots.students", "slots.students.student", "chef"})
     Optional<WeeklyPlan> findWithDetailsById(Long id);
 
     @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.students", "slots.students.student", "chef"})
