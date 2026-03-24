@@ -31,6 +31,9 @@ public class RecipeResponseDTO {
     @Schema(description = "Indica si la receta está oculta", example = "false")
     private boolean isHidden;
 
+    @Schema(description = "Número de raciones que rinde la receta", example = "10.0")
+    private BigDecimal portions;
+
     @Schema(description = "Lista de componentes de la receta")
     private List<RecipeComponentResponseDTO> components;
 

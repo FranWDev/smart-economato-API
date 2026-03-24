@@ -16,13 +16,4 @@ public class StudentMetricsResponseDTO {
     private Long totalConfirmed;
     private Long totalCancelled;
     private Double participationRate;
-
-    public StudentMetricsResponseDTO(Integer studentId, String studentName, Long totalAssignments, Long totalConfirmed, Long totalCancelled, Double participationRate) {
-        this.studentId = studentId;
-        this.studentName = studentName;
-        this.totalAssignments = totalAssignments;
-        this.totalConfirmed = totalConfirmed;
-        this.totalCancelled = totalCancelled;
-        this.participationRate = participationRate;
-    }
 }

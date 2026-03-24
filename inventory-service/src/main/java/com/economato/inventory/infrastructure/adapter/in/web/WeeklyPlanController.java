@@ -14,6 +14,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO;
+import com.economato.inventory.application.dto.response.WeeklyPlanSlotStudentResponseDTO;
+
 @RestController
 @RequestMapping("/api/v1/weekly-plans")
 @RequiredArgsConstructor
@@ -43,6 +47,55 @@ public class WeeklyPlanController {
     @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
     public ResponseEntity<WeeklyPlanSlotResponseDTO> confirmSlot(@PathVariable Long planId, @PathVariable Long slotId) {
         return ResponseEntity.ok(weeklyPlanService.confirmSlot(planId, slotId));
+    }
+
+    @GetMapping("/{planId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+    public ResponseEntity<WeeklyPlanResponseDTO> getPlanById(@PathVariable Long planId) {
+        return ResponseEntity.ok(weeklyPlanService.getPlanById(planId));
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+    public ResponseEntity<Page<WeeklyPlanResponseDTO>> getAllPlans(Pageable pageable) {
+        return ResponseEntity.ok(weeklyPlanService.getAllPlans(pageable));
+    }
+
+    @GetMapping("/current")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+    public ResponseEntity<WeeklyPlanResponseDTO> getCurrentWeekPlan() {
+        return ResponseEntity.ok(weeklyPlanService.getCurrentWeekPlan());
+    }
+
+    @GetMapping("/{planId}/stock-requirements")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF')")
+    public ResponseEntity<List<WeeklyPlanStockRequirementDTO>> getStockRequirements(@PathVariable Long planId) {
+        return ResponseEntity.ok(weeklyPlanService.getStockRequirements(planId));
+    }
+
+    @PatchMapping("/{planId}/slots/{slotId}/cancel")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+    public ResponseEntity<WeeklyPlanSlotResponseDTO> cancelSlot(@PathVariable Long planId, @PathVariable Long slotId) {
+        return ResponseEntity.ok(weeklyPlanService.cancelSlot(planId, slotId));
+    }
+
+    @PatchMapping("/{planId}/slots/{slotId}/students/{studentId}/cancel")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+    public ResponseEntity<WeeklyPlanSlotStudentResponseDTO> cancelStudentFromSlot(
+            @PathVariable Long planId, 
+            @PathVariable Long slotId, 
+            @PathVariable Integer studentId) {
+        return ResponseEntity.ok(weeklyPlanService.cancelStudentFromSlot(planId, slotId, studentId));
+    }
+
+    @PatchMapping("/{planId}/days/{dayOfWeek}/students/{studentId}/cancel")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+    public ResponseEntity<Void> cancelStudentFromDay(
+            @PathVariable Long planId, 
+            @PathVariable Integer dayOfWeek, 
+            @PathVariable Integer studentId) {
+        weeklyPlanService.cancelStudentFromDay(planId, dayOfWeek, studentId);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/metrics/students")

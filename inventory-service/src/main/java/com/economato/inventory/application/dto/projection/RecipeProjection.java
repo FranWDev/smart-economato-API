@@ -15,6 +15,8 @@ public interface RecipeProjection {
 
     BigDecimal getTotalCost();
 
+    BigDecimal getPortions();
+
     boolean getIsHidden();
 
     List<RecipeComponentSummary> getComponents();

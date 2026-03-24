@@ -11,7 +11,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.economato.inventory.application.dto.request.*;
 import com.economato.inventory.domain.model.*;
-import com.economato.inventory.domain.model.OrderStatus;
 
 public class TestDataUtil {
 
@@ -74,8 +73,6 @@ public class TestDataUtil {
         product.setUnit(unit);
         product.setUnitPrice(price);
         product.setProductCode(code);
-        // Ajustar escala del stock para compatibilidad con la base de datos
-        // (precision=10, scale=3)
         product.setCurrentStock(stock.setScale(3, java.math.RoundingMode.HALF_UP));
         product.setOrderDetails(new ArrayList<>());
         return product;
@@ -118,6 +115,7 @@ public class TestDataUtil {
         recipe.setElaboration(elaboration);
         recipe.setPresentation(presentation);
         recipe.setTotalCost(totalCost);
+        recipe.setPortions(BigDecimal.ONE); // Importante: Valor por defecto para evitar NPE
         recipe.setComponents(new ArrayList<>());
         recipe.setAllergens(new HashSet<>());
         return recipe;
@@ -221,6 +219,26 @@ public class TestDataUtil {
         dto.setUser("testUser");
         dto.setPassword("password123");
         dto.setRole(Role.USER);
+        return dto;
+    }
+
+    public static WeeklyPlanSlotRequestDTO createWeeklyPlanSlotRequestDTO(Integer recipeId, java.math.BigDecimal quantity, Integer dayOfWeek, java.time.LocalTime startTime, java.time.LocalTime endTime, Integer sortOrder, java.util.List<Integer> studentIds) {
+        WeeklyPlanSlotRequestDTO dto = new WeeklyPlanSlotRequestDTO();
+        dto.setRecipeId(recipeId);
+        dto.setQuantity(quantity);
+        dto.setDayOfWeek(dayOfWeek);
+        dto.setStartTime(startTime);
+        dto.setEndTime(endTime);
+        dto.setSortOrder(sortOrder);
+        dto.setStudentIds(studentIds);
+        return dto;
+    }
+
+    public static WeeklyPlanRequestDTO createWeeklyPlanRequestDTO(Integer chefId, java.time.LocalDate weekStartDate, java.util.List<WeeklyPlanSlotRequestDTO> slots) {
+        WeeklyPlanRequestDTO dto = new WeeklyPlanRequestDTO();
+        dto.setChefId(chefId);
+        dto.setWeekStartDate(weekStartDate);
+        dto.setSlots(slots);
         return dto;
     }
 }

@@ -1,5 +1,5 @@
 package com.economato.inventory.domain.model;
 
 public enum WeeklyPlanStatus {
-    DRAFT, ACTIVE, COMPLETED, CANCELLED
+    DRAFT, ACTIVE, IN_PROGRESS, COMPLETED, CANCELLED
 }

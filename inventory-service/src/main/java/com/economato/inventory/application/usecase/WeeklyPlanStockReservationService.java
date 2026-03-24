@@ -117,4 +117,45 @@ public class WeeklyPlanStockReservationService {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_AVAILABILITY_VIOLATION, new Object[]{newPercentage, reservedStock, newMaxAvailable}));
         }
     }
+
+    public List<com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO> getStockRequirements(Long planId) {
+        List<Object[]> requiredResults = weeklyPlanRepository.calculateRequiredStockForPlan(planId);
+        Map<Integer, BigDecimal> requiredStockMap = new HashMap<>();
+        for (Object[] row : requiredResults) {
+            requiredStockMap.put((Integer) row[0], (BigDecimal) row[1]);
+        }
+        
+        List<com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO> dtos = new ArrayList<>();
+        if (requiredStockMap.isEmpty()) return dtos;
+
+        Map<Integer, BigDecimal> currentReservations = calculateReservedStock();
+        List<Product> products = productRepository.findAllById(requiredStockMap.keySet());
+        WeeklyPlan plan = weeklyPlanRepository.findById(planId).orElseThrow();
+        
+        for (Product product : products) {
+            BigDecimal needed = requiredStockMap.get(product.getId());
+            BigDecimal currentStock = product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO;
+            BigDecimal availabilityPct = product.getAvailabilityPercentage() != null ? product.getAvailabilityPercentage() : new BigDecimal("100.00");
+            
+            BigDecimal maxAvailable = currentStock.multiply(availabilityPct).divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
+            BigDecimal alreadyReserved = currentReservations.getOrDefault(product.getId(), BigDecimal.ZERO);
+            
+            BigDecimal reservedByOtherPlans = alreadyReserved;
+            if (plan.getStatus() == com.economato.inventory.domain.model.WeeklyPlanStatus.ACTIVE || plan.getStatus() == com.economato.inventory.domain.model.WeeklyPlanStatus.IN_PROGRESS) {
+                reservedByOtherPlans = alreadyReserved.subtract(needed).max(BigDecimal.ZERO);
+            }
+            
+            BigDecimal trulyAvailable = maxAvailable.subtract(reservedByOtherPlans);
+            
+            dtos.add(com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO.builder()
+                .productId(product.getId())
+                .productName(product.getName())
+                .requiredQuantity(needed)
+                .availableStock(maxAvailable)
+                .reservedByOtherPlans(reservedByOtherPlans)
+                .sufficient(trulyAvailable.compareTo(needed) >= 0)
+                .build());
+        }
+        return dtos;
+    }
 }
