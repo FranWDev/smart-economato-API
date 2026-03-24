@@ -194,7 +194,37 @@ public enum MessageKey {
     ERROR_REVERSION_ALREADY_DONE("error.reversion.already.done"),
     ERROR_REVERSION_NO_BATCH_TRACEABILITY("error.reversion.no.batch.traceability"),
     ERROR_COOKING_ALREADY_REVERTED("error.cooking.already.reverted"),
-    ERROR_BATCH_DEPLETED_CANNOT_UPDATE("error.batch.depleted.cannot.update");
+    ERROR_BATCH_DEPLETED_CANNOT_UPDATE("error.batch.depleted.cannot.update"),
+
+    // Weekly Plan keys
+    ERROR_WEEKLY_PLAN_CHEF_NOT_FOUND("error.weekly.plan.chef.not.found"),
+    ERROR_WEEKLY_PLAN_MUST_START_MONDAY("error.weekly.plan.must.start.monday"),
+    ERROR_WEEKLY_PLAN_ALREADY_EXISTS("error.weekly.plan.already.exists"),
+    ERROR_WEEKLY_PLAN_NOT_FOUND("error.weekly.plan.not.found"),
+    ERROR_WEEKLY_PLAN_CANNOT_EDIT("error.weekly.plan.cannot.edit"),
+    ERROR_WEEKLY_PLAN_ONLY_DRAFT("error.weekly.plan.only.draft"),
+    ERROR_WEEKLY_PLAN_SLOT_NOT_FOUND("error.weekly.plan.slot.not.found"),
+    ERROR_WEEKLY_PLAN_SLOT_NOT_BELONG("error.weekly.plan.slot.not.belong"),
+    ERROR_WEEKLY_PLAN_SLOT_NOT_PENDING("error.weekly.plan.slot.not.pending"),
+    ERROR_WEEKLY_PLAN_ADMIN_REQUIRE_CHEF("error.weekly.plan.admin.require.chef"),
+    ERROR_WEEKLY_PLAN_USER_NOT_CHEF("error.weekly.plan.user.not.chef"),
+    ERROR_WEEKLY_PLAN_NO_PERMISSION("error.weekly.plan.no.permission"),
+    ERROR_WEEKLY_PLAN_RECIPE_NOT_FOUND("error.weekly.plan.recipe.not.found"),
+    ERROR_WEEKLY_PLAN_STUDENT_INVALID("error.weekly.plan.student.invalid"),
+    LEDGER_DESCRIPTION_WEEKLY_PLAN("ledger.description.weekly.plan"),
+    ERROR_WEEKLY_PLAN_INSUFFICIENT_STOCK("error.weekly.plan.insufficient.stock"),
+    ERROR_WEEKLY_PLAN_AVAILABILITY_VIOLATION("error.weekly.plan.availability.violation"),
+    ERROR_WEEKLY_PLAN_NOT_ACTIVE("error.weekly.plan.not.active"),
+    ERROR_WEEKLY_PLAN_ADMIN_NO_CURRENT_PLAN("error.weekly.plan.admin.no.current.plan"),
+    ERROR_WEEKLY_PLAN_SLOT_ALREADY_CONFIRMED("error.weekly.plan.already.confirmed"),
+    ERROR_WEEKLY_PLAN_SLOT_ALREADY_CANCELLED("error.weekly.plan.already.cancelled"),
+    ERROR_WEEKLY_PLAN_STUDENT_NOT_IN_SLOT("error.weekly.plan.student.not.in.slot"),
+    ERROR_WEEKLY_PLAN_ELEVATED_REQUIRE_TEACHER("error.weekly.plan.elevated.require.teacher"),
+    ERROR_WEEKLY_PLAN_SLOT_OVERLAP("error.weekly.plan.slot.overlap"),
+    ERROR_WEEKLY_PLAN_SLOT_OVERLAP_EXISTING("error.weekly.plan.slot.overlap.existing"),
+    ERROR_WEEKLY_PLAN_STUDENT_ALREADY_ASSIGNED_DAY("error.weekly.plan.student.already.assigned.day"),
+    ERROR_WEEKLY_PLAN_STUDENT_DUPLICATE_IN_SLOT("error.weekly.plan.student.duplicate.in.slot"),
+    ERROR_DATA_INTEGRITY_VIOLATION("error.data.integrity.violation");
 
     private final String key;
 

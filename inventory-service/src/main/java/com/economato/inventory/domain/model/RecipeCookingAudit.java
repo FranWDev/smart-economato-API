@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 @Entity
 @Table(name = "recipe_cooking_audit", indexes = {
         @Index(name = "idx_cooking_audit_recipe", columnList = "recipe_id"),
@@ -48,6 +49,9 @@ public class RecipeCookingAudit {
     @Digits(integer = 10, fraction = 3)
     @Column(name = "quantity_cooked", nullable = false, precision = 10, scale = 3)
     private BigDecimal quantityCooked;
+
+    @Column(name = "portions_produced", precision = 10, scale = 2)
+    private BigDecimal portionsProduced;
 
     @Size(max = 1000, message = "{validation.recipeCookingAudit.details.size}")
     @Column(name = "details", columnDefinition = "TEXT")

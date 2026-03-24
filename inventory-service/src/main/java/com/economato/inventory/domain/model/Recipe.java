@@ -45,6 +45,12 @@ public class Recipe {
     @Column(name = "total_cost", precision = 10, scale = 2)
     private BigDecimal totalCost;
 
+    @NotNull(message = "{validation.recipe.portions.notNull}")
+    @DecimalMin(value = "0.01", message = "{validation.recipe.portions.decimalMin}")
+    @Column(name = "portions", nullable = false, precision = 10, scale = 2)
+    @Builder.Default
+    private BigDecimal portions = BigDecimal.ONE;
+
     @Column(name = "is_hidden", nullable = false)
     @Builder.Default
     private boolean isHidden = false;
@@ -56,7 +62,7 @@ public class Recipe {
     @JsonIgnore
     @OneToMany(mappedBy = "parentRecipe", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<RecipeComponent> components = new ArrayList<>();
+    private Set<RecipeComponent> components = new HashSet<>();
 
     public void addComponent(RecipeComponent component) {
         components.add(component);

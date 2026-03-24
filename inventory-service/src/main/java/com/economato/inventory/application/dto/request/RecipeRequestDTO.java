@@ -4,6 +4,9 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.DecimalMin;
+import java.math.BigDecimal;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -30,6 +33,11 @@ public class RecipeRequestDTO {
     @Size(max = 1000, message = "{validation.recipeRequestDTO.presentation.size}")
     @Schema(description = "Descripción de la presentación del plato", example = "Servido en paellera tradicional")
     private String presentation;
+
+    @NotNull(message = "{validation.recipeRequestDTO.portions.notNull}")
+    @DecimalMin(value = "0.1", message = "{validation.recipeRequestDTO.portions.decimalMin}")
+    @Schema(description = "Número de raciones que rinde la receta", example = "10.0")
+    private BigDecimal portions;
 
     @NotEmpty(message = "{validation.recipeRequestDTO.components.notEmpty}")
     @Valid
