@@ -104,7 +104,7 @@ public class WeeklyPlanService {
         plan.getSlots().addAll(newSlots);
         weeklyPlanRepository.saveAndFlush(plan);
 
-        if (plan.getStatus() == WeeklyPlanStatus.ACTIVE) {
+        if (plan.getStatus() == WeeklyPlanStatus.ACTIVE || plan.getStatus() == WeeklyPlanStatus.IN_PROGRESS) {
             reservationService.validateStockForPlanActivation(plan.getId());
         }
 
@@ -209,8 +209,14 @@ public class WeeklyPlanService {
         if (currentUser.getRole() == Role.ADMIN) {
             return weeklyPlanRepository.findAll(pageable).map(wrapperMapper::toResponseDTO);
         } else {
-            Integer chefId = currentUser.getRole() == Role.ELEVATED ? currentUser.getTeacher().getId()
-                    : currentUser.getId();
+            Integer chefId;
+            if (currentUser.getRole() == Role.ELEVATED) {
+                if (currentUser.getTeacher() == null)
+                    throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_ELEVATED_REQUIRE_TEACHER));
+                chefId = currentUser.getTeacher().getId();
+            } else {
+                chefId = currentUser.getId();
+            }
             return weeklyPlanRepository.findAllByChefId(chefId, pageable).map(wrapperMapper::toResponseDTO);
         }
     }
@@ -221,8 +227,14 @@ public class WeeklyPlanService {
         if (currentUser.getRole() == Role.ADMIN) {
             throw new AccessDeniedException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_ADMIN_NO_CURRENT_PLAN));
         }
-        Integer chefId = currentUser.getRole() == Role.ELEVATED ? currentUser.getTeacher().getId()
-                : currentUser.getId();
+        Integer chefId;
+        if (currentUser.getRole() == Role.ELEVATED) {
+            if (currentUser.getTeacher() == null)
+                throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_ELEVATED_REQUIRE_TEACHER));
+            chefId = currentUser.getTeacher().getId();
+        } else {
+            chefId = currentUser.getId();
+        }
         LocalDate now = LocalDate.now();
         LocalDate weekStart = now.with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
 

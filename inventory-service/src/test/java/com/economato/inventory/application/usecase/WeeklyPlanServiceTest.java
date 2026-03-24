@@ -275,4 +275,60 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsStringIgnoringCase("stock")));
     }
+
+    @Test
+    void whenGetAllPlans_asElevatedWithoutTeacher_thenReturnsError() throws Exception {
+        User elevated = TestDataUtil.createUser("Elevated", "elevated1", "pass", Role.ELEVATED);
+        elevated.setTeacher(null);
+        userRepository.saveAndFlush(elevated);
+        String token = getToken("elevated1", "pass");
+
+        mockMvc.perform(get("/api/v1/weekly-plans")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("profesor")));
+    }
+
+    @Test
+    void whenGetCurrentWeekPlan_asElevatedWithoutTeacher_thenReturnsError() throws Exception {
+        User elevated = TestDataUtil.createUser("Elevated", "elevated2", "pass", Role.ELEVATED);
+        elevated.setTeacher(null);
+        userRepository.saveAndFlush(elevated);
+        String token = getToken("elevated2", "pass");
+
+        mockMvc.perform(get("/api/v1/weekly-plans/current")
+                .header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("profesor")));
+    }
+
+    @Test
+    void whenUpdatePlan_asInProgress_withInsufficientStock_thenReturnsError() throws Exception {
+        LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        
+        // 1. Create and activate plan
+        WeeklyPlanSlotRequestDTO s1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), BigDecimal.ONE, 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, List.of(student1.getId()));
+        WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s1));
+
+        String rb = mockMvc.perform(post("/api/v1/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        Long planId = objectMapper.readTree(rb).get("id").asLong();
+        
+        mockMvc.perform(patch("/api/v1/weekly-plans/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+
+        // 2. Confirm slot to move plan to IN_PROGRESS
+        String details = mockMvc.perform(get("/api/v1/weekly-plans/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        Long slotId = objectMapper.readTree(details).get("slots").get(0).get("id").asLong();
+        mockMvc.perform(patch("/api/v1/weekly-plans/{planId}/slots/{slotId}/confirm", planId, slotId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+
+        // 3. Update plan with huge quantity that exceeds stock
+        WeeklyPlanSlotRequestDTO s2 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1000.0"), 2, LocalTime.of(12,0), LocalTime.of(13,0), 2, List.of(student1.getId()));
+        WeeklyPlanRequestDTO updateReq = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s2));
+
+        mockMvc.perform(put("/api/v1/weekly-plans/{id}", planId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(updateReq))
+                .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsStringIgnoringCase("stock")));
+    }
 }
