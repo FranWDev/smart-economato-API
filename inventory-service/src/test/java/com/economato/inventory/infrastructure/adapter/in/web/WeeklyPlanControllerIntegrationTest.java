@@ -346,7 +346,7 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
 
         mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("overlap")));
+                .andExpect(jsonPath("$.message", containsString("Solapamiento")));
     }
 
     @Test
@@ -645,6 +645,8 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
         String rb = mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long planId = objectMapper.readTree(rb).get("id").asLong();
         
+        mockMvc.perform(patch(BASE_URL + "/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+
         String getRb = mockMvc.perform(get(BASE_URL + "/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long slotId = objectMapper.readTree(getRb).get("slots").get(0).get("id").asLong();
 
@@ -664,6 +666,8 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
                 .andReturn().getResponse().getContentAsString();
         Long planId = objectMapper.readTree(rb).get("id").asLong();
 
+        mockMvc.perform(patch(BASE_URL + "/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+
         mockMvc.perform(patch(BASE_URL + "/{planId}/days/{dayOfWeek}/students/{studentId}/cancel", planId, 3, student1.getId()).header("Authorization", "Bearer " + chef1Token))
                 .andExpect(status().isNoContent());
 
@@ -681,6 +685,8 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
 
         String rb = mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long planId = objectMapper.readTree(rb).get("id").asLong();
+
+        mockMvc.perform(patch(BASE_URL + "/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
 
         mockMvc.perform(patch(BASE_URL + "/{planId}/days/{dayOfWeek}/students/{studentId}/cancel", planId, 3, student1.getId()).header("Authorization", "Bearer " + chef1Token))
                 .andExpect(status().isNoContent());

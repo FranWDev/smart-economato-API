@@ -51,7 +51,7 @@ public interface WeeklyPlanRepository extends JpaRepository<WeeklyPlan, Long> {
            "FROM WeeklyPlanSlot s " +
            "JOIN s.recipe r " +
            "JOIN r.components rc " +
-           "WHERE s.weeklyPlan.id = :planId AND s.status != 'CANCELLED' " +
+           "WHERE s.weeklyPlan.id = :planId AND s.status IN ('PENDING', 'IN_PROGRESS') " +
            "GROUP BY rc.product.id")
     List<Object[]> calculateRequiredStockForPlan(@Param("planId") Long planId);
 
