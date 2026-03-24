@@ -163,6 +163,6 @@ public class WeeklyPlanStockReservationService {
         } else {
             return BigDecimal.ZERO;
         }
-        return bd.setScale(1, RoundingMode.HALF_UP);
+        return bd.setScale(4, RoundingMode.HALF_UP);
     }
 }
