@@ -215,6 +215,15 @@ public enum MessageKey {
     ERROR_WEEKLY_PLAN_INSUFFICIENT_STOCK("error.weekly.plan.insufficient.stock"),
     ERROR_WEEKLY_PLAN_AVAILABILITY_VIOLATION("error.weekly.plan.availability.violation"),
     ERROR_WEEKLY_PLAN_NOT_ACTIVE("error.weekly.plan.not.active"),
+    ERROR_WEEKLY_PLAN_ADMIN_NO_CURRENT_PLAN("error.weekly.plan.admin.no.current.plan"),
+    ERROR_WEEKLY_PLAN_SLOT_ALREADY_CONFIRMED("error.weekly.plan.already.confirmed"),
+    ERROR_WEEKLY_PLAN_SLOT_ALREADY_CANCELLED("error.weekly.plan.already.cancelled"),
+    ERROR_WEEKLY_PLAN_STUDENT_NOT_IN_SLOT("error.weekly.plan.student.not.in.slot"),
+    ERROR_WEEKLY_PLAN_ELEVATED_REQUIRE_TEACHER("error.weekly.plan.elevated.require.teacher"),
+    ERROR_WEEKLY_PLAN_SLOT_OVERLAP("error.weekly.plan.slot.overlap"),
+    ERROR_WEEKLY_PLAN_SLOT_OVERLAP_EXISTING("error.weekly.plan.slot.overlap.existing"),
+    ERROR_WEEKLY_PLAN_STUDENT_ALREADY_ASSIGNED_DAY("error.weekly.plan.student.already.assigned.day"),
+    ERROR_WEEKLY_PLAN_STUDENT_DUPLICATE_IN_SLOT("error.weekly.plan.student.duplicate.in.slot"),
     ERROR_DATA_INTEGRITY_VIOLATION("error.data.integrity.violation");
 
     private final String key;

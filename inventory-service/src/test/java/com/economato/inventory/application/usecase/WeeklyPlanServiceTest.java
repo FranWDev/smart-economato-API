@@ -153,7 +153,7 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
                 .content(asJsonString(request))
                 .header("Authorization", "Bearer " + chef1Token))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("already assigned")));
+                .andExpect(jsonPath("$.message", containsString("ya tiene un slot asignado")));
     }
 
     @Test
@@ -180,5 +180,51 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
                 .header("Authorization", "Bearer " + chef1Token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("ya está cancelado")));
+    }
+
+    @Test
+    void whenUpdatePlan_withOverlapExistingSlot_thenReturnsError() throws Exception {
+        LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        
+        // 1. Create a plan with one slot
+        WeeklyPlanSlotRequestDTO s1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), BigDecimal.ONE, 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, List.of(student1.getId()));
+        WeeklyPlanRequestDTO request = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s1));
+
+        String rb = mockMvc.perform(post("/api/v1/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(request)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        Long planId = objectMapper.readTree(rb).get("id").asLong();
+        
+        // 2. Update the plan adding a new slot that overlaps with the first one (which is now an "existing" slot in the plan)
+        // Note: updatePlan removes non-confirmed slots, so we should confirm it first OR use a mock that doesn't remove it.
+        // Actually, updatePlan removes them, then adds new ones. 
+        // If I want to test overlap with "existing", I should have a CONFIRMED slot.
+        
+        mockMvc.perform(patch("/api/v1/weekly-plans/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+        String details = mockMvc.perform(get("/api/v1/weekly-plans/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        Long slotId = objectMapper.readTree(details).get("slots").get(0).get("id").asLong();
+        mockMvc.perform(patch("/api/v1/weekly-plans/{planId}/slots/{slotId}/confirm", planId, slotId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+
+        // Now s1 at 10:00-11:00 is CONFIRMED and will be kept during update.
+        // Try to add s2 at 10:30-11:30
+        WeeklyPlanSlotRequestDTO s2 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), BigDecimal.ONE, 1, LocalTime.of(10,30), LocalTime.of(11,30), 2, List.of(student1.getId()));
+        WeeklyPlanRequestDTO updateRequest = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s2));
+
+        mockMvc.perform(put("/api/v1/weekly-plans/{id}", planId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(updateRequest))
+                .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsString("Solapamiento detectado con un slot existente")));
+    }
+    @Test
+    void whenGetCurrentWeekPlan_asAdmin_thenReturnsForbidden() throws Exception {
+        // Create an admin token
+        User admin = userRepository.saveAndFlush(TestDataUtil.createAdminUser());
+        admin.setUser("admin_test");
+        admin = userRepository.saveAndFlush(admin);
+        String adminToken = getToken("admin_test", "admin123");
+
+        mockMvc.perform(get("/api/v1/weekly-plans/current")
+                .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isForbidden());
     }
 }
