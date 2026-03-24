@@ -29,6 +29,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.LocalTime;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -63,10 +64,9 @@ public class WeeklyPlanService {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_MUST_START_MONDAY));
         }
 
-        boolean existsActive = weeklyPlanRepository.findByChefIdAndWeekStartDate(chefId, request.getWeekStartDate())
-                .filter(p -> p.getStatus() == WeeklyPlanStatus.DRAFT || p.getStatus() == WeeklyPlanStatus.ACTIVE).isPresent();
+        boolean exists = weeklyPlanRepository.findByChefIdAndWeekStartDate(chefId, request.getWeekStartDate()).isPresent();
 
-        if (existsActive) {
+        if (exists) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_ALREADY_EXISTS));
         }
 
@@ -87,7 +87,7 @@ public class WeeklyPlanService {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
         checkPermissions(plan);
 
-        if (plan.getStatus() != WeeklyPlanStatus.DRAFT) {
+        if (plan.getStatus() != WeeklyPlanStatus.DRAFT && plan.getStatus() != WeeklyPlanStatus.ACTIVE) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_ONLY_DRAFT));
         }
 
@@ -144,7 +144,8 @@ public class WeeklyPlanService {
         String desc = i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_WEEKLY_PLAN, new Object[]{String.join(", ", studentNames), slot.getRecipe().getName(), slot.getQuantity()});
 
         for (RecipeComponent rc : slot.getRecipe().getComponents()) {
-            BigDecimal totalQty = rc.getQuantity().multiply(slot.getQuantity());
+            BigDecimal totalQty = rc.getQuantity().multiply(slot.getQuantity())
+                    .divide(slot.getRecipe().getPortions(), 4, RoundingMode.HALF_UP);
             stockLedgerService.recordStockMovement(
                     rc.getProduct().getId(),
                     totalQty.negate(),
@@ -229,8 +230,9 @@ public class WeeklyPlanService {
         }
         if (!slot.getWeeklyPlan().getId().equals(planId)) throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_SLOT_NOT_BELONG));
 
-        if (slot.getStatus() == WeeklyPlanSlotStatus.CONFIRMED) {
-            throw new InvalidOperationException("No se puede cancelar un slot ya confirmado.");
+        if (slot.getStatus() == WeeklyPlanSlotStatus.CONFIRMED || slot.getStatus() == WeeklyPlanSlotStatus.CANCELLED) {
+            throw new InvalidOperationException(slot.getStatus() == WeeklyPlanSlotStatus.CONFIRMED ? 
+                "No se puede cancelar un slot ya confirmado." : "El slot ya está cancelado.");
         }
 
         slot.setStatus(WeeklyPlanSlotStatus.CANCELLED);
@@ -285,11 +287,25 @@ public class WeeklyPlanService {
 
     @Transactional(readOnly = true)
     public Page<StudentMetricsResponseDTO> getStudentMetrics(Integer chefId, Pageable pageable) {
+        User currentUser = securityContextHelper.getCurrentUser();
+        
+        // Security: Default to current user's chef ID for non-ADMIN roles if null or different
+        if (currentUser.getRole() != Role.ADMIN) {
+            Integer authorizedChefId = currentUser.getRole() == Role.ELEVATED ? 
+                (currentUser.getTeacher() != null ? currentUser.getTeacher().getId() : null) : 
+                currentUser.getId();
+            
+            if (chefId == null || !chefId.equals(authorizedChefId)) {
+                chefId = authorizedChefId;
+            }
+        }
+
         if (chefId != null) {
             Page<Object[]> results = slotStudentRepository.findStudentMetricsByChefId(chefId, pageable);
             return results.map(row -> new StudentMetricsResponseDTO((Integer) row[0], (String) row[1], (Long) row[2], (Long) row[3], (Long) row[4], 
                 ((Long) row[2] > 0) ? ((Long) row[3] * 100.0 / (Long) row[2]) : 0.0));
         } else {
+            // Only ADMIN can reach here if chefId is still null
             Page<Object[]> results = slotStudentRepository.findAllStudentMetrics(pageable);
             return results.map(row -> new StudentMetricsResponseDTO((Integer) row[0], (String) row[1], (Long) row[2], (Long) row[3], (Long) row[4], 
                 ((Long) row[2] > 0) ? ((Long) row[3] * 100.0 / (Long) row[2]) : 0.0));
@@ -333,6 +349,8 @@ public class WeeklyPlanService {
         Map<Integer, User> studentMap = userRepository.findAllById(allStudentIds).stream().collect(Collectors.toMap(User::getId, u -> u));
 
         List<WeeklyPlanSlot> slots = new ArrayList<>();
+        Set<String> dayStudentRegistry = new java.util.HashSet<>();
+        
         for (WeeklyPlanSlotRequestDTO dto : dtos) {
             Set<Integer> studentIdsInSlot = new java.util.HashSet<>();
             // Validar solapamientos
@@ -362,6 +380,10 @@ public class WeeklyPlanService {
                     if (!validIds.contains(sid)) throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_STUDENT_INVALID, new Object[]{sid}));
                     
                     String dayStudentKey = dto.getDayOfWeek() + "-" + sid;
+                    if (!dayStudentRegistry.add(dayStudentKey)) {
+                        throw new InvalidOperationException("Student " + sid + " already assigned to another slot on day " + dto.getDayOfWeek());
+                    }
+                    
                     if (!studentIdsInSlot.add(sid)) { 
                          log.warn("Student {} added twice in slot", sid);
                          throw new InvalidOperationException("Student " + sid + " added twice in slot");
