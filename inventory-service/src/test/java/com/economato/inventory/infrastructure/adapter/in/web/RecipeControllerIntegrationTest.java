@@ -108,6 +108,7 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                 component.setProductId(testProduct.getId());
                 component.setQuantity(new BigDecimal("0.5"));
                 components.add(component);
+                recipeRequest.setPortions(new BigDecimal("4.0"));
                 recipeRequest.setComponents(components);
 
                 mockMvc.perform(post(BASE_URL)
@@ -133,6 +134,7 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                 component.setProductId(testProduct.getId());
                 component.setQuantity(new BigDecimal("0.5"));
                 components.add(component);
+                recipeRequest.setPortions(new BigDecimal("4.0"));
                 recipeRequest.setComponents(components);
 
                 String createResponse = mockMvc.perform(post(BASE_URL)
@@ -165,6 +167,7 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                 component.setProductId(testProduct.getId());
                 component.setQuantity(new BigDecimal("0.5"));
                 components.add(component);
+                recipeRequest.setPortions(new BigDecimal("4.0"));
                 recipeRequest.setComponents(components);
 
                 mockMvc.perform(post(BASE_URL)
@@ -197,6 +200,8 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                 component.setQuantity(new BigDecimal("0.5"));
                 components.add(component);
 
+                recipe1.setPortions(new BigDecimal("4.0"));
+                recipe2.setPortions(new BigDecimal("4.0"));
                 recipe1.setComponents(new ArrayList<>(components));
                 recipe2.setComponents(new ArrayList<>(components));
 
@@ -232,6 +237,7 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                 component.setProductId(testProduct.getId());
                 component.setQuantity(new BigDecimal("0.5"));
                 components.add(component);
+                recipeRequest.setPortions(new BigDecimal("4.0"));
                 recipeRequest.setComponents(components);
 
                 String createResponse = mockMvc.perform(post(BASE_URL)
@@ -264,6 +270,7 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                 component.setProductId(testProduct.getId());
                 component.setQuantity(new BigDecimal("0.5"));
                 components.add(component);
+                recipeRequest.setPortions(new BigDecimal("4.0"));
                 recipeRequest.setComponents(components);
 
                 String createResponse = mockMvc.perform(post(BASE_URL)
@@ -306,6 +313,7 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                 component.setProductId(testProduct.getId());
                 component.setQuantity(new BigDecimal("0.3"));
                 components.add(component);
+                recipeRequest.setPortions(new BigDecimal("8.0"));
                 recipeRequest.setComponents(components);
 
                 String createResponse = mockMvc.perform(post(BASE_URL)
@@ -351,6 +359,7 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                 component.setProductId(testProduct.getId());
                 component.setQuantity(new BigDecimal("50.0"));
                 components.add(component);
+                recipeRequest.setPortions(new BigDecimal("1.0"));
                 recipeRequest.setComponents(components);
 
                 String createResponse = mockMvc.perform(post(BASE_URL)
@@ -401,6 +410,7 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                 component.setProductId(testProduct.getId());
                 component.setQuantity(new BigDecimal("0.1"));
                 components.add(component);
+                recipeRequest.setPortions(new BigDecimal("1.0"));
                 recipeRequest.setComponents(components);
 
                 String createResponse = mockMvc.perform(post(BASE_URL)
@@ -436,6 +446,7 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                 component.setProductId(testProduct.getId());
                 component.setQuantity(new BigDecimal("2.5"));
                 components.add(component);
+                recipeRequest.setPortions(new BigDecimal("10.0"));
                 recipeRequest.setComponents(components);
 
                 String createResponse = mockMvc.perform(post(BASE_URL)
@@ -482,6 +493,7 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                 component.setProductId(testProduct.getId());
                 component.setQuantity(new BigDecimal("0.5"));
                 components.add(component);
+                recipeRequest.setPortions(new BigDecimal("4.0"));
                 recipeRequest.setComponents(components);
 
                 String createResponse = mockMvc.perform(post(BASE_URL)
@@ -528,6 +540,7 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                 component.setProductId(testProduct.getId());
                 component.setQuantity(new BigDecimal("0.5"));
                 components.add(component);
+                recipeRequest.setPortions(new BigDecimal("4.0"));
                 recipeRequest.setComponents(components);
 
                 String createResponse = mockMvc.perform(post(BASE_URL)
@@ -562,6 +575,7 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                 component.setProductId(testProduct.getId());
                 component.setQuantity(new BigDecimal("0.5"));
                 components.add(component);
+                recipeRequest.setPortions(new BigDecimal("4.0"));
                 recipeRequest.setComponents(components);
 
                 String createResponse = mockMvc.perform(post(BASE_URL)
@@ -602,6 +616,7 @@ class RecipeControllerIntegrationTest extends BaseIntegrationTest {
                 component.setProductId(testProduct.getId());
                 component.setQuantity(new BigDecimal("0.5"));
                 components.add(component);
+                recipeRequest.setPortions(new BigDecimal("4.0"));
                 recipeRequest.setComponents(components);
 
                 String createResponse = mockMvc.perform(post(BASE_URL)

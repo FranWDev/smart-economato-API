@@ -6,8 +6,8 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(
@@ -69,5 +69,5 @@ public class WeeklyPlanSlot {
 
     @OneToMany(mappedBy = "slot", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<WeeklyPlanSlotStudent> students = new ArrayList<>();
+    private Set<WeeklyPlanSlotStudent> students = new HashSet<>();
 }

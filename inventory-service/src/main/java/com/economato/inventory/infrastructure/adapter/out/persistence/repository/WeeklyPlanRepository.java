@@ -37,16 +37,17 @@ public interface WeeklyPlanRepository extends JpaRepository<WeeklyPlan, Long> {
            "AND s.status = 'PENDING' AND s.startTime < :currentTime")
     List<WeeklyPlan> findActivePlansWithPastPendingSlots(@Param("chefId") Integer chefId, @Param("currentTime") LocalTime currentTime);
 
-    @Query("SELECT rc.product.id, SUM(rc.quantity * s.quantity) " +
+    @Query("SELECT rc.product.id, SUM((rc.quantity / r.portions) * s.quantity) " +
            "FROM WeeklyPlan wp " +
            "JOIN wp.slots s " +
            "JOIN s.recipe r " +
            "JOIN r.components rc " +
            "WHERE wp.status = 'ACTIVE' AND s.status IN ('PENDING', 'IN_PROGRESS') " +
+           "AND (:excludePlanId IS NULL OR wp.id != :excludePlanId) " +
            "GROUP BY rc.product.id")
-    List<Object[]> calculateReservedStock();
+    List<Object[]> calculateReservedStock(@Param("excludePlanId") Long excludePlanId);
 
-    @Query("SELECT rc.product.id, SUM(rc.quantity * s.quantity) " +
+    @Query("SELECT rc.product.id, SUM((rc.quantity / r.portions) * s.quantity) " +
            "FROM WeeklyPlanSlot s " +
            "JOIN s.recipe r " +
            "JOIN r.components rc " +

@@ -131,7 +131,7 @@ class RecipeServiceTest {
         testRecipe.setName("Test Recipe");
         testRecipe.setElaboration("Test elaboration");
         testRecipe.setPresentation("Test presentation");
-        testRecipe.setComponents(new ArrayList<>());
+        testRecipe.setComponents(new HashSet<>());
         testRecipe.setAllergens(new HashSet<>());
         testRecipe.setTotalCost(new BigDecimal("10.00"));
 
@@ -510,7 +510,7 @@ class RecipeServiceTest {
         Recipe emptyRecipe = new Recipe();
         emptyRecipe.setId(1);
         emptyRecipe.setName("Empty Recipe");
-        emptyRecipe.setComponents(new ArrayList<>());
+        emptyRecipe.setComponents(new HashSet<>());
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(emptyRecipe));
 
@@ -647,7 +647,7 @@ class RecipeServiceTest {
             Recipe savedRecipe = invocation.getArgument(0);
 
             assertEquals(1, savedRecipe.getComponents().size());
-            assertEquals(0, new BigDecimal("5.0").compareTo(savedRecipe.getComponents().get(0).getQuantity()));
+            assertEquals(0, new BigDecimal("5.0").compareTo(savedRecipe.getComponents().iterator().next().getQuantity()));
 
             assertEquals(new BigDecimal("25.00"), savedRecipe.getTotalCost());
             return savedRecipe;

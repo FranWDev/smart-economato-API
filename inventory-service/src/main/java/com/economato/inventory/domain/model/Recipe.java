@@ -62,7 +62,7 @@ public class Recipe {
     @JsonIgnore
     @OneToMany(mappedBy = "parentRecipe", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<RecipeComponent> components = new ArrayList<>();
+    private Set<RecipeComponent> components = new HashSet<>();
 
     public void addComponent(RecipeComponent component) {
         components.add(component);

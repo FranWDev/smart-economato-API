@@ -28,6 +28,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -91,16 +94,16 @@ class RecipeCookingAuditAspectTest {
         Recipe recipe = new Recipe();
         recipe.setId(12);
         recipe.setName("Escalope Milanesa");
-        recipe.setComponents(List.of(compA, compB));
+        recipe.setComponents(Set.of(compA, compB));
         return recipe;
     }
 
     private ProductConsumptionResponseDTO historyFor(Integer productId, int entries) {
-        List<DailyConsumptionDTO> breakdown = java.util.stream.IntStream.range(0, entries)
+        List<DailyConsumptionDTO> breakdown = IntStream.range(0, entries)
                 .mapToObj(i -> new DailyConsumptionDTO(
                         LocalDate.now().minusDays(entries - i),
                         new BigDecimal(String.valueOf(i + 1))))
-                .collect(java.util.stream.Collectors.toList());
+                .collect(Collectors.toList());
 
         return ProductConsumptionResponseDTO.builder()
                 .productId(productId)

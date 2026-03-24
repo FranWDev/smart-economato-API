@@ -213,7 +213,9 @@ public enum MessageKey {
     ERROR_WEEKLY_PLAN_STUDENT_INVALID("error.weekly.plan.student.invalid"),
     LEDGER_DESCRIPTION_WEEKLY_PLAN("ledger.description.weekly.plan"),
     ERROR_WEEKLY_PLAN_INSUFFICIENT_STOCK("error.weekly.plan.insufficient.stock"),
-    ERROR_WEEKLY_PLAN_AVAILABILITY_VIOLATION("error.weekly.plan.availability.violation");
+    ERROR_WEEKLY_PLAN_AVAILABILITY_VIOLATION("error.weekly.plan.availability.violation"),
+    ERROR_WEEKLY_PLAN_NOT_ACTIVE("error.weekly.plan.not.active"),
+    ERROR_DATA_INTEGRITY_VIOLATION("error.data.integrity.violation");
 
     private final String key;
 
