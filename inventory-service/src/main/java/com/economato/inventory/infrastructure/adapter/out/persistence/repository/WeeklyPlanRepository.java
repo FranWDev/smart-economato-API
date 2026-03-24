@@ -42,7 +42,7 @@ public interface WeeklyPlanRepository extends JpaRepository<WeeklyPlan, Long> {
            "JOIN wp.slots s " +
            "JOIN s.recipe r " +
            "JOIN r.components rc " +
-           "WHERE wp.status = 'ACTIVE' AND s.status IN ('PENDING', 'IN_PROGRESS') " +
+           "WHERE wp.status IN ('ACTIVE', 'IN_PROGRESS') AND s.status IN ('PENDING', 'IN_PROGRESS') " +
            "AND (:excludePlanId IS NULL OR wp.id != :excludePlanId) " +
            "GROUP BY rc.product.id")
     List<Object[]> calculateReservedStock(@Param("excludePlanId") Long excludePlanId);
@@ -66,4 +66,7 @@ public interface WeeklyPlanRepository extends JpaRepository<WeeklyPlan, Long> {
 
     @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.students", "slots.students.student", "chef"})
     Optional<WeeklyPlan> findByChefIdAndWeekStartDateAndStatus(Integer chefId, LocalDate weekStartDate, WeeklyPlanStatus status);
+
+    @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.students", "slots.students.student", "chef"})
+    Optional<WeeklyPlan> findByChefIdAndWeekStartDateAndStatusIn(Integer chefId, LocalDate weekStartDate, List<WeeklyPlanStatus> statuses);
 }

@@ -18,6 +18,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.hamcrest.Matchers.*;
@@ -30,6 +31,8 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
     @Autowired private RecipeRepository recipeRepository;
     @Autowired private WeeklyPlanRepository weeklyPlanRepository;
     @Autowired private WeeklyPlanSlotRepository slotRepository;
+    @Autowired private ProductRepository productRepository;
+    @Autowired private ProductBatchRepository productBatchRepository;
 
     private User chef1, chef2, student1, student2;
     private String chef1Token, chef2Token;
@@ -54,7 +57,23 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
         student2.setTeacher(chef2);
         student2 = userRepository.saveAndFlush(student2);
 
-        recipe = recipeRepository.saveAndFlush(TestDataUtil.createRecipe("Test", "E", "P", BigDecimal.TEN));
+        Product flour = productRepository.saveAndFlush(TestDataUtil.createFlour());
+
+        recipe = TestDataUtil.createRecipe("Test", "E", "P", BigDecimal.TEN);
+        RecipeComponent rc = TestDataUtil.createRecipeComponent(recipe, flour, new BigDecimal("0.5"));
+        recipe.setComponents(new java.util.HashSet<>(List.of(rc)));
+        recipe = recipeRepository.saveAndFlush(recipe);
+
+        // Crear lote para que el confirmSlot tenga stock "físico"
+        ProductBatch batch = ProductBatch.builder()
+                .product(flour)
+                .initialQuantity(new BigDecimal("100.0"))
+                .remainingQuantity(new BigDecimal("100.0"))
+                .expirationDate(LocalDate.now().plusMonths(6))
+                .receivedAt(LocalDateTime.now())
+                .depleted(false)
+                .build();
+        productBatchRepository.saveAndFlush(batch);
 
         chef1Token = getToken("chef1", "chef123");
         chef2Token = getToken("chef2", "pass");
@@ -226,5 +245,34 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
         mockMvc.perform(get("/api/v1/weekly-plans/current")
                 .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void whenActivatePlan_withInProgressPlanBlockingStock_thenReturnsError() throws Exception {
+        LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+        
+        WeeklyPlanSlotRequestDTO s1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("60.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, List.of(student1.getId()));
+        WeeklyPlanSlotRequestDTO s2 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("60.0"), 2, LocalTime.of(11,0), LocalTime.of(12,0), 2, List.of(student1.getId()));
+        WeeklyPlanRequestDTO req1 = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s1, s2));
+
+        String rb1 = mockMvc.perform(post("/api/v1/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(req1)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        Long plan1Id = objectMapper.readTree(rb1).get("id").asLong();
+        
+        mockMvc.perform(patch("/api/v1/weekly-plans/{id}/activate", plan1Id).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+
+        String details1 = mockMvc.perform(get("/api/v1/weekly-plans/{id}", plan1Id).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        Long slot1Id = objectMapper.readTree(details1).get("slots").get(0).get("id").asLong();
+
+        mockMvc.perform(patch("/api/v1/weekly-plans/{planId}/slots/{slotId}/confirm", plan1Id, slot1Id).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+
+        WeeklyPlanSlotRequestDTO s3 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1000.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, List.of(student2.getId()));
+        WeeklyPlanRequestDTO req2 = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s3));
+
+        String rb2 = mockMvc.perform(post("/api/v1/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(req2)).header("Authorization", "Bearer " + chef2Token)).andReturn().getResponse().getContentAsString();
+        Long plan2Id = objectMapper.readTree(rb2).get("id").asLong();
+
+        mockMvc.perform(patch("/api/v1/weekly-plans/{id}/activate", plan2Id).header("Authorization", "Bearer " + chef2Token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsStringIgnoringCase("stock")));
     }
 }
