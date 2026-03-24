@@ -1,0 +1,57 @@
+package com.economato.inventory.infrastructure.adapter.out.persistence.repository;
+
+import com.economato.inventory.domain.model.WeeklyPlan;
+import com.economato.inventory.domain.model.WeeklyPlanStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface WeeklyPlanRepository extends JpaRepository<WeeklyPlan, Long> {
+
+    List<WeeklyPlan> findByChefIdAndStatus(Integer chefId, WeeklyPlanStatus status);
+
+    Optional<WeeklyPlan> findByChefIdAndWeekStartDate(Integer chefId, LocalDate weekStartDate);
+
+    List<WeeklyPlan> findByChefId(Integer chefId);
+
+    List<WeeklyPlan> findByStatus(WeeklyPlanStatus status);
+
+    Page<WeeklyPlan> findByChefId(Integer chefId, Pageable pageable);
+
+    @Query("SELECT wp FROM WeeklyPlan wp JOIN FETCH wp.slots s WHERE wp.status = 'ACTIVE' AND s.status IN ('PENDING', 'IN_PROGRESS')")
+    List<WeeklyPlan> findActivePlansWithPendingSlots();
+
+    @Query("SELECT wp FROM WeeklyPlan wp JOIN FETCH wp.slots s " +
+           "WHERE wp.chef.id = :chefId AND wp.status = 'ACTIVE' " +
+           "AND s.status = 'PENDING' AND s.startTime < :currentTime")
+    List<WeeklyPlan> findActivePlansWithPastPendingSlots(@Param("chefId") Integer chefId, @Param("currentTime") LocalTime currentTime);
+
+    @Query("SELECT rc.product.id, SUM(rc.quantity * s.quantity) " +
+           "FROM WeeklyPlan wp " +
+           "JOIN wp.slots s " +
+           "JOIN s.recipe r " +
+           "JOIN r.components rc " +
+           "WHERE wp.status = 'ACTIVE' AND s.status IN ('PENDING', 'IN_PROGRESS') " +
+           "GROUP BY rc.product.id")
+    List<Object[]> calculateReservedStock();
+
+    @Query("SELECT rc.product.id, SUM(rc.quantity * s.quantity) " +
+           "FROM WeeklyPlanSlot s " +
+           "JOIN s.recipe r " +
+           "JOIN r.components rc " +
+           "WHERE s.weeklyPlan.id = :planId AND s.status != 'CANCELLED' " +
+           "GROUP BY rc.product.id")
+    List<Object[]> calculateRequiredStockForPlan(@Param("planId") Long planId);
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.students", "slots.students.student", "chef"})
+    Optional<WeeklyPlan> findWithDetailsById(Long id);
+}
