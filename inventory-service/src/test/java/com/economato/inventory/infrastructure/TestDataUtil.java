@@ -116,7 +116,7 @@ public class TestDataUtil {
         recipe.setPresentation(presentation);
         recipe.setTotalCost(totalCost);
         recipe.setPortions(BigDecimal.ONE); // Importante: Valor por defecto para evitar NPE
-        recipe.setComponents(new ArrayList<>());
+        recipe.setComponents(new HashSet<>());
         recipe.setAllergens(new HashSet<>());
         return recipe;
     }
@@ -183,9 +183,9 @@ public class TestDataUtil {
         Product flour = createFlour();
         Product sugar = createSugar();
 
-        recipe.setComponents(Arrays.asList(
+        recipe.setComponents(new HashSet<>(Arrays.asList(
                 createRecipeComponent(recipe, flour, new BigDecimal("0.5")),
-                createRecipeComponent(recipe, sugar, new BigDecimal("0.3"))));
+                createRecipeComponent(recipe, sugar, new BigDecimal("0.3")))));
 
         return recipe;
     }

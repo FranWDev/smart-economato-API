@@ -32,13 +32,13 @@ public class WeeklyPlanStockReservationService {
     private final ProductRepository productRepository;
     private final I18nService i18nService;
 
-    public Map<Integer, BigDecimal> calculateReservedStock() {
-        List<Object[]> results = weeklyPlanRepository.calculateReservedStock();
+    public Map<Integer, BigDecimal> calculateReservedStock(Long excludePlanId) {
+        List<Object[]> results = weeklyPlanRepository.calculateReservedStock(excludePlanId);
         Map<Integer, BigDecimal> reservedMap = new HashMap<>();
         
         for (Object[] row : results) {
             Integer productId = (Integer) row[0];
-            BigDecimal quantity = (BigDecimal) row[1];
+            BigDecimal quantity = toBigDecimal(row[1]);
             reservedMap.put(productId, quantity != null ? quantity : BigDecimal.ZERO);
         }
         
@@ -46,7 +46,7 @@ public class WeeklyPlanStockReservationService {
     }
 
     public BigDecimal getReservedStockForProduct(Integer productId) {
-        return calculateReservedStock().getOrDefault(productId, BigDecimal.ZERO);
+        return calculateReservedStock(null).getOrDefault(productId, BigDecimal.ZERO);
     }
 
     public boolean isStockSufficientForAction(Integer productId, BigDecimal requiredAmount) {
@@ -69,12 +69,12 @@ public class WeeklyPlanStockReservationService {
         
         Map<Integer, BigDecimal> requiredStockMap = new HashMap<>();
         for (Object[] row : requiredResults) {
-            requiredStockMap.put((Integer) row[0], (BigDecimal) row[1]);
+            requiredStockMap.put((Integer) row[0], toBigDecimal(row[1]));
         }
         
         if (requiredStockMap.isEmpty()) return;
 
-        Map<Integer, BigDecimal> currentReservations = calculateReservedStock();
+        Map<Integer, BigDecimal> currentReservations = calculateReservedStock(planId);
         List<Product> products = productRepository.findAllById(requiredStockMap.keySet());
         Map<Integer, Product> productMap = products.stream().collect(Collectors.toMap(Product::getId, p -> p));
         
@@ -122,13 +122,13 @@ public class WeeklyPlanStockReservationService {
         List<Object[]> requiredResults = weeklyPlanRepository.calculateRequiredStockForPlan(planId);
         Map<Integer, BigDecimal> requiredStockMap = new HashMap<>();
         for (Object[] row : requiredResults) {
-            requiredStockMap.put((Integer) row[0], (BigDecimal) row[1]);
+            requiredStockMap.put((Integer) row[0], toBigDecimal(row[1]));
         }
         
         List<com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO> dtos = new ArrayList<>();
         if (requiredStockMap.isEmpty()) return dtos;
 
-        Map<Integer, BigDecimal> currentReservations = calculateReservedStock();
+        Map<Integer, BigDecimal> currentReservations = calculateReservedStock(planId);
         List<Product> products = productRepository.findAllById(requiredStockMap.keySet());
         WeeklyPlan plan = weeklyPlanRepository.findById(planId).orElseThrow();
         
@@ -138,12 +138,7 @@ public class WeeklyPlanStockReservationService {
             BigDecimal availabilityPct = product.getAvailabilityPercentage() != null ? product.getAvailabilityPercentage() : new BigDecimal("100.00");
             
             BigDecimal maxAvailable = currentStock.multiply(availabilityPct).divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
-            BigDecimal alreadyReserved = currentReservations.getOrDefault(product.getId(), BigDecimal.ZERO);
-            
-            BigDecimal reservedByOtherPlans = alreadyReserved;
-            if (plan.getStatus() == com.economato.inventory.domain.model.WeeklyPlanStatus.ACTIVE || plan.getStatus() == com.economato.inventory.domain.model.WeeklyPlanStatus.IN_PROGRESS) {
-                reservedByOtherPlans = alreadyReserved.subtract(needed).max(BigDecimal.ZERO);
-            }
+            BigDecimal reservedByOtherPlans = currentReservations.getOrDefault(product.getId(), BigDecimal.ZERO);
             
             BigDecimal trulyAvailable = maxAvailable.subtract(reservedByOtherPlans);
             
@@ -157,5 +152,17 @@ public class WeeklyPlanStockReservationService {
                 .build());
         }
         return dtos;
+    }
+    private BigDecimal toBigDecimal(Object value) {
+        if (value == null) return BigDecimal.ZERO;
+        BigDecimal bd;
+        if (value instanceof BigDecimal) {
+            bd = (BigDecimal) value;
+        } else if (value instanceof Number) {
+            bd = new BigDecimal(value.toString());
+        } else {
+            return BigDecimal.ZERO;
+        }
+        return bd.setScale(1, RoundingMode.HALF_UP);
     }
 }

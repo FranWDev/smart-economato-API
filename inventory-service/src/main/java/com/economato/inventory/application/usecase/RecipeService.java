@@ -177,7 +177,7 @@ public class RecipeService {
     private void updateEntityCollections(Recipe recipe, RecipeRequestDTO requestDTO) {
 
         if (recipe.getComponents() == null) {
-            recipe.setComponents(new java.util.ArrayList<>());
+            recipe.setComponents(new HashSet<>());
         }
         if (recipe.getAllergens() == null) {
             recipe.setAllergens(new HashSet<>());
