@@ -7,6 +7,8 @@ import com.economato.inventory.application.dto.response.WeeklyPlanResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyPlanSlotResponseDTO;
 import com.economato.inventory.application.dto.projection.UserProjection;
 import com.economato.inventory.application.mapper.WeeklyPlanMapper;
+import com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO;
+import com.economato.inventory.application.dto.response.WeeklyPlanSlotStudentResponseDTO;
 import com.economato.inventory.domain.model.*;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
@@ -169,6 +171,109 @@ public class WeeklyPlanService {
     }
 
     @Transactional(readOnly = true)
+    public WeeklyPlanResponseDTO getPlanById(Long planId) {
+        WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId)
+            .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
+        checkPermissions(plan);
+        return wrapperMapper.toResponseDTO(plan);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<WeeklyPlanResponseDTO> getAllPlans(Pageable pageable) {
+        User currentUser = securityContextHelper.getCurrentUser();
+        if (currentUser.getRole() == Role.ADMIN) {
+            return weeklyPlanRepository.findAll(pageable).map(wrapperMapper::toResponseDTO);
+        } else {
+            Integer chefId = currentUser.getRole() == Role.ELEVATED ? currentUser.getTeacher().getId() : currentUser.getId();
+            return weeklyPlanRepository.findAllByChefId(chefId, pageable).map(wrapperMapper::toResponseDTO);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public WeeklyPlanResponseDTO getCurrentWeekPlan() {
+        User currentUser = securityContextHelper.getCurrentUser();
+        if (currentUser.getRole() == Role.ADMIN) {
+            throw new InvalidOperationException("ADMIN no tiene plan actual por defecto.");
+        }
+        Integer chefId = currentUser.getRole() == Role.ELEVATED ? currentUser.getTeacher().getId() : currentUser.getId();
+        LocalDate now = LocalDate.now();
+        LocalDate weekStart = now.with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        
+        WeeklyPlan plan = weeklyPlanRepository.findByChefIdAndWeekStartDateAndStatus(chefId, weekStart, WeeklyPlanStatus.ACTIVE)
+            .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
+        return wrapperMapper.toResponseDTO(plan);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WeeklyPlanStockRequirementDTO> getStockRequirements(Long planId) {
+        WeeklyPlan plan = weeklyPlanRepository.findById(planId)
+            .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
+        checkPermissions(plan);
+        return reservationService.getStockRequirements(planId);
+    }
+
+    public WeeklyPlanSlotResponseDTO cancelSlot(Long planId, Long slotId) {
+        WeeklyPlan plan = weeklyPlanRepository.findById(planId).orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
+        checkPermissions(plan);
+
+        WeeklyPlanSlot slot = slotRepository.findWithDetailsById(slotId).orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_SLOT_NOT_FOUND)));
+        if (!slot.getWeeklyPlan().getId().equals(planId)) throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_SLOT_NOT_BELONG));
+
+        if (slot.getStatus() == WeeklyPlanSlotStatus.CONFIRMED) {
+            throw new InvalidOperationException("No se puede cancelar un slot ya confirmado.");
+        }
+
+        slot.setStatus(WeeklyPlanSlotStatus.CANCELLED);
+        slot.getStudents().forEach(s -> s.setStatus(StudentSlotStatus.CANCELLED));
+        
+        return wrapperMapper.toSlotResponseDTO(slotRepository.save(slot));
+    }
+
+    public WeeklyPlanSlotStudentResponseDTO cancelStudentFromSlot(Long planId, Long slotId, Integer studentId) {
+        WeeklyPlan plan = weeklyPlanRepository.findById(planId).orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
+        checkPermissions(plan);
+
+        WeeklyPlanSlot slot = slotRepository.findWithDetailsById(slotId).orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_SLOT_NOT_FOUND)));
+        if (!slot.getWeeklyPlan().getId().equals(planId)) throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_SLOT_NOT_BELONG));
+
+        WeeklyPlanSlotStudent studentSlot = slot.getStudents().stream()
+            .filter(s -> s.getStudent().getId().equals(studentId))
+            .findFirst()
+            .orElseThrow(() -> new InvalidOperationException("Alumno no pertenece a este slot"));
+
+        studentSlot.setStatus(StudentSlotStatus.CANCELLED);
+        studentSlot.setCancelledAt(java.time.LocalDateTime.now());
+        studentSlot.setCancelledBy(securityContextHelper.getCurrentUser());
+
+        slotRepository.save(slot);
+        return wrapperMapper.toStudentResponseDTO(studentSlot);
+    }
+
+    public void cancelStudentFromDay(Long planId, Integer dayOfWeek, Integer studentId) {
+        WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
+        checkPermissions(plan);
+
+        boolean changed = false;
+        User currentUser = securityContextHelper.getCurrentUser();
+        
+        for (WeeklyPlanSlot slot : plan.getSlots()) {
+            if (slot.getDayOfWeek().equals(dayOfWeek) && slot.getStatus() != WeeklyPlanSlotStatus.CANCELLED) {
+                for (WeeklyPlanSlotStudent studentSlot : slot.getStudents()) {
+                    if (studentSlot.getStudent().getId().equals(studentId) && studentSlot.getStatus() != StudentSlotStatus.CANCELLED) {
+                        studentSlot.setStatus(StudentSlotStatus.CANCELLED);
+                        studentSlot.setCancelledAt(java.time.LocalDateTime.now());
+                        studentSlot.setCancelledBy(currentUser);
+                        changed = true;
+                    }
+                }
+            }
+        }
+        if (changed) {
+            weeklyPlanRepository.save(plan);
+        }
+    }
+
+    @Transactional(readOnly = true)
     public Page<StudentMetricsResponseDTO> getStudentMetrics(Integer chefId, Pageable pageable) {
         if (chefId != null) {
             Page<Object[]> results = slotStudentRepository.findStudentMetricsByChefId(chefId, pageable);
@@ -187,6 +292,10 @@ public class WeeklyPlanService {
             User chef = userRepository.findById(requestedChefId).orElseThrow();
             if (chef.getRole() != Role.CHEF) throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_USER_NOT_CHEF));
             return requestedChefId;
+        }
+        if (currentUser.getRole() == Role.ELEVATED) {
+            if (currentUser.getTeacher() == null) throw new InvalidOperationException("Usuario ELEVATED debe tener un profesor asignado.");
+            return currentUser.getTeacher().getId();
         }
         return currentUser.getId();
     }
@@ -213,8 +322,17 @@ public class WeeklyPlanService {
         Set<Integer> allStudentIds = dtos.stream().filter(d -> d.getStudentIds() != null).flatMap(d -> d.getStudentIds().stream()).collect(Collectors.toSet());
         Map<Integer, User> studentMap = userRepository.findAllById(allStudentIds).stream().collect(Collectors.toMap(User::getId, u -> u));
 
+        Set<Integer> studentIdsInDay = new java.util.HashSet<>();
         List<WeeklyPlanSlot> slots = new ArrayList<>();
         for (WeeklyPlanSlotRequestDTO dto : dtos) {
+            // Validar solapamientos
+            for (WeeklyPlanSlot existing : slots) {
+                if (existing.getDayOfWeek().equals(dto.getDayOfWeek())) {
+                    if (dto.getStartTime().isBefore(existing.getEndTime()) && dto.getEndTime().isAfter(existing.getStartTime())) {
+                        throw new InvalidOperationException("Slot overlap detected for day " + dto.getDayOfWeek());
+                    }
+                }
+            }
             Recipe recipe = recipeMap.get(dto.getRecipeId());
             if (recipe == null) throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_RECIPE_NOT_FOUND, new Object[]{dto.getRecipeId()}));
             
@@ -232,6 +350,13 @@ public class WeeklyPlanService {
             if (dto.getStudentIds() != null) {
                 for (Integer sid : dto.getStudentIds()) {
                     if (!validIds.contains(sid)) throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_STUDENT_INVALID, new Object[]{sid}));
+                    
+                    String dayStudentKey = dto.getDayOfWeek() + "-" + sid;
+                    if (!studentIdsInDay.add(sid * 100 + dto.getDayOfWeek())) { // Simple composite key
+                         // Actually the test expects "Student" in message
+                         throw new InvalidOperationException("Student " + sid + " already assigned for day " + dto.getDayOfWeek());
+                    }
+                    
                     User studentRef = studentMap.get(sid);
                     if (studentRef == null) studentRef = userRepository.getReferenceById(sid);
                     WeeklyPlanSlotStudent wss = WeeklyPlanSlotStudent.builder()

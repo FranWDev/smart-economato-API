@@ -4,9 +4,11 @@ import com.economato.inventory.domain.model.WeeklyPlan;
 import com.economato.inventory.domain.model.WeeklyPlanStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
@@ -52,6 +54,15 @@ public interface WeeklyPlanRepository extends JpaRepository<WeeklyPlan, Long> {
            "GROUP BY rc.product.id")
     List<Object[]> calculateRequiredStockForPlan(@Param("planId") Long planId);
 
-    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.students", "slots.students.student", "chef"})
+    @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.students", "slots.students.student", "chef"})
     Optional<WeeklyPlan> findWithDetailsById(Long id);
+
+    @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.students", "slots.students.student", "chef"})
+    Page<WeeklyPlan> findAllByChefId(Integer chefId, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.students", "slots.students.student", "chef"})
+    Page<WeeklyPlan> findAll(@NonNull Pageable pageable);
+
+    @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.students", "slots.students.student", "chef"})
+    Optional<WeeklyPlan> findByChefIdAndWeekStartDateAndStatus(Integer chefId, LocalDate weekStartDate, WeeklyPlanStatus status);
 }
