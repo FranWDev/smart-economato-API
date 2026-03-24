@@ -57,9 +57,8 @@ public class WeeklyPlanService {
 
     public WeeklyPlanResponseDTO createPlan(WeeklyPlanRequestDTO request) {
         User currentUser = securityContextHelper.getCurrentUser();
-        Integer chefId = determineChefId(request.getChefId(), currentUser);
-        User chef = userRepository.findById(chefId).orElseThrow(() -> new ResourceNotFoundException(
-                i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_CHEF_NOT_FOUND)));
+        User chef = determineChef(request.getChefId(), currentUser);
+        Integer chefId = chef.getId();
 
         if (request.getWeekStartDate().getDayOfWeek() != DayOfWeek.MONDAY) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_MUST_START_MONDAY));
@@ -248,8 +247,6 @@ public class WeeklyPlanService {
         if (plan.getStatus() != WeeklyPlanStatus.ACTIVE && plan.getStatus() != WeeklyPlanStatus.IN_PROGRESS) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_ACTIVE));
         }
-        if (!slot.getWeeklyPlan().getId().equals(planId))
-            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_SLOT_NOT_BELONG));
 
         if (slot.getStatus() == WeeklyPlanSlotStatus.CONFIRMED || slot.getStatus() == WeeklyPlanSlotStatus.CANCELLED) {
             throw new InvalidOperationException(
@@ -268,6 +265,10 @@ public class WeeklyPlanService {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
         checkPermissions(plan);
+
+        if (plan.getStatus() != WeeklyPlanStatus.ACTIVE && plan.getStatus() != WeeklyPlanStatus.IN_PROGRESS) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_ACTIVE));
+        }
 
         WeeklyPlanSlot slot = slotRepository.findWithDetailsById(slotId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -292,6 +293,10 @@ public class WeeklyPlanService {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
         checkPermissions(plan);
+
+        if (plan.getStatus() != WeeklyPlanStatus.ACTIVE && plan.getStatus() != WeeklyPlanStatus.IN_PROGRESS) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_ACTIVE));
+        }
 
         boolean changed = false;
         User currentUser = securityContextHelper.getCurrentUser();
@@ -344,22 +349,23 @@ public class WeeklyPlanService {
         }
     }
 
-    private Integer determineChefId(Integer requestedChefId, User currentUser) {
+    private User determineChef(Integer requestedChefId, User currentUser) {
         if (currentUser.getRole() == Role.ADMIN) {
             if (requestedChefId == null)
                 throw new InvalidOperationException(
                         i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_ADMIN_REQUIRE_CHEF));
-            User chef = userRepository.findById(requestedChefId).orElseThrow();
+            User chef = userRepository.findById(requestedChefId).orElseThrow(() -> new ResourceNotFoundException(
+                    i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_CHEF_NOT_FOUND)));
             if (chef.getRole() != Role.CHEF)
                 throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_USER_NOT_CHEF));
-            return requestedChefId;
+            return chef;
         }
         if (currentUser.getRole() == Role.ELEVATED) {
             if (currentUser.getTeacher() == null)
                 throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_ELEVATED_REQUIRE_TEACHER));
-            return currentUser.getTeacher().getId();
+            return currentUser.getTeacher();
         }
-        return currentUser.getId();
+        return currentUser;
     }
 
     private void checkPermissions(WeeklyPlan plan) {
@@ -391,6 +397,17 @@ public class WeeklyPlanService {
 
         List<WeeklyPlanSlot> slots = new ArrayList<>();
         Set<String> dayStudentRegistry = new java.util.HashSet<>();
+
+        // Pre-populate with students from existing (CONFIRMED) slots in the plan
+        for (WeeklyPlanSlot existingSlot : plan.getSlots()) {
+            if (existingSlot.getStudents() != null) {
+                for (WeeklyPlanSlotStudent wss : existingSlot.getStudents()) {
+                    if (wss.getStatus() != StudentSlotStatus.CANCELLED) {
+                        dayStudentRegistry.add(existingSlot.getDayOfWeek() + "-" + wss.getStudent().getId());
+                    }
+                }
+            }
+        }
 
         for (WeeklyPlanSlotRequestDTO dto : dtos) {
             Set<Integer> studentIdsInSlot = new java.util.HashSet<>();
