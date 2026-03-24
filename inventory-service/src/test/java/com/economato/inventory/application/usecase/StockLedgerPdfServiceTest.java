@@ -65,7 +65,6 @@ class StockLedgerPdfServiceTest {
                 testProduct.setId(1);
                 testProduct.setName("Test Product");
                 testProduct.setProductCode("TEST001");
-                testProduct.setType("Ingrediente");
                 testProduct.setUnit("KG");
                 testProduct.setUnitPrice(new BigDecimal("10.00"));
                 testProduct.setCurrentStock(new BigDecimal("100.000"));

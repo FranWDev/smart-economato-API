@@ -54,7 +54,6 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
 
                 ProductRequestDTO productRequest = new ProductRequestDTO();
                 productRequest.setName("Test Product");
-                productRequest.setType("INGREDIENT");
                 productRequest.setUnit("KG");
                 productRequest.setCurrentStock(new BigDecimal("-5.0"));
                 productRequest.setUnitPrice(new BigDecimal("10.0"));
@@ -72,7 +71,6 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
 
                 ProductRequestDTO productRequest = new ProductRequestDTO();
                 productRequest.setName("Test Product");
-                productRequest.setType("INGREDIENT");
                 productRequest.setUnit("KG");
                 productRequest.setCurrentStock(new BigDecimal("5.0"));
                 productRequest.setUnitPrice(new BigDecimal("-10.0"));
@@ -90,7 +88,6 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
 
                 ProductRequestDTO productRequest = new ProductRequestDTO();
                 productRequest.setName("");
-                productRequest.setType("INGREDIENT");
                 productRequest.setUnit("KG");
                 productRequest.setCurrentStock(new BigDecimal("5.0"));
                 productRequest.setUnitPrice(new BigDecimal("10.0"));
@@ -108,7 +105,6 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
 
                 ProductRequestDTO productRequest = new ProductRequestDTO();
                 productRequest.setName("Test Product");
-                productRequest.setType("INGREDIENT");
                 productRequest.setUnit("INVALID");
                 productRequest.setCurrentStock(new BigDecimal("5.0"));
                 productRequest.setUnitPrice(new BigDecimal("10.0"));
@@ -126,13 +122,11 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
 
                 ProductRequestDTO productRequest = new ProductRequestDTO();
                 productRequest.setName("Duplicate Product");
-                productRequest.setType("INGREDIENT");
                 productRequest.setUnit("KG");
                 productRequest.setCurrentStock(new BigDecimal("5.0"));
                 productRequest.setExpirationDate(java.time.LocalDate.now().plusDays(30));
                 productRequest.setUnitPrice(new BigDecimal("10.0"));
                 productRequest.setProductCode("TEST001");
-                productRequest.setMinimumStock(BigDecimal.ZERO);
 
                 mockMvc.perform(post(BASE_URL)
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -161,12 +155,10 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
 
                 ProductRequestDTO productRequest = new ProductRequestDTO();
                 productRequest.setName("Updated Product");
-                productRequest.setType("INGREDIENT");
                 productRequest.setUnit("KG");
                 productRequest.setCurrentStock(new BigDecimal("5.0"));
                 productRequest.setUnitPrice(new BigDecimal("10.0"));
                 productRequest.setProductCode("TEST001");
-                productRequest.setMinimumStock(BigDecimal.ZERO);
 
                 mockMvc.perform(put(BASE_URL + "/99999")
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -189,13 +181,11 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
                 for (int i = 1; i <= 15; i++) {
                         ProductRequestDTO productRequest = new ProductRequestDTO();
                         productRequest.setName("Product " + i);
-                        productRequest.setType("INGREDIENT");
                         productRequest.setUnit("KG");
                         productRequest.setCurrentStock(new BigDecimal("5.0"));
                         productRequest.setExpirationDate(java.time.LocalDate.now().plusDays(30));
                         productRequest.setUnitPrice(new BigDecimal("10.0"));
                         productRequest.setProductCode("CODE" + i);
-                        productRequest.setMinimumStock(BigDecimal.ZERO);
 
                         mockMvc.perform(post(BASE_URL)
                                         .header("Authorization", "Bearer " + jwtToken)
@@ -222,13 +212,11 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
 
                 ProductRequestDTO ingredientProduct = new ProductRequestDTO();
                 ingredientProduct.setName("Flour");
-                ingredientProduct.setType("INGREDIENT");
                 ingredientProduct.setUnit("KG");
                 ingredientProduct.setCurrentStock(new BigDecimal("10.0"));
                 ingredientProduct.setExpirationDate(java.time.LocalDate.now().plusDays(30));
                 ingredientProduct.setUnitPrice(new BigDecimal("5.0"));
                 ingredientProduct.setProductCode("FLOUR001");
-                ingredientProduct.setMinimumStock(BigDecimal.ZERO);
 
                 mockMvc.perform(post(BASE_URL)
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -246,7 +234,6 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
 
                 ProductRequestDTO productRequest = new ProductRequestDTO();
                 productRequest.setName("Test Product");
-                productRequest.setType("INGREDIENT");
                 productRequest.setUnit("KG");
                 productRequest.setCurrentStock(new BigDecimal("5.0"));
                 productRequest.setUnitPrice(new BigDecimal("10.0"));
@@ -263,7 +250,6 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
 
                 ProductRequestDTO productRequest = new ProductRequestDTO();
                 productRequest.setName("Test Product");
-                productRequest.setType("INGREDIENT");
                 productRequest.setUnit("KG");
                 productRequest.setCurrentStock(new BigDecimal("5.0"));
                 productRequest.setUnitPrice(new BigDecimal("10.0"));

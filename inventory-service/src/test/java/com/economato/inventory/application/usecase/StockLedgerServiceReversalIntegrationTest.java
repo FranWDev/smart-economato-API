@@ -49,10 +49,8 @@ public class StockLedgerServiceReversalIntegrationTest {
         product.setName("Product Test");
         product.setProductCode("PROD-TEST-REV-" + System.currentTimeMillis());
         product.setUnit("KG");
-        product.setType("ALIMENTO");
         product.setUnitPrice(BigDecimal.ONE);
         product.setCurrentStock(BigDecimal.ZERO);
-        product.setMinimumStock(BigDecimal.ZERO);
         product = productRepository.save(product);
 
         Supplier supplier = Supplier.builder()
@@ -97,10 +95,8 @@ public class StockLedgerServiceReversalIntegrationTest {
         product.setName("Product Test 2");
         product.setProductCode("PROD-TEST-REV-2-" + System.currentTimeMillis());
         product.setUnit("KG");
-        product.setType("ALIMENTO");
         product.setUnitPrice(BigDecimal.ONE);
         product.setCurrentStock(BigDecimal.ZERO);
-        product.setMinimumStock(BigDecimal.ZERO);
         product = productRepository.save(product);
 
         Supplier supplier = Supplier.builder()

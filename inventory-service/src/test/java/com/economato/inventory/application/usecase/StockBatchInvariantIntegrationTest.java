@@ -65,12 +65,10 @@ class StockBatchInvariantIntegrationTest extends BaseIntegrationTest {
 
         testProduct = new Product();
         testProduct.setName("Producto Invariante");
-        testProduct.setType("Ingrediente");
         testProduct.setUnit("KG");
         testProduct.setUnitPrice(new BigDecimal("10.50"));
         testProduct.setProductCode("INV-TEST-001");
         testProduct.setCurrentStock(BigDecimal.ZERO);
-        testProduct.setMinimumStock(BigDecimal.ZERO);
         testProduct = productRepository.saveAndFlush(testProduct);
     }
 

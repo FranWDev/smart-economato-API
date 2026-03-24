@@ -144,8 +144,8 @@ class StatsControllerIntegrationTest extends BaseIntegrationTest {
         // Create some products
         // total inventory value = (10.00 * 5.0) + (20.00 * 2.0) = 50 + 40 = 90
         // average price = (10 + 20) / 2 = 15
-        Product p1 = TestDataUtil.createProduct("Product 1", "Ingrediente", "KG", new BigDecimal("10.00"), "P1", new BigDecimal("5.0"));
-        Product p2 = TestDataUtil.createProduct("Product 2", "Ingrediente", "KG", new BigDecimal("20.00"), "P2", new BigDecimal("2.0"));
+        Product p1 = TestDataUtil.createProduct("Product 1", "KG", new BigDecimal("10.00"), "P1", new BigDecimal("5.0"));
+        Product p2 = TestDataUtil.createProduct("Product 2", "KG", new BigDecimal("20.00"), "P2", new BigDecimal("2.0"));
         
         productRepository.saveAllAndFlush(java.util.Arrays.asList(p1, p2));
 

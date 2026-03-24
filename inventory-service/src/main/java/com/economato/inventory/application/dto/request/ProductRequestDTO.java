@@ -19,12 +19,10 @@ public class ProductRequestDTO {
     @Schema(description = "Nombre del producto", example = "Harina de trigo")
     private String name;
 
-    @Schema(description = "Tipo o categoría del producto", example = "Ingrediente")
-    private String type;
 
     @NotBlank(message = "{validation.productRequestDTO.unit.notBlank}")
     @Size(max = 20, message = "{validation.productRequestDTO.unit.size}")
-    @Schema(description = "Unidad de medida del producto", example = "kg")
+    @Schema(description = "Unidad de medida del producto (KG, G, L, ML, CUCHARADA, TAZA, UNIDAD, BOTE, BOLSA, CAJA, etc.)", example = "KG")
     private String unit;
 
     @NotNull(message = "{validation.productRequestDTO.unitPrice.notNull}")
@@ -52,12 +50,6 @@ public class ProductRequestDTO {
     @Schema(description = "Porcentaje de disponibilidad del producto (0-100). Si no se especifica, se asume 100%", example = "85.50")
     private BigDecimal availabilityPercentage;
 
-    @NotNull(message = "{validation.productRequestDTO.minimumStock.notNull}")
-    @DecimalMin(value = "0.0", inclusive = true, message = "{validation.productRequestDTO.minimumStock.decimalMin}")
-    @Digits(integer = 10, fraction = 3, message = "{validation.productRequestDTO.minimumStock.digits}")
-    @Schema(description = "Stock mínimo antes de alerta", example = "10.00")
-    @JsonAlias("minStock")
-    private BigDecimal minimumStock;
 
     @Schema(description = "ID del proveedor del producto", example = "1")
     private Integer supplierId;

@@ -81,12 +81,10 @@ class RecipeServiceReversalIntegrationTest extends BaseIntegrationTest {
 
         product = new Product();
         product.setName("Product for Reversal");
-        product.setType("Ingredient");
         product.setUnit("KG");
         product.setUnitPrice(new BigDecimal("10.00"));
         product.setProductCode("REV-001");
         product.setCurrentStock(BigDecimal.ZERO);
-        product.setMinimumStock(BigDecimal.ZERO);
         product = productRepository.saveAndFlush(product);
 
         recipe = new Recipe();

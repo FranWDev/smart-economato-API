@@ -109,14 +109,11 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 .content(asJsonString(productRequest)))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.name").value(productRequest.getName()))
-                                .andExpect(jsonPath("$.type").value(productRequest.getType()))
-                                .andExpect(jsonPath("$.unit").value(productRequest.getUnit()))
-                                .andExpect(jsonPath("$.unitPrice").value(productRequest.getUnitPrice().doubleValue()))
-                                .andExpect(jsonPath("$.productCode").value(productRequest.getProductCode()))
-                                .andExpect(jsonPath("$.currentStock")
-                                                .value(productRequest.getCurrentStock().doubleValue()))
-                                .andExpect(jsonPath("$.minimumStock")
-                                                .value(productRequest.getMinimumStock().doubleValue()));
+                                 .andExpect(jsonPath("$.unit").value(productRequest.getUnit()))
+                                 .andExpect(jsonPath("$.unitPrice").value(productRequest.getUnitPrice().doubleValue()))
+                                 .andExpect(jsonPath("$.productCode").value(productRequest.getProductCode()))
+                                 .andExpect(jsonPath("$.currentStock")
+                                                 .value(productRequest.getCurrentStock().doubleValue()));
         }
 
         @Test
@@ -130,14 +127,11 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 .content(asJsonString(productRequest)))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.name").value(productRequest.getName()))
-                                .andExpect(jsonPath("$.type").value(productRequest.getType()))
                                 .andExpect(jsonPath("$.unit").value(productRequest.getUnit()))
                                 .andExpect(jsonPath("$.unitPrice").value(productRequest.getUnitPrice().doubleValue()))
                                 .andExpect(jsonPath("$.productCode").value(productRequest.getProductCode()))
                                 .andExpect(jsonPath("$.currentStock")
                                                 .value(productRequest.getCurrentStock().doubleValue()))
-                                .andExpect(jsonPath("$.minimumStock")
-                                                .value(productRequest.getMinimumStock().doubleValue()))
                                 .andReturn().getResponse().getContentAsString();
 
                 Integer productId = objectMapper.readTree(response).get("id").asInt();
@@ -146,7 +140,6 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.name").value(productRequest.getName()))
-                                .andExpect(jsonPath("$.type").value(productRequest.getType()))
                                 .andExpect(jsonPath("$.unit").value(productRequest.getUnit()))
                                 .andExpect(jsonPath("$.unitPrice").value(productRequest.getUnitPrice().doubleValue()))
                                 .andExpect(jsonPath("$.productCode").value(productRequest.getProductCode()))
@@ -175,12 +168,8 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 .content(asJsonString(product1)))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.name").value(product1.getName()))
-                                .andExpect(jsonPath("$.type").value(product1.getType()))
-                                .andExpect(jsonPath("$.unit").value(product1.getUnit()))
-                                .andExpect(jsonPath("$.unitPrice").value(product1.getUnitPrice().doubleValue()))
-                                .andExpect(jsonPath("$.productCode").value(product1.getProductCode()))
-                                .andExpect(jsonPath("$.currentStock").value(product1.getCurrentStock().doubleValue()))
-                                .andExpect(jsonPath("$.minimumStock").value(product1.getMinimumStock().doubleValue()));
+                                 .andExpect(jsonPath("$.unitPrice").value(product1.getUnitPrice().doubleValue()))
+                                 .andExpect(jsonPath("$.productCode").value(product1.getProductCode()));
 
                 mockMvc.perform(post(BASE_URL)
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -188,12 +177,8 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 .content(asJsonString(product2)))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.name").value(product2.getName()))
-                                .andExpect(jsonPath("$.type").value(product2.getType()))
-                                .andExpect(jsonPath("$.unit").value(product2.getUnit()))
-                                .andExpect(jsonPath("$.unitPrice").value(product2.getUnitPrice().doubleValue()))
-                                .andExpect(jsonPath("$.productCode").value(product2.getProductCode()))
-                                .andExpect(jsonPath("$.currentStock").value(product2.getCurrentStock().doubleValue()))
-                                .andExpect(jsonPath("$.minimumStock").value(product2.getMinimumStock().doubleValue()));
+                                 .andExpect(jsonPath("$.unitPrice").value(product2.getUnitPrice().doubleValue()))
+                                 .andExpect(jsonPath("$.productCode").value(product2.getProductCode()));
 
                 mockMvc.perform(post(BASE_URL)
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -201,12 +186,8 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 .content(asJsonString(product3)))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.name").value(product3.getName()))
-                                .andExpect(jsonPath("$.type").value(product3.getType()))
-                                .andExpect(jsonPath("$.unit").value(product3.getUnit()))
-                                .andExpect(jsonPath("$.unitPrice").value(product3.getUnitPrice().doubleValue()))
-                                .andExpect(jsonPath("$.productCode").value(product3.getProductCode()))
-                                .andExpect(jsonPath("$.currentStock").value(product3.getCurrentStock().doubleValue()))
-                                .andExpect(jsonPath("$.minimumStock").value(product3.getMinimumStock().doubleValue()));
+                                 .andExpect(jsonPath("$.unitPrice").value(product3.getUnitPrice().doubleValue()))
+                                 .andExpect(jsonPath("$.productCode").value(product3.getProductCode()));
 
                 mockMvc.perform(get(BASE_URL + "/search")
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -243,14 +224,11 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 .content(asJsonString(productRequest)))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.name").value(productRequest.getName()))
-                                .andExpect(jsonPath("$.type").value(productRequest.getType()))
                                 .andExpect(jsonPath("$.unit").value(productRequest.getUnit()))
                                 .andExpect(jsonPath("$.unitPrice").value(productRequest.getUnitPrice().doubleValue()))
                                 .andExpect(jsonPath("$.productCode").value(productRequest.getProductCode()))
                                 .andExpect(jsonPath("$.currentStock")
                                                 .value(productRequest.getCurrentStock().doubleValue()))
-                                .andExpect(jsonPath("$.minimumStock")
-                                                .value(productRequest.getMinimumStock().doubleValue()))
                                 .andReturn().getResponse().getContentAsString();
 
                 Integer productId = objectMapper.readTree(response).get("id").asInt();
@@ -292,14 +270,11 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 .content(asJsonString(productRequest)))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.name").value(productRequest.getName()))
-                                .andExpect(jsonPath("$.type").value(productRequest.getType()))
                                 .andExpect(jsonPath("$.unit").value(productRequest.getUnit()))
                                 .andExpect(jsonPath("$.unitPrice").value(productRequest.getUnitPrice().doubleValue()))
                                 .andExpect(jsonPath("$.productCode").value(productRequest.getProductCode()))
                                 .andExpect(jsonPath("$.currentStock")
                                                 .value(productRequest.getCurrentStock().doubleValue()))
-                                .andExpect(jsonPath("$.minimumStock")
-                                                .value(productRequest.getMinimumStock().doubleValue()))
                                 .andReturn().getResponse().getContentAsString();
 
                 Integer productId = objectMapper.readTree(response).get("id").asInt();
@@ -331,14 +306,11 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 .content(asJsonString(productRequest)))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.name").value(productRequest.getName()))
-                                .andExpect(jsonPath("$.type").value(productRequest.getType()))
                                 .andExpect(jsonPath("$.unit").value(productRequest.getUnit()))
                                 .andExpect(jsonPath("$.unitPrice").value(productRequest.getUnitPrice().doubleValue()))
                                 .andExpect(jsonPath("$.productCode").value(productRequest.getProductCode()))
                                 .andExpect(jsonPath("$.currentStock")
                                                 .value(productRequest.getCurrentStock().doubleValue()))
-                                .andExpect(jsonPath("$.minimumStock")
-                                                .value(productRequest.getMinimumStock().doubleValue()))
                                 .andReturn().getResponse().getContentAsString();
 
                 Integer productId = objectMapper.readTree(response).get("id").asInt();
@@ -368,14 +340,11 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 .content(asJsonString(productRequest)))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.name").value(productRequest.getName()))
-                                .andExpect(jsonPath("$.type").value(productRequest.getType()))
                                 .andExpect(jsonPath("$.unit").value(productRequest.getUnit()))
                                 .andExpect(jsonPath("$.unitPrice").value(productRequest.getUnitPrice().doubleValue()))
                                 .andExpect(jsonPath("$.productCode").value(productRequest.getProductCode()))
                                 .andExpect(jsonPath("$.currentStock")
                                                 .value(productRequest.getCurrentStock().doubleValue()))
-                                .andExpect(jsonPath("$.minimumStock")
-                                                .value(productRequest.getMinimumStock().doubleValue()))
                                 .andReturn().getResponse().getContentAsString();
 
                 Integer productId = objectMapper.readTree(response).get("id").asInt();
@@ -406,21 +375,17 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 .content(asJsonString(productRequest)))
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.name").value(productRequest.getName()))
-                                .andExpect(jsonPath("$.type").value(productRequest.getType()))
                                 .andExpect(jsonPath("$.unit").value(productRequest.getUnit()))
                                 .andExpect(jsonPath("$.unitPrice").value(productRequest.getUnitPrice().doubleValue()))
                                 .andExpect(jsonPath("$.productCode").value(productRequest.getProductCode()))
                                 .andExpect(jsonPath("$.currentStock")
                                                 .value(productRequest.getCurrentStock().doubleValue()))
-                                .andExpect(jsonPath("$.minimumStock")
-                                                .value(productRequest.getMinimumStock().doubleValue()))
                                 .andReturn().getResponse().getContentAsString();
 
                 Integer productId = objectMapper.readTree(response).get("id").asInt();
 
                 ProductRequestDTO invalidRequest = new ProductRequestDTO();
                 invalidRequest.setName("");
-                invalidRequest.setType(productRequest.getType());
                 invalidRequest.setUnit(productRequest.getUnit());
                 invalidRequest.setUnitPrice(productRequest.getUnitPrice());
                 invalidRequest.setProductCode(productRequest.getProductCode());
@@ -461,12 +426,10 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                 String jsonPayload = "{" +
                                 "\"name\":\"Abdejo Aliased\"," +
                                 "\"productCode\":\"ALIAS123\"," +
-                                "\"type\":\"Ingrediente\"," +
                                 "\"unit\":\"KG\"," +
                                 "\"price\":5.50," +
                                 "\"stock\":100," +
-                                "\"expirationDate\":\"2030-01-01\"," +
-                                "\"minStock\":10" +
+                                "\"expirationDate\":\"2030-01-01\"" +
                                 "}";
 
                 mockMvc.perform(post(BASE_URL)
@@ -477,7 +440,7 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(jsonPath("$.name").value("Abdejo Aliased"))
                                 .andExpect(jsonPath("$.unitPrice").value(5.5))
                                 .andExpect(jsonPath("$.currentStock").value(100.0))
-                                .andExpect(jsonPath("$.minimumStock").value(10.0));
+                                .andExpect(jsonPath("$.currentStock").value(100.0));
         }
 
         @Test

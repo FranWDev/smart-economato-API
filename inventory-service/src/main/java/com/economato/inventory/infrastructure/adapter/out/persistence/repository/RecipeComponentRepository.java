@@ -19,9 +19,6 @@ public interface RecipeComponentRepository extends JpaRepository<RecipeComponent
 
        List<RecipeComponent> findByParentRecipe(Recipe parentRecipe);
 
-       @Query("SELECT rc FROM RecipeComponent rc WHERE rc.product.type = :productType")
-       List<RecipeComponent> findByProductType(@Param("productType") String productType);
-
        @Query("SELECT rc FROM RecipeComponent rc LEFT JOIN FETCH rc.product LEFT JOIN FETCH rc.parentRecipe WHERE rc.id = :id")
        Optional<RecipeComponent> findWithRecipeAndProductById(@Param("id") Integer id);
 

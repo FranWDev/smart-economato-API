@@ -51,7 +51,6 @@ public class ForecastIntegrationTest extends BaseIntegrationTest {
         Product product = new Product();
         product.setName("Producto Test Prophet");
         product.setUnitPrice(BigDecimal.ONE);
-        product.setType("FOOD");
         product.setUnit("KG");
         product.setProductCode("PROPHET-001");
         final Product savedProduct = productRepository.save(product);

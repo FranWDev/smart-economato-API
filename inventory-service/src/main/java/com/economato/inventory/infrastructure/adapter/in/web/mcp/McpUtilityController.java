@@ -43,21 +43,13 @@ public class McpUtilityController {
 
     @GetMapping("/products")
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
-    @Operation(summary = "Listado de productos con filtros", description = "Permite filtrar productos por precio, tipo y stock bajo.")
+    @Operation(summary = "Listado de productos con filtros", description = "Permite filtrar productos por precio.")
     public ResponseEntity<List<McpProductDto>> getProducts(
             @RequestParam(required = false) BigDecimal minPrice,
-            @RequestParam(required = false) BigDecimal maxPrice,
-            @RequestParam(required = false) String type,
-            @RequestParam(required = false) Boolean lowStock) {
-        return ResponseEntity.ok(mcpUtilityService.getProductsWithFilters(minPrice, maxPrice, type, lowStock));
+            @RequestParam(required = false) BigDecimal maxPrice) {
+        return ResponseEntity.ok(mcpUtilityService.getProductsWithFilters(minPrice, maxPrice, null));
     }
 
-    @GetMapping("/products/low-stock")
-    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
-    @Operation(summary = "Productos bajo mínimos", description = "Obtiene directamente los productos que requieren reposición.")
-    public ResponseEntity<List<McpProductDto>> getLowStockProducts() {
-        return ResponseEntity.ok(mcpUtilityService.getLowStockProducts());
-    }
 
     @GetMapping("/orders/pending")
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")

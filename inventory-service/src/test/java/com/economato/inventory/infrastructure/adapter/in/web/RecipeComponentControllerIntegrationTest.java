@@ -53,12 +53,11 @@ public class RecipeComponentControllerIntegrationTest extends BaseIntegrationTes
 
                 testProduct = new Product();
                 testProduct.setName("Harina");
-                testProduct.setType("Ingrediente");
                 testProduct.setUnit("KG");
                 testProduct.setUnitPrice(new BigDecimal("2.50"));
                 testProduct.setProductCode("HAR001");
                 testProduct.setCurrentStock(new BigDecimal("100.0"));
-                testProduct.setMinimumStock(BigDecimal.ZERO); // Required field
+ // Required field
                 testProduct = productRepository.save(testProduct);
 
                 testRecipe = new Recipe();

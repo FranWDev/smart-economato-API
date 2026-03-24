@@ -67,32 +67,30 @@ public class TestDataUtil {
         return user;
     }
 
-    public static Product createProduct(String name, String type, String unit, BigDecimal price, String code,
+    public static Product createProduct(String name, String unit, BigDecimal price, String code,
             BigDecimal stock) {
         Product product = new Product();
         product.setName(name);
-        product.setType(type);
         product.setUnit(unit);
         product.setUnitPrice(price);
         product.setProductCode(code);
         // Ajustar escala del stock para compatibilidad con la base de datos
         // (precision=10, scale=3)
         product.setCurrentStock(stock.setScale(3, java.math.RoundingMode.HALF_UP));
-        product.setMinimumStock(BigDecimal.ZERO); // Default to 0 for tests
         product.setOrderDetails(new ArrayList<>());
         return product;
     }
 
     public static Product createFlour() {
-        return createProduct("Harina", "Ingrediente", "KG", new BigDecimal("2.50"), "HAR001", new BigDecimal("100.0"));
+        return createProduct("Harina", "KG", new BigDecimal("2.50"), "HAR001", new BigDecimal("100.0"));
     }
 
     public static Product createSugar() {
-        return createProduct("Azúcar", "Ingrediente", "KG", new BigDecimal("1.80"), "AZU001", new BigDecimal("50.0"));
+        return createProduct("Azúcar", "KG", new BigDecimal("1.80"), "AZU001", new BigDecimal("50.0"));
     }
 
     public static Product createEggs() {
-        return createProduct("Huevos", "Ingrediente", "UND", new BigDecimal("0.20"), "HUE001", new BigDecimal("200.0"));
+        return createProduct("Huevos", "UND", new BigDecimal("0.20"), "HUE001", new BigDecimal("200.0"));
     }
 
     public static Allergen createAllergen(String name) {
@@ -209,13 +207,11 @@ public class TestDataUtil {
     public static ProductRequestDTO createProductRequestDTO() {
         ProductRequestDTO dto = new ProductRequestDTO();
         dto.setName("Harina de trigo");
-        dto.setType("Ingrediente");
         dto.setUnit("KG");
         dto.setUnitPrice(new BigDecimal("2.50"));
         dto.setProductCode("HAR002");
         dto.setCurrentStock(new BigDecimal("100.0"));
         dto.setExpirationDate(java.time.LocalDate.now().plusDays(30));
-        dto.setMinimumStock(BigDecimal.ZERO); // Default for tests
         return dto;
     }
 

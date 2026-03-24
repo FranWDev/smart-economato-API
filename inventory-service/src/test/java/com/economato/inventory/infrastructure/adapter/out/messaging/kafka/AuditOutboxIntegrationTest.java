@@ -112,12 +112,10 @@ public class AuditOutboxIntegrationTest extends BaseIntegrationTest {
         testProduct = new Product();
         testProduct.setName("Test Product");
         testProduct.setSupplier(supplier);
-        testProduct.setType("Food");
         testProduct.setUnit("Kg");
         testProduct.setUnitPrice(BigDecimal.TEN);
         testProduct.setProductCode("TEST-01");
         testProduct.setCurrentStock(BigDecimal.TEN);
-        testProduct.setMinimumStock(BigDecimal.ONE);
         testProduct = productRepository.save(testProduct);
 
         testUser = new User();

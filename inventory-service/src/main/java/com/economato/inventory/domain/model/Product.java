@@ -14,8 +14,7 @@ import lombok.*;
 @Entity
 @Table(name = "product", indexes = {
                 @Index(name = "idx_product_code", columnList = "product_code", unique = true),
-                @Index(name = "idx_product_name", columnList = "name"),
-                @Index(name = "idx_product_type", columnList = "type")
+                @Index(name = "idx_product_name", columnList = "name")
 }, uniqueConstraints = {
                 @UniqueConstraint(name = "uk_product_code", columnNames = "product_code")
 })
@@ -31,9 +30,6 @@ public class Product {
         @Column(name = "name", nullable = false, length = 100)
         private String name;
 
-        @Size(max = 50)
-        @Column(name = "type", nullable = false, length = 50)
-        private String type;
 
         @NotBlank(message = "{validation.product.unit.notBlank}")
         @Size(max = 20)
@@ -63,10 +59,6 @@ public class Product {
         @Column(name = "availability_percentage", precision = 5, scale = 2)
         private BigDecimal availabilityPercentage;
 
-        @DecimalMin(value = "0.0", inclusive = true, message = "{validation.product.minimumStock.decimalMin}")
-        @Digits(integer = 10, fraction = 3, message = "{validation.product.minimumStock.digits}")
-        @Column(name = "minimum_stock", nullable = false, precision = 10, scale = 3)
-        private BigDecimal minimumStock;
 
         @JsonIgnore
         @ManyToOne(fetch = FetchType.LAZY)

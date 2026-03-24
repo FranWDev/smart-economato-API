@@ -34,12 +34,10 @@ public class ConcurrencyTest {
 
         Product product = new Product();
         product.setName("Producto Test Concurrencia");
-        product.setType("Test");
         product.setUnit("kg");
         product.setUnitPrice(BigDecimal.valueOf(10.00));
         product.setProductCode("TEST-CONCURRENCY-001");
         product.setCurrentStock(BigDecimal.valueOf(100));
-        product.setMinimumStock(BigDecimal.ZERO);
         product = productRepository.save(product);
 
         final Integer productId = product.getId();
@@ -55,7 +53,6 @@ public class ConcurrencyTest {
                 try {
                     ProductRequestDTO updateRequest = new ProductRequestDTO();
                     updateRequest.setName("Producto Test Concurrencia");
-                    updateRequest.setType("Test");
                     updateRequest.setUnit("kg");
                     updateRequest.setUnitPrice(BigDecimal.valueOf(10.00 + threadNum));
                     updateRequest.setProductCode("TEST-CONCURRENCY-001");
@@ -84,12 +81,10 @@ public class ConcurrencyTest {
 
         Product product = new Product();
         product.setName("Producto Test Version");
-        product.setType("Test");
         product.setUnit("kg");
         product.setUnitPrice(BigDecimal.valueOf(20.00));
         product.setProductCode("TEST-VERSION-001");
         product.setCurrentStock(BigDecimal.valueOf(50));
-        product.setMinimumStock(BigDecimal.ZERO);
         product = productRepository.save(product);
 
         Long initialVersion = product.getVersion();

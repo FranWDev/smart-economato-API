@@ -50,10 +50,8 @@ class McpUtilityServiceTest {
         testProduct.setName("Milk");
         testProduct.setProductCode("MLK001");
         testProduct.setCurrentStock(new BigDecimal("10.0"));
-        testProduct.setMinimumStock(new BigDecimal("5.0"));
         testProduct.setUnitPrice(new BigDecimal("1.5"));
         testProduct.setUnit("L");
-        testProduct.setType("DAIRY");
 
         testOrder = new Order();
         testOrder.setId(1);
@@ -73,7 +71,6 @@ class McpUtilityServiceTest {
     @Test
     void getSystemContext_ShouldReturnAggregatedStats() {
         when(productRepository.count()).thenReturn(10L);
-        when(productRepository.findAll()).thenReturn(Arrays.asList(testProduct));
         when(orderRepository.findByStatusInWithDetails(any())).thenReturn(Arrays.asList(testOrder));
         when(recipeRepository.count()).thenReturn(5L);
 
@@ -81,7 +78,6 @@ class McpUtilityServiceTest {
 
         assertNotNull(result);
         assertEquals(10, result.getTotalProducts());
-        assertEquals(0, result.getLowStockCount()); // 10 > 5
         assertEquals(1, result.getPendingOrdersCount());
         assertEquals(5, result.getTotalRecipes());
     }
@@ -90,23 +86,13 @@ class McpUtilityServiceTest {
     void getProductsWithFilters_ShouldApplyFiltersCorrectly() {
         when(productRepository.findAll()).thenReturn(Arrays.asList(testProduct));
 
-        List<McpProductDto> result = mcpUtilityService.getProductsWithFilters(BigDecimal.ONE, null, "DAIRY", null);
+        List<McpProductDto> result = mcpUtilityService.getProductsWithFilters(BigDecimal.ONE, null, null);
 
         assertNotNull(result);
         assertEquals(1, result.size());
         assertEquals("Milk", result.get(0).getName());
     }
 
-    @Test
-    void getLowStockProducts_ShouldReturnOnlyItemsUnderMinimum() {
-        testProduct.setCurrentStock(new BigDecimal("2.0"));
-        when(productRepository.findAll()).thenReturn(Arrays.asList(testProduct));
-
-        List<McpProductDto> result = mcpUtilityService.getLowStockProducts();
-
-        assertEquals(1, result.size());
-        assertEquals("Milk", result.get(0).getName());
-    }
 
     @Test
     void getProductsBulk_ByIds_ShouldReturnCorrectProducts() {

@@ -71,11 +71,10 @@ public class OrderDetailControllerIntegrationTest extends BaseIntegrationTest {
                 testProduct = new Product();
                 testProduct.setName("Producto test");
                 testProduct.setProductCode("TEST-001");
-                testProduct.setType("GENERIC");
                 testProduct.setUnit("unidad");
                 testProduct.setUnitPrice(new BigDecimal("10.00"));
                 testProduct.setCurrentStock(new BigDecimal("100"));
-                testProduct.setMinimumStock(BigDecimal.ZERO); // Required field
+ // Required field
                 productRepository.save(testProduct);
 
                 Supplier supplier = Supplier.builder()

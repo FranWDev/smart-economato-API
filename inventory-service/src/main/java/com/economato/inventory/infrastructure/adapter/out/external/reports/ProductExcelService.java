@@ -70,12 +70,10 @@ public class ProductExcelService {
             String[] headers = {
                     i18nService.getMessage(MessageKey.REPORT_COLUMN_ID),
                     i18nService.getMessage(MessageKey.REPORT_COLUMN_NAME),
-                    i18nService.getMessage(MessageKey.REPORT_COLUMN_TYPE),
                     i18nService.getMessage(MessageKey.REPORT_COLUMN_UNIT),
                     i18nService.getMessage(MessageKey.REPORT_COLUMN_UNIT_PRICE),
                     i18nService.getMessage(MessageKey.REPORT_COLUMN_BARCODE),
                     i18nService.getMessage(MessageKey.REPORT_COLUMN_STOCK_CURRENT),
-                    i18nService.getMessage(MessageKey.REPORT_COLUMN_STOCK_MINIMUM),
                     i18nService.getMessage(MessageKey.REPORT_COLUMN_AVAILABILITY),
                         i18nService.getMessage(MessageKey.REPORT_COLUMN_SUPPLIER),
                         i18nService.getMessage(MessageKey.REPORT_COLUMN_NEAREST_EXPIRATION)
@@ -101,17 +99,15 @@ public class ProductExcelService {
 
                     createTextCell(row, 0, p.getId() == null ? "" : p.getId().toString(), bodyStyle);
                     createTextCell(row, 1, nullToEmpty(p.getName()), bodyStyle);
-                    createTextCell(row, 2, nullToEmpty(p.getType()), bodyStyle);
-                    createTextCell(row, 3, nullToEmpty(p.getUnit()), bodyStyle);
-                    createNumberCell(row, 4, p.getUnitPrice(), numberStyle);
-                    createTextCell(row, 5, nullToEmpty(p.getProductCode()), bodyStyle);
-                    createNumberCell(row, 6, p.getCurrentStock(), numberStyle);
-                    createNumberCell(row, 7, p.getMinimumStock(), numberStyle);
-                    createNumberCell(row, 8, p.getAvailabilityPercentage(), numberStyle);
-                    createTextCell(row, 9,
+                    createTextCell(row, 2, nullToEmpty(p.getUnit()), bodyStyle);
+                    createNumberCell(row, 3, p.getUnitPrice(), numberStyle);
+                    createTextCell(row, 4, nullToEmpty(p.getProductCode()), bodyStyle);
+                    createNumberCell(row, 5, p.getCurrentStock(), numberStyle);
+                    createNumberCell(row, 6, p.getAvailabilityPercentage(), numberStyle);
+                    createTextCell(row, 7,
                             p.getSupplier() == null ? "" : nullToEmpty(p.getSupplier().getName()),
                             bodyStyle);
-                        createTextCell(row, 10, findNearestExpirationText(p.getId()), bodyStyle);
+                        createTextCell(row, 8, findNearestExpirationText(p.getId()), bodyStyle);
                 }
 
                 // Volcar filas ya procesadas a disco temporal para liberar heap
@@ -124,7 +120,7 @@ public class ProductExcelService {
     }
 
     private void setColumnWidths(Sheet sheet) {
-        int[] widths = { 10, 30, 18, 12, 18, 22, 16, 16, 18, 26, 20 };
+        int[] widths = { 10, 30, 12, 18, 22, 16, 18, 26, 20 };
         for (int i = 0; i < widths.length; i++) {
             sheet.setColumnWidth(i, widths[i] * 256);
         }

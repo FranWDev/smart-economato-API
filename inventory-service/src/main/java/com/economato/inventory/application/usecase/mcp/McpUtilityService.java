@@ -40,7 +40,6 @@ public class McpUtilityService {
     public McpSystemContextDto getSystemContext() {
         return McpSystemContextDto.builder()
                 .totalProducts(productRepository.count())
-                .lowStockCount(getLowStockProducts().size())
                 .pendingOrdersCount(getPendingOrders().size())
                 .totalRecipes(recipeRepository.count())
                 .activeAlertsCount(0) 
@@ -48,23 +47,14 @@ public class McpUtilityService {
     }
 
     @Transactional(readOnly = true)
-    public List<McpProductDto> getProductsWithFilters(BigDecimal minPrice, BigDecimal maxPrice, String type, Boolean lowStock) {
+    public List<McpProductDto> getProductsWithFilters(BigDecimal minPrice, BigDecimal maxPrice, Boolean lowStock) {
         return productRepository.findAll().stream()
                 .filter(p -> (minPrice == null || p.getUnitPrice().compareTo(minPrice) >= 0))
                 .filter(p -> (maxPrice == null || p.getUnitPrice().compareTo(maxPrice) <= 0))
-                .filter(p -> (type == null || p.getType().equalsIgnoreCase(type)))
-                .filter(p -> (lowStock == null || !lowStock || p.getCurrentStock().compareTo(p.getMinimumStock()) <= 0))
                 .map(this::mapToProductDto)
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
-    public List<McpProductDto> getLowStockProducts() {
-        return productRepository.findAll().stream()
-                .filter(p -> p.getCurrentStock().compareTo(p.getMinimumStock()) <= 0)
-                .map(this::mapToProductDto)
-                .collect(Collectors.toList());
-    }
 
     @Transactional(readOnly = true)
     public List<McpOrderDto> getPendingOrders() {
@@ -113,7 +103,6 @@ public class McpUtilityService {
                 .stock(p.getCurrentStock())
                 .unit(p.getUnit())
                 .price(p.getUnitPrice())
-                .type(p.getType())
                 .build();
     }
 

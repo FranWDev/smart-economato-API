@@ -85,12 +85,10 @@ class RecipeServiceFefoIntegrationTest extends BaseIntegrationTest {
 
         product = new Product();
         product.setName("Harina FEFO");
-        product.setType("Ingrediente");
         product.setUnit("KG");
         product.setUnitPrice(new BigDecimal("1.00"));
         product.setProductCode("FEFO-ING-1");
         product.setCurrentStock(BigDecimal.ZERO);
-        product.setMinimumStock(BigDecimal.ZERO);
         product = productRepository.saveAndFlush(product);
 
         recipe = new Recipe();
