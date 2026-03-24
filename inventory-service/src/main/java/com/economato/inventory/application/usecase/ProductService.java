@@ -41,8 +41,19 @@ public class ProductService {
     private final I18nService i18nService;
 
     private static final Set<String> VALID_UNITS = Set.of(
-            "KG", "G", "L", "ML", "UNIDAD", "MANOJO", "BOTE",
-            "PAQUETE", "SOBRE", "HOJA", "TUBO", "UDS", "UND");
+            // Peso
+            "KG", "G", "MG", "ONZA", "LIBRA",
+            // Volumen
+            "L", "ML", "CL", "DL", "GARRAFA",
+            // Medidas de cocina
+            "CUCHARADA", "CUCHARADITA", "TAZA", "PIZCA", "VASO",
+            // Unidades discretas
+            "UNIDAD", "UND", "UDS", "PIEZA", "DOCENA",
+            // Envases/Empaquetado
+            "BOTE", "LATA", "PAQUETE", "SOBRE", "BOLSA", "CAJA", "SACO", "BANDEJA", "TUBO",
+            // Formas específicas de cocina
+            "MANOJO", "HOJA", "LONCHA", "DIENTE", "RAMA", "FILETE", "RODAJA", "REBANADA"
+    );
 
     private final ProductRepository repository;
     private final InventoryAuditRepository movementRepository;
@@ -213,12 +224,6 @@ public class ProductService {
         repository.delete(product);
     }
 
-    @Transactional(readOnly = true)
-    public List<ProductResponseDTO> findByType(String type) {
-        return repository.findByTypeAndIsHiddenFalse(type).stream()
-                .map(productMapper::toResponseDTO)
-                .toList();
-    }
 
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> findByNameContaining(String namePart) {
@@ -227,12 +232,6 @@ public class ProductService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public List<ProductResponseDTO> findByStockLessThan(BigDecimal stock) {
-        return repository.findByCurrentStockLessThanAndIsHiddenFalse(stock).stream()
-                .map(productMapper::toResponseDTO)
-                .toList();
-    }
 
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> findByPriceRange(BigDecimal min, BigDecimal max) {
@@ -306,15 +305,11 @@ public class ProductService {
                     validateProductData(requestDTO);
 
                     existing.setName(requestDTO.getName());
-                    existing.setType(requestDTO.getType());
                     existing.setUnit(requestDTO.getUnit());
                     existing.setUnitPrice(requestDTO.getUnitPrice());
                     existing.setProductCode(requestDTO.getProductCode());
                     if (requestDTO.getAvailabilityPercentage() != null) {
                         existing.setAvailabilityPercentage(requestDTO.getAvailabilityPercentage());
-                    }
-                    if (requestDTO.getMinimumStock() != null) {
-                        existing.setMinimumStock(requestDTO.getMinimumStock());
                     }
                     if (requestDTO.getSupplierId() != null) {
                         existing.setSupplier(supplierRepository.findById(requestDTO.getSupplierId()).orElse(null));

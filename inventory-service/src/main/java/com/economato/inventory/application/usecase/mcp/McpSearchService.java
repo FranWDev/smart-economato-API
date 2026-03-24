@@ -59,7 +59,6 @@ public class McpSearchService {
                 .stock(p.getCurrentStock())
                 .unit(p.getUnit())
                 .price(p.getUnitPrice())
-                .type(p.getType())
                 .build();
     }
 

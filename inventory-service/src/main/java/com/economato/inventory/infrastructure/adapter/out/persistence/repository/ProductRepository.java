@@ -27,13 +27,11 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
         @Query("SELECT p FROM Product p WHERE p.isHidden = false")
         List<Product> findAllActive();
 
-        List<Product> findByType(String type);
 
         List<Product> findByNameContainingIgnoreCase(String namePart);
 
         Page<Product> findByNameContainingIgnoreCase(String namePart, Pageable pageable);
 
-        List<Product> findByCurrentStockLessThan(BigDecimal stock);
 
         List<Product> findByUnitPriceBetween(BigDecimal min, BigDecimal max);
 
@@ -80,9 +78,7 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
 
         List<ProductProjection> findByNameContainingIgnoreCaseAndIsHiddenFalse(String namePart);
 
-        List<ProductProjection> findByTypeAndIsHiddenFalse(String type);
 
-        List<ProductProjection> findByCurrentStockLessThanAndIsHiddenFalse(BigDecimal stock);
 
         List<ProductProjection> findByUnitPriceBetweenAndIsHiddenFalse(BigDecimal min,
                         BigDecimal max);

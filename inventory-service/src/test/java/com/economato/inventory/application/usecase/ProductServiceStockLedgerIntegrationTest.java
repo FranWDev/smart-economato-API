@@ -75,12 +75,11 @@ class ProductServiceStockLedgerIntegrationTest extends BaseIntegrationTest {
 
                 testProduct = new Product();
                 testProduct.setName("Test Product - Ledger");
-                testProduct.setType("Ingredient");
                 testProduct.setUnit("KG");
                 testProduct.setUnitPrice(new BigDecimal("10.50"));
                 testProduct.setProductCode("TEST-LEDGER-001");
                 testProduct.setCurrentStock(new BigDecimal("100.0"));
-                testProduct.setMinimumStock(BigDecimal.ZERO); // Required field
+ // Required field
                 testProduct = productRepository.saveAndFlush(testProduct);
 
                 ProductBatch batch = ProductBatch.builder()
@@ -107,7 +106,6 @@ class ProductServiceStockLedgerIntegrationTest extends BaseIntegrationTest {
 
                 ProductRequestDTO requestDTO = new ProductRequestDTO();
                 requestDTO.setName(testProduct.getName());
-                requestDTO.setType(testProduct.getType());
                 requestDTO.setUnit(testProduct.getUnit());
                 requestDTO.setUnitPrice(testProduct.getUnitPrice());
                 requestDTO.setProductCode(testProduct.getProductCode());
@@ -144,7 +142,6 @@ class ProductServiceStockLedgerIntegrationTest extends BaseIntegrationTest {
 
                 ProductRequestDTO requestDTO = new ProductRequestDTO();
                 requestDTO.setName(testProduct.getName());
-                requestDTO.setType(testProduct.getType());
                 requestDTO.setUnit(testProduct.getUnit());
                 requestDTO.setUnitPrice(testProduct.getUnitPrice());
                 requestDTO.setProductCode(testProduct.getProductCode());
@@ -175,7 +172,6 @@ class ProductServiceStockLedgerIntegrationTest extends BaseIntegrationTest {
 
                 ProductRequestDTO requestDTO = new ProductRequestDTO();
                 requestDTO.setName(testProduct.getName() + " Modificado");
-                requestDTO.setType(testProduct.getType());
                 requestDTO.setUnit(testProduct.getUnit());
                 requestDTO.setUnitPrice(testProduct.getUnitPrice().add(new BigDecimal("1.0")));
                 requestDTO.setProductCode(testProduct.getProductCode());
@@ -206,7 +202,6 @@ class ProductServiceStockLedgerIntegrationTest extends BaseIntegrationTest {
 
                 ProductRequestDTO requestDTO1 = new ProductRequestDTO();
                 requestDTO1.setName(testProduct.getName());
-                requestDTO1.setType(testProduct.getType());
                 requestDTO1.setUnit(testProduct.getUnit());
                 requestDTO1.setUnitPrice(testProduct.getUnitPrice());
                 requestDTO1.setProductCode(testProduct.getProductCode());
@@ -217,7 +212,6 @@ class ProductServiceStockLedgerIntegrationTest extends BaseIntegrationTest {
 
                 ProductRequestDTO requestDTO2 = new ProductRequestDTO();
                 requestDTO2.setName(testProduct.getName());
-                requestDTO2.setType(testProduct.getType());
                 requestDTO2.setUnit(testProduct.getUnit());
                 requestDTO2.setUnitPrice(testProduct.getUnitPrice());
                 requestDTO2.setProductCode(testProduct.getProductCode());
@@ -248,7 +242,6 @@ class ProductServiceStockLedgerIntegrationTest extends BaseIntegrationTest {
 
                 ProductRequestDTO requestDTO = new ProductRequestDTO();
                 requestDTO.setName(testProduct.getName());
-                requestDTO.setType(testProduct.getType());
                 requestDTO.setUnit(testProduct.getUnit());
                 requestDTO.setUnitPrice(testProduct.getUnitPrice());
                 requestDTO.setProductCode(testProduct.getProductCode());

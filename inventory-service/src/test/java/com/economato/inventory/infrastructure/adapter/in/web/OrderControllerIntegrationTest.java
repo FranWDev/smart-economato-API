@@ -65,10 +65,8 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
                 testProduct2.setName("Sugar");
                 testProduct2.setProductCode("SUGAR-" + System.currentTimeMillis());
                 testProduct2.setUnit("KG");
-                testProduct2.setType("ALIMENTO");
                 testProduct2.setUnitPrice(new BigDecimal("1.5"));
                 testProduct2.setCurrentStock(BigDecimal.ZERO);
-                testProduct2.setMinimumStock(BigDecimal.ZERO);
                 testProduct2 = productRepository.saveAndFlush(testProduct2);
                 
                 testSupplier = Supplier.builder()

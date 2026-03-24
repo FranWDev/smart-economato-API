@@ -67,32 +67,26 @@ class ProductLedgerIntegrityControllerIntegrationTest extends BaseIntegrationTes
                 // Crear productos de prueba
                 testProduct1 = new Product();
                 testProduct1.setName("Producto con Ledger 1");
-                testProduct1.setType("Ingrediente");
                 testProduct1.setUnit("KG");
                 testProduct1.setUnitPrice(new BigDecimal("10.00"));
                 testProduct1.setProductCode("LEDGER001");
                 testProduct1.setCurrentStock(new BigDecimal("100.000"));
-                testProduct1.setMinimumStock(new BigDecimal("10.000"));
                 testProduct1 = productRepository.saveAndFlush(testProduct1);
 
                 testProduct2 = new Product();
                 testProduct2.setName("Producto con Ledger 2");
-                testProduct2.setType("Ingrediente");
                 testProduct2.setUnit("Litros");
                 testProduct2.setUnitPrice(new BigDecimal("5.00"));
                 testProduct2.setProductCode("LEDGER002");
                 testProduct2.setCurrentStock(new BigDecimal("50.000"));
-                testProduct2.setMinimumStock(new BigDecimal("5.000"));
                 testProduct2 = productRepository.saveAndFlush(testProduct2);
 
                 testProductNoLedger = new Product();
                 testProductNoLedger.setName("Producto sin Ledger");
-                testProductNoLedger.setType("Ingrediente");
                 testProductNoLedger.setUnit("KG");
                 testProductNoLedger.setUnitPrice(new BigDecimal("15.00"));
                 testProductNoLedger.setProductCode("NOLEDGER001");
                 testProductNoLedger.setCurrentStock(new BigDecimal("0.000"));
-                testProductNoLedger.setMinimumStock(new BigDecimal("10.000"));
                 testProductNoLedger = productRepository.saveAndFlush(testProductNoLedger);
 
                 // Crear entradas de ledger para producto 1

@@ -94,7 +94,6 @@ class ProductServiceTest {
         testProduct.setId(1);
         testProduct.setName("Test Product");
         testProduct.setUnit("KG");
-        testProduct.setType("INGREDIENT");
         testProduct.setCurrentStock(new BigDecimal("10.0"));
         testProduct.setUnitPrice(new BigDecimal("5.0"));
         testProduct.setProductCode("TEST001");
@@ -102,7 +101,6 @@ class ProductServiceTest {
         testProductRequestDTO = new ProductRequestDTO();
         testProductRequestDTO.setName("Test Product");
         testProductRequestDTO.setUnit("KG");
-        testProductRequestDTO.setType("INGREDIENT");
         testProductRequestDTO.setCurrentStock(new BigDecimal("10.0"));
         testProductRequestDTO.setUnitPrice(new BigDecimal("5.0"));
         testProductRequestDTO.setProductCode("TEST001");
@@ -111,7 +109,6 @@ class ProductServiceTest {
         testProductResponseDTO.setId(1);
         testProductResponseDTO.setName("Test Product");
         testProductResponseDTO.setUnit("KG");
-        testProductResponseDTO.setType("INGREDIENT");
         testProductResponseDTO.setCurrentStock(new BigDecimal("10.0"));
         testProductResponseDTO.setUnitPrice(new BigDecimal("5.0"));
         testProductResponseDTO.setProductCode("TEST001");
@@ -120,7 +117,6 @@ class ProductServiceTest {
         lenient().when(testProjection.getId()).thenReturn(1);
         lenient().when(testProjection.getName()).thenReturn("Test Product");
         lenient().when(testProjection.getUnit()).thenReturn("KG");
-        lenient().when(testProjection.getType()).thenReturn("INGREDIENT");
         lenient().when(testProjection.getCurrentStock()).thenReturn(new BigDecimal("10.0"));
         lenient().when(testProjection.getUnitPrice()).thenReturn(new BigDecimal("5.0"));
         lenient().when(testProjection.getProductCode()).thenReturn("TEST001");
@@ -497,20 +493,6 @@ class ProductServiceTest {
         verify(repository, never()).delete(any(Product.class));
     }
 
-    @Test
-    void findByType_ShouldReturnProductsOfType() {
-
-        List<ProductProjection> products = Arrays.asList(testProjection);
-        when(repository.findByTypeAndIsHiddenFalse("INGREDIENT")).thenReturn(products);
-        when(productMapper.toResponseDTO(any(ProductProjection.class))).thenReturn(testProductResponseDTO);
-
-        List<ProductResponseDTO> result = productService.findByType("INGREDIENT");
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(testProductResponseDTO.getType(), result.get(0).getType());
-        verify(repository).findByTypeAndIsHiddenFalse("INGREDIENT");
-    }
 
     @Test
     void findByNameContaining_ShouldReturnMatchingProducts() {
@@ -527,21 +509,6 @@ class ProductServiceTest {
         verify(repository).findByNameContainingIgnoreCaseAndIsHiddenFalse("Test");
     }
 
-    @Test
-    void findByStockLessThan_ShouldReturnLowStockProducts() {
-
-        List<ProductProjection> products = Arrays.asList(testProjection);
-        BigDecimal threshold = new BigDecimal("20.0");
-        when(repository.findByCurrentStockLessThanAndIsHiddenFalse(threshold)).thenReturn(products);
-        when(productMapper.toResponseDTO(any(ProductProjection.class))).thenReturn(testProductResponseDTO);
-
-        List<ProductResponseDTO> result = productService.findByStockLessThan(threshold);
-
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertTrue(result.get(0).getCurrentStock().compareTo(threshold) < 0);
-        verify(repository).findByCurrentStockLessThanAndIsHiddenFalse(threshold);
-    }
 
     @Test
     void findByPriceRange_ShouldReturnProductsInRange() {

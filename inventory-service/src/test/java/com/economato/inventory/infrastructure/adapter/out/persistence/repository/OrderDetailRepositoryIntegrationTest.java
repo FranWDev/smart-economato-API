@@ -46,21 +46,17 @@ class OrderDetailRepositoryIntegrationTest extends BaseIntegrationTest {
         product1 = new Product();
         product1.setName("Producto 1");
         product1.setProductCode("PROD001");
-        product1.setType("kg");
         product1.setUnit("kg");
         product1.setCurrentStock(BigDecimal.TEN);
         product1.setUnitPrice(BigDecimal.valueOf(10.0));
-        product1.setMinimumStock(BigDecimal.ONE);
         product1 = productRepository.save(product1);
 
         product2 = new Product();
         product2.setName("Producto 2");
         product2.setProductCode("PROD002");
-        product2.setType("l");
         product2.setUnit("l");
         product2.setCurrentStock(BigDecimal.ZERO);
         product2.setUnitPrice(BigDecimal.valueOf(5.0));
-        product2.setMinimumStock(BigDecimal.ONE);
         product2 = productRepository.save(product2);
     }
 

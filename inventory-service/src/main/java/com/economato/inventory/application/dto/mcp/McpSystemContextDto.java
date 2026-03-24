@@ -11,7 +11,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class McpSystemContextDto {
     private long totalProducts;
-    private long lowStockCount;
     private long pendingOrdersCount;
     private long activeAlertsCount;
     private long totalRecipes;

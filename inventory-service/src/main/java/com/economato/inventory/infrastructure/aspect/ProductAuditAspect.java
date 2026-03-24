@@ -143,12 +143,10 @@ public class ProductAuditAspect {
             Map<String, Object> state = new HashMap<>();
             state.put("id", product.getId());
             state.put("nombre", product.getName());
-            state.put("tipo", product.getType());
             state.put("unidad", product.getUnit());
             state.put("precioUnitario", product.getUnitPrice());
             state.put("codigoProducto", product.getProductCode());
             state.put("stockActual", product.getCurrentStock());
-            state.put("stockMinimo", product.getMinimumStock());
             state.put("disponibilidad", product.getAvailabilityPercentage());
             state.put("oculto", product.isHidden());
             return objectMapper.writeValueAsString(state);

@@ -18,8 +18,6 @@ public class ProductResponseDTO {
     @Schema(description = "Nombre del producto", example = "Harina de trigo")
     private String name;
 
-    @Schema(description = "Tipo o categoría del producto", example = "Ingrediente")
-    private String type;
 
     @Schema(description = "Unidad de medida del producto", example = "kg")
     private String unit;
@@ -36,8 +34,6 @@ public class ProductResponseDTO {
     @Schema(description = "Porcentaje de disponibilidad del producto (0-100)", example = "85.50")
     private BigDecimal availabilityPercentage;
 
-    @Schema(description = "Stock mínimo antes de alerta", example = "10.00")
-    private BigDecimal minimumStock;
 
     @Schema(description = "Indica si el producto está oculto", example = "false")
     private boolean isHidden;

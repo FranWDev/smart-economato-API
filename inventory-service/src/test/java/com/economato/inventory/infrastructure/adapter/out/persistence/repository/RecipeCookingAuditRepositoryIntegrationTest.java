@@ -50,11 +50,9 @@ class RecipeCookingAuditRepositoryIntegrationTest extends BaseIntegrationTest {
         product1 = new Product();
         product1.setName("Tomate");
         product1.setProductCode("PROD-TOMATE");
-        product1.setType("kg");
         product1.setUnit("kg");
         product1.setCurrentStock(BigDecimal.ZERO);
         product1.setUnitPrice(BigDecimal.valueOf(2.50));
-        product1.setMinimumStock(BigDecimal.ONE);
         product1 = productRepository.save(product1);
 
         // Crear recetas

@@ -72,12 +72,11 @@ class StockLedgerServiceIntegrationTest {
 
                 testProduct = new Product();
                 testProduct.setName("Test Product - Ledger");
-                testProduct.setType("Ingrediente");
                 testProduct.setUnit("KG");
                 testProduct.setUnitPrice(new BigDecimal("10.50"));
                 testProduct.setProductCode("LEDGER-TEST-001");
                 testProduct.setCurrentStock(new BigDecimal("100.0"));
-                testProduct.setMinimumStock(BigDecimal.ZERO); // Required field
+ // Required field
                 testProduct = productRepository.saveAndFlush(testProduct);
 
                 ProductBatch batch = ProductBatch.builder()
@@ -522,12 +521,11 @@ class StockLedgerServiceIntegrationTest {
 
                 Product product2 = new Product();
                 product2.setName("Test Product 2");
-                product2.setType("Ingrediente");
                 product2.setUnit("L");
                 product2.setUnitPrice(new BigDecimal("5.0"));
                 product2.setProductCode("LEDGER-TEST-002");
                 product2.setCurrentStock(new BigDecimal("50.0"));
-                product2.setMinimumStock(BigDecimal.ZERO); // Required field
+ // Required field
                 product2 = productRepository.save(product2);
 
                 stockLedgerService.recordStockMovement(

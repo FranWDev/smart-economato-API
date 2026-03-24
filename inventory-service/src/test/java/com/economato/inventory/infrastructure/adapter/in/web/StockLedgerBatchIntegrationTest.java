@@ -66,7 +66,7 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
         product2 = TestDataUtil.createSugar();
         product2 = productRepository.saveAndFlush(product2);
 
-        product3 = TestDataUtil.createProduct("Huevos", "Ingrediente", "UND",
+        product3 = TestDataUtil.createProduct("Huevos", "UND",
                 new BigDecimal("0.20"), "HUE001", new BigDecimal("200.0"));
         product3 = productRepository.saveAndFlush(product3);
 

@@ -7,7 +7,6 @@ public interface ProductProjection {
 
     String getName();
 
-    String getType();
 
     String getUnit();
 
@@ -19,7 +18,6 @@ public interface ProductProjection {
 
     BigDecimal getAvailabilityPercentage();
 
-    BigDecimal getMinimumStock();
 
     boolean getIsHidden();
 

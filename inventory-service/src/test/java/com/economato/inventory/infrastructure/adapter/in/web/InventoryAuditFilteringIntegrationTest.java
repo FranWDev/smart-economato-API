@@ -36,8 +36,8 @@ class InventoryAuditFilteringIntegrationTest extends BaseIntegrationTest {
         User admin = TestDataUtil.createAdminUser();
         userRepository.saveAndFlush(admin);
 
-        Product p1 = productRepository.save(TestDataUtil.createProduct("Harina de Trigo", "Ingrediente", "KG", new BigDecimal("1.0"), "H01", new BigDecimal("10")));
-        Product p2 = productRepository.save(TestDataUtil.createProduct("Azúcar Blanca", "Ingrediente", "KG", new BigDecimal("2.0"), "A01", new BigDecimal("20")));
+        Product p1 = productRepository.save(TestDataUtil.createProduct("Harina de Trigo", "KG", new BigDecimal("1.0"), "H01", new BigDecimal("10")));
+        Product p2 = productRepository.save(TestDataUtil.createProduct("Azúcar Blanca", "KG", new BigDecimal("2.0"), "A01", new BigDecimal("20")));
 
         // Audits - We use a small hack to set the dates since @CreatedDate is used
         // However, let's see if we can just save them and they get the current date,

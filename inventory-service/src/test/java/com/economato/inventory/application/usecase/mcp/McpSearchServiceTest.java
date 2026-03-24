@@ -42,7 +42,6 @@ class McpSearchServiceTest {
         testProduct.setCurrentStock(new BigDecimal("20.0"));
         testProduct.setUnitPrice(new BigDecimal("0.5"));
         testProduct.setUnit("KG");
-        testProduct.setType("VEGETABLE");
 
         testRecipe = new Recipe();
         testRecipe.setId(1);

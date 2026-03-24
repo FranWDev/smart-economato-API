@@ -57,12 +57,10 @@ class StockLedgerLazyLoadingIntegrationTest extends BaseIntegrationTest {
 
         Product product = new Product();
         product.setName("Producto Lazy User");
-        product.setType("Ingrediente");
         product.setUnit("KG");
         product.setUnitPrice(new BigDecimal("15.00"));
         product.setProductCode("LAZY-USER-001");
         product.setCurrentStock(new BigDecimal("100.000"));
-        product.setMinimumStock(new BigDecimal("10.000"));
         product = productRepository.saveAndFlush(product);
         productId = product.getId();
 

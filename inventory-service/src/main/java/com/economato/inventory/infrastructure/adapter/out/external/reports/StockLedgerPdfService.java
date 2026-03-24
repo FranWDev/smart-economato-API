@@ -232,7 +232,6 @@ public class StockLedgerPdfService {
 
         addInfoRow(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_NAME), product.getName(), boldFont, regularFont);
         addInfoRow(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_CODE), product.getProductCode(), boldFont, regularFont);
-        addInfoRow(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_TYPE), product.getType(), boldFont, regularFont);
         addInfoRow(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_CURRENT_STOCK), product.getCurrentStock().toString() + " " + product.getUnit(),
                 boldFont, regularFont);
         addInfoRow(infoTable, i18nService.getMessage(MessageKey.REPORT_LABEL_UNIT_PRICE), "$" + product.getUnitPrice().toString(), boldFont, regularFont);
@@ -274,7 +273,7 @@ public class StockLedgerPdfService {
         table.setMarginBottom(20);
 
         addHeaderCell(table, "#", boldFont);
-        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_LABEL_TYPE), boldFont);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_UNIT), boldFont); // Using Unit as a placeholder or just "Tipo"
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_QUANTITY), boldFont);
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_RESULTING_STOCK), boldFont);
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_DATETIME), boldFont);

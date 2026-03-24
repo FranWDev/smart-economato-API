@@ -56,13 +56,11 @@ public class ProductAliasIntegrationTest extends BaseIntegrationTest {
                 String jsonPayload = "{" +
                                 "\"name\":\"Abdejo Filete Cong Piel\"," +
                                 "\"productCode\":\"166582816277\"," +
-                                "\"type\":\"\"," +
                                 "\"unit\":\"KG\"," +
                                 "\"supplierId\":" + supplierId + "," +
                                 "\"price\":3.15," +
                                 "\"stock\":100," +
-                                "\"expirationDate\":\"2030-01-01\"," +
-                                "\"minStock\":10" +
+                                "\"expirationDate\":\"2030-01-01\"" +
                                 "}";
 
                 mockMvc.perform(post("/api/products")
@@ -72,7 +70,6 @@ public class ProductAliasIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isCreated())
                                 .andExpect(jsonPath("$.name").value("Abdejo Filete Cong Piel"))
                                 .andExpect(jsonPath("$.unitPrice").value(3.15))
-                                .andExpect(jsonPath("$.currentStock").value(100))
-                                .andExpect(jsonPath("$.minimumStock").value(10));
+                                .andExpect(jsonPath("$.currentStock").value(100));
         }
 }

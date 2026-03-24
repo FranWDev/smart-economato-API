@@ -198,12 +198,10 @@ class ProductLedgerPdfControllerIntegrationTest extends BaseIntegrationTest {
         void whenDownloadPdfWithSpecialCharactersInProductName_ThenFilenameSanitized() throws Exception {
                 Product specialProduct = new Product();
                 specialProduct.setName("Producto!@#$%^&*()++Con Especiales");
-                specialProduct.setType("Ingrediente");
                 specialProduct.setUnit("KG");
                 specialProduct.setUnitPrice(new BigDecimal("5.00"));
                 specialProduct.setProductCode("SPEC001");
                 specialProduct.setCurrentStock(new BigDecimal("50.000"));
-                specialProduct.setMinimumStock(new BigDecimal("10.000"));
                 specialProduct = productRepository.saveAndFlush(specialProduct);
 
                 // Create at least one ledger entry for the special product

@@ -54,7 +54,7 @@ class McpUtilityControllerIntegrationTest extends BaseIntegrationTest {
     @Test
     void unifiedSearch_WhenAuthenticated_ShouldReturnResults() throws Exception {
         String token = loginAsAdmin();
-        Product product = TestDataUtil.createProduct("Cucumber", "VEGETABLE", "KG", new BigDecimal("1.0"), "CUC001", new BigDecimal("10.0"));
+        Product product = TestDataUtil.createProduct("Cucumber", "KG", new BigDecimal("1.0"), "CUC001", new BigDecimal("10.0"));
         productRepository.saveAndFlush(product);
 
         mockMvc.perform(get("/api/mcp/search")
@@ -68,7 +68,7 @@ class McpUtilityControllerIntegrationTest extends BaseIntegrationTest {
     @Test
     void getProductsBulk_WhenAuthenticated_ShouldReturnProducts() throws Exception {
         String token = loginAsAdmin();
-        Product product = TestDataUtil.createProduct("Tomato", "VEGETABLE", "KG", new BigDecimal("0.5"), "TOM001", new BigDecimal("20.0"));
+        Product product = TestDataUtil.createProduct("Tomato", "KG", new BigDecimal("0.5"), "TOM001", new BigDecimal("20.0"));
         product = productRepository.saveAndFlush(product);
 
         McpBulkRequest request = new McpBulkRequest(Arrays.asList(product.getId()), null);
@@ -82,18 +82,4 @@ class McpUtilityControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$[0].name", is("Tomato")));
     }
 
-    @Test
-    void getLowStockProducts_WhenAuthenticated_ShouldReturnFilteredList() throws Exception {
-        String token = loginAsAdmin();
-        // Product with stock < minimum
-        Product p = TestDataUtil.createProduct("Low Stock Item", "OTHER", "UND", new BigDecimal("10.0"), "LS001", new BigDecimal("1.0"));
-        p.setMinimumStock(new BigDecimal("5.0"));
-        productRepository.saveAndFlush(p);
-
-        mockMvc.perform(get("/api/mcp/products/low-stock")
-                .header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].name", is("Low Stock Item")));
-    }
 }
