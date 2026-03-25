@@ -11,14 +11,23 @@ public class BatchMovementItem {
     private final MovementType movementType;
     private final String description;
     private final LocalDate expirationDate;
+    private final String correlationId;
 
+    // Vintage constructor (retrocompatibilidad)
     public BatchMovementItem(Integer productId, BigDecimal quantityDelta,
             MovementType movementType, String description, LocalDate expirationDate) {
+        this(productId, quantityDelta, movementType, description, expirationDate, null);
+    }
+
+    // Nuevo constructor con correlationId
+    public BatchMovementItem(Integer productId, BigDecimal quantityDelta,
+            MovementType movementType, String description, LocalDate expirationDate, String correlationId) {
         this.productId = productId;
         this.quantityDelta = quantityDelta;
         this.movementType = movementType;
         this.description = description;
         this.expirationDate = expirationDate;
+        this.correlationId = correlationId;
     }
 
     public Integer getProductId() {
@@ -39,5 +48,9 @@ public class BatchMovementItem {
 
     public LocalDate getExpirationDate() {
         return expirationDate;
+    }
+
+    public String getCorrelationId() {
+        return correlationId;
     }
 }

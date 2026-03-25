@@ -159,7 +159,7 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
     }
 
     @Test
-    void whenCreatePlan_withStudentDuplicateAcrossSlots_thenReturnsError() throws Exception {
+    void whenCreatePlan_withStudentAssignedToMultipleSlotsOnSameDay_thenSucceeds() throws Exception {
         LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
         
         WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), BigDecimal.ONE, 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, List.of(student1.getId()));
@@ -171,8 +171,8 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(request))
                 .header("Authorization", "Bearer " + chef1Token))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message", containsString("ya tiene un slot asignado")));
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.slots", hasSize(2)));
     }
 
     @Test

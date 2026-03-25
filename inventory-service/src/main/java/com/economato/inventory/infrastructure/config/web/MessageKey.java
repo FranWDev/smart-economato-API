@@ -224,6 +224,7 @@ public enum MessageKey {
     ERROR_WEEKLY_PLAN_SLOT_OVERLAP_EXISTING("error.weekly.plan.slot.overlap.existing"),
     ERROR_WEEKLY_PLAN_STUDENT_ALREADY_ASSIGNED_DAY("error.weekly.plan.student.already.assigned.day"),
     ERROR_WEEKLY_PLAN_STUDENT_DUPLICATE_IN_SLOT("error.weekly.plan.student.duplicate.in.slot"),
+    ERROR_WEEKLY_PLAN_NO_PENDING_SLOTS_FOR_DAY("error.weekly.plan.no.pending.slots.for.day"),
     ERROR_DATA_INTEGRITY_VIOLATION("error.data.integrity.violation");
 
     private final String key;
