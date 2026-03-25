@@ -980,7 +980,7 @@ public class StockLedgerService {
                         user,
                         orderId,
                         item.getExpirationDate(),
-                        null,
+                        item.getCorrelationId(),
                         null);
 
                 transactions.add(transaction);
