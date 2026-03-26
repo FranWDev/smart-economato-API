@@ -5,6 +5,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.security.JwtUtils;
 import com.economato.inventory.application.usecase.CustomUserDetailsService;
 import com.economato.inventory.application.usecase.AlertMessage;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +44,9 @@ public class DataSourceReplicaFailoverIntegrationTest {
 
     @MockitoBean
     private CustomUserDetailsService userDetailsService;
+
+    @MockitoBean
+    private AuditEventProducer auditEventProducer;
 
     @BeforeEach
     void setUp() {

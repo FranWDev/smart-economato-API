@@ -104,14 +104,4 @@ public class ScheduledForecastRefreshService {
 
         auditEventProducer.publishStockPredictionEvent(event);
     }
-
-    /**
-     * Helper method to trigger the PredictorTriggerAspect.
-     * Needs to return the list of IDs for the aspect to extract them from the result.
-     */
-    @PredictorTrigger(action = "SCHEDULED_REFRESH")
-    public List<Integer> triggerRefresh(List<Integer> batch) {
-        log.debug("Disparando actualización para lote de {} productos", batch.size());
-        return batch;
-    }
 }

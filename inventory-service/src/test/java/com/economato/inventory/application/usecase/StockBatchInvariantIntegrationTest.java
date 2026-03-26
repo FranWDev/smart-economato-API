@@ -26,10 +26,16 @@ import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+
 @SpringBootTest
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class StockBatchInvariantIntegrationTest extends BaseIntegrationTest {
+
+    @MockitoBean
+    private AuditEventProducer auditEventProducer;
 
     @Autowired
     private StockLedgerService stockLedgerService;

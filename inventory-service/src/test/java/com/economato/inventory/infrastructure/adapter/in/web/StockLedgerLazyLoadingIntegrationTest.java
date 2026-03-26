@@ -10,9 +10,11 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 import com.economato.inventory.infrastructure.TestDataUtil;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -33,6 +35,9 @@ class StockLedgerLazyLoadingIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private StockLedgerRepository stockLedgerRepository;
+
+    @MockitoBean
+    private AuditEventProducer auditEventProducer;
 
     private String jwtToken;
     private Integer productId;

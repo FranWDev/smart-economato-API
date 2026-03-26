@@ -41,11 +41,16 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.infrastructure.TestDataUtil;
 import java.time.LocalDate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 
 class RecipeControllerIntegrationTest extends BaseIntegrationTest {
 
         private static final String BASE_URL = "/api/recipes";
         private static final String AUTH_URL = "/api/auth/login";
+
+        @MockitoBean
+        private AuditEventProducer auditEventProducer;
 
         @Autowired
         private ProductRepository productRepository;

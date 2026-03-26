@@ -60,9 +60,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class AuditOutboxIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
-    private AuditEventProducer auditEventProducer;
-
-    @Autowired
     private AuditOutboxProcessor auditOutboxProcessor;
 
     @Autowired

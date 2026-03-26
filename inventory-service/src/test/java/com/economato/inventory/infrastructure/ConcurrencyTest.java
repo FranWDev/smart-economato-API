@@ -5,11 +5,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.economato.inventory.application.dto.request.ProductRequestDTO;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.application.usecase.ProductService;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 
 import java.math.BigDecimal;
 import java.util.concurrent.CountDownLatch;
@@ -22,6 +24,9 @@ import static org.junit.jupiter.api.Assertions.*;
 @SpringBootTest
 @ActiveProfiles("test")
 public class ConcurrencyTest {
+
+    @MockitoBean
+    private AuditEventProducer auditEventProducer;
 
     @Autowired
     private ProductService productService;

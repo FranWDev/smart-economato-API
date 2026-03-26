@@ -6,8 +6,13 @@ import org.springframework.http.MediaType;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 
 public class I18nIntegrationTest extends BaseIntegrationTest {
+
+    @MockitoBean
+    private AuditEventProducer auditEventProducer;
 
     private static final String LOGIN_URL = "/api/auth/login";
 
