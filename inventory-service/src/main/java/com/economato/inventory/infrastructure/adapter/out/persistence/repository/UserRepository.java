@@ -65,4 +65,15 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     @EntityGraph(attributePaths = {"teacher"})
     @Query("SELECT u FROM User u WHERE u.teacher.id = :teacherId AND u.isHidden = false")
     List<UserProjection> findProjectedByTeacherIdAndIsHiddenFalse(@Param("teacherId") Integer teacherId);
+    @EntityGraph(attributePaths = {"teacher"})
+    @Query("SELECT u FROM User u WHERE u.teacher IS NULL AND u.role IN :roles AND u.isHidden = false")
+    List<UserProjection> findProjectedByTeacherIsNullAndRoleInAndIsHiddenFalse(@Param("roles") List<Role> roles);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @Query("UPDATE User u SET u.isHidden = :hidden WHERE u.teacher.id = :teacherId")
+    int updateHiddenByTeacherId(@Param("teacherId") Integer teacherId, @Param("hidden") boolean hidden);
+
+    @EntityGraph(attributePaths = {"teacher"})
+    @Query("SELECT u FROM User u WHERE u.teacher.id = :teacherId")
+    List<User> findByTeacherId(@Param("teacherId") Integer teacherId);
 }

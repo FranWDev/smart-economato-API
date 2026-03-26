@@ -1,5 +1,7 @@
 package com.economato.inventory.infrastructure.adapter.in.web;
 
+import java.util.List;
+
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThan;
@@ -9,6 +11,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -23,6 +26,7 @@ import com.economato.inventory.application.dto.request.BatchTeacherAssignmentReq
 import com.economato.inventory.application.dto.request.LoginRequestDTO;
 import com.economato.inventory.application.dto.request.RoleEscalationRequestDTO;
 import com.economato.inventory.application.dto.request.TeacherAssignmentRequestDTO;
+import com.economato.inventory.application.dto.request.TransferStudentsRequestDTO;
 import com.economato.inventory.application.dto.request.UserRequestDTO;
 import com.economato.inventory.application.dto.response.LoginResponseDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
@@ -1063,5 +1067,168 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(batchRequest)))
                                 .andExpect(status().isForbidden());
+        }
+
+        @Test
+        void whenGetUnassignedStudents_thenSuccess() throws Exception {
+                // Crear un alumno sin profesor
+                User unassigned = TestDataUtil.createUser("Unassigned", "unassigned_student", "pass", Role.USER);
+                unassigned.setTeacher(null);
+                unassigned.setHidden(false);
+                userRepository.saveAndFlush(unassigned);
+
+                mockMvc.perform(get(BASE_URL + "/students/unassigned")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$", hasSize(greaterThan(0))))
+                                .andExpect(jsonPath("$[*].id", hasItem(unassigned.getId())));
+        }
+
+        @Test
+        void whenHideAllStudentsOfTeacher_thenSuccess() throws Exception {
+                // Crear un profesor y sus alumnos
+                User teacher = TestDataUtil.createUser("Teacher To Hide", "teacher_to_hide", "pass", Role.CHEF);
+                userRepository.saveAndFlush(teacher);
+
+                User student = TestDataUtil.createUser("Student To Hide", "student_to_hide", "pass", Role.USER);
+                student.setTeacher(teacher);
+                student.setHidden(false);
+                userRepository.saveAndFlush(student);
+
+                mockMvc.perform(patch(BASE_URL + "/teachers/" + teacher.getId() + "/students/hidden")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(true)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.processedCount").value(1));
+
+                User updatedStudent = userRepository.findById(student.getId()).get();
+                assertTrue(updatedStudent.isHidden());
+        }
+
+        @Test
+        void whenHideAllStudentsOfTeacher_TeacherNotFound_thenNotFound() throws Exception {
+                mockMvc.perform(patch(BASE_URL + "/teachers/9999/students/hidden")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(true)))
+                                .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void whenHideAllStudentsOfTeacher_NotTeacher_thenBadRequest() throws Exception {
+                User notTeacher = TestDataUtil.createUser("Not Teacher", "not_teacher", "pass", Role.USER);
+                userRepository.saveAndFlush(notTeacher);
+
+                mockMvc.perform(patch(BASE_URL + "/teachers/" + notTeacher.getId() + "/students/hidden")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(true)))
+                                .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void whenTransferStudentsBatch_thenSuccess() throws Exception {
+                User fromTeacher = TestDataUtil.createUser("From Teacher", "from_teacher", "pass", Role.CHEF);
+                userRepository.saveAndFlush(fromTeacher);
+
+                User toTeacher = TestDataUtil.createUser("To Teacher", "to_teacher", "pass", Role.CHEF);
+                userRepository.saveAndFlush(toTeacher);
+
+                User student = TestDataUtil.createUser("Student To Transfer", "student_to_transfer", "pass", Role.USER);
+                student.setTeacher(fromTeacher);
+                userRepository.saveAndFlush(student);
+
+                TransferStudentsRequestDTO request = new TransferStudentsRequestDTO(
+                                fromTeacher.getId(), toTeacher.getId(), List.of(student.getId()));
+
+                mockMvc.perform(patch(BASE_URL + "/batch/transfer-teacher")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(request)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.processedCount").value(1));
+
+                User updatedStudent = userRepository.findById(student.getId()).get();
+                assertEquals(toTeacher.getId(), updatedStudent.getTeacher().getId());
+        }
+
+        @Test
+        void whenTransferStudentsBatch_SameTeacher_thenBadRequest() throws Exception {
+                TransferStudentsRequestDTO request = new TransferStudentsRequestDTO(1, 1, List.of(2));
+
+                mockMvc.perform(patch(BASE_URL + "/batch/transfer-teacher")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(request)))
+                                .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void whenTransferStudentsBatch_TeacherNotFound_thenNotFound() throws Exception {
+                TransferStudentsRequestDTO request = new TransferStudentsRequestDTO(1, 9999, List.of(2));
+
+                mockMvc.perform(patch(BASE_URL + "/batch/transfer-teacher")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(request)))
+                                .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void whenTransferStudentsBatch_StudentNotBelongsToTeacher_thenBadRequest() throws Exception {
+                User fromTeacher = TestDataUtil.createUser("FT", "ft", "pass", Role.CHEF);
+                userRepository.saveAndFlush(fromTeacher);
+
+                User toTeacher = TestDataUtil.createUser("TT", "tt", "pass", Role.CHEF);
+                userRepository.saveAndFlush(toTeacher);
+
+                User student = TestDataUtil.createUser("ST", "st", "pass", Role.USER);
+                student.setTeacher(null); // No pertenece al fromTeacher
+                userRepository.saveAndFlush(student);
+
+                TransferStudentsRequestDTO request = new TransferStudentsRequestDTO(
+                                fromTeacher.getId(), toTeacher.getId(), List.of(student.getId()));
+
+                mockMvc.perform(patch(BASE_URL + "/batch/transfer-teacher")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(request)))
+                                .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void whenTransferAllStudents_thenSuccess() throws Exception {
+                User fromTeacher = TestDataUtil.createUser("FT ALL", "ft_all", "pass", Role.CHEF);
+                userRepository.saveAndFlush(fromTeacher);
+
+                User toTeacher = TestDataUtil.createUser("TT ALL", "tt_all", "pass", Role.CHEF);
+                userRepository.saveAndFlush(toTeacher);
+
+                User student = TestDataUtil.createUser("ST ALL", "st_all", "pass", Role.USER);
+                student.setTeacher(fromTeacher);
+                userRepository.saveAndFlush(student);
+
+                mockMvc.perform(patch(BASE_URL + "/teachers/" + fromTeacher.getId() + "/transfer-all/" + toTeacher.getId())
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.processedCount").value(1));
+
+                User updatedStudent = userRepository.findById(student.getId()).get();
+                assertEquals(toTeacher.getId(), updatedStudent.getTeacher().getId());
+        }
+
+        @Test
+        void whenTransferAllStudents_SameTeacher_thenBadRequest() throws Exception {
+                mockMvc.perform(patch(BASE_URL + "/teachers/1/transfer-all/1")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void whenTransferAllStudents_TeacherNotFound_thenNotFound() throws Exception {
+                mockMvc.perform(patch(BASE_URL + "/teachers/1/transfer-all/9999")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isNotFound());
         }
 }
