@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import com.economato.inventory.application.dto.request.BatchStockMovementRequestDTO;
 import com.economato.inventory.application.dto.request.ManualStockAdjustmentRequestDTO;
 import com.economato.inventory.application.dto.request.BatchMovementItem;
+import com.economato.inventory.domain.PredictorTrigger;
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO.DailyConsumptionDTO;
@@ -964,6 +965,7 @@ public class StockLedgerService {
                 verification.getErrors());
     }
 
+    @PredictorTrigger(action = "BATCH_MOVEMENT")
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public List<StockLedger> recordBatchStockMovements(
             List<BatchMovementItem> movements,

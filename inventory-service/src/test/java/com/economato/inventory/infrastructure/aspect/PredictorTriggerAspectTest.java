@@ -1,6 +1,8 @@
 package com.economato.inventory.infrastructure.aspect;
 
 import com.economato.inventory.application.dto.event.StockPredictionEvent;
+import com.economato.inventory.application.dto.request.BatchMovementItem;
+import com.economato.inventory.application.dto.request.BatchStockMovementRequestDTO;
 import com.economato.inventory.application.dto.request.ManualStockAdjustmentRequestDTO;
 import com.economato.inventory.application.dto.request.RecipeCookingRequestDTO;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO.DailyConsumptionDTO;
@@ -18,6 +20,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.WeeklyPlanSlotRepository;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.ProceedingJoinPoint;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,12 +44,11 @@ class PredictorTriggerAspectTest {
     @Mock private StockLedgerService stockLedgerService;
     @Mock private AuditEventProducer auditEventProducer;
     @Mock private RecipeRepository recipeRepository;
-    @Mock private OrderRepository orderRepository;
     @Mock private StockLedgerRepository stockLedgerRepository;
     @Mock private RecipeCookingAuditRepository recipeCookingAuditRepository;
     @Mock private WeeklyPlanSlotRepository weeklyPlanSlotRepository;
     @Mock private SecurityContextHelper securityContextHelper;
-    @Mock private JoinPoint joinPoint;
+    @Mock private ProceedingJoinPoint joinPoint;
     @Mock private PredictorTrigger trigger;
 
     private PredictorTriggerAspect aspect;
@@ -57,7 +59,6 @@ class PredictorTriggerAspectTest {
                 stockLedgerService,
                 auditEventProducer,
                 recipeRepository,
-                orderRepository,
                 stockLedgerRepository,
                 recipeCookingAuditRepository,
                 weeklyPlanSlotRepository,
@@ -67,11 +68,12 @@ class PredictorTriggerAspectTest {
 
     @Test
     @DisplayName("COOK_RECIPE action triggers event with recipe components history")
-    void cookRecipe_triggersEvent() {
+    void cookRecipe_triggersEvent() throws Throwable {
         // given
         RecipeCookingRequestDTO request = new RecipeCookingRequestDTO(1, BigDecimal.ONE, "test", null);
         given(trigger.action()).willReturn("COOK_RECIPE");
         given(joinPoint.getArgs()).willReturn(new Object[]{request});
+        given(joinPoint.proceed()).willReturn(null);
 
         Product product = new Product();
         product.setId(101);
@@ -84,14 +86,14 @@ class PredictorTriggerAspectTest {
         recipe.setId(1);
         recipe.setComponents(Set.of(component));
 
-        given(recipeRepository.findByIdWithDetails(1)).willReturn(Optional.of(recipe));
+        given(recipeRepository.findProductIdsByRecipeId(1)).willReturn(List.of(101));
         
         Map<Integer, List<DailyConsumptionDTO>> history = new HashMap<>();
         history.put(101, List.of(new DailyConsumptionDTO(LocalDate.now(), BigDecimal.TEN)));
         given(stockLedgerService.getDailyConsumptionBatch(anyList(), any(), any())).willReturn(history);
 
         // when
-        aspect.afterModification(joinPoint, trigger, null);
+        aspect.aroundModification(joinPoint, trigger);
 
         // then
         ArgumentCaptor<StockPredictionEvent> captor = ArgumentCaptor.forClass(StockPredictionEvent.class);
@@ -105,18 +107,19 @@ class PredictorTriggerAspectTest {
 
     @Test
     @DisplayName("MANUAL_ADJUSTMENT action triggers event for single product")
-    void manualAdjustment_triggersEvent() {
+    void manualAdjustment_triggersEvent() throws Throwable {
         // given
         ManualStockAdjustmentRequestDTO request = new ManualStockAdjustmentRequestDTO(
                 202, BigDecimal.ONE, MovementType.ENTRADA, "test", null, null
         );
         given(trigger.action()).willReturn("MANUAL_ADJUSTMENT");
         given(joinPoint.getArgs()).willReturn(new Object[]{request});
+        given(joinPoint.proceed()).willReturn(null);
 
         given(stockLedgerService.getDailyConsumptionBatch(anyList(), any(), any())).willReturn(Collections.emptyMap());
 
         // when
-        aspect.afterModification(joinPoint, trigger, null);
+        aspect.aroundModification(joinPoint, trigger);
 
         // then
         ArgumentCaptor<StockPredictionEvent> captor = ArgumentCaptor.forClass(StockPredictionEvent.class);
@@ -128,24 +131,27 @@ class PredictorTriggerAspectTest {
     }
 
     @Test
-    @DisplayName("SCHEDULED_REFRESH action triggers event from result list")
-    void scheduledRefresh_triggersEvent() {
+    @DisplayName("BATCH_MOVEMENT action triggers event from result list")
+    void batchMovement_triggersEvent() throws Throwable {
         // given
-        List<Integer> productIds = Arrays.asList(303, 404);
-        given(trigger.action()).willReturn("SCHEDULED_REFRESH");
-        given(joinPoint.getArgs()).willReturn(new Object[]{});
+        BatchMovementItem item1 = new BatchMovementItem(303, BigDecimal.ONE, MovementType.SALIDA, "test", null);
+        List<BatchMovementItem> requests = List.of(item1);
+
+        given(trigger.action()).willReturn("BATCH_MOVEMENT");
+        given(joinPoint.getArgs()).willReturn(new Object[]{requests});
+        given(joinPoint.proceed()).willReturn(null);
         
         given(stockLedgerService.getDailyConsumptionBatch(anyList(), any(), any())).willReturn(Collections.emptyMap());
 
         // when
-        aspect.afterModification(joinPoint, trigger, productIds);
+        aspect.aroundModification(joinPoint, trigger);
 
         // then
         ArgumentCaptor<StockPredictionEvent> captor = ArgumentCaptor.forClass(StockPredictionEvent.class);
         verify(auditEventProducer).publishStockPredictionEvent(captor.capture());
 
         StockPredictionEvent event = captor.getValue();
-        assertThat(event.getTriggerType()).isEqualTo("SCHEDULED_REFRESH");
-        assertThat(event.getAffectedProductIds()).containsExactlyInAnyOrder(303, 404);
+        assertThat(event.getTriggerType()).isEqualTo("BATCH_MOVEMENT");
+        assertThat(event.getAffectedProductIds()).containsExactly(303);
     }
 }

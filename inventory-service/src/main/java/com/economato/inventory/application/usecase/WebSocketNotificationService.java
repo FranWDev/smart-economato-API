@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import com.economato.inventory.infrastructure.CircuitBreakerClosedEvent;
 import com.economato.inventory.infrastructure.CircuitBreakerOpenEvent;
 import com.economato.inventory.infrastructure.WebSocketConnectedEvent;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
@@ -20,6 +22,7 @@ public class WebSocketNotificationService {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
+    private final I18nService i18nService;
 
     /**
      * Maneja eventos de circuit breaker OPEN y envía alertas al frontend a través de WebSocket.
@@ -120,6 +123,28 @@ public class WebSocketNotificationService {
             }
         } catch (Exception e) {
             log.error("Error checking circuit breakers for user: {}", username, e);
+        }
+    }
+
+    /**
+     * Envía una notificación de predicción de stock a todos los administradores.
+     */
+    public void notifyAdminsStockPrediction(int productCount) {
+        try {
+            String description = i18nService.getMessage(
+                    MessageKey.NOTIFICATION_PREDICTION_TRIGGERED, productCount);
+
+            AlertMessage message = new AlertMessage(
+                    AlertCode.STOCK_PREDICTION_TRIGGERED.getCode(), description);
+
+            log.info("Notifying admins via WebSocket: prediction triggered for {} products", productCount);
+            
+            // Enviamos al tópico general de alertas, pero el frontend debería filtrarlo o 
+            // podríamos enviarlo a un tópico específico /topic/admin/notifications si existiera.
+            // Para seguir el patrón existente, usamos /topic/alerts.
+            messagingTemplate.convertAndSend("/topic/alerts", message);
+        } catch (Exception e) {
+            log.error("Failed to send WebSocket prediction notification", e);
         }
     }
 }
