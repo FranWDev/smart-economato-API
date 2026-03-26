@@ -197,13 +197,18 @@ public class PredictorTriggerAspect {
     }
 
     private List<Integer> extractFromWeeklyPlanConfirm(Object[] args) {
+        // confirmSlot(Long planId, Long slotId) — necesitamos el segundo Long (slotId)
         Long slotId = null;
+        int longCount = 0;
         for (Object arg : args) {
             if (arg instanceof Long) {
-                slotId = (Long) arg; break;
+                longCount++;
+                if (longCount == 2) {
+                    slotId = (Long) arg;
+                    break;
+                }
             }
         }
-
         if (slotId != null) {
             return weeklyPlanSlotRepository.findProductIdsBySlotId(slotId);
         }
