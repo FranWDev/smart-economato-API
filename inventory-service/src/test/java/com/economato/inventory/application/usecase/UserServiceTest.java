@@ -20,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.economato.inventory.application.dto.projection.RoleCountProjection;
 import com.economato.inventory.application.dto.projection.UserProjection;
+import com.economato.inventory.application.dto.request.TransferStudentsRequestDTO;
 import com.economato.inventory.application.dto.request.UserRequestDTO;
 import com.economato.inventory.application.dto.request.ChangePasswordRequestDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
@@ -865,5 +866,196 @@ class UserServiceTest {
         assertEquals(expected, result);
         verify(repository).count();
         verify(repository).countUsersByRole();
+    }
+
+    @Test
+    void getStudentsWithoutTeacher_Success() {
+        // Arrange
+        UserProjection proj = mock(UserProjection.class);
+        when(repository.findProjectedByTeacherIsNullAndRoleInAndIsHiddenFalse(anyList()))
+                .thenReturn(List.of(proj));
+        when(userMapper.toResponseDTO(any(UserProjection.class))).thenReturn(new UserResponseDTO());
+
+        // Act
+        List<UserResponseDTO> result = userService.getStudentsWithoutTeacher();
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        verify(repository).findProjectedByTeacherIsNullAndRoleInAndIsHiddenFalse(anyList());
+    }
+
+    @Test
+    void hideAllStudentsOfTeacher_Success() {
+        // Arrange
+        User teacher = new User();
+        teacher.setId(2);
+        teacher.setRole(Role.CHEF);
+        User student = new User();
+        student.setId(3);
+        student.setHidden(false);
+
+        when(repository.findById(2)).thenReturn(Optional.of(teacher));
+        when(repository.findByTeacherId(2)).thenReturn(List.of(student));
+
+        // Act
+        var result = userService.hideAllStudentsOfTeacher(2, true);
+
+        // Assert
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getProcessedCount());
+        assertTrue(student.isHidden());
+        verify(repository).saveAll(anyList());
+    }
+
+    @Test
+    void hideAllStudentsOfTeacher_NotFound() {
+        // Arrange
+        when(repository.findById(2)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(ResourceNotFoundException.class, () -> userService.hideAllStudentsOfTeacher(2, true));
+    }
+
+    @Test
+    void hideAllStudentsOfTeacher_NotChef() {
+        // Arrange
+        User user = new User();
+        user.setId(2);
+        user.setRole(Role.USER);
+        when(repository.findById(2)).thenReturn(Optional.of(user));
+
+        // Act & Assert
+        assertThrows(InvalidOperationException.class, () -> userService.hideAllStudentsOfTeacher(2, true));
+    }
+
+    @Test
+    void transferStudents_Success() {
+        // Arrange
+        User fromTeacher = new User();
+        fromTeacher.setId(2);
+        fromTeacher.setRole(Role.CHEF);
+        User toTeacher = new User();
+        toTeacher.setId(5);
+        toTeacher.setRole(Role.CHEF);
+        User student = new User();
+        student.setId(3);
+        student.setTeacher(fromTeacher);
+
+        TransferStudentsRequestDTO request = new TransferStudentsRequestDTO(2, 5, List.of(3));
+
+        when(repository.findById(2)).thenReturn(Optional.of(fromTeacher));
+        when(repository.findById(5)).thenReturn(Optional.of(toTeacher));
+        when(repository.findAllById(anyList())).thenReturn(List.of(student));
+
+        // Act
+        var result = userService.transferStudents(request);
+
+        // Assert
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getProcessedCount());
+        assertEquals(toTeacher, student.getTeacher());
+        verify(repository).saveAll(anyList());
+    }
+
+    @Test
+    void transferStudents_SameTeacher() {
+        // Arrange
+        TransferStudentsRequestDTO request = new TransferStudentsRequestDTO(2, 2, List.of(3));
+
+        // Act & Assert
+        assertThrows(InvalidOperationException.class, () -> userService.transferStudents(request));
+    }
+
+    @Test
+    void transferStudents_NotFound() {
+        // Arrange
+        TransferStudentsRequestDTO request = new TransferStudentsRequestDTO(2, 5, List.of(3));
+        when(repository.findById(2)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(ResourceNotFoundException.class, () -> userService.transferStudents(request));
+    }
+
+    @Test
+    void transferStudents_NotChef() {
+        // Arrange
+        User fromTeacher = new User();
+        fromTeacher.setId(2);
+        fromTeacher.setRole(Role.USER);
+        TransferStudentsRequestDTO request = new TransferStudentsRequestDTO(2, 5, List.of(3));
+
+        User toTeacher = new User();
+        toTeacher.setId(5);
+        toTeacher.setRole(Role.CHEF);
+        when(repository.findById(2)).thenReturn(Optional.of(fromTeacher));
+        when(repository.findById(5)).thenReturn(Optional.of(toTeacher));
+
+        // Act & Assert
+        assertThrows(InvalidOperationException.class, () -> userService.transferStudents(request));
+    }
+
+    @Test
+    void transferStudents_NotBelongsToTeacher() {
+        // Arrange
+        User fromTeacher = new User();
+        fromTeacher.setId(2);
+        fromTeacher.setRole(Role.CHEF);
+        User otherTeacher = new User();
+        otherTeacher.setId(9);
+        User student = new User();
+        student.setId(3);
+        student.setTeacher(otherTeacher);
+
+        TransferStudentsRequestDTO request = new TransferStudentsRequestDTO(2, 5, List.of(3));
+
+        when(repository.findById(2)).thenReturn(Optional.of(fromTeacher));
+        when(repository.findById(5)).thenReturn(Optional.of(new User() {{ setRole(Role.CHEF); }}));
+        when(repository.findAllById(anyList())).thenReturn(List.of(student));
+
+        // Act & Assert
+        assertThrows(InvalidOperationException.class, () -> userService.transferStudents(request));
+    }
+
+    @Test
+    void transferAllStudents_Success() {
+        // Arrange
+        User fromTeacher = new User();
+        fromTeacher.setId(2);
+        fromTeacher.setRole(Role.CHEF);
+        User toTeacher = new User();
+        toTeacher.setId(5);
+        toTeacher.setRole(Role.CHEF);
+        User student = new User();
+        student.setId(3);
+        student.setTeacher(fromTeacher);
+
+        when(repository.findById(2)).thenReturn(Optional.of(fromTeacher));
+        when(repository.findById(5)).thenReturn(Optional.of(toTeacher));
+        when(repository.findByTeacherId(2)).thenReturn(List.of(student));
+
+        // Act
+        var result = userService.transferAllStudents(2, 5);
+
+        // Assert
+        assertTrue(result.isSuccess());
+        assertEquals(1, result.getProcessedCount());
+        assertEquals(toTeacher, student.getTeacher());
+        verify(repository).saveAll(anyList());
+    }
+
+    @Test
+    void transferAllStudents_SameTeacher() {
+        // Act & Assert
+        assertThrows(InvalidOperationException.class, () -> userService.transferAllStudents(2, 2));
+    }
+
+    @Test
+    void transferAllStudents_NotFound() {
+        // Arrange
+        when(repository.findById(2)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(ResourceNotFoundException.class, () -> userService.transferAllStudents(2, 5));
     }
 }

@@ -23,6 +23,7 @@ import com.economato.inventory.application.dto.request.BatchTeacherAssignmentReq
 import com.economato.inventory.application.dto.request.ChangePasswordRequestDTO;
 import com.economato.inventory.application.dto.request.RoleEscalationRequestDTO;
 import com.economato.inventory.application.dto.request.TeacherAssignmentRequestDTO;
+import com.economato.inventory.application.dto.request.TransferStudentsRequestDTO;
 import com.economato.inventory.application.dto.request.UserRequestDTO;
 import com.economato.inventory.application.dto.response.BatchTeacherAssignmentResponseDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
@@ -299,5 +300,57 @@ public class UserController {
                         @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id) {
                 service.deescalateRole(id);
                 return ResponseEntity.ok().build();
+        }
+
+        @Operation(summary = "Obtener alumnos sin profesor asignado", description = "Devuelve una lista de alumnos (USER o ELEVATED) que no están ocultos y no tienen profesor.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Lista de alumnos obtenida correctamente"),
+                        @ApiResponse(responseCode = "403", description = "No tiene permisos para realizar esta acción")
+        })
+        @GetMapping("/students/unassigned")
+        @PreAuthorize("hasRole('ADMIN')")
+        public ResponseEntity<List<UserResponseDTO>> getStudentsUnassigned() {
+                return ResponseEntity.ok(service.getStudentsWithoutTeacher());
+        }
+
+        @Operation(summary = "Ocultar/Mostrar todos los alumnos de un profesor", description = "Cambia el estado isHidden de todos los alumnos asignados a un profesor.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Estado de visibilidad actualizado correctamente"),
+                        @ApiResponse(responseCode = "404", description = "Profesor no encontrado"),
+                        @ApiResponse(responseCode = "400", description = "El usuario especificado no es un profesor")
+        })
+        @PatchMapping("/teachers/{teacherId}/students/hidden")
+        @PreAuthorize("hasRole('ADMIN')")
+        public ResponseEntity<BatchTeacherAssignmentResponseDTO> hideAllStudentsOfTeacher(
+                        @Parameter(description = "ID del profesor", required = true) @PathVariable Integer teacherId,
+                        @Parameter(description = "Nuevo estado de ocultación", required = true) @RequestBody boolean hidden) {
+                return ResponseEntity.ok(service.hideAllStudentsOfTeacher(teacherId, hidden));
+        }
+
+        @Operation(summary = "Transferir alumnos de un profesor a otro (batch)", description = "Transfiere una lista específica de alumnos de un profesor origen a un profesor destino.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Transferencia completada"),
+                        @ApiResponse(responseCode = "404", description = "Uno de los profesores no existe"),
+                        @ApiResponse(responseCode = "400", description = "Operación inválida (mismo profesor, alumno no pertenece al origen, etc.)")
+        })
+        @PatchMapping("/batch/transfer-teacher")
+        @PreAuthorize("hasRole('ADMIN')")
+        public ResponseEntity<BatchTeacherAssignmentResponseDTO> transferStudents(
+                        @Valid @RequestBody TransferStudentsRequestDTO request) {
+                return ResponseEntity.ok(service.transferStudents(request));
+        }
+
+        @Operation(summary = "Transferir todos los alumnos de un profesor a otro", description = "Transfiere todos los alumnos asignados a un profesor origen hacia un profesor destino.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Transferencia total completada"),
+                        @ApiResponse(responseCode = "404", description = "Uno de los profesores no existe"),
+                        @ApiResponse(responseCode = "400", description = "Operación inválida (mismo profesor, etc.)")
+        })
+        @PatchMapping("/teachers/{fromTeacherId}/transfer-all/{toTeacherId}")
+        @PreAuthorize("hasRole('ADMIN')")
+        public ResponseEntity<BatchTeacherAssignmentResponseDTO> transferAllStudents(
+                        @Parameter(description = "ID del profesor origen", required = true) @PathVariable Integer fromTeacherId,
+                        @Parameter(description = "ID del profesor destino", required = true) @PathVariable Integer toTeacherId) {
+                return ResponseEntity.ok(service.transferAllStudents(fromTeacherId, toTeacherId));
         }
 }
