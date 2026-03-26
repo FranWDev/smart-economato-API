@@ -12,6 +12,7 @@ import com.economato.inventory.domain.model.RecipeCookingAudit;
 import com.economato.inventory.application.dto.projection.WeeklyIngredientConsumption;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,6 +21,9 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
 
   @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.recipe.id = :recipeId ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findByRecipeId(@Param("recipeId") Integer recipeId);
+
+  @Query("SELECT rc.product.id FROM RecipeCookingAudit rca JOIN rca.recipe r JOIN r.components rc WHERE rca.id = :id")
+  List<Integer> findProductIdsByAuditId(@Param("id") Long id);
 
   Optional<RecipeCookingAudit> findByCorrelationId(String correlationId);
 

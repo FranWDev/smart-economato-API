@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import com.economato.inventory.application.dto.request.BatchStockMovementRequestDTO;
 import com.economato.inventory.application.dto.request.ManualStockAdjustmentRequestDTO;
 import com.economato.inventory.application.dto.request.BatchMovementItem;
+import com.economato.inventory.domain.PredictorTrigger;
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO.DailyConsumptionDTO;
@@ -35,6 +36,8 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockSnapshotRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
+import com.economato.inventory.domain.PredictorTrigger;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 
 import jakarta.persistence.EntityManager;
@@ -218,6 +221,7 @@ public class StockLedgerService {
                 expirationDate, null, targetBatchId);
     }
 
+    @PredictorTrigger(action = "MANUAL_ADJUSTMENT")
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public StockLedger processManualAdjustment(
             com.economato.inventory.application.dto.request.ManualStockAdjustmentRequestDTO request) {
@@ -249,6 +253,7 @@ public class StockLedgerService {
                 request.getExpirationDate());
     }
 
+    @PredictorTrigger(action = "REVERSION")
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public void revertMovement(String correlationId, String reason) {
         log.info("Iniciando reversión de movimientos: correlationId={}, motivo={}", correlationId, reason);
@@ -960,6 +965,7 @@ public class StockLedgerService {
                 verification.getErrors());
     }
 
+    @PredictorTrigger(action = "BATCH_MOVEMENT")
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public List<StockLedger> recordBatchStockMovements(
             List<BatchMovementItem> movements,

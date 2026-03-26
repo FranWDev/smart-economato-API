@@ -30,7 +30,7 @@ class KafkaManager:
         while self._running:
             try:
                 await self._connect()
-                logger.info(f"Subscribed to topic: {settings.RECIPE_COOKING_TOPIC}")
+                logger.info(f"Subscribed to topic: {settings.STOCK_PREDICTION_TOPIC}")
                 await self._consume_loop()
             except KafkaException as exc:
                 logger.error(f"Kafka error: {exc}")
@@ -46,7 +46,7 @@ class KafkaManager:
         self._disconnect()
     async def _connect(self):
         self.consumer = Consumer(self.consumer_conf)
-        self.consumer.subscribe([settings.RECIPE_COOKING_TOPIC])
+        self.consumer.subscribe([settings.STOCK_PREDICTION_TOPIC])
 
     def _disconnect(self):
         if self.consumer:
@@ -75,7 +75,7 @@ class KafkaManager:
 
             try:
                 payload = json.loads(msg.value().decode("utf-8"))
-                logger.info(f"Received cooking event for recipe {payload.get('recipeId')}")
+                logger.info(f"Received stock prediction event: {payload.get('triggerType')}")
 
                 results = await forecast_service.process_event(payload)
 
@@ -99,7 +99,7 @@ class KafkaManager:
                         )
                     logger.info(
                         f"Saved {len(results)} forecast result(s) to outbox "
-                        f"for recipe {payload.get('recipeId')}"
+                        f"for event {payload.get('triggerType')}"
                     )
 
                 # Commit offset only after outbox rows are durably persisted

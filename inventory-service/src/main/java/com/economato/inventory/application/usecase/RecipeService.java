@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.domain.RecipeAuditable;
 import com.economato.inventory.domain.RecipeCookingAuditable;
+import com.economato.inventory.domain.PredictorTrigger;
 import com.economato.inventory.application.dto.RestPage;
 import com.economato.inventory.application.dto.request.RecipeComponentRequestDTO;
 import com.economato.inventory.application.dto.request.RecipeCookingRequestDTO;
@@ -277,6 +278,7 @@ public class RecipeService {
         recipe.setTotalCost(totalCost);
     }
 
+    @PredictorTrigger(action = "COOK_RECIPE")
     @RecipeCookingAuditable(action = "COOK_RECIPE")
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
@@ -353,6 +355,7 @@ public class RecipeService {
     /**
      * Revierte un cocinado de receta específico.
      */
+    @PredictorTrigger(action = "REVERT_COOKING")
     @Transactional(rollbackFor = Exception.class)
     public void revertCooking(Long auditId, String reason) {
         log.info("Iniciando reversión de cocinado: auditId={}, motivo={}", auditId, reason);

@@ -22,6 +22,9 @@ public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> 
     @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.correlationId = :correlationId")
     List<StockLedger> findByCorrelationId(@Param("correlationId") String correlationId);
 
+    @Query("SELECT DISTINCT l.product.id FROM StockLedger l WHERE l.correlationId = :correlationId")
+    List<Integer> findProductIdsByCorrelationId(@Param("correlationId") String correlationId);
+
     @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.orderId = :orderId")
     List<StockLedger> findByOrderId(@Param("orderId") Integer orderId);
 
@@ -109,4 +112,7 @@ public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> 
            "WHERE l2.product.id = l.product.id AND l2.movementType = 'ENTRADA' " +
            "AND l2.transactionTimestamp < :date)")
     List<Object[]> findLastEntradasBeforeDateBatch(@Param("productIds") Collection<Integer> productIds, @Param("date") LocalDateTime date);
+
+    @Query("SELECT DISTINCT l.product.id FROM StockLedger l WHERE l.transactionTimestamp >= :since")
+    List<Integer> findProductIdsWithMovementsSince(@Param("since") LocalDateTime since);
 }
