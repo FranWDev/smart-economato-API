@@ -20,7 +20,7 @@ import com.economato.inventory.application.dto.response.WeeklyPlanStockRequireme
 import com.economato.inventory.application.dto.response.WeeklyPlanSlotStudentResponseDTO;
 
 @RestController
-@RequestMapping("/api/v1/weekly-plans")
+@RequestMapping("/api/weekly-plans")
 @RequiredArgsConstructor
 public class WeeklyPlanController {
 

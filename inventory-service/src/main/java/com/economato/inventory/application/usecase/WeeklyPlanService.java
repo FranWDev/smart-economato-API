@@ -32,7 +32,6 @@ import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.LocalTime;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
@@ -82,7 +81,7 @@ public class WeeklyPlanService {
                 .status(WeeklyPlanStatus.DRAFT)
                 .build();
 
-        List<WeeklyPlanSlot> slots = mapSlots(request.getSlots(), plan, chefId, request.getWeekStartDate());
+        List<WeeklyPlanSlot> slots = mapSlots(request.getSlots(), plan, chefId);
         plan.getSlots().addAll(slots);
 
         return wrapperMapper.toResponseDTO(weeklyPlanRepository.save(plan));
@@ -97,19 +96,21 @@ public class WeeklyPlanService {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_ONLY_DRAFT));
         }
 
-        // mapSlots handles identifying which ones are updates to existing confirmed slots
-        List<WeeklyPlanSlot> newSlots = mapSlots(request.getSlots(), plan, plan.getChef().getId(),
-                plan.getWeekStartDate());
+        // mapSlots ya valida solapamientos entre nuevos slots y con los CONFIRMADOS.
+        // Pero mapSlots devuelve una LISTA DE NUEVOS SLOTS (PENDING).
+        // Los CONFIRMADOS ya están en plan.getSlots().
+        List<WeeklyPlanSlot> slotsFromRequest = mapSlots(request.getSlots(), plan, plan.getChef().getId());
         
-        // Remove slots that are NOT confirmed
+        // Eliminar todos los slots que NO estén confirmados
         plan.getSlots().removeIf(slot -> slot.getStatus() != WeeklyPlanSlotStatus.CONFIRMED);
         
-        // Add only slots that are NOT already in the plan (newSlots from mapSlots should be PENDING)
-        plan.getSlots().addAll(newSlots);
+        // Añadir los nuevos slots (mapSlots ya garantizó que no hay solapamientos)
+        plan.getSlots().addAll(slotsFromRequest);
+        
         weeklyPlanRepository.saveAndFlush(plan);
 
         if (plan.getStatus() == WeeklyPlanStatus.ACTIVE || plan.getStatus() == WeeklyPlanStatus.IN_PROGRESS) {
-            reservationService.validateStockForPlanActivation(plan.getId());
+            reservationService.validateStockForPlanUpdate(plan, slotsFromRequest);
         }
 
         return wrapperMapper.toResponseDTO(plan);
@@ -513,8 +514,7 @@ public class WeeklyPlanService {
         }
     }
 
-    private List<WeeklyPlanSlot> mapSlots(List<WeeklyPlanSlotRequestDTO> dtos, WeeklyPlan plan, Integer chefId,
-            LocalDate weekStart) {
+    private List<WeeklyPlanSlot> mapSlots(List<WeeklyPlanSlotRequestDTO> dtos, WeeklyPlan plan, Integer chefId) {
         List<UserProjection> students = userRepository.findProjectedByTeacherIdAndIsHiddenFalse(chefId);
         Set<Integer> validIds = students.stream().map(UserProjection::getId).collect(Collectors.toSet());
 
@@ -527,26 +527,22 @@ public class WeeklyPlanService {
         Map<Integer, User> studentMap = userRepository.findAllById(allStudentIds).stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
 
-        // existingConfirmedMap to track slots that should NOT be re-created
+        // existingConfirmedMap para rastrear slots que NO deben ser recreados
         Map<String, WeeklyPlanSlot> existingConfirmedMap = plan.getSlots().stream()
                 .filter(s -> s.getStatus() == WeeklyPlanSlotStatus.CONFIRMED)
                 .collect(Collectors.toMap(
-                        s -> s.getRecipe().getId() + "-" + s.getDayOfWeek() + "-" + s.getStartTime() + "-" + s.getEndTime() + "-" + s.getSortOrder(),
+                        s -> s.getRecipe().getId() + "-" + s.getDayOfWeek() + "-" + s.getStartTime() + "-" + s.getEndTime(),
                         s -> s,
                         (s1, s2) -> s1
                 ));
 
         List<WeeklyPlanSlot> newSlots = new ArrayList<>();
 
-        // (Bloque dayStudentRegistry eliminado)
-
         for (WeeklyPlanSlotRequestDTO dto : dtos) {
-            String slotKey = dto.getRecipeId() + "-" + dto.getDayOfWeek() + "-" + dto.getStartTime() + "-" + dto.getEndTime() + "-" + dto.getSortOrder();
+            String slotKey = dto.getRecipeId() + "-" + dto.getDayOfWeek() + "-" + dto.getStartTime() + "-" + dto.getEndTime();
             
-            // If the slot is already CONFIRMED and in the plan, we don't create a new one.
+            // Si el slot ya está CONFIRMADO en el plan, no creamos uno nuevo
             if (existingConfirmedMap.containsKey(slotKey)) {
-                // Check if students in DTO are essentially the same or if we should skip duplication check for this slot
-                // For now, we skip creation to avoid overlap error.
                 continue;
             }
 
@@ -564,9 +560,17 @@ public class WeeklyPlanService {
 
             // Validar solapamientos con slots existentes CONFIRMADOS en el plan
             for (WeeklyPlanSlot existing : plan.getSlots()) {
-                if (existing.getDayOfWeek().equals(dto.getDayOfWeek()) && existing.getStatus() == WeeklyPlanSlotStatus.CONFIRMED) {
+                if (existing.getStatus() == WeeklyPlanSlotStatus.CONFIRMED && existing.getDayOfWeek().equals(dto.getDayOfWeek())) {
                     if (dto.getStartTime().isBefore(existing.getEndTime())
                             && dto.getEndTime().isAfter(existing.getStartTime())) {
+                        
+                        String existingKey = existing.getRecipe().getId() + "-" + existing.getDayOfWeek() + "-" + existing.getStartTime() + "-" + existing.getEndTime();
+                        if (slotKey.equals(existingKey)) {
+                            continue;
+                        }
+
+                        // Si el slot en el DTO es idéntico al CONFIRMADO (mismas horas, receta, etc), no es un solapamiento real, es el mismo slot.
+                        // Pero como no lo encontramos en existingConfirmedMap, significa que algo cambió.
                         throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_SLOT_OVERLAP_EXISTING, new Object[]{dto.getDayOfWeek()}));
                     }
                 }

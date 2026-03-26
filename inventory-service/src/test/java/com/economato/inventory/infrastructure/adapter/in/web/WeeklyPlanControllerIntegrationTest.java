@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
 
-    private static final String BASE_URL = "/api/v1/weekly-plans";
+    private static final String BASE_URL = "/api/weekly-plans";
     private static final String AUTH_URL = "/api/auth/login";
 
     @Autowired private UserRepository userRepository;
@@ -852,7 +852,7 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
 
         mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/confirm", planId, slot1Id).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
 
-        WeeklyPlanSlotRequestDTO slot3 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("60.0"), 3, LocalTime.of(12,0), LocalTime.of(13,0), 3, Arrays.asList(student3.getId()));
+        WeeklyPlanSlotRequestDTO slot3 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("10.0"), 3, LocalTime.of(12,0), LocalTime.of(13,0), 3, Arrays.asList(student3.getId()));
         // Note: slot1 is already CONFIRMED and will be kept by the backend. Sending it again would trigger an overlap error in mapSlots.
         req.setSlots(Arrays.asList(slot2, slot3));
 

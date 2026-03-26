@@ -112,7 +112,7 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
         WeeklyPlanSlotRequestDTO slot = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), BigDecimal.ONE, 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, List.of(student1.getId()));
         WeeklyPlanRequestDTO request = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(slot));
 
-        mockMvc.perform(post("/api/v1/weekly-plans")
+        mockMvc.perform(post("/api/weekly-plans")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(request))
                 .header("Authorization", "Bearer " + chef1Token))
@@ -153,7 +153,7 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
         slot.getStudents().add(wss);
         slotRepository.saveAndFlush(slot);
 
-        mockMvc.perform(get("/api/v1/weekly-plans/metrics/students")
+        mockMvc.perform(get("/api/weekly-plans/metrics/students")
                 .header("Authorization", "Bearer " + chef2Token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content", hasSize(1)))
@@ -169,7 +169,7 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
         
         WeeklyPlanRequestDTO request = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(slot1, slot2));
 
-        mockMvc.perform(post("/api/v1/weekly-plans")
+        mockMvc.perform(post("/api/weekly-plans")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(request))
                 .header("Authorization", "Bearer " + chef1Token))
@@ -183,21 +183,21 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
         WeeklyPlanSlotRequestDTO s1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), BigDecimal.ONE, 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, List.of(student1.getId()));
         WeeklyPlanRequestDTO request = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s1));
 
-        String rb = mockMvc.perform(post("/api/v1/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(request)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        String rb = mockMvc.perform(post("/api/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(request)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long planId = objectMapper.readTree(rb).get("id").asLong();
         
-        mockMvc.perform(patch("/api/v1/weekly-plans/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+        mockMvc.perform(patch("/api/weekly-plans/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
         
-        String details = mockMvc.perform(get("/api/v1/weekly-plans/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        String details = mockMvc.perform(get("/api/weekly-plans/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long slotId = objectMapper.readTree(details).get("slots").get(0).get("id").asLong();
 
         // 1. Cancel once
-        mockMvc.perform(patch("/api/v1/weekly-plans/{planId}/slots/{slotId}/cancel", planId, slotId)
+        mockMvc.perform(patch("/api/weekly-plans/{planId}/slots/{slotId}/cancel", planId, slotId)
                 .header("Authorization", "Bearer " + chef1Token))
                 .andExpect(status().isOk());
 
         // 2. Cancel again
-        mockMvc.perform(patch("/api/v1/weekly-plans/{planId}/slots/{slotId}/cancel", planId, slotId)
+        mockMvc.perform(patch("/api/weekly-plans/{planId}/slots/{slotId}/cancel", planId, slotId)
                 .header("Authorization", "Bearer " + chef1Token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("ya está cancelado")));
@@ -212,20 +212,20 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
         WeeklyPlanSlotRequestDTO s3 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), BigDecimal.ONE, 3, LocalTime.of(10,0), LocalTime.of(11,0), 1, List.of(student1.getId()));
         WeeklyPlanRequestDTO request = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s1, s3));
 
-        String rb = mockMvc.perform(post("/api/v1/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(request)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        String rb = mockMvc.perform(post("/api/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(request)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long planId = objectMapper.readTree(rb).get("id").asLong();
         
-        mockMvc.perform(patch("/api/v1/weekly-plans/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
-        String details = mockMvc.perform(get("/api/v1/weekly-plans/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        mockMvc.perform(patch("/api/weekly-plans/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+        String details = mockMvc.perform(get("/api/weekly-plans/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long slotId = objectMapper.readTree(details).get("slots").get(0).get("id").asLong();
-        mockMvc.perform(patch("/api/v1/weekly-plans/{planId}/slots/{slotId}/confirm", planId, slotId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+        mockMvc.perform(patch("/api/weekly-plans/{planId}/slots/{slotId}/confirm", planId, slotId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
 
         // Now s1 at 10:00-11:00 is CONFIRMED. s3 is unconfirmed. Plan is IN_PROGRESS.
         // Try to add s2 at 10:30-11:30 (overlaps with s1)
         WeeklyPlanSlotRequestDTO s2 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), BigDecimal.ONE, 1, LocalTime.of(10,30), LocalTime.of(11,30), 2, List.of(student1.getId()));
         WeeklyPlanRequestDTO updateRequest = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s2, s3));
 
-        mockMvc.perform(put("/api/v1/weekly-plans/{id}", planId)
+        mockMvc.perform(put("/api/weekly-plans/{id}", planId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(updateRequest))
                 .header("Authorization", "Bearer " + chef1Token))
@@ -240,7 +240,7 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
         admin = userRepository.saveAndFlush(admin);
         String adminToken = getToken("admin_test", "admin123");
 
-        mockMvc.perform(get("/api/v1/weekly-plans/current")
+        mockMvc.perform(get("/api/weekly-plans/current")
                 .header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isForbidden());
     }
@@ -253,23 +253,23 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
         WeeklyPlanSlotRequestDTO s2 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("60.0"), 2, LocalTime.of(11,0), LocalTime.of(12,0), 2, List.of(student1.getId()));
         WeeklyPlanRequestDTO req1 = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s1, s2));
 
-        String rb1 = mockMvc.perform(post("/api/v1/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(req1)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        String rb1 = mockMvc.perform(post("/api/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(req1)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long plan1Id = objectMapper.readTree(rb1).get("id").asLong();
         
-        mockMvc.perform(patch("/api/v1/weekly-plans/{id}/activate", plan1Id).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+        mockMvc.perform(patch("/api/weekly-plans/{id}/activate", plan1Id).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
 
-        String details1 = mockMvc.perform(get("/api/v1/weekly-plans/{id}", plan1Id).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        String details1 = mockMvc.perform(get("/api/weekly-plans/{id}", plan1Id).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long slot1Id = objectMapper.readTree(details1).get("slots").get(0).get("id").asLong();
 
-        mockMvc.perform(patch("/api/v1/weekly-plans/{planId}/slots/{slotId}/confirm", plan1Id, slot1Id).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+        mockMvc.perform(patch("/api/weekly-plans/{planId}/slots/{slotId}/confirm", plan1Id, slot1Id).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
 
         WeeklyPlanSlotRequestDTO s3 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1000.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, List.of(student2.getId()));
         WeeklyPlanRequestDTO req2 = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s3));
 
-        String rb2 = mockMvc.perform(post("/api/v1/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(req2)).header("Authorization", "Bearer " + chef2Token)).andReturn().getResponse().getContentAsString();
+        String rb2 = mockMvc.perform(post("/api/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(req2)).header("Authorization", "Bearer " + chef2Token)).andReturn().getResponse().getContentAsString();
         Long plan2Id = objectMapper.readTree(rb2).get("id").asLong();
 
-        mockMvc.perform(patch("/api/v1/weekly-plans/{id}/activate", plan2Id).header("Authorization", "Bearer " + chef2Token))
+        mockMvc.perform(patch("/api/weekly-plans/{id}/activate", plan2Id).header("Authorization", "Bearer " + chef2Token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsStringIgnoringCase("stock")));
     }
@@ -281,7 +281,7 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
         userRepository.saveAndFlush(elevated);
         String token = getToken("elevated1", "pass");
 
-        mockMvc.perform(get("/api/v1/weekly-plans")
+        mockMvc.perform(get("/api/weekly-plans")
                 .header("Authorization", "Bearer " + token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("profesor")));
@@ -294,7 +294,7 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
         userRepository.saveAndFlush(elevated);
         String token = getToken("elevated2", "pass");
 
-        mockMvc.perform(get("/api/v1/weekly-plans/current")
+        mockMvc.perform(get("/api/weekly-plans/current")
                 .header("Authorization", "Bearer " + token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsString("profesor")));
@@ -309,21 +309,21 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
         WeeklyPlanSlotRequestDTO s3 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), BigDecimal.ONE, 3, LocalTime.of(10,0), LocalTime.of(11,0), 1, List.of(student1.getId()));
         WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s1, s3));
 
-        String rb = mockMvc.perform(post("/api/v1/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        String rb = mockMvc.perform(post("/api/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long planId = objectMapper.readTree(rb).get("id").asLong();
         
-        mockMvc.perform(patch("/api/v1/weekly-plans/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+        mockMvc.perform(patch("/api/weekly-plans/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
 
         // 2. Confirm one slot to move plan to IN_PROGRESS (leaving 1 unconfirmed)
-        String details = mockMvc.perform(get("/api/v1/weekly-plans/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        String details = mockMvc.perform(get("/api/weekly-plans/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long slotId = objectMapper.readTree(details).get("slots").get(0).get("id").asLong();
-        mockMvc.perform(patch("/api/v1/weekly-plans/{planId}/slots/{slotId}/confirm", planId, slotId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+        mockMvc.perform(patch("/api/weekly-plans/{planId}/slots/{slotId}/confirm", planId, slotId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
 
         // 3. Update plan with huge quantity that exceeds stock
         WeeklyPlanSlotRequestDTO s2 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1000.0"), 2, LocalTime.of(12,0), LocalTime.of(13,0), 2, List.of(student1.getId()));
         WeeklyPlanRequestDTO updateReq = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s2, s3)); // send existing unconfirmed as well
 
-        mockMvc.perform(put("/api/v1/weekly-plans/{id}", planId)
+        mockMvc.perform(put("/api/weekly-plans/{id}", planId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(updateReq))
                 .header("Authorization", "Bearer " + chef1Token))

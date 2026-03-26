@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -92,6 +93,79 @@ public class WeeklyPlanStockReservationService {
             
             BigDecimal maxAvailable = currentStock.multiply(availabilityPct).divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
             BigDecimal alreadyReserved = currentReservations.getOrDefault(productId, BigDecimal.ZERO);
+            
+            BigDecimal trulyAvailable = maxAvailable.subtract(alreadyReserved);
+            
+            if (trulyAvailable.compareTo(needed) < 0) {
+                missingProducts.add(product.getName() + " (Faltan: " + needed.subtract(trulyAvailable).setScale(2, RoundingMode.HALF_UP) + " " + product.getUnit() + ")");
+            }
+        }
+        
+        if (!missingProducts.isEmpty()) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_INSUFFICIENT_STOCK, new Object[]{String.join(", ", missingProducts)}));
+        }
+    }
+
+    public void validateStockForPlanUpdate(WeeklyPlan existingPlan, List<WeeklyPlanSlot> requestedSlots) {
+        // 1. Calcular lo que requeriría el plan con los nuevos slots propuestos
+        Map<Integer, BigDecimal> proposedRequirements = new HashMap<>();
+        
+        // El plan resultante tendrá los CONFIRMED actuales + los nuevos unconfirmed (requestedSlots que no coinciden con confirmed)
+        List<WeeklyPlanSlot> finalSlots = new ArrayList<>();
+        
+        // Añadir CONFIRMED existentes
+        for (WeeklyPlanSlot s : existingPlan.getSlots()) {
+            if (s.getStatus() == com.economato.inventory.domain.model.WeeklyPlanSlotStatus.CONFIRMED) {
+                finalSlots.add(s);
+            }
+        }
+        
+        // Añadir nuevos de la petición que no sean duplicados de los confirmados
+        Set<String> confirmedKeys = finalSlots.stream()
+                .map(s -> s.getRecipe().getId() + "-" + s.getDayOfWeek() + "-" + s.getStartTime() + "-" + s.getEndTime())
+                .collect(Collectors.toSet());
+                
+        for (WeeklyPlanSlot s : requestedSlots) {
+            String key = s.getRecipe().getId() + "-" + s.getDayOfWeek() + "-" + s.getStartTime() + "-" + s.getEndTime();
+            if (!confirmedKeys.contains(key)) {
+                finalSlots.add(s);
+            }
+        }
+
+        for (WeeklyPlanSlot slot : finalSlots) {
+            // Solo reservan stock los PENDING o IN_PROGRESS. Los CONFIRMED ya salieron del stock (salida registrada)
+            if (slot.getStatus() == com.economato.inventory.domain.model.WeeklyPlanSlotStatus.PENDING || 
+                slot.getStatus() == com.economato.inventory.domain.model.WeeklyPlanSlotStatus.IN_PROGRESS) {
+                
+                for (RecipeComponent rc : slot.getRecipe().getComponents()) {
+                    BigDecimal needed = rc.getQuantity().multiply(slot.getQuantity())
+                            .divide(slot.getRecipe().getPortions(), 4, RoundingMode.HALF_UP);
+                    proposedRequirements.merge(rc.getProduct().getId(), needed, BigDecimal::add);
+                }
+            }
+        }
+        
+        if (proposedRequirements.isEmpty()) return;
+
+        // 2. Comparar con stock disponible (excluyendo la reserva ACTUAL de este plan)
+        Map<Integer, BigDecimal> currentReservationsOtherPlans = calculateReservedStock(existingPlan.getId());
+        List<Product> products = productRepository.findAllById(proposedRequirements.keySet());
+        Map<Integer, Product> productMap = products.stream().collect(Collectors.toMap(Product::getId, p -> p));
+        
+        List<String> missingProducts = new ArrayList<>();
+        
+        for (Map.Entry<Integer, BigDecimal> entry : proposedRequirements.entrySet()) {
+            Integer productId = entry.getKey();
+            BigDecimal needed = entry.getValue();
+            
+            Product product = productMap.get(productId);
+            if (product == null) continue;
+
+            BigDecimal currentStock = product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO;
+            BigDecimal availabilityPct = product.getAvailabilityPercentage() != null ? product.getAvailabilityPercentage() : new BigDecimal("100.00");
+            
+            BigDecimal maxAvailable = currentStock.multiply(availabilityPct).divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
+            BigDecimal alreadyReserved = currentReservationsOtherPlans.getOrDefault(productId, BigDecimal.ZERO);
             
             BigDecimal trulyAvailable = maxAvailable.subtract(alreadyReserved);
             
