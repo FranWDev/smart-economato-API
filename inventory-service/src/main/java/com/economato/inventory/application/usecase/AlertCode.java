@@ -20,7 +20,10 @@ public enum AlertCode {
     
     // Códigos de crisis alimentaria
     FOOD_CRISIS_ACTIVATED("FOOD_CRISIS_ACTIVATED", "Food safety crisis activated"),
-    FOOD_CRISIS_LIFTED("FOOD_CRISIS_LIFTED", "Food safety crisis lifted");
+    FOOD_CRISIS_LIFTED("FOOD_CRISIS_LIFTED", "Food safety crisis lifted"),
+
+    // Códigos de predicción
+    STOCK_PREDICTION_TRIGGERED("STOCK_PREDICTION_TRIGGERED", "Stock prediction has been triggered");
 
     private final String code;
     private final String description;

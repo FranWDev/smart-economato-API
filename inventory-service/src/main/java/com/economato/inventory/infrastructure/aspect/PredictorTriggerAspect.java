@@ -3,19 +3,19 @@ package com.economato.inventory.infrastructure.aspect;
 import com.economato.inventory.application.dto.event.StockPredictionEvent;
 import com.economato.inventory.application.dto.event.StockPredictionEvent.DailyConsumption;
 import com.economato.inventory.application.dto.request.ManualStockAdjustmentRequestDTO;
-import com.economato.inventory.application.dto.request.OrderReceptionRequestDTO;
 import com.economato.inventory.application.dto.request.OrderReceptionDetailRequestDTO;
+import com.economato.inventory.application.dto.request.OrderReceptionRequestDTO;
 import com.economato.inventory.application.dto.request.RecipeCookingRequestDTO;
+import com.economato.inventory.application.dto.request.BatchMovementItem;
+import com.economato.inventory.application.dto.request.BatchStockMovementRequestDTO;
+import com.economato.inventory.application.dto.request.StockMovementItemDTO;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO.DailyConsumptionDTO;
+import com.economato.inventory.application.dto.response.RecipeResponseDTO;
+import com.economato.inventory.application.dto.response.RecipeComponentResponseDTO;
 import com.economato.inventory.application.usecase.StockLedgerService;
 import com.economato.inventory.domain.PredictorTrigger;
-import com.economato.inventory.domain.model.Recipe;
-import com.economato.inventory.domain.model.RecipeCookingAudit;
-import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.User;
-import com.economato.inventory.domain.model.WeeklyPlanSlot;
 import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
@@ -23,8 +23,8 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.aspectj.lang.JoinPoint;
-import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
@@ -43,38 +43,49 @@ public class PredictorTriggerAspect {
     private final StockLedgerService stockLedgerService;
     private final AuditEventProducer auditEventProducer;
     private final RecipeRepository recipeRepository;
-    private final OrderRepository orderRepository;
     private final StockLedgerRepository stockLedgerRepository;
     private final RecipeCookingAuditRepository recipeCookingAuditRepository;
     private final WeeklyPlanSlotRepository weeklyPlanSlotRepository;
     private final SecurityContextHelper securityContextHelper;
 
-    @AfterReturning(pointcut = "@annotation(trigger)", returning = "result")
-    public void afterModification(JoinPoint joinPoint, PredictorTrigger trigger, Object result) {
-        try {
-            log.debug("PredictorTrigger detectado: action={}", trigger.action());
-            List<Integer> affectedProductIds = resolveAffectedProductIds(joinPoint, trigger, result);
+    @Around("@annotation(trigger)")
+    public Object aroundModification(ProceedingJoinPoint joinPoint, PredictorTrigger trigger) throws Throwable {
+        String action = trigger.action();
+        List<Integer> affectedProductIds = new ArrayList<>();
 
-            if (affectedProductIds.isEmpty()) {
-                log.warn("No se encontraron productIds afectados para la acción: {}", trigger.action());
-                return;
+        if ("REVERT_COOKING".equals(action)) {
+            affectedProductIds = extractFromRevertCooking(joinPoint.getArgs());
+        }
+
+        Object result = joinPoint.proceed();
+
+        try {
+            log.debug("PredictorTrigger detectado: action={}", action);
+
+            if (!"REVERT_COOKING".equals(action)) {
+                affectedProductIds = resolveAffectedProductIds(joinPoint, trigger, result);
             }
 
-            // Eliminar duplicados y nulos si los hubiera
-            affectedProductIds = affectedProductIds.stream()
+            if (affectedProductIds == null || affectedProductIds.isEmpty()) {
+                log.warn("No se encontraron productIds afectados para la acción: {}", action);
+                return result;
+            }
+
+            List<Integer> finalIds = affectedProductIds.stream()
                     .filter(Objects::nonNull)
                     .distinct()
                     .collect(Collectors.toList());
 
-            // Obtener historiales de 90 días
+            if (finalIds.isEmpty()) return result;
+
             LocalDateTime end = LocalDateTime.now();
             LocalDateTime start = end.minusDays(90).withHour(0).withMinute(0).withSecond(0).withNano(0);
 
             Map<Integer, List<DailyConsumptionDTO>> batchResults =
-                    stockLedgerService.getDailyConsumptionBatch(affectedProductIds, start, end);
+                    stockLedgerService.getDailyConsumptionBatch(finalIds, start, end);
 
             Map<Integer, List<DailyConsumption>> productHistories = new HashMap<>();
-            for (Integer productId : affectedProductIds) {
+            for (Integer productId : finalIds) {
                 List<DailyConsumptionDTO> breakdown = batchResults.get(productId);
                 if (breakdown != null) {
                     List<DailyConsumption> history = breakdown.stream()
@@ -92,8 +103,8 @@ public class PredictorTriggerAspect {
             User user = securityContextHelper.getCurrentUser();
 
             StockPredictionEvent event = StockPredictionEvent.builder()
-                    .triggerType(trigger.action())
-                    .affectedProductIds(affectedProductIds)
+                    .triggerType(action)
+                    .affectedProductIds(finalIds)
                     .productHistories(productHistories)
                     .timestamp(LocalDateTime.now())
                     .userId(user != null ? user.getId() : null)
@@ -102,23 +113,23 @@ public class PredictorTriggerAspect {
 
             auditEventProducer.publishStockPredictionEvent(event);
             log.info("Evento de predicción publicado para acción: {}, productos={}", 
-                    trigger.action(), affectedProductIds);
+                    action, finalIds);
 
         } catch (Exception e) {
             log.error("Error al procesar PredictorTrigger para acción {}: {}", 
-                    trigger.action(), e.getMessage(), e);
+                    action, e.getMessage(), e);
         }
+
+        return result;
     }
 
-    private List<Integer> resolveAffectedProductIds(JoinPoint joinPoint, PredictorTrigger trigger, Object result) {
+    private List<Integer> resolveAffectedProductIds(ProceedingJoinPoint joinPoint, PredictorTrigger trigger, Object result) {
         Object[] args = joinPoint.getArgs();
         String action = trigger.action();
 
         switch (action) {
             case "COOK_RECIPE":
-                return extractFromCookRecipe(args);
-            case "REVERT_COOKING":
-                return extractFromRevertCooking(args);
+                return extractFromCookRecipe(args, result);
             case "WEEKLY_PLAN_CONFIRM":
                 return extractFromWeeklyPlanConfirm(args);
             case "ORDER_RECEPTION":
@@ -127,24 +138,49 @@ public class PredictorTriggerAspect {
                 return extractFromManualAdjustment(args);
             case "REVERSION":
                 return extractFromReversion(args);
-            case "SCHEDULED_REFRESH":
-                return extractFromScheduledRefresh(result);
+            case "BATCH_MOVEMENT":
+                return extractFromBatchMovement(args);
             default:
                 log.warn("Acción no reconocida por PredictorTriggerAspect: {}", action);
                 return Collections.emptyList();
         }
     }
 
-    private List<Integer> extractFromCookRecipe(Object[] args) {
+    private List<Integer> extractFromBatchMovement(Object[] args) {
+        for (Object arg : args) {
+            if (arg instanceof BatchStockMovementRequestDTO) {
+                BatchStockMovementRequestDTO request = (BatchStockMovementRequestDTO) arg;
+                if (request.getMovements() != null) {
+                    return request.getMovements().stream()
+                            .map(StockMovementItemDTO::getProductId)
+                            .collect(Collectors.toList());
+                }
+            } else if (arg instanceof List) {
+                List<?> list = (List<?>) arg;
+                if (!list.isEmpty() && list.get(0) instanceof BatchMovementItem) {
+                    return list.stream()
+                            .map(item -> ((BatchMovementItem) item).getProductId())
+                            .collect(Collectors.toList());
+                }
+            }
+        }
+        return Collections.emptyList();
+    }
+
+    private List<Integer> extractFromCookRecipe(Object[] args, Object result) {
+        if (result instanceof RecipeResponseDTO) {
+            RecipeResponseDTO recipe = (RecipeResponseDTO) result;
+            if (recipe.getComponents() != null) {
+                return recipe.getComponents().stream()
+                        .map(RecipeComponentResponseDTO::getProductId)
+                        .collect(Collectors.toList());
+            }
+        }
+
         for (Object arg : args) {
             if (arg instanceof RecipeCookingRequestDTO) {
                 RecipeCookingRequestDTO request = (RecipeCookingRequestDTO) arg;
-                return recipeRepository.findByIdWithDetails(request.getRecipeId())
-                        .map(Recipe::getComponents)
-                        .map(components -> components.stream()
-                                .map(c -> c.getProduct().getId())
-                                .collect(Collectors.toList()))
-                        .orElse(Collections.emptyList());
+                return recipeRepository.findProductIdsByRecipeId(request.getRecipeId());
             }
         }
         return Collections.emptyList();
@@ -154,12 +190,7 @@ public class PredictorTriggerAspect {
         for (Object arg : args) {
             if (arg instanceof Long) {
                 Long auditId = (Long) arg;
-                return recipeCookingAuditRepository.findById(auditId)
-                        .map(RecipeCookingAudit::getRecipe)
-                        .map(recipe -> recipe.getComponents().stream()
-                                .map(c -> c.getProduct().getId())
-                                .collect(Collectors.toList()))
-                        .orElse(Collections.emptyList());
+                return recipeCookingAuditRepository.findProductIdsByAuditId(auditId);
             }
         }
         return Collections.emptyList();
@@ -167,23 +198,14 @@ public class PredictorTriggerAspect {
 
     private List<Integer> extractFromWeeklyPlanConfirm(Object[] args) {
         Long slotId = null;
-        if (args.length >= 2 && args[1] instanceof Long) {
-            slotId = (Long) args[1];
-        } else {
-            for (Object arg : args) {
-                if (arg instanceof Long) {
-                    slotId = (Long) arg;
-                }
+        for (Object arg : args) {
+            if (arg instanceof Long) {
+                slotId = (Long) arg; break;
             }
         }
 
         if (slotId != null) {
-            return weeklyPlanSlotRepository.findWithDetailsById(slotId)
-                    .map(WeeklyPlanSlot::getRecipe)
-                    .map(recipe -> recipe.getComponents().stream()
-                            .map(c -> c.getProduct().getId())
-                            .collect(Collectors.toList()))
-                    .orElse(Collections.emptyList());
+            return weeklyPlanSlotRepository.findProductIdsBySlotId(slotId);
         }
         return Collections.emptyList();
     }
@@ -205,8 +227,7 @@ public class PredictorTriggerAspect {
     private List<Integer> extractFromManualAdjustment(Object[] args) {
         for (Object arg : args) {
             if (arg instanceof ManualStockAdjustmentRequestDTO) {
-                ManualStockAdjustmentRequestDTO request = (ManualStockAdjustmentRequestDTO) arg;
-                return Collections.singletonList(request.getProductId());
+                return Collections.singletonList(((ManualStockAdjustmentRequestDTO) arg).getProductId());
             }
         }
         return Collections.emptyList();
@@ -216,19 +237,8 @@ public class PredictorTriggerAspect {
         for (Object arg : args) {
             if (arg instanceof String) {
                 String correlationId = (String) arg;
-                List<StockLedger> transactions = stockLedgerRepository.findByCorrelationId(correlationId);
-                return transactions.stream()
-                        .map(t -> t.getProduct().getId())
-                        .distinct()
-                        .collect(Collectors.toList());
+                return stockLedgerRepository.findProductIdsByCorrelationId(correlationId);
             }
-        }
-        return Collections.emptyList();
-    }
-
-    private List<Integer> extractFromScheduledRefresh(Object result) {
-        if (result instanceof List) {
-            return (List<Integer>) result;
         }
         return Collections.emptyList();
     }

@@ -228,7 +228,8 @@ public enum MessageKey {
     ERROR_USER_TEACHER_TRANSFER_SAME("error.user.teacher.transfer.same"),
     ERROR_USER_STUDENT_NOT_BELONGS_TO_TEACHER("error.user.student.not.belongs.to.teacher"),
     ERROR_USER_STUDENTS_HIDDEN_SUCCESS("error.user.students.hidden.success"),
-    ERROR_DATA_INTEGRITY_VIOLATION("error.data.integrity.violation");
+    ERROR_DATA_INTEGRITY_VIOLATION("error.data.integrity.violation"),
+    NOTIFICATION_PREDICTION_TRIGGERED("notification.prediction.triggered");
 
     private final String key;
 
