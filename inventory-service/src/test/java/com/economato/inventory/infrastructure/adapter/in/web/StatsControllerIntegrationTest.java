@@ -38,9 +38,6 @@ class StatsControllerIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private ProductRepository productRepository;
 
-    @MockitoBean
-    private AuditEventProducer auditEventProducer;
-
     @BeforeEach
     void setUp() {
         clearDatabase();

@@ -42,9 +42,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @Transactional
 class RecipeServiceReversalIntegrationTest extends BaseIntegrationTest {
 
-    @MockitoBean
-    private AuditEventProducer auditEventProducer;
-
     @Autowired
     private RecipeService recipeService;
 

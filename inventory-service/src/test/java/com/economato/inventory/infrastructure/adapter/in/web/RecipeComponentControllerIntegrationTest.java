@@ -40,9 +40,6 @@ public class RecipeComponentControllerIntegrationTest extends BaseIntegrationTes
         @Autowired
         private UserRepository userRepository;
 
-        @MockitoBean
-        private AuditEventProducer auditEventProducer;
-
         private String jwtToken;
         private Product testProduct;
         private Recipe testRecipe;
