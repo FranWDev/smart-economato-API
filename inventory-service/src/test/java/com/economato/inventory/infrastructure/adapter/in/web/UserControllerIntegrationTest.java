@@ -49,9 +49,6 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         @Autowired
         private TemporaryRoleEscalationRepository escalationRepository;
 
-        @MockitoBean
-        private AuditEventProducer auditEventProducer;
-
         private String jwtToken;
         private User testAdmin;
 

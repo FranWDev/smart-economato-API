@@ -20,9 +20,6 @@ import static org.assertj.core.api.Assertions.*;
 @DisplayName("RecipeCookingAuditRepository Integration Tests")
 class RecipeCookingAuditRepositoryIntegrationTest extends BaseIntegrationTest {
 
-    @MockitoBean
-    private AuditEventProducer auditEventProducer;
-
     @Autowired
     private RecipeCookingAuditRepository cookingAuditRepository;
 

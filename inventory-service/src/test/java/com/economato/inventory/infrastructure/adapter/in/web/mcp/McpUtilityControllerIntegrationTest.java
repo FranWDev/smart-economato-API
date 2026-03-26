@@ -22,9 +22,6 @@ import static org.hamcrest.Matchers.*;
 
 class McpUtilityControllerIntegrationTest extends BaseIntegrationTest {
 
-    @MockitoBean
-    private AuditEventProducer auditEventProducer;
-
     @Autowired
     private ProductRepository productRepository;
 

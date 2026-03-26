@@ -38,9 +38,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @Import(KafkaTestContainerConfig.class)
 public class ForecastIntegrationTest extends BaseIntegrationTest {
 
-    @MockitoBean
-    private AuditEventProducer auditEventProducer;
-
     @Autowired
     private KafkaTemplate<String, ForecastResultEvent> kafkaTemplate;
 

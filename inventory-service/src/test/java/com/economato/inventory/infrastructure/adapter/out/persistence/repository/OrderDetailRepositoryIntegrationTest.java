@@ -21,9 +21,6 @@ import static org.assertj.core.api.Assertions.*;
 @DisplayName("OrderDetailRepository Integration Tests")
 class OrderDetailRepositoryIntegrationTest extends BaseIntegrationTest {
 
-    @MockitoBean
-    private AuditEventProducer auditEventProducer;
-
     @Autowired
     private OrderDetailRepository orderDetailRepository;
 

@@ -63,6 +63,9 @@ public class AuditOutboxIntegrationTest extends BaseIntegrationTest {
     private AuditOutboxProcessor auditOutboxProcessor;
 
     @Autowired
+    private AuditEventProducer auditEventProducer;
+
+    @Autowired
     private AuditOutboxRepository auditOutboxRepository;
 
     @Autowired
