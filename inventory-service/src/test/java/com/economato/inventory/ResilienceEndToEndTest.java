@@ -6,6 +6,7 @@ import com.economato.inventory.infrastructure.config.security.JwtUtils;
 import com.economato.inventory.application.usecase.CustomUserDetailsService;
 import com.economato.inventory.application.usecase.ProductService;
 import com.economato.inventory.application.usecase.AlertMessage;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,6 +57,9 @@ public class ResilienceEndToEndTest {
 
     @MockitoBean
     private CircuitBreakerHealthChecker healthChecker;
+
+    @MockitoBean
+    private AuditEventProducer auditEventProducer;
 
     @BeforeEach
     void resetCircuitBreakers() {

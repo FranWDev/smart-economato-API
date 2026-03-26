@@ -29,16 +29,21 @@ import com.economato.inventory.domain.model.RecipeCookingAudit;
 import com.economato.inventory.domain.model.Role;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.BaseIntegrationTest;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
 class RecipeServiceReversalIntegrationTest extends BaseIntegrationTest {
+
+    @MockitoBean
+    private AuditEventProducer auditEventProducer;
 
     @Autowired
     private RecipeService recipeService;

@@ -11,6 +11,7 @@ import com.economato.inventory.application.usecase.InventoryAuditService;
 import com.economato.inventory.application.usecase.OrderAuditService;
 import com.economato.inventory.application.usecase.RecipeAuditService;
 import com.economato.inventory.application.usecase.StockLedgerService;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -19,6 +20,9 @@ public abstract class BaseControllerMockTest {
 
     @Autowired
     protected MockMvc mockMvc;
+
+    @MockitoBean
+    protected AuditEventProducer auditEventProducer;
 
     @MockitoBean
     protected StockLedgerService stockLedgerService;

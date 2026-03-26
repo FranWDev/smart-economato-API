@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.economato.inventory.application.dto.request.BatchStockMovementRequestDTO;
 import com.economato.inventory.application.dto.request.LoginRequestDTO;
@@ -28,6 +29,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.infrastructure.TestDataUtil;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import java.time.LocalDate;
 
 class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
@@ -46,6 +48,9 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private ProductBatchRepository productBatchRepository;
+
+    @MockitoBean
+    private AuditEventProducer auditEventProducer;
 
     private Product product1;
     private Product product2;

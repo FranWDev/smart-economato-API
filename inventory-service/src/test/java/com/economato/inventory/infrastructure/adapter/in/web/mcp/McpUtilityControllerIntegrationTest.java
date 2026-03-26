@@ -13,12 +13,17 @@ import org.springframework.http.MediaType;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.*;
 
 class McpUtilityControllerIntegrationTest extends BaseIntegrationTest {
+
+    @MockitoBean
+    private AuditEventProducer auditEventProducer;
 
     @Autowired
     private ProductRepository productRepository;

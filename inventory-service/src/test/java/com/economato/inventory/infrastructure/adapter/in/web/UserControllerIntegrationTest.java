@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -33,6 +34,7 @@ import com.economato.inventory.application.dto.response.UserResponseDTO;
 import com.economato.inventory.domain.model.Role;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.TestDataUtil;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.TemporaryRoleEscalationRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 
@@ -46,6 +48,9 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
         @Autowired
         private TemporaryRoleEscalationRepository escalationRepository;
+
+        @MockitoBean
+        private AuditEventProducer auditEventProducer;
 
         private String jwtToken;
         private User testAdmin;
