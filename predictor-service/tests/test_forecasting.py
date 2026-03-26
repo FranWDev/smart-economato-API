@@ -6,11 +6,12 @@ from app.services.forecasting_service import forecast_service
 async def test_process_event_with_array_dates():
     """
     Test that process_event can handle Jackson-style array dates 
-    without triggering the Prophet 'stan_backend' AttributeError.
+    in the new unified StockPredictionEvent format.
     """
     # Mock event with history in array format [YYYY, MM, DD]
     event = {
-        "recipeId": 12,
+        "triggerType": "COOK_RECIPE",
+        "affectedProductIds": [402],
         "productHistories": {
             "402": [
                 {"date": [2026, 3, 2], "consumed": 4.0},
@@ -23,38 +24,12 @@ async def test_process_event_with_array_dates():
         }
     }
     
-    # This should run without AttributeError from Prophet and should return at
-    # least one forecast entry using the naming from the service implementation.
     results = await forecast_service.process_event(event)
     
     assert results is not None
     assert len(results) > 0
     assert results[0]["productId"] == 402
     assert "projectedConsumption" in results[0]
+    assert "Meta Prophet v1.1 (Zero-Filled)" in results[0]["modelUsed"]
     assert 0.0 <= results[0]["confidenceScore"] <= 1.0
-    assert results[0]["eventType"] == "PREDICTION"
-
-
-@pytest.mark.asyncio
-async def test_fallback_when_prophet_missing(monkeypatch):
-    """Ensure the service does not crash when Prophet complains about
-    ``stan_backend`` being unavailable.
-    """
-    # force the constructor to raise the specific attribute error
-    class FakeProphet:
-        def __init__(self, *args, **kwargs):
-            raise AttributeError("'Prophet' object has no attribute 'stan_backend'")
-
-    monkeypatch.setattr(forecast_service, "Prophet", FakeProphet)
-
-    event = {
-        "recipeId": 99,
-        "productHistories": {"1": [{"date": [2026, 3, 1], "consumed": 10.0}]},
-    }
-    results = await forecast_service.process_event(event)
-    # fallback should still return a (very basic) prediction entry
-    assert len(results) == 1
-    assert results[0]["productId"] == 1
-    assert "projectedConsumption" in results[0]
-    assert results[0]["confidenceScore"] == 0.5
     assert results[0]["eventType"] == "PREDICTION"

@@ -13,7 +13,6 @@ import com.economato.inventory.application.dto.request.RecipeCookingRequestDTO;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO.DailyConsumptionDTO;
 import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
-import com.economato.inventory.application.usecase.StockLedgerService;
 import com.economato.inventory.domain.model.Recipe;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
@@ -37,19 +36,16 @@ public class RecipeCookingAuditAspect {
     private final RecipeRepository recipeRepository;
     private final SecurityContextHelper securityContextHelper;
     private final AuditEventProducer auditEventProducer;
-    private final StockLedgerService stockLedgerService;
     private final ObjectMapper objectMapper;
 
     public RecipeCookingAuditAspect(
             RecipeRepository recipeRepository,
             SecurityContextHelper securityContextHelper,
             AuditEventProducer auditEventProducer,
-            StockLedgerService stockLedgerService,
             ObjectMapper objectMapper) {
         this.recipeRepository = recipeRepository;
         this.securityContextHelper = securityContextHelper;
         this.auditEventProducer = auditEventProducer;
-        this.stockLedgerService = stockLedgerService;
         this.objectMapper = objectMapper;
     }
 
@@ -92,9 +88,6 @@ public class RecipeCookingAuditAspect {
                 details.append(" - ").append(cookingRequest.getDetails());
             }
 
-            Map<Integer, List<DailyConsumption>> productHistories =
-                    buildProductHistories(recipe);
-
             RecipeCookingAuditEvent event = RecipeCookingAuditEvent.builder()
                     .recipeId(recipe.getId())
                     .recipeName(recipe.getName())
@@ -105,7 +98,7 @@ public class RecipeCookingAuditAspect {
                     .componentsState(componentsState)
                     .cookingDate(LocalDateTime.now())
                     .correlationId(cookingRequest.getCorrelationId())
-                    .productHistories(productHistories)
+                    .productHistories(null)
                     .build();
 
             auditEventProducer.publishRecipeCookingAudit(event);
@@ -144,52 +137,6 @@ public class RecipeCookingAuditAspect {
             log.error("Error al construir estado de componentes: {}", e.getMessage());
             return "{}";
         }
-    }
-
-    /**
-     * Consulta los últimos 90 días de consumo para cada componente de la receta y
-     * devuelve el desglose diario agrupado por productId.
-     *
-     * Estos datos se incluyen en el evento de cocinado de Kafka para que el servicio
-     * predictor pueda ejecutar Prophet sin realizar llamadas HTTP de vuelta al backend.
-     */
-    private Map<Integer, List<DailyConsumption>> buildProductHistories(Recipe recipe) {
-        if (recipe.getComponents() == null || recipe.getComponents().isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        LocalDateTime end   = LocalDateTime.now();
-        LocalDateTime start = end.minusDays(90).withHour(0).withMinute(0).withSecond(0).withNano(0);
-
-        log.info("Generando historial embebido: rango [{} - {}]", start, end);
-
-        Map<Integer, List<DailyConsumption>> result = new HashMap<>();
-
-        List<Integer> productIds = recipe.getComponents().stream()
-                .map(comp -> comp.getProduct().getId())
-                .collect(Collectors.toList());
-
-        Map<Integer, List<DailyConsumptionDTO>> batchResults;
-        try {
-            batchResults = stockLedgerService.getDailyConsumptionBatch(productIds, start, end);
-        } catch (Exception e) {
-            log.error("Error al obtener historial de consumo en lote: {}", e.getMessage());
-            batchResults = Collections.emptyMap();
-        }
-
-        for (Integer productId : productIds) {
-            List<DailyConsumptionDTO> breakdown = batchResults.get(productId);
-            if (breakdown != null) {
-                List<DailyConsumption> history = breakdown.stream()
-                        .map(d -> new DailyConsumption(d.getDate(), d.getConsumed()))
-                        .collect(Collectors.toList());
-                result.put(productId, history);
-            } else {
-                result.put(productId, Collections.emptyList());
-            }
-        }
-
-        return result;
     }
 
 }

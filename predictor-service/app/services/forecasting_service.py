@@ -94,86 +94,98 @@ def _run_prophet(df: pd.DataFrame) -> tuple[float, float]:
 
 class ForecastingService:
     async def process_event(self, event_data: dict) -> list[dict]:
-        components_raw = event_data.get("componentsState", "{}")
-        try:
-            components_data = json.loads(components_raw) if isinstance(components_raw, str) else components_raw
-            components = components_data.get("components", [])
-        except (json.JSONDecodeError, AttributeError):
-            logger.error("Failed to parse componentsState — skipping event")
+        """
+        Processes a StockPredictionEvent from the unifed 'stock-prediction-events' topic.
+        """
+        trigger_type = event_data.get("triggerType", "UNKNOWN")
+        affected_product_ids = event_data.get("affectedProductIds", [])
+        embedded_histories = event_data.get("productHistories") or {}
+
+        if not affected_product_ids:
+            logger.warning(f"No affected product IDs found in event {trigger_type}")
             return []
 
-        if not components:
-            logger.warning(f"No components found in event for recipe {event_data.get('recipeId')}")
-            return []
-
-        # productHistories is keyed by productId (int in Java → string in JSON)
-        embedded_histories: dict = event_data.get("productHistories") or {}
-        if embedded_histories:
-            logger.info(
-                f"Using embedded history for {len(embedded_histories)} product(s) "
-                f"(recipe {event_data.get('recipeId')}) — no HTTP calls needed"
-            )
+        logger.info(
+            f"Processing {trigger_type} event: {len(affected_product_ids)} products affected. "
+            f"{len(embedded_histories)} histories provided."
+        )
 
         results = []
-        loop = asyncio.get_running_loop()
-
-        for comp in components:
-            p_id = comp.get("productId")
-            if not p_id:
-                continue
-
-            # Resolve history from embedded data (zero HTTP)
-            embedded = embedded_histories.get(str(p_id)) or embedded_histories.get(p_id)
-            if not embedded:
-                logger.warning(f"No history for product {p_id} (missing in event) — skipping")
-                continue
-            
-            breakdown = embedded   # list of {date, consumed}
-
-            # ── Build DataFrame ───────────────────────────────────────────
-            # Java/Jackson might send dates as [YYYY, MM, DD]. Convert to string if so.
-            for entry in breakdown:
-                d = entry.get("date")
-                if isinstance(d, list) and len(d) >= 3:
-                    entry["date"] = f"{d[0]}-{d[1]:02d}-{d[2]:02d}"
-
-            df = pd.DataFrame(breakdown)
-
-            if "date" not in df.columns or "consumed" not in df.columns:
-                logger.error(f"Unexpected history schema for product {p_id}: {df.columns.tolist()}")
-                continue
-
-            df = df.rename(columns={"date": "ds", "consumed": "y"})
-            df["ds"] = pd.to_datetime(df["ds"], errors="coerce")
-            df = df.dropna(subset=["ds", "y"])
-
-            if len(df) < 2:
-                logger.warning(f"Not enough data points for product {p_id} ({len(df)} rows) — skipping")
-                continue
-
+        for p_id_str, history in embedded_histories.items():
             try:
-                prediction, confidence = await loop.run_in_executor(
-                    _EXECUTOR, _run_prophet, df
-                )
-
-                results.append({
-                    "productId": p_id,
-                    "projectedConsumption": round(prediction, 2),
-                    "calculatedAt": datetime.now(tz=timezone.utc).isoformat(),
-                    "modelUsed": "Meta Prophet v1.1",
-                    "confidenceScore": confidence,
-                    "eventType": "PREDICTION",
-                    "forecastHorizonDays": 14,
-                })
-                logger.info(
-                    f"Forecast ready for product {p_id}: "
-                    f"consumption={round(prediction, 2)}, confidence={confidence}"
-                )
+                p_id = int(p_id_str)
+                result = await self._forecast_product(p_id, history)
+                if result:
+                    results.append(result)
             except Exception as exc:
-                logger.error(f"Prophet failed for product {p_id}: {exc}", exc_info=True)
+                logger.error(f"Error forecasting product {p_id_str}: {exc}", exc_info=True)
 
         return results
 
+    async def _forecast_product(self, product_id: int, history: list[dict]) -> dict | None:
+        """
+        Runs the forecasting logic for a single product with zero-fill data augmentation.
+        """
+        if not history:
+            logger.warning(f"Empty history for product {product_id} — skipping")
+            return None
+
+        # ── Build DataFrame ───────────────────────────────────────────
+        for entry in history:
+            d = entry.get("date")
+            if isinstance(d, list) and len(d) >= 3:
+                entry["date"] = f"{d[0]}-{d[1]:02d}-{d[2]:02d}"
+
+        df = pd.DataFrame(history)
+        if "date" not in df.columns or "consumed" not in df.columns:
+            logger.error(f"Unexpected history schema for product {product_id}: {df.columns.tolist()}")
+            return None
+
+        df = df.rename(columns={"date": "ds", "consumed": "y"})
+        df["ds"] = pd.to_datetime(df["ds"], errors="coerce")
+        df["y"] = pd.to_numeric(df["y"], errors="coerce")
+        df = df.dropna(subset=["ds", "y"])
+
+        if len(df) < 2:
+            logger.warning(f"Not enough clean data points for product {product_id} ({len(df)}) — skipping")
+            return None
+
+        # ── Zero-Fill Logic ──────────────────────────────────────────
+        # Prophet works significantly better if we explicitly tell it about "zero consumption" days.
+        # Otherwise, it might assume missing days are unknown, rather than zero.
+        try:
+            df = df.set_index("ds").sort_index()
+            # We cover the last 90 days or the range of data we have
+            min_date = df.index.min()
+            max_date = datetime.now().date()
+            
+            full_range = pd.date_range(start=min_date, end=max_date, freq="D")
+            df = df.reindex(full_range, fill_value=0.0)
+            df.index.name = "ds"
+            df = df.reset_index()
+        except Exception as e:
+            logger.error(f"Zero-fill failed for product {product_id}: {e}")
+            # Continue with original df if reindexing fails
+            df = df.reset_index()
+
+        loop = asyncio.get_running_loop()
+        try:
+            prediction, confidence = await loop.run_in_executor(
+                _EXECUTOR, _run_prophet, df
+            )
+
+            return {
+                "productId": product_id,
+                "projectedConsumption": round(prediction, 2),
+                "calculatedAt": datetime.now(tz=timezone.utc).isoformat(),
+                "modelUsed": "Meta Prophet v1.1 (Zero-Filled)",
+                "confidenceScore": confidence,
+                "eventType": "PREDICTION",
+                "forecastHorizonDays": 14,
+            }
+        except Exception as exc:
+            logger.error(f"Prophet failed for product {product_id}: {exc}", exc_info=True)
+            return None
 
 
 forecast_service = ForecastingService()

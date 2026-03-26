@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     PREDICTOR_USERNAME: str = os.getenv("PREDICTOR_USERNAME", "Admin")
     
     # Topics
-    RECIPE_COOKING_TOPIC: str = "recipe-cooking-audit-events"
+    STOCK_PREDICTION_TOPIC: str = "stock-prediction-events"
     FORECAST_UPDATES_TOPIC: str = "forecast-updates"
 
     SQLITE_DB_PATH: str = os.getenv("SQLITE_DB_PATH", "/app/data/predictor_outbox.db")

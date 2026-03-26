@@ -4,6 +4,7 @@ import com.economato.inventory.application.dto.event.InventoryAuditEvent;
 import com.economato.inventory.application.dto.event.OrderAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeCookingAuditEvent;
+import com.economato.inventory.application.dto.event.StockPredictionEvent;
 import com.economato.inventory.domain.model.AuditOutbox;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.AuditOutboxRepository;
 import tools.jackson.databind.ObjectMapper;
@@ -20,6 +21,7 @@ public class AuditEventProducer {
     public static final String RECIPE_AUDIT_TOPIC = "recipe-audit-events";
     public static final String ORDER_AUDIT_TOPIC = "order-audit-events";
     public static final String RECIPE_COOKING_AUDIT_TOPIC = "recipe-cooking-audit-events";
+    public static final String STOCK_PREDICTION_TOPIC = "stock-prediction-events";
 
     private final AuditOutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
@@ -43,6 +45,10 @@ public class AuditEventProducer {
 
     public void publishRecipeCookingAudit(RecipeCookingAuditEvent event) {
         saveToOutbox(RECIPE_COOKING_AUDIT_TOPIC, "recipe-cooking-" + event.getRecipeId(), event);
+    }
+
+    public void publishStockPredictionEvent(StockPredictionEvent event) {
+        saveToOutbox(STOCK_PREDICTION_TOPIC, "prediction-" + event.getTriggerType(), event);
     }
 
     private void saveToOutbox(String topic, String key, Object event) {
