@@ -25,6 +25,7 @@ import com.economato.inventory.domain.model.Recipe;
 import com.economato.inventory.application.dto.event.RecipeAuditEvent;
 import com.economato.inventory.application.dto.event.OrderAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeCookingAuditEvent;
+import com.economato.inventory.application.dto.event.StockPredictionEvent;
 import com.economato.inventory.domain.model.RecipeAudit;
 import com.economato.inventory.domain.model.RecipeCookingAudit;
 import com.economato.inventory.domain.model.Role;
@@ -249,6 +250,65 @@ public class AuditOutboxIntegrationTest extends BaseIntegrationTest {
             assertThat(audits).hasSize(1);
             assertThat(audits.get(0).getRecipe().getId()).isEqualTo(testRecipe.getId());
             assertThat(audits.get(0).getDetails()).isEqualTo("Test Cooking via Kafka Integration");
+        });
+    }
+
+    @Test
+    void testStockPredictionOutboxToKafkaFlow() throws Exception {
+        StockPredictionEvent event = StockPredictionEvent.builder()
+                .triggerType("MANUAL_ADJUSTMENT")
+                .affectedProductIds(List.of(testProduct.getId()))
+                .timestamp(LocalDateTime.now())
+                .userId(testUser.getId())
+                .userName(testUser.getName())
+                .build();
+
+        auditEventProducer.publishStockPredictionEvent(event);
+
+        List<AuditOutbox> outboxItems = auditOutboxRepository.findAll();
+        assertThat(outboxItems).hasSize(1);
+        assertThat(outboxItems.get(0).getTopic()).isEqualTo(AuditEventProducer.STOCK_PREDICTION_TOPIC);
+
+        auditOutboxProcessor.processOutbox();
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertThat(auditOutboxRepository.findAll()).isEmpty();
+        });
+        
+        // Note: We don't have a listener in inventory-service for this topic, 
+        // but success here means it was sent to Kafka successfully.
+    }
+
+    @Test
+    void testCorruptedPayloadIsDeleted() throws Exception {
+        AuditOutbox corruptedEvent = AuditOutbox.builder()
+                .topic(AuditEventProducer.INVENTORY_AUDIT_TOPIC)
+                .eventKey("corrupted-key")
+                .payload("{ \"invalid\": json }")
+                .createdAt(LocalDateTime.now())
+                .build();
+        auditOutboxRepository.save(corruptedEvent);
+
+        InventoryAuditEvent validEvent = new InventoryAuditEvent();
+        validEvent.setProductId(testProduct.getId());
+        validEvent.setMovementType("ENTRADA");
+        validEvent.setQuantity(BigDecimal.valueOf(1.0));
+        validEvent.setMovementDate(LocalDateTime.now());
+        validEvent.setActionDescription("Valid Event");
+        auditEventProducer.publishInventoryAudit(validEvent);
+
+        assertThat(auditOutboxRepository.count()).isEqualTo(2);
+
+        auditOutboxProcessor.processOutbox();
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertThat(auditOutboxRepository.findAll()).isEmpty();
+        });
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            List<InventoryAudit> audits = inventoryAuditRepository.findAll();
+            assertThat(audits).isNotEmpty();
+            assertThat(audits.stream().anyMatch(a -> "Valid Event".equals(a.getActionDescription()))).isTrue();
         });
     }
 }

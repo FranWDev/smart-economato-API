@@ -20,6 +20,10 @@ import com.economato.inventory.application.dto.event.OrderAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeCookingAuditEvent;
 import com.economato.inventory.application.dto.event.ForecastResultEvent;
+import com.economato.inventory.application.dto.event.StockPredictionEvent;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
+import org.apache.kafka.clients.admin.NewTopic;
+import org.springframework.kafka.config.TopicBuilder;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +39,14 @@ public class KafkaConfig {
 
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
+
+    @Bean
+    public NewTopic stockPredictionTopic() {
+        return TopicBuilder.name(AuditEventProducer.STOCK_PREDICTION_TOPIC)
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
 
     /**
      * Configuración común del productor
@@ -102,6 +114,16 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<String, ForecastResultEvent> forecastResultKafkaTemplate() {
         return new KafkaTemplate<>(forecastResultProducerFactory());
+    }
+
+    @Bean
+    public ProducerFactory<String, StockPredictionEvent> stockPredictionProducerFactory() {
+        return new DefaultKafkaProducerFactory<>(producerConfigs());
+    }
+
+    @Bean
+    public KafkaTemplate<String, StockPredictionEvent> stockPredictionKafkaTemplate() {
+        return new KafkaTemplate<>(stockPredictionProducerFactory());
     }
 
     /**
