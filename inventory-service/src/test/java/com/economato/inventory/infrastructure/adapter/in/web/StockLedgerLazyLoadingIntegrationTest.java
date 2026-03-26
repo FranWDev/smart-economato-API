@@ -36,9 +36,6 @@ class StockLedgerLazyLoadingIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private StockLedgerRepository stockLedgerRepository;
 
-    @MockitoBean
-    private AuditEventProducer auditEventProducer;
-
     private String jwtToken;
     private Integer productId;
 

@@ -40,9 +40,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class RecipeServiceFefoIntegrationTest extends BaseIntegrationTest {
 
-    @MockitoBean
-    private AuditEventProducer auditEventProducer;
-
     @Autowired
     private RecipeService recipeService;
 

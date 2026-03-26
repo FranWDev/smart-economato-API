@@ -34,9 +34,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class StockBatchInvariantIntegrationTest extends BaseIntegrationTest {
 
-    @MockitoBean
-    private AuditEventProducer auditEventProducer;
-
     @Autowired
     private StockLedgerService stockLedgerService;
 

@@ -26,9 +26,6 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
         @Autowired
         private UserRepository userRepository;
 
-        @MockitoBean
-        private AuditEventProducer auditEventProducer;
-
         private String jwtToken;
         private User testUser;
 

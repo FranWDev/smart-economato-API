@@ -11,9 +11,6 @@ import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.produc
 
 public class I18nIntegrationTest extends BaseIntegrationTest {
 
-    @MockitoBean
-    private AuditEventProducer auditEventProducer;
-
     private static final String LOGIN_URL = "/api/auth/login";
 
     @Test

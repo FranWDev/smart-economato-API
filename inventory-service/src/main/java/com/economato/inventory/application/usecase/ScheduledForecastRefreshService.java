@@ -10,6 +10,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Profile({ "!test", "kafka-test" })
 @Slf4j
 @RequiredArgsConstructor
 public class ScheduledForecastRefreshService {

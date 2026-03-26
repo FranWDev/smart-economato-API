@@ -49,9 +49,6 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private ProductBatchRepository productBatchRepository;
 
-    @MockitoBean
-    private AuditEventProducer auditEventProducer;
-
     private Product product1;
     private Product product2;
     private Product product3;
