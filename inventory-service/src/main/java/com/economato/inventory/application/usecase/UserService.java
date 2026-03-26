@@ -18,6 +18,7 @@ import com.economato.inventory.application.dto.request.BatchTeacherAssignmentReq
 import com.economato.inventory.application.dto.request.ChangePasswordRequestDTO;
 import com.economato.inventory.application.dto.request.RoleEscalationRequestDTO;
 import com.economato.inventory.application.dto.request.UserRequestDTO;
+import com.economato.inventory.application.dto.request.TransferStudentsRequestDTO;
 import com.economato.inventory.application.dto.response.BatchTeacherAssignmentResponseDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
 import com.economato.inventory.application.dto.response.UserStatsResponseDTO;
@@ -30,6 +31,7 @@ import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.TemporaryRoleEscalationRepository;
+import com.economato.inventory.application.dto.projection.UserProjection;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
@@ -274,7 +276,7 @@ public class UserService {
             User teacher = repository.findById(teacherId)
                     .orElseThrow(
                             () -> new InvalidOperationException(i18nService
-                                    .getMessage(MessageKey.ERROR_USER_TEACHER_NOT_FOUND, new Object[] { teacherId })));
+                                     .getMessage(MessageKey.ERROR_USER_TEACHER_NOT_FOUND, new Object[] { teacherId })));
             // El profesor debe tener rol CHEF
             if (!Role.CHEF.equals(teacher.getRole())) {
                 throw new InvalidOperationException(
@@ -426,4 +428,116 @@ public class UserService {
         customUserDetailsService.evictUser(user.getUser());
     }
 
+    @Transactional(readOnly = true)
+    public List<UserResponseDTO> getStudentsWithoutTeacher() {
+        List<UserProjection> students = repository.findProjectedByTeacherIsNullAndRoleInAndIsHiddenFalse(
+                List.of(Role.USER, Role.ELEVATED));
+        return students.stream()
+                .map(userMapper::toResponseDTO)
+                .toList();
+    }
+
+    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+    public BatchTeacherAssignmentResponseDTO hideAllStudentsOfTeacher(Integer teacherId, boolean hidden) {
+        User teacher = repository.findById(teacherId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, teacherId)));
+
+        if (teacher.getRole() != Role.CHEF) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_TEACHER_MUST_BE_ADMIN));
+        }
+
+        List<User> students = repository.findByTeacherId(teacherId);
+        List<User> toUpdate = students.stream()
+                .filter(s -> s.isHidden() != hidden)
+                .peek(s -> s.setHidden(hidden))
+                .toList();
+
+        if (!toUpdate.isEmpty()) {
+            repository.saveAll(toUpdate);
+        }
+
+        return BatchTeacherAssignmentResponseDTO.builder()
+                .success(true)
+                .processedCount(toUpdate.size())
+                .totalCount(students.size())
+                .message(i18nService.getMessage(MessageKey.ERROR_USER_STUDENTS_HIDDEN_SUCCESS, toUpdate.size()))
+                .failedStudentIds(List.of())
+                .build();
+    }
+
+    @Transactional(rollbackFor = { RuntimeException.class, Exception.class })
+    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+    public BatchTeacherAssignmentResponseDTO transferStudents(TransferStudentsRequestDTO request) {
+        if (request.getFromTeacherId().equals(request.getToTeacherId())) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_TEACHER_TRANSFER_SAME));
+        }
+
+        User fromTeacher = repository.findById(request.getFromTeacherId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, request.getFromTeacherId())));
+
+        User toTeacher = repository.findById(request.getToTeacherId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, request.getToTeacherId())));
+
+        if (fromTeacher.getRole() != Role.CHEF || toTeacher.getRole() != Role.CHEF) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_TEACHER_MUST_BE_ADMIN));
+        }
+
+        List<User> students = repository.findAllById(request.getStudentIds());
+        List<Integer> failedIds = new ArrayList<>();
+
+        for (User student : students) {
+            if (student.getTeacher() == null || !student.getTeacher().getId().equals(request.getFromTeacherId())) {
+                throw new InvalidOperationException(i18nService.getMessage(
+                        MessageKey.ERROR_USER_STUDENT_NOT_BELONGS_TO_TEACHER, student.getId(), fromTeacher.getId()));
+            }
+            student.setTeacher(toTeacher);
+        }
+
+        repository.saveAll(students);
+
+        return BatchTeacherAssignmentResponseDTO.builder()
+                .success(true)
+                .processedCount(students.size())
+                .totalCount(request.getStudentIds().size())
+                .message("Transferencia completada con éxito")
+                .failedStudentIds(failedIds)
+                .build();
+    }
+
+    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+    public BatchTeacherAssignmentResponseDTO transferAllStudents(Integer fromTeacherId, Integer toTeacherId) {
+        if (fromTeacherId.equals(toTeacherId)) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_TEACHER_TRANSFER_SAME));
+        }
+
+        User fromTeacher = repository.findById(fromTeacherId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, fromTeacherId)));
+
+        User toTeacher = repository.findById(toTeacherId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, toTeacherId)));
+
+        if (fromTeacher.getRole() != Role.CHEF || toTeacher.getRole() != Role.CHEF) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_TEACHER_MUST_BE_ADMIN));
+        }
+
+        List<User> students = repository.findByTeacherId(fromTeacherId);
+        students.forEach(s -> s.setTeacher(toTeacher));
+
+        if (!students.isEmpty()) {
+            repository.saveAll(students);
+        }
+
+        return BatchTeacherAssignmentResponseDTO.builder()
+                .success(true)
+                .processedCount(students.size())
+                .totalCount(students.size())
+                .message("Transferencia total completada con éxito")
+                .failedStudentIds(List.of())
+                .build();
+    }
 }
