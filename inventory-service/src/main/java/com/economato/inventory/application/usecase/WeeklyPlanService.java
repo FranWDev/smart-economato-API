@@ -25,6 +25,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -129,6 +130,7 @@ public class WeeklyPlanService {
         return wrapperMapper.toResponseDTO(weeklyPlanRepository.save(plan));
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public WeeklyPlanSlotResponseDTO confirmSlot(Long planId, Long slotId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -180,8 +182,17 @@ public class WeeklyPlanService {
 
         if (plan.getStatus() == WeeklyPlanStatus.ACTIVE) {
             plan.setStatus(WeeklyPlanStatus.IN_PROGRESS);
-            weeklyPlanRepository.save(plan);
         }
+
+        boolean allCompletedOrCancelled = plan.getSlots().stream()
+                .allMatch(s -> s.getStatus() == WeeklyPlanSlotStatus.CONFIRMED
+                        || s.getStatus() == WeeklyPlanSlotStatus.CANCELLED);
+
+        if (allCompletedOrCancelled) {
+            plan.setStatus(WeeklyPlanStatus.COMPLETED);
+        }
+
+        weeklyPlanRepository.saveAndFlush(plan);
 
         confirmedStudents.forEach(s -> s.setStatus(StudentSlotStatus.CONFIRMED));
 
@@ -192,11 +203,11 @@ public class WeeklyPlanService {
                 .correlationId(correlationId)
                 .details(desc)
                 .build();
-        cookingAuditRepository.save(audit);
-
-        return wrapperMapper.toSlotResponseDTO(slotRepository.save(slot));
+        cookingAuditRepository.saveAndFlush(audit);
+        return wrapperMapper.toSlotResponseDTO(slotRepository.saveAndFlush(slot));
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public ConfirmDayResponseDTO confirmDay(Long planId, Integer dayOfWeek) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -262,7 +273,7 @@ public class WeeklyPlanService {
         }
 
         stockLedgerService.recordBatchStockMovements(allMovements, plan.getChef(), null);
-        cookingAuditRepository.saveAll(audits);
+        cookingAuditRepository.saveAllAndFlush(audits);
 
         if (plan.getStatus() == WeeklyPlanStatus.ACTIVE) {
             plan.setStatus(WeeklyPlanStatus.IN_PROGRESS);
@@ -275,7 +286,7 @@ public class WeeklyPlanService {
             plan.setStatus(WeeklyPlanStatus.COMPLETED);
         }
 
-        weeklyPlanRepository.save(plan);
+        weeklyPlanRepository.saveAndFlush(plan);
 
         List<WeeklyPlanSlotResponseDTO> confirmedSlotsDTO = slotsToConfirm.stream()
                 .map(wrapperMapper::toSlotResponseDTO)
@@ -436,7 +447,7 @@ public class WeeklyPlanService {
             }
         }
         if (changed) {
-            weeklyPlanRepository.save(plan);
+            weeklyPlanRepository.saveAndFlush(plan);
         }
     }
 
