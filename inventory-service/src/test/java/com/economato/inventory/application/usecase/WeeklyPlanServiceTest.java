@@ -11,6 +11,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.http.MediaType;
 
 import java.math.BigDecimal;
@@ -25,6 +26,7 @@ import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class WeeklyPlanServiceTest extends BaseIntegrationTest {
 
     @Autowired private UserRepository userRepository;
@@ -205,27 +207,23 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
     void whenUpdatePlan_withOverlapExistingSlot_thenReturnsError() throws Exception {
         LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
         
-        // 1. Create a plan with one slot
+        // 1. Create a plan with TWO slots so confirming one doesn't auto-complete it
         WeeklyPlanSlotRequestDTO s1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), BigDecimal.ONE, 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, List.of(student1.getId()));
-        WeeklyPlanRequestDTO request = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s1));
+        WeeklyPlanSlotRequestDTO s3 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), BigDecimal.ONE, 3, LocalTime.of(10,0), LocalTime.of(11,0), 1, List.of(student1.getId()));
+        WeeklyPlanRequestDTO request = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s1, s3));
 
         String rb = mockMvc.perform(post("/api/v1/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(request)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long planId = objectMapper.readTree(rb).get("id").asLong();
-        
-        // 2. Update the plan adding a new slot that overlaps with the first one (which is now an "existing" slot in the plan)
-        // Note: updatePlan removes non-confirmed slots, so we should confirm it first OR use a mock that doesn't remove it.
-        // Actually, updatePlan removes them, then adds new ones. 
-        // If I want to test overlap with "existing", I should have a CONFIRMED slot.
         
         mockMvc.perform(patch("/api/v1/weekly-plans/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
         String details = mockMvc.perform(get("/api/v1/weekly-plans/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long slotId = objectMapper.readTree(details).get("slots").get(0).get("id").asLong();
         mockMvc.perform(patch("/api/v1/weekly-plans/{planId}/slots/{slotId}/confirm", planId, slotId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
 
-        // Now s1 at 10:00-11:00 is CONFIRMED and will be kept during update.
-        // Try to add s2 at 10:30-11:30
+        // Now s1 at 10:00-11:00 is CONFIRMED. s3 is unconfirmed. Plan is IN_PROGRESS.
+        // Try to add s2 at 10:30-11:30 (overlaps with s1)
         WeeklyPlanSlotRequestDTO s2 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), BigDecimal.ONE, 1, LocalTime.of(10,30), LocalTime.of(11,30), 2, List.of(student1.getId()));
-        WeeklyPlanRequestDTO updateRequest = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s2));
+        WeeklyPlanRequestDTO updateRequest = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s2, s3));
 
         mockMvc.perform(put("/api/v1/weekly-plans/{id}", planId)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -306,23 +304,24 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
     void whenUpdatePlan_asInProgress_withInsufficientStock_thenReturnsError() throws Exception {
         LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
         
-        // 1. Create and activate plan
+        // 1. Create and activate plan with 2 slots
         WeeklyPlanSlotRequestDTO s1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), BigDecimal.ONE, 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, List.of(student1.getId()));
-        WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s1));
+        WeeklyPlanSlotRequestDTO s3 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), BigDecimal.ONE, 3, LocalTime.of(10,0), LocalTime.of(11,0), 1, List.of(student1.getId()));
+        WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s1, s3));
 
         String rb = mockMvc.perform(post("/api/v1/weekly-plans").contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long planId = objectMapper.readTree(rb).get("id").asLong();
         
         mockMvc.perform(patch("/api/v1/weekly-plans/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
 
-        // 2. Confirm slot to move plan to IN_PROGRESS
+        // 2. Confirm one slot to move plan to IN_PROGRESS (leaving 1 unconfirmed)
         String details = mockMvc.perform(get("/api/v1/weekly-plans/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long slotId = objectMapper.readTree(details).get("slots").get(0).get("id").asLong();
         mockMvc.perform(patch("/api/v1/weekly-plans/{planId}/slots/{slotId}/confirm", planId, slotId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
 
         // 3. Update plan with huge quantity that exceeds stock
         WeeklyPlanSlotRequestDTO s2 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1000.0"), 2, LocalTime.of(12,0), LocalTime.of(13,0), 2, List.of(student1.getId()));
-        WeeklyPlanRequestDTO updateReq = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s2));
+        WeeklyPlanRequestDTO updateReq = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(s2, s3)); // send existing unconfirmed as well
 
         mockMvc.perform(put("/api/v1/weekly-plans/{id}", planId)
                 .contentType(MediaType.APPLICATION_JSON)
