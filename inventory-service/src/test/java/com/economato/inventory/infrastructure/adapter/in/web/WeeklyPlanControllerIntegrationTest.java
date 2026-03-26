@@ -8,6 +8,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.http.MediaType;
 
 import java.math.BigDecimal;
@@ -24,9 +25,10 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
 
-    private static final String BASE_URL = "/api/v1/weekly-plans";
+    private static final String BASE_URL = "/api/weekly-plans";
     private static final String AUTH_URL = "/api/auth/login";
 
     @Autowired private UserRepository userRepository;
@@ -287,7 +289,8 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
         LocalDate thisMonday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         
         WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student1.getId()));
-        WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, thisMonday, Arrays.asList(slot1));
+        WeeklyPlanSlotRequestDTO slot2 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1.0"), 2, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student2.getId()));
+        WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, thisMonday, Arrays.asList(slot1, slot2));
 
         String rb = mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long planId = objectMapper.readTree(rb).get("id").asLong();
@@ -628,7 +631,8 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
     @Test
     void whenCancelSlot_alreadyConfirmed_thenBadRequest() throws Exception {
         WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student1.getId()));
-        WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, getNextMonday(), Arrays.asList(slot1));
+        WeeklyPlanSlotRequestDTO slot2 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1.0"), 3, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student1.getId()));
+        WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, getNextMonday(), Arrays.asList(slot1, slot2));
 
         String rb = mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
         Long planId = objectMapper.readTree(rb).get("id").asLong();
@@ -848,7 +852,7 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
 
         mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/confirm", planId, slot1Id).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
 
-        WeeklyPlanSlotRequestDTO slot3 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("60.0"), 3, LocalTime.of(12,0), LocalTime.of(13,0), 3, Arrays.asList(student3.getId()));
+        WeeklyPlanSlotRequestDTO slot3 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("10.0"), 3, LocalTime.of(12,0), LocalTime.of(13,0), 3, Arrays.asList(student3.getId()));
         // Note: slot1 is already CONFIRMED and will be kept by the backend. Sending it again would trigger an overlap error in mapSlots.
         req.setSlots(Arrays.asList(slot2, slot3));
 

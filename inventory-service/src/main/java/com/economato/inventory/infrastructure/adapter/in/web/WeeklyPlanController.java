@@ -4,6 +4,7 @@ import com.economato.inventory.application.dto.request.WeeklyPlanRequestDTO;
 import com.economato.inventory.application.dto.response.StudentMetricsResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyPlanResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyPlanSlotResponseDTO;
+import com.economato.inventory.application.dto.response.ConfirmDayResponseDTO;
 import com.economato.inventory.application.usecase.WeeklyPlanService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +20,7 @@ import com.economato.inventory.application.dto.response.WeeklyPlanStockRequireme
 import com.economato.inventory.application.dto.response.WeeklyPlanSlotStudentResponseDTO;
 
 @RestController
-@RequestMapping("/api/v1/weekly-plans")
+@RequestMapping("/api/weekly-plans")
 @RequiredArgsConstructor
 public class WeeklyPlanController {
 
@@ -47,6 +48,14 @@ public class WeeklyPlanController {
     @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
     public ResponseEntity<WeeklyPlanSlotResponseDTO> confirmSlot(@PathVariable Long planId, @PathVariable Long slotId) {
         return ResponseEntity.ok(weeklyPlanService.confirmSlot(planId, slotId));
+    }
+
+    @PatchMapping("/{planId}/days/{dayOfWeek}/confirm")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+    public ResponseEntity<ConfirmDayResponseDTO> confirmDay(
+            @PathVariable Long planId,
+            @PathVariable Integer dayOfWeek) {
+        return ResponseEntity.ok(weeklyPlanService.confirmDay(planId, dayOfWeek));
     }
 
     @GetMapping("/{planId}")

@@ -2,8 +2,11 @@ package com.economato.inventory.application.usecase;
 
 import com.economato.inventory.application.dto.request.WeeklyPlanRequestDTO;
 import com.economato.inventory.application.dto.request.WeeklyPlanSlotRequestDTO;
+import com.economato.inventory.application.dto.request.BatchMovementItem;
 import com.economato.inventory.application.dto.response.StudentMetricsResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyPlanResponseDTO;
+import com.economato.inventory.application.dto.response.WeeklyPlanSlotResponseDTO;
+import com.economato.inventory.application.dto.response.ConfirmDayResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyPlanSlotResponseDTO;
 import com.economato.inventory.application.dto.projection.UserProjection;
 import com.economato.inventory.application.mapper.WeeklyPlanMapper;
@@ -22,12 +25,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.time.LocalTime;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -78,7 +81,7 @@ public class WeeklyPlanService {
                 .status(WeeklyPlanStatus.DRAFT)
                 .build();
 
-        List<WeeklyPlanSlot> slots = mapSlots(request.getSlots(), plan, chefId, request.getWeekStartDate());
+        List<WeeklyPlanSlot> slots = mapSlots(request.getSlots(), plan, chefId);
         plan.getSlots().addAll(slots);
 
         return wrapperMapper.toResponseDTO(weeklyPlanRepository.save(plan));
@@ -93,19 +96,21 @@ public class WeeklyPlanService {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_ONLY_DRAFT));
         }
 
-        // mapSlots handles identifying which ones are updates to existing confirmed slots
-        List<WeeklyPlanSlot> newSlots = mapSlots(request.getSlots(), plan, plan.getChef().getId(),
-                plan.getWeekStartDate());
+        // mapSlots ya valida solapamientos entre nuevos slots y con los CONFIRMADOS.
+        // Pero mapSlots devuelve una LISTA DE NUEVOS SLOTS (PENDING).
+        // Los CONFIRMADOS ya están en plan.getSlots().
+        List<WeeklyPlanSlot> slotsFromRequest = mapSlots(request.getSlots(), plan, plan.getChef().getId());
         
-        // Remove slots that are NOT confirmed
+        // Eliminar todos los slots que NO estén confirmados
         plan.getSlots().removeIf(slot -> slot.getStatus() != WeeklyPlanSlotStatus.CONFIRMED);
         
-        // Add only slots that are NOT already in the plan (newSlots from mapSlots should be PENDING)
-        plan.getSlots().addAll(newSlots);
+        // Añadir los nuevos slots (mapSlots ya garantizó que no hay solapamientos)
+        plan.getSlots().addAll(slotsFromRequest);
+        
         weeklyPlanRepository.saveAndFlush(plan);
 
         if (plan.getStatus() == WeeklyPlanStatus.ACTIVE || plan.getStatus() == WeeklyPlanStatus.IN_PROGRESS) {
-            reservationService.validateStockForPlanActivation(plan.getId());
+            reservationService.validateStockForPlanUpdate(plan, slotsFromRequest);
         }
 
         return wrapperMapper.toResponseDTO(plan);
@@ -126,6 +131,7 @@ public class WeeklyPlanService {
         return wrapperMapper.toResponseDTO(weeklyPlanRepository.save(plan));
     }
 
+    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public WeeklyPlanSlotResponseDTO confirmSlot(Long planId, Long slotId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -177,8 +183,17 @@ public class WeeklyPlanService {
 
         if (plan.getStatus() == WeeklyPlanStatus.ACTIVE) {
             plan.setStatus(WeeklyPlanStatus.IN_PROGRESS);
-            weeklyPlanRepository.save(plan);
         }
+
+        boolean allCompletedOrCancelled = plan.getSlots().stream()
+                .allMatch(s -> s.getStatus() == WeeklyPlanSlotStatus.CONFIRMED
+                        || s.getStatus() == WeeklyPlanSlotStatus.CANCELLED);
+
+        if (allCompletedOrCancelled) {
+            plan.setStatus(WeeklyPlanStatus.COMPLETED);
+        }
+
+        weeklyPlanRepository.saveAndFlush(plan);
 
         confirmedStudents.forEach(s -> s.setStatus(StudentSlotStatus.CONFIRMED));
 
@@ -189,9 +204,102 @@ public class WeeklyPlanService {
                 .correlationId(correlationId)
                 .details(desc)
                 .build();
-        cookingAuditRepository.save(audit);
+        cookingAuditRepository.saveAndFlush(audit);
+        return wrapperMapper.toSlotResponseDTO(slotRepository.saveAndFlush(slot));
+    }
 
-        return wrapperMapper.toSlotResponseDTO(slotRepository.save(slot));
+    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
+    public ConfirmDayResponseDTO confirmDay(Long planId, Integer dayOfWeek) {
+        WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
+                () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
+        checkPermissions(plan);
+
+        if (plan.getStatus() != WeeklyPlanStatus.ACTIVE && plan.getStatus() != WeeklyPlanStatus.IN_PROGRESS) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_ACTIVE));
+        }
+
+        List<WeeklyPlanSlot> slotsToConfirm = plan.getSlots().stream()
+                .filter(s -> s.getDayOfWeek().equals(dayOfWeek) && 
+                        (s.getStatus() == WeeklyPlanSlotStatus.PENDING || s.getStatus() == WeeklyPlanSlotStatus.IN_PROGRESS))
+                .toList();
+
+        if (slotsToConfirm.isEmpty()) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NO_PENDING_SLOTS_FOR_DAY, new Object[]{dayOfWeek}));
+        }
+
+        List<BatchMovementItem> allMovements = new ArrayList<>();
+        List<RecipeCookingAudit> audits = new ArrayList<>();
+        User currentUser = securityContextHelper.getCurrentUser();
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+
+        for (WeeklyPlanSlot slot : slotsToConfirm) {
+            String correlationId = UUID.randomUUID().toString();
+            slot.setCorrelationId(correlationId);
+
+            List<WeeklyPlanSlotStudent> confirmedStudents = slot.getStudents().stream()
+                    .filter(s -> s.getStatus() == StudentSlotStatus.ASSIGNED)
+                    .toList();
+
+            List<String> studentNames = confirmedStudents.stream().map(s -> s.getStudent().getName()).toList();
+            String desc = i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_WEEKLY_PLAN,
+                    new Object[] { String.join(", ", studentNames), slot.getRecipe().getName(), slot.getQuantity() });
+
+            for (RecipeComponent rc : slot.getRecipe().getComponents()) {
+                BigDecimal totalQty = rc.getQuantity().multiply(slot.getQuantity())
+                        .divide(slot.getRecipe().getPortions(), 4, RoundingMode.HALF_UP);
+                allMovements.add(new BatchMovementItem(
+                        rc.getProduct().getId(),
+                        totalQty.negate(),
+                        MovementType.SALIDA,
+                        desc,
+                        null,
+                        correlationId
+                ));
+            }
+
+            slot.setStatus(WeeklyPlanSlotStatus.CONFIRMED);
+            slot.setConfirmedAt(now);
+            slot.setConfirmedBy(currentUser);
+
+            confirmedStudents.forEach(s -> s.setStatus(StudentSlotStatus.CONFIRMED));
+
+            RecipeCookingAudit audit = RecipeCookingAudit.builder()
+                    .recipe(slot.getRecipe())
+                    .quantityCooked(slot.getQuantity())
+                    .portionsProduced(slot.getQuantity())
+                    .correlationId(correlationId)
+                    .details(desc)
+                    .build();
+            audits.add(audit);
+        }
+
+        stockLedgerService.recordBatchStockMovements(allMovements, plan.getChef(), null);
+        cookingAuditRepository.saveAllAndFlush(audits);
+
+        if (plan.getStatus() == WeeklyPlanStatus.ACTIVE) {
+            plan.setStatus(WeeklyPlanStatus.IN_PROGRESS);
+        }
+
+        boolean allCompletedOrCancelled = plan.getSlots().stream()
+                .allMatch(s -> s.getStatus() == WeeklyPlanSlotStatus.CONFIRMED || s.getStatus() == WeeklyPlanSlotStatus.CANCELLED);
+        
+        if (allCompletedOrCancelled) {
+            plan.setStatus(WeeklyPlanStatus.COMPLETED);
+        }
+
+        weeklyPlanRepository.saveAndFlush(plan);
+
+        List<WeeklyPlanSlotResponseDTO> confirmedSlotsDTO = slotsToConfirm.stream()
+                .map(wrapperMapper::toSlotResponseDTO)
+                .toList();
+
+        return ConfirmDayResponseDTO.builder()
+                .planId(plan.getId())
+                .dayOfWeek(dayOfWeek)
+                .planStatus(plan.getStatus())
+                .confirmedSlots(confirmedSlotsDTO)
+                .totalSlotsConfirmed(confirmedSlotsDTO.size())
+                .build();
     }
 
     @Transactional(readOnly = true)
@@ -340,7 +448,7 @@ public class WeeklyPlanService {
             }
         }
         if (changed) {
-            weeklyPlanRepository.save(plan);
+            weeklyPlanRepository.saveAndFlush(plan);
         }
     }
 
@@ -406,8 +514,7 @@ public class WeeklyPlanService {
         }
     }
 
-    private List<WeeklyPlanSlot> mapSlots(List<WeeklyPlanSlotRequestDTO> dtos, WeeklyPlan plan, Integer chefId,
-            LocalDate weekStart) {
+    private List<WeeklyPlanSlot> mapSlots(List<WeeklyPlanSlotRequestDTO> dtos, WeeklyPlan plan, Integer chefId) {
         List<UserProjection> students = userRepository.findProjectedByTeacherIdAndIsHiddenFalse(chefId);
         Set<Integer> validIds = students.stream().map(UserProjection::getId).collect(Collectors.toSet());
 
@@ -420,36 +527,22 @@ public class WeeklyPlanService {
         Map<Integer, User> studentMap = userRepository.findAllById(allStudentIds).stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
 
-        // existingConfirmedMap to track slots that should NOT be re-created
+        // existingConfirmedMap para rastrear slots que NO deben ser recreados
         Map<String, WeeklyPlanSlot> existingConfirmedMap = plan.getSlots().stream()
                 .filter(s -> s.getStatus() == WeeklyPlanSlotStatus.CONFIRMED)
                 .collect(Collectors.toMap(
-                        s -> s.getRecipe().getId() + "-" + s.getDayOfWeek() + "-" + s.getStartTime() + "-" + s.getEndTime() + "-" + s.getSortOrder(),
+                        s -> s.getRecipe().getId() + "-" + s.getDayOfWeek() + "-" + s.getStartTime() + "-" + s.getEndTime(),
                         s -> s,
                         (s1, s2) -> s1
                 ));
 
         List<WeeklyPlanSlot> newSlots = new ArrayList<>();
-        Set<String> dayStudentRegistry = new java.util.HashSet<>();
-
-        // Pre-populate with students from existing (CONFIRMED) slots in the plan
-        for (WeeklyPlanSlot existingSlot : plan.getSlots()) {
-            if (existingSlot.getStudents() != null && existingSlot.getStatus() == WeeklyPlanSlotStatus.CONFIRMED) {
-                for (WeeklyPlanSlotStudent wss : existingSlot.getStudents()) {
-                    if (wss.getStatus() != StudentSlotStatus.CANCELLED) {
-                        dayStudentRegistry.add(existingSlot.getDayOfWeek() + "-" + wss.getStudent().getId());
-                    }
-                }
-            }
-        }
 
         for (WeeklyPlanSlotRequestDTO dto : dtos) {
-            String slotKey = dto.getRecipeId() + "-" + dto.getDayOfWeek() + "-" + dto.getStartTime() + "-" + dto.getEndTime() + "-" + dto.getSortOrder();
+            String slotKey = dto.getRecipeId() + "-" + dto.getDayOfWeek() + "-" + dto.getStartTime() + "-" + dto.getEndTime();
             
-            // If the slot is already CONFIRMED and in the plan, we don't create a new one.
+            // Si el slot ya está CONFIRMADO en el plan, no creamos uno nuevo
             if (existingConfirmedMap.containsKey(slotKey)) {
-                // Check if students in DTO are essentially the same or if we should skip duplication check for this slot
-                // For now, we skip creation to avoid overlap error.
                 continue;
             }
 
@@ -467,9 +560,17 @@ public class WeeklyPlanService {
 
             // Validar solapamientos con slots existentes CONFIRMADOS en el plan
             for (WeeklyPlanSlot existing : plan.getSlots()) {
-                if (existing.getDayOfWeek().equals(dto.getDayOfWeek()) && existing.getStatus() == WeeklyPlanSlotStatus.CONFIRMED) {
+                if (existing.getStatus() == WeeklyPlanSlotStatus.CONFIRMED && existing.getDayOfWeek().equals(dto.getDayOfWeek())) {
                     if (dto.getStartTime().isBefore(existing.getEndTime())
                             && dto.getEndTime().isAfter(existing.getStartTime())) {
+                        
+                        String existingKey = existing.getRecipe().getId() + "-" + existing.getDayOfWeek() + "-" + existing.getStartTime() + "-" + existing.getEndTime();
+                        if (slotKey.equals(existingKey)) {
+                            continue;
+                        }
+
+                        // Si el slot en el DTO es idéntico al CONFIRMADO (mismas horas, receta, etc), no es un solapamiento real, es el mismo slot.
+                        // Pero como no lo encontramos en existingConfirmedMap, significa que algo cambió.
                         throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_SLOT_OVERLAP_EXISTING, new Object[]{dto.getDayOfWeek()}));
                     }
                 }
@@ -497,10 +598,6 @@ public class WeeklyPlanService {
                         throw new InvalidOperationException(i18nService
                                 .getMessage(MessageKey.ERROR_WEEKLY_PLAN_STUDENT_INVALID, new Object[] { sid }));
 
-                    String dayStudentKey = dto.getDayOfWeek() + "-" + sid;
-                    if (!dayStudentRegistry.add(dayStudentKey)) {
-                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_STUDENT_ALREADY_ASSIGNED_DAY, new Object[]{sid, dto.getDayOfWeek()}));
-                    }
 
                     if (!studentIdsInSlot.add(sid)) {
                         log.warn("Student {} added twice in slot", sid);
