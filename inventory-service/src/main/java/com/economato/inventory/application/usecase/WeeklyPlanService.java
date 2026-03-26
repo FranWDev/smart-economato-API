@@ -13,6 +13,7 @@ import com.economato.inventory.application.mapper.WeeklyPlanMapper;
 import com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO;
 import com.economato.inventory.application.dto.response.WeeklyPlanSlotStudentResponseDTO;
 import com.economato.inventory.domain.model.*;
+import com.economato.inventory.domain.PredictorTrigger;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.*;
@@ -131,6 +132,7 @@ public class WeeklyPlanService {
         return wrapperMapper.toResponseDTO(weeklyPlanRepository.save(plan));
     }
 
+    @PredictorTrigger(action = "WEEKLY_PLAN_CONFIRM")
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public WeeklyPlanSlotResponseDTO confirmSlot(Long planId, Long slotId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(

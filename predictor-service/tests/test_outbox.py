@@ -62,14 +62,13 @@ class TestOutboxSave:
     def test_save_inserts_row(self, tmp_path):
         db_path = str(tmp_path / "outbox.db")
 
-        with patch("app.db.outbox.DB_PATH", db_path), \
-             patch("app.core.config.settings") as mock_settings:
+        with patch("app.db.outbox.settings") as mock_settings:
             mock_settings.SQLITE_DB_PATH = db_path
 
             from app.db.outbox import init_db, get_connection
-            # re-patch DB_PATH at module level via importlib reload trick
+            # re-patch at module level
             import app.db.outbox as outbox_mod
-            outbox_mod.DB_PATH = db_path
+            outbox_mod.settings.SQLITE_DB_PATH = db_path
             init_db()
 
             from app.services.outbox_service import OutboxService
@@ -92,7 +91,7 @@ class TestOutboxSave:
         db_path = str(tmp_path / "outbox.db")
 
         import app.db.outbox as outbox_mod
-        outbox_mod.DB_PATH = db_path
+        outbox_mod.settings.SQLITE_DB_PATH = db_path
         from app.db.outbox import init_db, get_connection
         init_db()
 
@@ -114,7 +113,7 @@ class TestOutboxSave:
 class TestPendingCount:
     def test_zero_when_empty(self, tmp_path):
         import app.db.outbox as outbox_mod
-        outbox_mod.DB_PATH = str(tmp_path / "outbox.db")
+        outbox_mod.settings.SQLITE_DB_PATH = str(tmp_path / "outbox.db")
         from app.db.outbox import init_db
         init_db()
 
@@ -124,7 +123,7 @@ class TestPendingCount:
 
     def test_counts_pending_rows(self, tmp_path):
         import app.db.outbox as outbox_mod
-        outbox_mod.DB_PATH = str(tmp_path / "outbox.db")
+        outbox_mod.settings.SQLITE_DB_PATH = str(tmp_path / "outbox.db")
         from app.db.outbox import init_db, get_connection
         init_db()
 
@@ -139,7 +138,7 @@ class TestPendingCount:
     def test_does_not_count_dead_letter_rows(self, tmp_path):
         """Rows that have reached MAX_ATTEMPTS must not show as pending."""
         import app.db.outbox as outbox_mod
-        outbox_mod.DB_PATH = str(tmp_path / "outbox.db")
+        outbox_mod.settings.SQLITE_DB_PATH = str(tmp_path / "outbox.db")
         from app.db.outbox import init_db, get_connection
         init_db()
 
@@ -165,7 +164,7 @@ class TestProcessBatch:
 
     def _make_service_with_db(self, tmp_path):
         import app.db.outbox as outbox_mod
-        outbox_mod.DB_PATH = str(tmp_path / "outbox.db")
+        outbox_mod.settings.SQLITE_DB_PATH = str(tmp_path / "outbox.db")
         from app.db.outbox import init_db
         init_db()
         from app.services.outbox_service import OutboxService
@@ -174,7 +173,7 @@ class TestProcessBatch:
     def test_sends_pending_row_and_deletes_it(self, tmp_path):
         """Happy path: one row → produced → deleted from outbox."""
         import app.db.outbox as outbox_mod
-        outbox_mod.DB_PATH = str(tmp_path / "outbox.db")
+        outbox_mod.settings.SQLITE_DB_PATH = str(tmp_path / "outbox.db")
         from app.db.outbox import init_db, get_connection
         init_db()
 
@@ -206,7 +205,7 @@ class TestProcessBatch:
     def test_increments_attempts_on_broker_error(self, tmp_path):
         """When the broker rejects a message, attempts must increase."""
         import app.db.outbox as outbox_mod
-        outbox_mod.DB_PATH = str(tmp_path / "outbox.db")
+        outbox_mod.settings.SQLITE_DB_PATH = str(tmp_path / "outbox.db")
         from app.db.outbox import init_db, get_connection
         init_db()
 
@@ -238,7 +237,7 @@ class TestProcessBatch:
     def test_no_op_when_outbox_empty(self, tmp_path):
         """Empty outbox → producer is never called."""
         import app.db.outbox as outbox_mod
-        outbox_mod.DB_PATH = str(tmp_path / "outbox.db")
+        outbox_mod.settings.SQLITE_DB_PATH = str(tmp_path / "outbox.db")
         from app.db.outbox import init_db
         init_db()
 
@@ -254,7 +253,7 @@ class TestProcessBatch:
     def test_dead_letter_rows_are_skipped(self, tmp_path):
         """Rows at MAX_ATTEMPTS threshold must never be produced."""
         import app.db.outbox as outbox_mod
-        outbox_mod.DB_PATH = str(tmp_path / "outbox.db")
+        outbox_mod.settings.SQLITE_DB_PATH = str(tmp_path / "outbox.db")
         from app.db.outbox import init_db, get_connection
         init_db()
 
@@ -272,7 +271,7 @@ class TestProcessBatch:
     def test_increments_attempts_on_flush_timeout(self, tmp_path):
         """When flush() times out (callback never fired), attempts must increase."""
         import app.db.outbox as outbox_mod
-        outbox_mod.DB_PATH = str(tmp_path / "outbox.db")
+        outbox_mod.settings.SQLITE_DB_PATH = str(tmp_path / "outbox.db")
         from app.db.outbox import init_db, get_connection
         init_db()
 
@@ -313,7 +312,7 @@ class TestRelayLoop:
     async def test_relay_loop_cancels_cleanly(self, tmp_path):
         """relay_loop must flush the producer and raise CancelledError on cancel."""
         import app.db.outbox as outbox_mod
-        outbox_mod.DB_PATH = str(tmp_path / "outbox.db")
+        outbox_mod.settings.SQLITE_DB_PATH = str(tmp_path / "outbox.db")
         from app.db.outbox import init_db
         init_db()
 

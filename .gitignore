@@ -31,3 +31,5 @@ build/
 front/
 ### VS Code ###
 .vscode/
+/predictor-service/app/services/__pycache__
+/predictor-service/__pycache__

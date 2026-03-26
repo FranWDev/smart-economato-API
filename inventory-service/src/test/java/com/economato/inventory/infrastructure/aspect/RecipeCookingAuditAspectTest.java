@@ -52,7 +52,6 @@ class RecipeCookingAuditAspectTest {
     @Mock private RecipeRepository       recipeRepository;
     @Mock private SecurityContextHelper  securityContextHelper;
     @Mock private AuditEventProducer     auditEventProducer;
-    @Mock private StockLedgerService     stockLedgerService;
     @Mock private ObjectMapper           objectMapper;
     @Mock private ProceedingJoinPoint    joinPoint;
     @Mock private RecipeCookingAuditable auditable;
@@ -70,7 +69,6 @@ class RecipeCookingAuditAspectTest {
                 recipeRepository,
                 securityContextHelper,
                 auditEventProducer,
-                stockLedgerService,
                 objectMapper);
     }
 
@@ -98,25 +96,11 @@ class RecipeCookingAuditAspectTest {
         return recipe;
     }
 
-    private ProductConsumptionResponseDTO historyFor(Integer productId, int entries) {
-        List<DailyConsumptionDTO> breakdown = IntStream.range(0, entries)
-                .mapToObj(i -> new DailyConsumptionDTO(
-                        LocalDate.now().minusDays(entries - i),
-                        new BigDecimal(String.valueOf(i + 1))))
-                .collect(Collectors.toList());
-
-        return ProductConsumptionResponseDTO.builder()
-                .productId(productId)
-                .productName("Product " + productId)
-                .breakdown(breakdown)
-                .build();
-    }
-
     // ── Tests ─────────────────────────────────────────────────────────────────
 
     @Test
-    @DisplayName("productHistories is embedded in the Kafka event with actual breakdown data")
-    void productHistories_areEmbeddedInKafkaEvent() throws Throwable {
+    @DisplayName("RecipeCookingAuditEvent is published with null productHistories (migrated to PredictorTriggerAspect)")
+    void cooking_publishesEventWithoutEmbeddedHistory() throws Throwable {
         // given
         Recipe recipe = buildRecipe();
         RecipeCookingRequestDTO request = new RecipeCookingRequestDTO();
@@ -128,14 +112,6 @@ class RecipeCookingAuditAspectTest {
         given(recipeRepository.findByIdWithDetails(12)).willReturn(Optional.of(recipe));
         given(securityContextHelper.getCurrentUser()).willReturn(null);
         given(objectMapper.writeValueAsString(any())).willReturn("{\"components\":[]}");
-
-        // Mock history batch: PRODUCT_A has 30 data points, PRODUCT_B has 15
-        java.util.Map<Integer, List<DailyConsumptionDTO>> historyMap = new java.util.HashMap<>();
-        historyMap.put(PRODUCT_A, historyFor(PRODUCT_A, 30).getBreakdown());
-        historyMap.put(PRODUCT_B, historyFor(PRODUCT_B, 15).getBreakdown());
-
-        given(stockLedgerService.getDailyConsumptionBatch(anyList(), any(), any()))
-                .willReturn(historyMap);
 
         // when
         aspect.logCookingAction(joinPoint, auditable);
@@ -146,94 +122,9 @@ class RecipeCookingAuditAspectTest {
         verify(auditEventProducer).publishRecipeCookingAudit(captor.capture());
 
         RecipeCookingAuditEvent event = captor.getValue();
+        assertThat(event.getRecipeId()).isEqualTo(12);
         assertThat(event.getProductHistories())
-                .as("productHistories must be present in the event")
-                .isNotNull()
-                .isNotEmpty();
-
-        List<DailyConsumption> historyA = event.getProductHistories().get(PRODUCT_A);
-        assertThat(historyA)
-                .as("Product %d should have 30 history entries", PRODUCT_A)
-                .hasSize(30);
-        assertThat(historyA.get(0).getDate()).isNotNull();
-        assertThat(historyA.get(0).getConsumed()).isPositive();
-
-        List<DailyConsumption> historyB = event.getProductHistories().get(PRODUCT_B);
-        assertThat(historyB)
-                .as("Product %d should have 15 history entries", PRODUCT_B)
-                .hasSize(15);
-    }
-
-    @Test
-    @DisplayName("productHistories is empty map if stockLedgerService throws for a product")
-    void productHistories_gracefullyHandlesServiceError() throws Throwable {
-        // given
-        Recipe recipe = buildRecipe();
-        RecipeCookingRequestDTO request = new RecipeCookingRequestDTO();
-        request.setRecipeId(12);
-        request.setQuantity(BigDecimal.ONE);
-
-        given(joinPoint.getArgs()).willReturn(new Object[]{request});
-        given(joinPoint.proceed()).willReturn(null);
-        given(recipeRepository.findByIdWithDetails(12)).willReturn(Optional.of(recipe));
-        given(securityContextHelper.getCurrentUser()).willReturn(null);
-        given(objectMapper.writeValueAsString(any())).willReturn("{\"components\":[]}");
-
-        // Batch throws
-        given(stockLedgerService.getDailyConsumptionBatch(anyList(), any(), any()))
-                .willThrow(new RuntimeException("DB unavailable"));
-
-        // when
-        aspect.logCookingAction(joinPoint, auditable);
-
-        // then — event must still be published, with empty data
-        ArgumentCaptor<RecipeCookingAuditEvent> captor =
-                ArgumentCaptor.forClass(RecipeCookingAuditEvent.class);
-        verify(auditEventProducer).publishRecipeCookingAudit(captor.capture());
-
-        RecipeCookingAuditEvent event = captor.getValue();
-        assertThat(event.getProductHistories()).containsKey(PRODUCT_A);
-        assertThat(event.getProductHistories().get(PRODUCT_A))
-                .as("Failed product should have empty list (not null)")
-                .isEmpty();
-    }
-
-    @Test
-    @DisplayName("productHistories contains empty list if stockLedger has no consumption data")
-    void productHistories_emptyWhenNoLedgerData() throws Throwable {
-        // given
-        Recipe recipe = buildRecipe();
-        RecipeCookingRequestDTO request = new RecipeCookingRequestDTO();
-        request.setRecipeId(12);
-        request.setQuantity(BigDecimal.ONE);
-
-        given(joinPoint.getArgs()).willReturn(new Object[]{request});
-        given(joinPoint.proceed()).willReturn(null);
-        given(recipeRepository.findByIdWithDetails(12)).willReturn(Optional.of(recipe));
-        given(securityContextHelper.getCurrentUser()).willReturn(null);
-        given(objectMapper.writeValueAsString(any())).willReturn("{\"components\":[]}");
-
-        // No consumption data for either product in the batch
-        java.util.Map<Integer, List<DailyConsumptionDTO>> historyMap = new java.util.HashMap<>();
-        historyMap.put(PRODUCT_A, List.of());
-        historyMap.put(PRODUCT_B, List.of());
-
-        given(stockLedgerService.getDailyConsumptionBatch(anyList(), any(), any()))
-                .willReturn(historyMap);
-
-        // when
-        aspect.logCookingAction(joinPoint, auditable);
-
-        // then
-        ArgumentCaptor<RecipeCookingAuditEvent> captor =
-                ArgumentCaptor.forClass(RecipeCookingAuditEvent.class);
-        verify(auditEventProducer).publishRecipeCookingAudit(captor.capture());
-
-        RecipeCookingAuditEvent event = captor.getValue();
-        // productHistories should still be present but with empty lists
-        assertThat(event.getProductHistories()).isNotNull();
-        event.getProductHistories().values().forEach(
-                list -> assertThat(list).isEmpty()
-        );
+                .as("productHistories must be null in RecipeCookingAuditAspect (now handled by PredictorTriggerAspect)")
+                .isNull();
     }
 }

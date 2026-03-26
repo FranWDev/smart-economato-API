@@ -36,6 +36,7 @@ import com.economato.inventory.application.dto.response.OrderTotalCostResponseDT
 import com.economato.inventory.application.dto.response.UserResponseDTO;
 import com.economato.inventory.application.mapper.OrderMapper;
 import com.economato.inventory.domain.OrderAuditable;
+import com.economato.inventory.domain.PredictorTrigger;
 import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Order;
 import com.economato.inventory.domain.model.OrderDetail;
@@ -297,6 +298,7 @@ public class OrderService {
          * 
          * Utiliza Pessimistic Locking para garantizar consistencia en el stock.
          */
+        @PredictorTrigger(action = "ORDER_RECEPTION")
         @OrderAuditable(action = "RECEPCION_ORDEN")
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class,
