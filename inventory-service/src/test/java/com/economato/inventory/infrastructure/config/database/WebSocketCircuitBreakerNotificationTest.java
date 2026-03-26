@@ -1,6 +1,7 @@
 package com.economato.inventory.infrastructure.config.database;
 
 import com.economato.inventory.infrastructure.WebSocketConnectedEvent;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditOutboxProcessor;
 import com.economato.inventory.infrastructure.config.security.JwtUtils;
 import com.economato.inventory.application.usecase.CustomUserDetailsService;
@@ -41,6 +42,9 @@ public class WebSocketCircuitBreakerNotificationTest {
 
     @MockitoBean
     private AuditOutboxProcessor outboxProcessor;
+
+    @MockitoBean
+    private AuditEventProducer auditEventProducer;
 
     @MockitoBean
     private JwtUtils jwtUtils;

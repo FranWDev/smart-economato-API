@@ -12,12 +12,17 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 
 import static org.assertj.core.api.Assertions.*;
 
 @Transactional
 @DisplayName("OrderDetailRepository Integration Tests")
 class OrderDetailRepositoryIntegrationTest extends BaseIntegrationTest {
+
+    @MockitoBean
+    private AuditEventProducer auditEventProducer;
 
     @Autowired
     private OrderDetailRepository orderDetailRepository;

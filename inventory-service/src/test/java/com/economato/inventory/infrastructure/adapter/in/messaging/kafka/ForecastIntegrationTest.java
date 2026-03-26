@@ -19,9 +19,11 @@ import com.economato.inventory.application.dto.event.ForecastResultType;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.StockPrediction;
 import com.economato.inventory.infrastructure.adapter.in.web.BaseIntegrationTest;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockPredictionRepository;
 import com.economato.inventory.infrastructure.config.KafkaTestContainerConfig;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
  * Integration Test for the Forecast flow.
@@ -35,6 +37,9 @@ import com.economato.inventory.infrastructure.config.KafkaTestContainerConfig;
 @ActiveProfiles({ "kafka-test" })
 @Import(KafkaTestContainerConfig.class)
 public class ForecastIntegrationTest extends BaseIntegrationTest {
+
+    @MockitoBean
+    private AuditEventProducer auditEventProducer;
 
     @Autowired
     private KafkaTemplate<String, ForecastResultEvent> kafkaTemplate;

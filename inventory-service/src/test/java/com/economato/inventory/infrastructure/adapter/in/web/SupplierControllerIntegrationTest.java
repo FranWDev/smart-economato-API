@@ -8,6 +8,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import com.economato.inventory.application.dto.request.LoginRequestDTO;
 import com.economato.inventory.application.dto.request.SupplierRequestDTO;
@@ -15,6 +16,7 @@ import com.economato.inventory.application.dto.response.LoginResponseDTO;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 import com.economato.inventory.infrastructure.TestDataUtil;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 
 class SupplierControllerIntegrationTest extends BaseIntegrationTest {
 
@@ -23,6 +25,9 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
 
         @Autowired
         private UserRepository userRepository;
+
+        @MockitoBean
+        private AuditEventProducer auditEventProducer;
 
         private String jwtToken;
         private User testUser;

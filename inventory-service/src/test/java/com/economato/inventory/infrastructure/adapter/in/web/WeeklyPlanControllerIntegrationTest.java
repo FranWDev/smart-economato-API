@@ -24,12 +24,16 @@ import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
 
     private static final String BASE_URL = "/api/weekly-plans";
     private static final String AUTH_URL = "/api/auth/login";
+
+    @MockitoBean private AuditEventProducer auditEventProducer;
 
     @Autowired private UserRepository userRepository;
     @Autowired private ProductRepository productRepository;

@@ -21,6 +21,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockSnapshotRepository;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
@@ -29,12 +30,16 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class StockLedgerServiceIntegrationTest {
+
+        @MockitoBean
+        private AuditEventProducer auditEventProducer;
 
         @Autowired
         private StockLedgerService stockLedgerService;

@@ -26,11 +26,16 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 import com.economato.inventory.infrastructure.TestDataUtil;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 
 class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
         private static final String BASE_URL = "/api/orders";
         private static final String AUTH_URL = "/api/auth/login";
+
+        @MockitoBean
+        private AuditEventProducer auditEventProducer;
 
         @Autowired
         private UserRepository userRepository;

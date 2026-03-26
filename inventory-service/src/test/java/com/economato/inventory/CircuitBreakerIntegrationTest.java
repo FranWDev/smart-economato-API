@@ -1,5 +1,6 @@
 package com.economato.inventory;
 
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditOutboxProcessor;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.config.security.JwtUtils;
@@ -43,6 +44,9 @@ public class CircuitBreakerIntegrationTest {
 
         @MockitoBean
         private AuditOutboxProcessor outboxProcessor;
+
+        @MockitoBean
+        private AuditEventProducer auditEventProducer;
 
         @MockitoBean
         private JwtUtils jwtUtils;
