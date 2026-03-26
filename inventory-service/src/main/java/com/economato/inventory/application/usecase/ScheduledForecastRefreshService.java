@@ -1,7 +1,11 @@
 package com.economato.inventory.application.usecase;
 
+import com.economato.inventory.application.dto.event.StockPredictionEvent;
+import com.economato.inventory.application.dto.event.StockPredictionEvent.DailyConsumption;
+import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO.DailyConsumptionDTO;
 import com.economato.inventory.domain.PredictorTrigger;
 import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,8 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -21,6 +25,8 @@ public class ScheduledForecastRefreshService {
 
     private final ProductRepository productRepository;
     private final StockLedgerRepository stockLedgerRepository;
+    private final StockLedgerService stockLedgerService;
+    private final AuditEventProducer auditEventProducer;
     private final WebSocketNotificationService webSocketNotificationService;
 
     /**
@@ -54,10 +60,9 @@ public class ScheduledForecastRefreshService {
         int batchSize = 20;
         for (int i = 0; i < activeMovedProductIds.size(); i += batchSize) {
             int end = Math.min(i + batchSize, activeMovedProductIds.size());
-            List<Integer> batch = activeMovedProductIds.subList(i, end);
+            List<Integer> batch = new ArrayList<>(activeMovedProductIds.subList(i, end));
             
-            // Llamada al método anotado para que el aspecto lo capture
-            triggerRefresh(new ArrayList<>(batch));
+            publishPredictionEvent(batch);
         }
         
         // Notificar a administradores por WebSocket
@@ -65,6 +70,39 @@ public class ScheduledForecastRefreshService {
         
         log.info("Refresco programado completado para {} productos en {} lotes.", 
                 activeMovedProductIds.size(), (int) Math.ceil((double) activeMovedProductIds.size() / batchSize));
+    }
+
+    private void publishPredictionEvent(List<Integer> productIds) {
+        LocalDateTime end = LocalDateTime.now();
+        LocalDateTime start = end.minusDays(90).withHour(0).withMinute(0).withSecond(0).withNano(0);
+
+        Map<Integer, List<DailyConsumptionDTO>> batchResults =
+                stockLedgerService.getDailyConsumptionBatch(productIds, start, end);
+
+        Map<Integer, List<DailyConsumption>> productHistories = new HashMap<>();
+        for (Integer pid : productIds) {
+            List<DailyConsumptionDTO> breakdown = batchResults.get(pid);
+            if (breakdown != null) {
+                productHistories.put(pid, breakdown.stream()
+                        .map(d -> DailyConsumption.builder()
+                                .date(d.getDate())
+                                .consumed(d.getConsumed())
+                                .build())
+                        .collect(Collectors.toList()));
+            } else {
+                productHistories.put(pid, Collections.emptyList());
+            }
+        }
+
+        StockPredictionEvent event = StockPredictionEvent.builder()
+                .triggerType("SCHEDULED_REFRESH")
+                .affectedProductIds(productIds)
+                .productHistories(productHistories)
+                .timestamp(LocalDateTime.now())
+                .userName("Sistema")
+                .build();
+
+        auditEventProducer.publishStockPredictionEvent(event);
     }
 
     /**
