@@ -15,6 +15,7 @@ import com.economato.inventory.application.dto.event.InventoryAuditEvent;
 import com.economato.inventory.application.dto.event.OrderAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeCookingAuditEvent;
+import com.economato.inventory.application.dto.event.StockPredictionEvent;
 import com.economato.inventory.domain.model.AuditOutbox;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.AuditOutboxRepository;
 
@@ -52,6 +53,7 @@ public class AuditOutboxProcessor {
     private final KafkaTemplate<String, RecipeAuditEvent> recipeKafkaTemplate;
     private final KafkaTemplate<String, OrderAuditEvent> orderKafkaTemplate;
     private final KafkaTemplate<String, RecipeCookingAuditEvent> recipeCookingKafkaTemplate;
+    private final KafkaTemplate<String, StockPredictionEvent> stockPredictionKafkaTemplate;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
 
     public AuditOutboxProcessor(
@@ -61,6 +63,7 @@ public class AuditOutboxProcessor {
             KafkaTemplate<String, RecipeAuditEvent> recipeKafkaTemplate,
             KafkaTemplate<String, OrderAuditEvent> orderKafkaTemplate,
             KafkaTemplate<String, RecipeCookingAuditEvent> recipeCookingKafkaTemplate,
+            KafkaTemplate<String, StockPredictionEvent> stockPredictionKafkaTemplate,
             MeterRegistry meterRegistry,
             CircuitBreakerRegistry circuitBreakerRegistry) {
         this.outboxRepository = outboxRepository;
@@ -69,6 +72,7 @@ public class AuditOutboxProcessor {
         this.recipeKafkaTemplate = recipeKafkaTemplate;
         this.orderKafkaTemplate = orderKafkaTemplate;
         this.recipeCookingKafkaTemplate = recipeCookingKafkaTemplate;
+        this.stockPredictionKafkaTemplate = stockPredictionKafkaTemplate;
         this.circuitBreakerRegistry = circuitBreakerRegistry;
 
         // Registrar Gauge para eventos pendientes en Outbox
@@ -116,6 +120,9 @@ public class AuditOutboxProcessor {
                         case AuditEventProducer.RECIPE_COOKING_AUDIT_TOPIC:
                             auditEvent = objectMapper.readValue(event.getPayload(), RecipeCookingAuditEvent.class);
                             break;
+                        case AuditEventProducer.STOCK_PREDICTION_TOPIC:
+                            auditEvent = objectMapper.readValue(event.getPayload(), StockPredictionEvent.class);
+                            break;
                         default:
                             log.warn("Topic no reconocido en Outbox: {}", event.getTopic());
                             outboxRepository.delete(event);
@@ -154,6 +161,10 @@ public class AuditOutboxProcessor {
                         case AuditEventProducer.RECIPE_COOKING_AUDIT_TOPIC:
                             future = recipeCookingKafkaTemplate.send(event.getTopic(), event.getEventKey(),
                                     (RecipeCookingAuditEvent) auditEvent);
+                            break;
+                        case AuditEventProducer.STOCK_PREDICTION_TOPIC:
+                            future = stockPredictionKafkaTemplate.send(event.getTopic(), event.getEventKey(),
+                                    (StockPredictionEvent) auditEvent);
                             break;
                     }
                 }
