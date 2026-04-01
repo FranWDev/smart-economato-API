@@ -386,7 +386,11 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
                 var item = new java.util.HashMap<String, Object>();
                 item.put("productId", testProduct1.getId());
                 item.put("quantityReceived", 5.0);
-                item.put("expirationDate", "2030-01-01");
+                
+                var lot = new java.util.HashMap<String, Object>();
+                lot.put("quantity", 5.0);
+                lot.put("expirationDate", "2030-01-01");
+                item.put("lots", java.util.Arrays.asList(lot));
                 items.add(item);
                 receptionData.put("items", items);
 

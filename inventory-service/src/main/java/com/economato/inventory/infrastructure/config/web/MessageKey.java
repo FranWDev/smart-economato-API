@@ -32,6 +32,7 @@ public enum MessageKey {
     ERROR_ORDER_PRODUCT_NOT_FOUND("error.order.product.not.found"),
     ERROR_ORDER_CANNOT_RECEIVE_LESS("error.order.cannot.receive.less"),
     ERROR_ORDER_INVALID_STATE("error.order.invalid.state"),
+    ERROR_ORDER_LOTS_SUM_MISMATCH("error.order.lots.sum.mismatch"),
 
     ERROR_OPTIMISTIC_LOCK("error.optimistic.lock"),
     ERROR_PESSIMISTIC_LOCK("error.pessimistic.lock"),

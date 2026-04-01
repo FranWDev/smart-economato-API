@@ -48,6 +48,46 @@ public class KafkaConfig {
                 .build();
     }
 
+    @Bean
+    public NewTopic inventoryAuditTopic() {
+        return TopicBuilder.name(AuditEventProducer.INVENTORY_AUDIT_TOPIC)
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic recipeAuditTopic() {
+        return TopicBuilder.name(AuditEventProducer.RECIPE_AUDIT_TOPIC)
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic orderAuditTopic() {
+        return TopicBuilder.name(AuditEventProducer.ORDER_AUDIT_TOPIC)
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic recipeCookingAuditTopic() {
+        return TopicBuilder.name(AuditEventProducer.RECIPE_COOKING_AUDIT_TOPIC)
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic forecastUpdatesTopic() {
+        return TopicBuilder.name("forecast-updates")
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
     /**
      * Configuración común del productor
      */

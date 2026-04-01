@@ -2,6 +2,7 @@ package com.economato.inventory.application.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -35,4 +36,7 @@ public class OrderDetailResponseDTO {
 
     @Schema(description = "Subtotal del detalle (cantidad × precio unitario)", example = "4.20")
     private BigDecimal subtotal;
+
+    @Schema(description = "Lista de lotes recibidos con sus cantidades y fechas de caducidad")
+    private List<LotReceptionResponseDTO> lots;
 }
