@@ -40,6 +40,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 import com.economato.inventory.application.dto.projection.OrderProjection;
+import com.economato.inventory.application.dto.request.LotReceptionRequestDTO;
 import com.economato.inventory.application.dto.request.OrderDetailRequestDTO;
 import com.economato.inventory.application.dto.request.OrderReceptionDetailRequestDTO;
 import com.economato.inventory.application.dto.request.OrderReceptionRequestDTO;
@@ -397,7 +398,10 @@ class OrderServiceTest {
         OrderReceptionDetailRequestDTO receptionItem = new OrderReceptionDetailRequestDTO();
         receptionItem.setProductId(1);
         receptionItem.setQuantityReceived(new BigDecimal("5.0"));
-        receptionItem.setExpirationDate(LocalDate.now().plusDays(30));
+        LotReceptionRequestDTO lot = new LotReceptionRequestDTO();
+        lot.setQuantity(new BigDecimal("5.0"));
+        lot.setExpirationDate(LocalDate.now().plusDays(30));
+        receptionItem.setLots(Arrays.asList(lot));
         receptionData.setItems(Arrays.asList(receptionItem));
 
         testOrder.getDetails().get(0).setQuantityReceived(new BigDecimal("5.0"));
@@ -446,6 +450,10 @@ class OrderServiceTest {
         OrderReceptionDetailRequestDTO receptionItem = new OrderReceptionDetailRequestDTO();
         receptionItem.setProductId(1);
         receptionItem.setQuantityReceived(new BigDecimal("3.0"));
+        LotReceptionRequestDTO lot = new LotReceptionRequestDTO();
+        lot.setQuantity(new BigDecimal("3.0"));
+        lot.setExpirationDate(LocalDate.now().plusDays(30));
+        receptionItem.setLots(Arrays.asList(lot));
         receptionData.setItems(Arrays.asList(receptionItem));
 
         testOrder.getDetails().get(0).setQuantityReceived(new BigDecimal("3.0"));
@@ -484,6 +492,10 @@ class OrderServiceTest {
         OrderReceptionDetailRequestDTO receptionItem = new OrderReceptionDetailRequestDTO();
         receptionItem.setProductId(999);
         receptionItem.setQuantityReceived(new BigDecimal("5.0"));
+        LotReceptionRequestDTO lot = new LotReceptionRequestDTO();
+        lot.setQuantity(new BigDecimal("5.0"));
+        lot.setExpirationDate(LocalDate.now().plusDays(30));
+        receptionItem.setLots(Arrays.asList(lot));
         receptionData.setItems(Arrays.asList(receptionItem));
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
@@ -602,6 +614,10 @@ class OrderServiceTest {
         OrderReceptionDetailRequestDTO receptionDetail = new OrderReceptionDetailRequestDTO();
         receptionDetail.setProductId(1);
         receptionDetail.setQuantityReceived(new BigDecimal("5.0"));
+        LotReceptionRequestDTO lot = new LotReceptionRequestDTO();
+        lot.setQuantity(new BigDecimal("5.0"));
+        lot.setExpirationDate(LocalDate.now().plusDays(30));
+        receptionDetail.setLots(Arrays.asList(lot));
         receptionData.setItems(Arrays.asList(receptionDetail));
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
@@ -633,6 +649,10 @@ class OrderServiceTest {
         OrderReceptionDetailRequestDTO receptionDetail = new OrderReceptionDetailRequestDTO();
         receptionDetail.setProductId(1);
         receptionDetail.setQuantityReceived(new BigDecimal("3.0"));
+        LotReceptionRequestDTO lot = new LotReceptionRequestDTO();
+        lot.setQuantity(new BigDecimal("3.0"));
+        lot.setExpirationDate(LocalDate.now().plusDays(30));
+        receptionDetail.setLots(Arrays.asList(lot));
         receptionData.setItems(Arrays.asList(receptionDetail));
 
         testOrder.getDetails().get(0).setQuantityReceived(new BigDecimal("3.0"));
@@ -659,5 +679,70 @@ class OrderServiceTest {
         verify(stockLedgerService).recordStockMovement(
             anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
         verify(repository).save(any(Order.class));
+    }
+
+    @Test
+    void receiveOrder_WithMultipleLots_ShouldCreateMultipleBatches() {
+        OrderReceptionRequestDTO receptionData = new OrderReceptionRequestDTO();
+        receptionData.setOrderId(1);
+
+        OrderReceptionDetailRequestDTO receptionDetail = new OrderReceptionDetailRequestDTO();
+        receptionDetail.setProductId(1);
+        receptionDetail.setQuantityReceived(new BigDecimal("5.0"));
+        
+        LotReceptionRequestDTO lot1 = new LotReceptionRequestDTO();
+        lot1.setQuantity(new BigDecimal("2.0"));
+        lot1.setExpirationDate(LocalDate.now().plusDays(10));
+
+        LotReceptionRequestDTO lot2 = new LotReceptionRequestDTO();
+        lot2.setQuantity(new BigDecimal("3.0"));
+        lot2.setExpirationDate(LocalDate.now().plusDays(20));
+
+        receptionDetail.setLots(Arrays.asList(lot1, lot2));
+        receptionData.setItems(Arrays.asList(receptionDetail));
+
+        testOrder.getDetails().get(0).setQuantityReceived(new BigDecimal("5.0"));
+
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+        when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
+        StockLedger ledger = new StockLedger();
+        when(stockLedgerService.recordStockMovement(
+            anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class)))
+            .thenReturn(ledger);
+        when(repository.save(any(Order.class))).thenReturn(testOrder);
+        when(orderMapper.toResponseDTO(any(Order.class))).thenReturn(testOrderResponseDTO);
+
+        OrderResponseDTO result = orderService.receiveOrder(receptionData);
+
+        assertNotNull(result);
+        verify(stockLedgerService, times(2)).recordStockMovement(
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
+    }
+
+    @Test
+    void receiveOrder_WithLotsSumMismatch_ShouldThrowException() {
+        OrderReceptionRequestDTO receptionData = new OrderReceptionRequestDTO();
+        receptionData.setOrderId(1);
+
+        OrderReceptionDetailRequestDTO receptionDetail = new OrderReceptionDetailRequestDTO();
+        receptionDetail.setProductId(1);
+        receptionDetail.setQuantityReceived(new BigDecimal("5.0"));
+        
+        LotReceptionRequestDTO lot1 = new LotReceptionRequestDTO();
+        lot1.setQuantity(new BigDecimal("2.0"));
+        lot1.setExpirationDate(LocalDate.now().plusDays(10));
+
+        LotReceptionRequestDTO lot2 = new LotReceptionRequestDTO();
+        lot2.setQuantity(new BigDecimal("2.0"));
+        lot2.setExpirationDate(LocalDate.now().plusDays(20));
+
+        receptionDetail.setLots(Arrays.asList(lot1, lot2));
+        receptionData.setItems(Arrays.asList(receptionDetail));
+
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+
+        assertThrows(InvalidOperationException.class, () -> orderService.receiveOrder(receptionData));
+        verify(stockLedgerService, never()).recordStockMovement(
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
     }
 }

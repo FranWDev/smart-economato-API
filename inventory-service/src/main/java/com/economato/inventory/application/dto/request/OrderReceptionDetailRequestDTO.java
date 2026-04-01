@@ -1,11 +1,12 @@
 package com.economato.inventory.application.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.FutureOrPresent;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -25,8 +26,8 @@ public class OrderReceptionDetailRequestDTO {
     @Schema(description = "Cantidad del producto recibida", example = "5.0")
     private BigDecimal quantityReceived;
 
-    @NotNull(message = "{validation.orderReceptionDetailRequestDTO.expirationDate.notNull}")
-    @FutureOrPresent(message = "{validation.orderReceptionDetailRequestDTO.expirationDate.futureOrPresent}")
-    @Schema(description = "Fecha de caducidad del lote recibido (obligatoria)", example = "2026-12-31")
-    private LocalDate expirationDate;
+    @NotEmpty(message = "{validation.orderReceptionDetailRequestDTO.lots.notEmpty}")
+    @Valid
+    @Schema(description = "Lista de lotes recibidos con sus cantidades y fechas de caducidad")
+    private List<LotReceptionRequestDTO> lots;
 }

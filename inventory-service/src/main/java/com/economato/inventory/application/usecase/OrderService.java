@@ -25,10 +25,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.economato.inventory.application.dto.request.LotReceptionRequestDTO;
 import com.economato.inventory.application.dto.request.OrderDetailRequestDTO;
 import com.economato.inventory.application.dto.request.OrderReceptionDetailRequestDTO;
 import com.economato.inventory.application.dto.request.OrderReceptionRequestDTO;
 import com.economato.inventory.application.dto.request.OrderRequestDTO;
+import com.economato.inventory.application.dto.response.LotReceptionResponseDTO;
 import com.economato.inventory.application.dto.response.OrderDetailResponseDTO;
 import com.economato.inventory.application.dto.response.OrderFilterResponseDTO;
 import com.economato.inventory.application.dto.response.OrderResponseDTO;
@@ -320,6 +322,14 @@ public class OrderService {
                                                         i18nService.getMessage(
                                                                         MessageKey.ERROR_ORDER_PRODUCT_NOT_FOUND)));
 
+                        BigDecimal lotsSum = receptionItem.getLots().stream()
+                                        .map(LotReceptionRequestDTO::getQuantity)
+                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                        if (lotsSum.compareTo(receptionItem.getQuantityReceived()) != 0) {
+                                throw new InvalidOperationException(
+                                                i18nService.getMessage(MessageKey.ERROR_ORDER_LOTS_SUM_MISMATCH));
+                        }
+
                         if (receptionItem.getQuantityReceived().compareTo(detail.getQuantity()) < 0) {
                                 isComplete = false;
                         }
@@ -366,25 +376,39 @@ public class OrderService {
                                 }
 
                                 var receptionItem = receptionByProductId.get(detail.getProduct().getId());
-                                LocalDate expDate = (receptionItem != null) ? receptionItem.getExpirationDate() : null;
-
-                                StockLedger ledgerTx = stockLedgerService.recordStockMovement(
-                                                product.getId(),
-                                                detail.getQuantityReceived(),
-                                                MovementType.ENTRADA,
-                                                i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_RECEPTION,
-                                                                new Object[] { order.getId(), product.getName() }),
-                                                order.getUser(),
-                                                order.getId(),
-                                                expDate);
-
+                                if (receptionItem != null && receptionItem.getLots() != null) {
+                                        for (var lot : receptionItem.getLots()) {
+                                                stockLedgerService.recordStockMovement(
+                                                                product.getId(),
+                                                                lot.getQuantity(),
+                                                                MovementType.ENTRADA,
+                                                                i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_RECEPTION,
+                                                                                new Object[] { order.getId(), product.getName() }),
+                                                                order.getUser(),
+                                                                order.getId(),
+                                                                lot.getExpirationDate());
+                                        }
+                                }
                         }
                 }
 
                 log.info("Orden {} procesada - movimientos registrados en ledger", order.getId());
 
                 Order savedOrder = repository.save(order);
-                return orderMapper.toResponseDTO(savedOrder);
+                OrderResponseDTO responseDTO = orderMapper.toResponseDTO(savedOrder);
+
+                if (responseDTO.getDetails() != null) {
+                        for (OrderDetailResponseDTO detailResp : responseDTO.getDetails()) {
+                                var receptionItem = receptionByProductId.get(detailResp.getProductId());
+                                if (receptionItem != null && receptionItem.getLots() != null) {
+                                        List<LotReceptionResponseDTO> lotResponses = receptionItem.getLots().stream()
+                                                        .map(lot -> new LotReceptionResponseDTO(lot.getQuantity(), lot.getExpirationDate()))
+                                                        .toList();
+                                        detailResp.setLots(lotResponses);
+                                }
+                        }
+                }
+                return responseDTO;
         }
 
         @Transactional(readOnly = true)
