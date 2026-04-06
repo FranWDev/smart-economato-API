@@ -11,6 +11,8 @@ import tools.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 
 @Slf4j
 @Service
@@ -51,6 +53,7 @@ public class AuditEventProducer {
         saveToOutbox(STOCK_PREDICTION_TOPIC, "prediction-" + event.getTriggerType(), event);
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false)
     private void saveToOutbox(String topic, String key, Object event) {
         try {
             String payload = objectMapper.writeValueAsString(event);
