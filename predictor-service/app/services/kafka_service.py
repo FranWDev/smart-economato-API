@@ -70,6 +70,10 @@ class KafkaManager:
             if msg.error():
                 if msg.error().code() == KafkaError._PARTITION_EOF:
                     continue
+                if msg.error().code() == KafkaError.UNKNOWN_TOPIC_OR_PART:
+                    logger.debug(f"Topic not yet available: {msg.error()}")
+                    await asyncio.sleep(1.0)
+                    continue
                 logger.error(f"Kafka consumer error: {msg.error()}")
                 raise KafkaException(msg.error())
 
