@@ -24,7 +24,9 @@ import com.economato.inventory.infrastructure.config.web.MessageKey;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -462,6 +464,7 @@ public class WeeklyPlanService {
     @Transactional(readOnly = true)
     public Page<StudentMetricsResponseDTO> getStudentMetrics(Integer chefId, Pageable pageable) {
         User currentUser = securityContextHelper.getCurrentUser();
+        Pageable normalizedPageable = normalizeStudentMetricsPageable(pageable);
 
         // Security: Default to current user's chef ID for non-ADMIN roles if null or
         // different
@@ -476,17 +479,40 @@ public class WeeklyPlanService {
         }
 
         if (chefId != null) {
-            Page<Object[]> results = slotStudentRepository.findStudentMetricsByChefId(chefId, pageable);
+            Page<Object[]> results = slotStudentRepository.findStudentMetricsByChefId(chefId, normalizedPageable);
             return results.map(row -> new StudentMetricsResponseDTO((Integer) row[0], (String) row[1], (Long) row[2],
                     (Long) row[3], (Long) row[4],
                     ((Long) row[2] > 0) ? ((Long) row[3] * 100.0 / (Long) row[2]) : 0.0));
         } else {
             // Only ADMIN can reach here if chefId is still null
-            Page<Object[]> results = slotStudentRepository.findAllStudentMetrics(pageable);
+            Page<Object[]> results = slotStudentRepository.findAllStudentMetrics(normalizedPageable);
             return results.map(row -> new StudentMetricsResponseDTO((Integer) row[0], (String) row[1], (Long) row[2],
                     (Long) row[3], (Long) row[4],
                     ((Long) row[2] > 0) ? ((Long) row[3] * 100.0 / (Long) row[2]) : 0.0));
         }
+    }
+
+    private Pageable normalizeStudentMetricsPageable(Pageable pageable) {
+        if (pageable == null) {
+            return PageRequest.of(0, 20, Sort.by(Sort.Order.asc("student.name")));
+        }
+
+        if (pageable.getSort().isUnsorted()) {
+            return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(Sort.Order.asc("student.name")));
+        }
+
+        List<Sort.Order> mappedOrders = new ArrayList<>();
+        for (Sort.Order order : pageable.getSort()) {
+            String mappedProperty = switch (order.getProperty()) {
+                case "studentName", "name", "student.name" -> "student.name";
+                case "studentId", "id", "student.id" -> "student.id";
+                case "status" -> "status";
+                default -> "student.name";
+            };
+            mappedOrders.add(new Sort.Order(order.getDirection(), mappedProperty));
+        }
+
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), Sort.by(mappedOrders));
     }
 
     private String buildComponentsState(Recipe recipe) {
