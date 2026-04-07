@@ -4,6 +4,7 @@ import com.economato.inventory.application.dto.request.LoginRequestDTO;
 import com.economato.inventory.application.dto.request.WeeklyPlanRequestDTO;
 import com.economato.inventory.application.dto.request.WeeklyPlanSlotRequestDTO;
 import com.economato.inventory.application.dto.response.LoginResponseDTO;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.economato.inventory.domain.model.*;
 import com.economato.inventory.infrastructure.TestDataUtil;
 import com.economato.inventory.infrastructure.adapter.in.web.BaseIntegrationTest;
@@ -22,6 +23,7 @@ import java.time.temporal.TemporalAdjusters;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.*;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -35,6 +37,7 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
     @Autowired private WeeklyPlanSlotRepository slotRepository;
     @Autowired private ProductRepository productRepository;
     @Autowired private ProductBatchRepository productBatchRepository;
+        @Autowired private RecipeCookingAuditRepository cookingAuditRepository;
 
     private User chef1, chef2, student1, student2;
     private String chef1Token, chef2Token;
@@ -217,7 +220,15 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
         
         mockMvc.perform(patch("/api/weekly-plans/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
         String details = mockMvc.perform(get("/api/weekly-plans/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
-        Long slotId = objectMapper.readTree(details).get("slots").get(0).get("id").asLong();
+                JsonNode slots = objectMapper.readTree(details).get("slots");
+                Long slotId = null;
+                for (JsonNode slotNode : slots) {
+                        if (slotNode.get("dayOfWeek").asInt() == 1) {
+                                slotId = slotNode.get("id").asLong();
+                                break;
+                        }
+                }
+                assertNotNull(slotId);
         mockMvc.perform(patch("/api/weekly-plans/{planId}/slots/{slotId}/confirm", planId, slotId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
 
         // Now s1 at 10:00-11:00 is CONFIRMED. s3 is unconfirmed. Plan is IN_PROGRESS.
@@ -329,5 +340,134 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
                 .header("Authorization", "Bearer " + chef1Token))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message", containsStringIgnoringCase("stock")));
+    }
+
+    @Test
+    void whenConfirmSlot_thenAuditHasComponentsState() throws Exception {
+        LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+
+        WeeklyPlanSlotRequestDTO slot = TestDataUtil.createWeeklyPlanSlotRequestDTO(
+                recipe.getId(), BigDecimal.ONE, 1, LocalTime.of(10, 0), LocalTime.of(11, 0), 1, List.of(student1.getId()));
+        WeeklyPlanRequestDTO request = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(slot));
+
+        String createResponse = mockMvc.perform(post("/api/weekly-plans")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(request))
+                        .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        Long planId = objectMapper.readTree(createResponse).get("id").asLong();
+
+        mockMvc.perform(patch("/api/weekly-plans/{id}/activate", planId)
+                        .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk());
+
+        String details = mockMvc.perform(get("/api/weekly-plans/{id}", planId)
+                        .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        Long slotId = objectMapper.readTree(details).get("slots").get(0).get("id").asLong();
+
+        mockMvc.perform(patch("/api/weekly-plans/{planId}/slots/{slotId}/confirm", planId, slotId)
+                        .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk());
+
+        RecipeCookingAudit latestAudit = cookingAuditRepository.findAll().stream()
+                .max(java.util.Comparator.comparing(RecipeCookingAudit::getId))
+                .orElseThrow();
+
+        assertNotNull(latestAudit.getComponentsState());
+
+        JsonNode componentsState = objectMapper.readTree(latestAudit.getComponentsState());
+        assertTrue(componentsState.has("components"));
+        assertTrue(componentsState.get("components").isArray());
+        assertFalse(componentsState.get("components").isEmpty());
+
+        JsonNode firstComponent = componentsState.get("components").get(0);
+        assertTrue(firstComponent.has("productId"));
+        assertTrue(firstComponent.has("productName"));
+        assertTrue(firstComponent.has("quantity"));
+    }
+
+    @Test
+    void whenConfirmDay_thenAllAuditsHaveComponentsState() throws Exception {
+        LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+
+        WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(
+                recipe.getId(), BigDecimal.ONE, 1, LocalTime.of(10, 0), LocalTime.of(11, 0), 1, List.of(student1.getId()));
+        WeeklyPlanSlotRequestDTO slot2 = TestDataUtil.createWeeklyPlanSlotRequestDTO(
+                recipe.getId(), BigDecimal.ONE, 1, LocalTime.of(12, 0), LocalTime.of(13, 0), 2, List.of(student1.getId()));
+        WeeklyPlanRequestDTO request = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(slot1, slot2));
+
+        String createResponse = mockMvc.perform(post("/api/weekly-plans")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(request))
+                        .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        Long planId = objectMapper.readTree(createResponse).get("id").asLong();
+
+        mockMvc.perform(patch("/api/weekly-plans/{id}/activate", planId)
+                        .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(patch("/api/weekly-plans/{planId}/days/{dayOfWeek}/confirm", planId, 1)
+                        .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk());
+
+        List<RecipeCookingAudit> audits = cookingAuditRepository.findAll();
+        assertEquals(2, audits.size());
+
+        for (RecipeCookingAudit audit : audits) {
+            assertNotNull(audit.getComponentsState());
+            JsonNode componentsState = objectMapper.readTree(audit.getComponentsState());
+            assertTrue(componentsState.has("components"));
+            assertTrue(componentsState.get("components").isArray());
+            assertFalse(componentsState.get("components").isEmpty());
+        }
+    }
+
+    @Test
+    void whenConfirmSlot_thenReverseTraceabilityReturnsIngredients() throws Exception {
+        LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+
+        WeeklyPlanSlotRequestDTO slot = TestDataUtil.createWeeklyPlanSlotRequestDTO(
+                recipe.getId(), BigDecimal.ONE, 1, LocalTime.of(10, 0), LocalTime.of(11, 0), 1, List.of(student1.getId()));
+        WeeklyPlanRequestDTO request = TestDataUtil.createWeeklyPlanRequestDTO(null, nextMonday, List.of(slot));
+
+        String createResponse = mockMvc.perform(post("/api/weekly-plans")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(request))
+                        .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        Long planId = objectMapper.readTree(createResponse).get("id").asLong();
+
+        mockMvc.perform(patch("/api/weekly-plans/{id}/activate", planId)
+                        .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk());
+
+        String details = mockMvc.perform(get("/api/weekly-plans/{id}", planId)
+                        .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        Long slotId = objectMapper.readTree(details).get("slots").get(0).get("id").asLong();
+
+        mockMvc.perform(patch("/api/weekly-plans/{planId}/slots/{slotId}/confirm", planId, slotId)
+                        .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk());
+
+        Long auditId = cookingAuditRepository.findAll().stream()
+                .max(java.util.Comparator.comparing(RecipeCookingAudit::getId))
+                .orElseThrow()
+                .getId();
+
+        mockMvc.perform(get("/api/traceability/reverse/{auditId}", auditId)
+                        .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ingredientTrace", not(empty())));
     }
 }
