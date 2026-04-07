@@ -26,7 +26,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - turing_postgres-data:/var/lib/postgresql/data
       - ./postgres-init.sh:/docker-entrypoint-initdb.d/postgres-init.sh:ro
       - ./pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
     deploy:
@@ -81,7 +81,7 @@ services:
       exec su-exec postgres postgres -D /var/lib/postgresql/data -c max_connections=500 -c hot_standby=on
       "
     volumes:
-      - postgres-replica-data:/var/lib/postgresql/data
+      - turing_postgres-replica-data:/var/lib/postgresql/data
     deploy:
       resources:
         limits:
@@ -100,7 +100,7 @@ services:
     ports:
       - "6381:6379"
     volumes:
-      - redis-data:/data
+      - turing_redis-data:/data
     deploy:
       resources:
         limits:
@@ -147,7 +147,7 @@ services:
       KAFKA_NUM_IO_THREADS: 2
       KAFKA_LOG_CLEANER_THREADS: 1
     volumes:
-      - kafka-data:/var/lib/kafka/data
+      - turing_kafka-data:/var/lib/kafka/data
     deploy:
       resources:
         limits:
@@ -248,7 +248,7 @@ services:
       # SQLite outbox — persisted across container restarts
       SQLITE_DB_PATH: /app/data/predictor_outbox.db
     volumes:
-      - predictor-outbox-data:/app/data
+      - turing_predictor-outbox-data:/app/data
     deploy:
       resources:
         limits:
@@ -319,7 +319,7 @@ services:
           cpus: '0.5'
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
+      - turing_prometheus-data:/prometheus
     ports:
       - "9091:9090"
     command:
@@ -356,7 +356,7 @@ services:
       GF_SERVER_ENABLE_GZIP: "true"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
     volumes:
-      - grafana-data:/var/lib/grafana
+      - turing_grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     expose:
       - "3000"
@@ -406,20 +406,20 @@ services:
   #   restart: unless-stopped
 
 volumes:
-  postgres-data:
+  turing_postgres-data:
     external: true
-  postgres-replica-data:
+  turing_postgres-replica-data:
     external: true
-  redis-data:
+  turing_redis-data:
     external: true
-  kafka-data:
+  turing_kafka-data:
     external: true
-  prometheus-data:
+  turing_prometheus-data:
     external: true
-  grafana-data:
+  turing_grafana-data:
     external: true
   # SQLite outbox — persists forecast_outbox rows when predictor restarts
-  predictor-outbox-data:
+  turing_predictor-outbox-data:
     external: true
   # Los volúmenes de zookeeper han sido borrados de la lista
 
