@@ -26,7 +26,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - turing_postgres-data:/var/lib/postgresql/data
+      - turing-backend_postgres-data:/var/lib/postgresql/data
       - ./postgres-init.sh:/docker-entrypoint-initdb.d/postgres-init.sh:ro
       - ./pg_hba.conf:/etc/postgresql/pg_hba.conf:ro
     deploy:
@@ -81,7 +81,7 @@ services:
       exec su-exec postgres postgres -D /var/lib/postgresql/data -c max_connections=500 -c hot_standby=on
       "
     volumes:
-      - turing_postgres-replica-data:/var/lib/postgresql/data
+      - turing-backend_postgres-replica-data:/var/lib/postgresql/data
     deploy:
       resources:
         limits:
@@ -406,9 +406,9 @@ services:
   #   restart: unless-stopped
 
 volumes:
-  turing_postgres-data:
+  turing-backend_postgres-data:
     external: true
-  turing_postgres-replica-data:
+  turing-backend_postgres-replica-data:
     external: true
   turing_redis-data:
     external: true
