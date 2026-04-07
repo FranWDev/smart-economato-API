@@ -24,4 +24,6 @@ public class DailyForecastResponseDTO {
     /** Horizonte en días (normalmente 14). */
     private int horizonDays;
     private LocalDateTime calculatedAt;
+    /** Lotes activos (no agotados) del producto, ordenados por fecha de caducidad ascendente. */
+    private List<ProductBatchResponseDTO> activeBatches;
 }
