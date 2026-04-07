@@ -100,7 +100,7 @@ services:
     ports:
       - "6381:6379"
     volumes:
-      - turing_redis-data:/data
+      - turing-backend_redis-data:/data
     deploy:
       resources:
         limits:
@@ -147,7 +147,7 @@ services:
       KAFKA_NUM_IO_THREADS: 2
       KAFKA_LOG_CLEANER_THREADS: 1
     volumes:
-      - turing_kafka-data:/var/lib/kafka/data
+      - turing-backend_kafka-data:/var/lib/kafka/data
     deploy:
       resources:
         limits:
@@ -248,7 +248,7 @@ services:
       # SQLite outbox — persisted across container restarts
       SQLITE_DB_PATH: /app/data/predictor_outbox.db
     volumes:
-      - turing_predictor-outbox-data:/app/data
+      - turing-backend_predictor-outbox-data:/app/data
     deploy:
       resources:
         limits:
@@ -319,7 +319,7 @@ services:
           cpus: '0.5'
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - turing_prometheus-data:/prometheus
+      - turing-backend_prometheus-data:/prometheus
     ports:
       - "9091:9090"
     command:
@@ -356,7 +356,7 @@ services:
       GF_SERVER_ENABLE_GZIP: "true"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
     volumes:
-      - turing_grafana-data:/var/lib/grafana
+      - turing-backend_grafana-data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
     expose:
       - "3000"
@@ -410,16 +410,16 @@ volumes:
     external: true
   turing-backend_postgres-replica-data:
     external: true
-  turing_redis-data:
+  turing-backend_redis-data:
     external: true
-  turing_kafka-data:
+  turing-backend_kafka-data:
     external: true
-  turing_prometheus-data:
+  turing-backend_prometheus-data:
     external: true
-  turing_grafana-data:
+  turing-backend_grafana-data:
     external: true
   # SQLite outbox — persists forecast_outbox rows when predictor restarts
-  turing_predictor-outbox-data:
+  turing-backend_predictor-outbox-data:
     external: true
   # Los volúmenes de zookeeper han sido borrados de la lista
 
