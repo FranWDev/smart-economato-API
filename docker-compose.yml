@@ -407,20 +407,20 @@ services:
 
 volumes:
   postgres-data:
-    driver: local
+    external: true
   postgres-replica-data:
-    driver: local
+    external: true
   redis-data:
-    driver: local
+    external: true
   kafka-data:
-    driver: local
+    external: true
   prometheus-data:
-    driver: local
+    external: true
   grafana-data:
-    driver: local
+    external: true
   # SQLite outbox — persists forecast_outbox rows when predictor restarts
   predictor-outbox-data:
-    driver: local
+    external: true
   # Los volúmenes de zookeeper han sido borrados de la lista
 
 networks:
