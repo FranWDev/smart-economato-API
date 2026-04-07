@@ -12,6 +12,7 @@ import com.economato.inventory.application.dto.projection.UserProjection;
 import com.economato.inventory.application.mapper.WeeklyPlanMapper;
 import com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO;
 import com.economato.inventory.application.dto.response.WeeklyPlanSlotStudentResponseDTO;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.economato.inventory.domain.model.*;
 import com.economato.inventory.domain.PredictorTrigger;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
@@ -35,6 +36,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,6 +60,7 @@ public class WeeklyPlanService {
     private final WeeklyPlanMapper wrapperMapper;
     private final SecurityContextHelper securityContextHelper;
     private final I18nService i18nService;
+    private final ObjectMapper objectMapper;
 
     public WeeklyPlanResponseDTO createPlan(WeeklyPlanRequestDTO request) {
         User currentUser = securityContextHelper.getCurrentUser();
@@ -205,6 +208,7 @@ public class WeeklyPlanService {
                 .portionsProduced(slot.getQuantity())
                 .correlationId(correlationId)
                 .details(desc)
+            .componentsState(buildComponentsState(slot.getRecipe()))
                 .build();
         cookingAuditRepository.saveAndFlush(audit);
         return wrapperMapper.toSlotResponseDTO(slotRepository.saveAndFlush(slot));
@@ -271,6 +275,7 @@ public class WeeklyPlanService {
                     .portionsProduced(slot.getQuantity())
                     .correlationId(correlationId)
                     .details(desc)
+                    .componentsState(buildComponentsState(slot.getRecipe()))
                     .build();
             audits.add(audit);
         }
@@ -481,6 +486,27 @@ public class WeeklyPlanService {
             return results.map(row -> new StudentMetricsResponseDTO((Integer) row[0], (String) row[1], (Long) row[2],
                     (Long) row[3], (Long) row[4],
                     ((Long) row[2] > 0) ? ((Long) row[3] * 100.0 / (Long) row[2]) : 0.0));
+        }
+    }
+
+    private String buildComponentsState(Recipe recipe) {
+        try {
+            if (recipe.getComponents() == null || recipe.getComponents().isEmpty())
+                return "{}";
+
+            List<Map<String, Object>> components = recipe.getComponents().stream()
+                    .map(comp -> {
+                        Map<String, Object> data = new HashMap<>();
+                        data.put("productId", comp.getProduct().getId());
+                        data.put("productName", comp.getProduct().getName());
+                        data.put("quantity", comp.getQuantity());
+                        return data;
+                    }).collect(Collectors.toList());
+
+            return objectMapper.writeValueAsString(Map.of("components", components));
+        } catch (Exception e) {
+            log.warn("Error building componentsState for recipe {}: {}", recipe.getId(), e.getMessage());
+            return "{}";
         }
     }
 
