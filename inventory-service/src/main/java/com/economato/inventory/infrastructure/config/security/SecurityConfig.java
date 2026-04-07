@@ -6,7 +6,6 @@ import java.util.Locale;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -149,15 +148,23 @@ public class SecurityConfig {
         @Bean
         public CorsConfigurationSource corsConfigurationSource() {
                 CorsConfiguration configuration = new CorsConfiguration();
-                // Permitir Angular (puerto 4200), servidor (8080, 8081) y dominio de producción
-                configuration.setAllowedOrigins(Arrays.asList(
-                                "http://localhost:4200",
-                                "http://localhost:8080",
-                                "http://localhost:8081",
-                                "http://127.0.0.1:4200",
-                                "http://127.0.0.1:8080",
-                                "http://127.0.0.1:8081",
-                                "http://192.168.8.182:4200", // mi ip local para desarrollo desde otro dispositivo
+                // Permitir dev local + LAN y dominio de producción.
+                // Nota: con allowCredentials=true no se puede usar "*" en allowedOrigins.
+                configuration.setAllowedOriginPatterns(Arrays.asList(
+                                "http://localhost",
+                                "http://localhost:*",
+                                "https://localhost",
+                                "https://localhost:*",
+                                "http://127.0.0.1",
+                                "http://127.0.0.1:*",
+                                "https://127.0.0.1",
+                                "https://127.0.0.1:*",
+                                "http://192.168.8.182",
+                                "http://192.168.8.182:*",
+                                "https://192.168.8.182",
+                                "https://192.168.8.182:*",
+                                "http://192.168.8.*",
+                                "http://192.168.8.*:*",
                                 "https://economato.servehttp.com"));
                 configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
                 configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Origin"));
