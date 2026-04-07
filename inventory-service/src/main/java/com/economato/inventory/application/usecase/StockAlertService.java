@@ -189,12 +189,36 @@ public class StockAlertService {
     }
 
         /**
-         * Devuelve la proyección diaria de consumo para un producto concreto.
+         * Devuelve la proyección diaria de consumo para un producto concreto,
+         * incluidos los lotes activos (no agotados) ordenados por fecha de caducidad.
+         * Evita N+1 cargando los batches de una sola consulta.
          */
     @Transactional(readOnly = true)
     public Optional<DailyForecastResponseDTO> getDailyForecast(Integer productId) {
         return dailyForecastRepository.findOneById(productId)
-                .map(stockDailyForecastMapper::toDTO);
+                .map(forecast -> {
+                    DailyForecastResponseDTO dto = stockDailyForecastMapper.toDTO(forecast);
+                    // Cargar lotes activos sin disparar N+1
+                    List<ProductBatch> activeBatches = productBatchService.getActiveBatches(productId);
+                    // Mapear batches a DTOs usando el mapper existente
+                    dto.setActiveBatches(activeBatches.stream()
+                            .map(batch -> new com.economato.inventory.application.dto.response.ProductBatchResponseDTO(
+                                batch.getId(),
+                                batch.getProduct().getId(),
+                                batch.getProduct().getName(),
+                                batch.getExpirationDate(),
+                                batch.getInitialQuantity(),
+                                batch.getRemainingQuantity(),
+                                batch.getReceivedAt(),
+                                batch.isDepleted(),
+                                batch.getExpirationDate() != null && batch.getExpirationDate().isBefore(LocalDate.now()),
+                                batch.getExpirationDate() != null 
+                                    ? (int) Math.max(0, ChronoUnit.DAYS.between(LocalDate.now(), batch.getExpirationDate()))
+                                    : 0
+                            ))
+                            .collect(Collectors.toList()));
+                    return dto;
+                });
     }
 
             /**
