@@ -164,6 +164,46 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
     }
 
     @Test
+    void whenGetStudentMetrics_sortedByStudentName_thenReturnsOk() throws Exception {
+        LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+
+        WeeklyPlan plan = WeeklyPlan.builder()
+                .chef(chef2)
+                .weekStartDate(nextMonday)
+                .weekEndDate(nextMonday.plusDays(6))
+                .status(WeeklyPlanStatus.ACTIVE)
+                .build();
+        plan = weeklyPlanRepository.saveAndFlush(plan);
+
+        WeeklyPlanSlot slot = WeeklyPlanSlot.builder()
+                .weeklyPlan(plan)
+                .recipe(recipe)
+                .quantity(BigDecimal.ONE)
+                .dayOfWeek(1)
+                .startTime(LocalTime.of(10,0))
+                .endTime(LocalTime.of(11,0))
+                .sortOrder(1)
+                .status(WeeklyPlanSlotStatus.PENDING)
+                .build();
+        slot = slotRepository.saveAndFlush(slot);
+
+        WeeklyPlanSlotStudent wss = WeeklyPlanSlotStudent.builder()
+                .slot(slot)
+                .student(student2)
+                .status(StudentSlotStatus.ASSIGNED)
+                .build();
+        slot.getStudents().add(wss);
+        slotRepository.saveAndFlush(slot);
+
+        mockMvc.perform(get("/api/weekly-plans/metrics/students")
+                .param("sort", "studentName,asc")
+                .header("Authorization", "Bearer " + chef2Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].studentName", is("Student2")));
+    }
+
+    @Test
     void whenCreatePlan_withStudentAssignedToMultipleSlotsOnSameDay_thenSucceeds() throws Exception {
         LocalDate nextMonday = LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
         
