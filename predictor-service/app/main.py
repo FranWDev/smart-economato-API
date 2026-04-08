@@ -16,6 +16,15 @@ logging.basicConfig(
 logging.getLogger("prophet").setLevel(logging.ERROR)
 logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
 
+
+class HealthCheckAccessFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        return "/health" not in message and "/ready" not in message
+
+
+logging.getLogger("uvicorn.access").addFilter(HealthCheckAccessFilter())
+
 logger = logging.getLogger(__name__)
 
 
