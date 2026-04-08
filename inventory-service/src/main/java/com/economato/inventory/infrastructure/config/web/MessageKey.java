@@ -219,6 +219,7 @@ public enum MessageKey {
     ERROR_WEEKLY_PLAN_ADMIN_NO_CURRENT_PLAN("error.weekly.plan.admin.no.current.plan"),
     ERROR_WEEKLY_PLAN_SLOT_ALREADY_CONFIRMED("error.weekly.plan.already.confirmed"),
     ERROR_WEEKLY_PLAN_SLOT_ALREADY_CANCELLED("error.weekly.plan.already.cancelled"),
+    ERROR_WEEKLY_PLAN_SLOT_NOT_CONFIRMED("error.weekly.plan.slot.not.confirmed"),
     ERROR_WEEKLY_PLAN_STUDENT_NOT_IN_SLOT("error.weekly.plan.student.not.in.slot"),
     ERROR_WEEKLY_PLAN_ELEVATED_REQUIRE_TEACHER("error.weekly.plan.elevated.require.teacher"),
     ERROR_WEEKLY_PLAN_SLOT_OVERLAP("error.weekly.plan.slot.overlap"),

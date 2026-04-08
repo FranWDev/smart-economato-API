@@ -7,7 +7,6 @@ import com.economato.inventory.application.dto.response.StudentMetricsResponseDT
 import com.economato.inventory.application.dto.response.WeeklyPlanResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyPlanSlotResponseDTO;
 import com.economato.inventory.application.dto.response.ConfirmDayResponseDTO;
-import com.economato.inventory.application.dto.response.WeeklyPlanSlotResponseDTO;
 import com.economato.inventory.application.dto.projection.UserProjection;
 import com.economato.inventory.application.mapper.WeeklyPlanMapper;
 import com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO;
@@ -35,7 +34,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -213,6 +211,63 @@ public class WeeklyPlanService {
             .componentsState(buildComponentsState(slot.getRecipe()))
                 .build();
         cookingAuditRepository.saveAndFlush(audit);
+        return wrapperMapper.toSlotResponseDTO(slotRepository.saveAndFlush(slot));
+    }
+
+    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
+    public WeeklyPlanSlotResponseDTO unconfirmSlot(Long planId, Long slotId) {
+        User currentUser = securityContextHelper.getCurrentUser();
+        if (currentUser.getRole() != Role.ADMIN) {
+            throw new AccessDeniedException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NO_PERMISSION));
+        }
+
+        WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
+                () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
+        checkPermissions(plan);
+
+        WeeklyPlanSlot slot = slotRepository.findWithDetailsById(slotId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_SLOT_NOT_FOUND)));
+
+        if (!slot.getWeeklyPlan().getId().equals(planId)) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_SLOT_NOT_BELONG));
+        }
+
+        if (plan.getStatus() != WeeklyPlanStatus.ACTIVE
+                && plan.getStatus() != WeeklyPlanStatus.IN_PROGRESS
+                && plan.getStatus() != WeeklyPlanStatus.COMPLETED) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_ACTIVE));
+        }
+
+        if (slot.getStatus() != WeeklyPlanSlotStatus.CONFIRMED) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_SLOT_NOT_CONFIRMED));
+        }
+
+        String correlationId = slot.getCorrelationId();
+        if (correlationId != null && !correlationId.isBlank()) {
+            stockLedgerService.revertMovement(correlationId, "ADMIN weekly-plan unconfirm slot=" + slot.getId());
+            cookingAuditRepository.findByCorrelationId(correlationId).ifPresent(cookingAuditRepository::delete);
+        }
+
+        slot.setStatus(WeeklyPlanSlotStatus.PENDING);
+        slot.setConfirmedAt(null);
+        slot.setConfirmedBy(null);
+        slot.setCorrelationId(null);
+
+        slot.getStudents().forEach(studentSlot -> {
+            if (studentSlot.getStatus() == StudentSlotStatus.CONFIRMED) {
+                studentSlot.setStatus(StudentSlotStatus.ASSIGNED);
+            }
+        });
+
+        boolean hasConfirmed = plan.getSlots().stream().anyMatch(s -> s.getStatus() == WeeklyPlanSlotStatus.CONFIRMED);
+        if (hasConfirmed) {
+            plan.setStatus(WeeklyPlanStatus.IN_PROGRESS);
+        } else if (plan.getStatus() == WeeklyPlanStatus.COMPLETED || plan.getStatus() == WeeklyPlanStatus.IN_PROGRESS) {
+            plan.setStatus(WeeklyPlanStatus.ACTIVE);
+        }
+
+        weeklyPlanRepository.saveAndFlush(plan);
         return wrapperMapper.toSlotResponseDTO(slotRepository.saveAndFlush(slot));
     }
 
