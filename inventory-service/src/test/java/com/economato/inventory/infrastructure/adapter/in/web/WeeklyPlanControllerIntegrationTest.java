@@ -312,6 +312,13 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void whenGetCurrentWeekPlan_asAdmin_thenForbidden() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/current")
+                .header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void whenGetStockRequirements_thenReturnsProductAvailabilityBreakdown() throws Exception {
         WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(
             recipe.getId(), new BigDecimal("10.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student1.getId())
@@ -608,6 +615,57 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/confirm", planId, slotId).header("Authorization", "Bearer " + elevatedToken))
                 .andExpect(status().isForbidden());
     }
+
+            @Test
+            void whenUnconfirmSlot_asAdmin_thenRevertsStockAndSetsPending() throws Exception {
+            WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("2.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student1.getId(), student2.getId()));
+            WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, getNextMonday(), Arrays.asList(slot1));
+
+            String rb = mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+            Long planId = objectMapper.readTree(rb).get("id").asLong();
+
+            mockMvc.perform(patch(BASE_URL + "/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+
+            String getRb = mockMvc.perform(get(BASE_URL + "/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+            Long slotId = objectMapper.readTree(getRb).get("slots").get(0).get("id").asLong();
+
+            BigDecimal flourBefore = productRepository.findById(flour.getId()).orElseThrow().getCurrentStock();
+
+            mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/confirm", planId, slotId).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk());
+
+            BigDecimal flourAfterConfirm = productRepository.findById(flour.getId()).orElseThrow().getCurrentStock();
+            assertTrue(flourAfterConfirm.compareTo(flourBefore) < 0, "Stock debe bajar al confirmar");
+
+            mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/unconfirm", planId, slotId).header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("PENDING")));
+
+            BigDecimal flourAfterUnconfirm = productRepository.findById(flour.getId()).orElseThrow().getCurrentStock();
+            assertEquals(0, flourBefore.compareTo(flourAfterUnconfirm), "Stock debe volver al valor inicial tras revertir");
+
+            mockMvc.perform(get(BASE_URL + "/{id}", planId).header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("ACTIVE")));
+            }
+
+            @Test
+            void whenUnconfirmSlot_asChef_thenForbidden() throws Exception {
+            WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student1.getId()));
+            WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, getNextMonday(), Arrays.asList(slot1));
+
+            String rb = mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+            Long planId = objectMapper.readTree(rb).get("id").asLong();
+            mockMvc.perform(patch(BASE_URL + "/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+
+            String getRb = mockMvc.perform(get(BASE_URL + "/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+            Long slotId = objectMapper.readTree(getRb).get("slots").get(0).get("id").asLong();
+
+            mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/confirm", planId, slotId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+
+            mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/unconfirm", planId, slotId).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isForbidden());
+            }
 
     // -------------------------------------------------------------------------------------------------------------------------
     // E. Cancelaciones (6 tests)
