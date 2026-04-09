@@ -50,6 +50,9 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
   @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user ORDER BY rca.cookingDate DESC")
   Stream<RecipeCookingAudit> streamAllOrderByDateDesc();
 
+    @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.user.id IN :userIds ORDER BY rca.cookingDate DESC")
+    List<RecipeCookingAudit> findByUserIdInOrderByCookingDateDesc(@Param("userIds") Collection<Integer> userIds);
+
   /**
    * Devuelve el consumo semanal de cada ingrediente agrupado por semana natural.
    * El índice de semana es 0 para la semana más antigua dentro del rango.

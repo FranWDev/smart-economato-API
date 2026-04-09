@@ -319,6 +319,69 @@ public class PersistentNotificationService {
         notifyUsersOfType(NotificationType.STOCK_PREDICTION_TRIGGERED, message, message, null, recipients);
     }
 
+    public void notifyIncidentCreated(Incident incident) {
+        String title = i18nService.getMessage(MessageKey.NOTIFICATION_INCIDENT_CREATED,
+                new Object[]{incident.getTitle(), incident.getId()});
+        List<User> recipients = userRepository.findByRoleAndIsHiddenFalse(Role.ADMIN).stream()
+                .filter(user -> incident.getCreatedBy() == null || !user.getId().equals(incident.getCreatedBy().getId()))
+                .toList();
+        notifyUsersOfType(NotificationType.INCIDENT_CREATED, title, title, incident.getId(), recipients);
+        roleNotificationService.sendNotificationToRole(Role.ADMIN, title, title);
+    }
+
+    public void notifyIncidentOpened(Incident incident) {
+        String title = i18nService.getMessage(MessageKey.NOTIFICATION_INCIDENT_OPENED,
+                new Object[]{incident.getTitle(), incident.getId()});
+        LinkedHashMap<Integer, User> recipientsById = new LinkedHashMap<>();
+        if (incident.getCreatedBy() != null) {
+            recipientsById.put(incident.getCreatedBy().getId(), incident.getCreatedBy());
+        }
+        if (incident.getRelatedTeacher() != null) {
+            recipientsById.put(incident.getRelatedTeacher().getId(), incident.getRelatedTeacher());
+        }
+        if (incident.getOpenedBy() != null) {
+            recipientsById.remove(incident.getOpenedBy().getId());
+        }
+        notifyUsersOfType(NotificationType.INCIDENT_OPENED, title, title, incident.getId(), new ArrayList<>(recipientsById.values()));
+    }
+
+    public void notifyIncidentClosed(Incident incident) {
+        String title = i18nService.getMessage(MessageKey.NOTIFICATION_INCIDENT_CLOSED,
+                new Object[]{incident.getTitle(), incident.getId()});
+        LinkedHashMap<Integer, User> recipientsById = new LinkedHashMap<>();
+        if (incident.getCreatedBy() != null) {
+            recipientsById.put(incident.getCreatedBy().getId(), incident.getCreatedBy());
+        }
+        if (incident.getRelatedTeacher() != null) {
+            recipientsById.put(incident.getRelatedTeacher().getId(), incident.getRelatedTeacher());
+        }
+        if (incident.getClosedBy() != null) {
+            recipientsById.remove(incident.getClosedBy().getId());
+        }
+        notifyUsersOfType(NotificationType.INCIDENT_CLOSED, title, title, incident.getId(), new ArrayList<>(recipientsById.values()));
+    }
+
+    public void notifyIncidentChatMessage(Incident incident, User author) {
+        String title = i18nService.getMessage(MessageKey.NOTIFICATION_INCIDENT_CHAT_MESSAGE,
+                new Object[]{incident.getTitle(), incident.getId()});
+
+        LinkedHashMap<Integer, User> recipientsById = new LinkedHashMap<>();
+        userRepository.findByRoleAndIsHiddenFalse(Role.ADMIN)
+                .forEach(user -> recipientsById.put(user.getId(), user));
+        if (incident.getCreatedBy() != null) {
+            recipientsById.put(incident.getCreatedBy().getId(), incident.getCreatedBy());
+        }
+        if (incident.getRelatedTeacher() != null) {
+            recipientsById.put(incident.getRelatedTeacher().getId(), incident.getRelatedTeacher());
+        }
+        if (author != null) {
+            recipientsById.remove(author.getId());
+        }
+
+        notifyUsersOfType(NotificationType.INCIDENT_CHAT_MESSAGE, title, title, incident.getId(),
+                new ArrayList<>(recipientsById.values()));
+    }
+
     private RuntimeException buildOwnershipOrNotFound(Long notificationId) {
         if (notificationRepository.existsById(notificationId)) {
             return new AccessDeniedException(i18nService.getMessage(MessageKey.ERROR_NOTIFICATION_NOT_OWNER));
