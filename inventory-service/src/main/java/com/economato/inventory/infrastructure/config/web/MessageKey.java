@@ -231,7 +231,17 @@ public enum MessageKey {
     ERROR_USER_STUDENT_NOT_BELONGS_TO_TEACHER("error.user.student.not.belongs.to.teacher"),
     ERROR_USER_STUDENTS_HIDDEN_SUCCESS("error.user.students.hidden.success"),
     ERROR_DATA_INTEGRITY_VIOLATION("error.data.integrity.violation"),
-    NOTIFICATION_PREDICTION_TRIGGERED("notification.prediction.triggered");
+    NOTIFICATION_PREDICTION_TRIGGERED("notification.prediction.triggered"),
+    NOTIFICATION_PLAN_CREATED("notification.plan.created"),
+    NOTIFICATION_PLAN_ACTIVATED("notification.plan.activated"),
+    NOTIFICATION_PLAN_SLOT_CONFIRMED("notification.plan.slot.confirmed"),
+    NOTIFICATION_PLAN_DAY_CONFIRMED("notification.plan.day.confirmed"),
+    NOTIFICATION_PLAN_COMPLETED("notification.plan.completed"),
+    NOTIFICATION_CRISIS_ACTIVATED("notification.crisis.activated"),
+    NOTIFICATION_CRISIS_LIFTED("notification.crisis.lifted"),
+    ERROR_NOTIFICATION_NOT_FOUND("error.notification.not.found"),
+    ERROR_NOTIFICATION_NOT_OWNER("error.notification.not.owner"),
+    ERROR_NOTIFICATION_INVALID_TARGET("error.notification.invalid.target");
 
     private final String key;
 

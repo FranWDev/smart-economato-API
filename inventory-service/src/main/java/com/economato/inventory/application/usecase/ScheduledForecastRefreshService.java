@@ -30,6 +30,7 @@ public class ScheduledForecastRefreshService {
     private final StockLedgerService stockLedgerService;
     private final AuditEventProducer auditEventProducer;
     private final WebSocketNotificationService webSocketNotificationService;
+    private final PersistentNotificationService persistentNotificationService;
 
     /**
      * Refresh forecasts for products with stock alterations in the last 6 hours.
@@ -69,6 +70,7 @@ public class ScheduledForecastRefreshService {
         
         // Notificar a administradores por WebSocket
         webSocketNotificationService.notifyAdminsStockPrediction(activeMovedProductIds.size());
+        persistentNotificationService.notifyStockPrediction(activeMovedProductIds.size());
         
         log.info("Refresco programado completado para {} productos en {} lotes.", 
                 activeMovedProductIds.size(), (int) Math.ceil((double) activeMovedProductIds.size() / batchSize));

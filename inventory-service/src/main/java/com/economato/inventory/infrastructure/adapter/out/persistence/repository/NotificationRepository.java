@@ -1,0 +1,35 @@
+package com.economato.inventory.infrastructure.adapter.out.persistence.repository;
+
+import com.economato.inventory.domain.model.Notification;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.Optional;
+
+public interface NotificationRepository extends JpaRepository<Notification, Long>, JpaSpecificationExecutor<Notification> {
+
+    @Override
+    @EntityGraph(attributePaths = {"recipient", "sender"})
+    Page<Notification> findAll(Specification<Notification> spec, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"recipient", "sender"})
+    Optional<Notification> findByIdAndRecipientId(Long id, Integer recipientId);
+
+    @Query("SELECT COUNT(n) FROM Notification n WHERE n.recipient.id = :recipientId AND n.isRead = false AND n.isDeletedByRecipient = false")
+    long countByRecipientIdAndIsReadFalseAndIsDeletedByRecipientFalse(@Param("recipientId") Integer recipientId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Notification n SET n.isRead = true WHERE n.recipient.id = :recipientId AND n.isRead = false AND n.isDeletedByRecipient = false")
+    int markAllAsReadByRecipientId(@Param("recipientId") Integer recipientId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Notification n SET n.isDeletedBySender = true WHERE n.groupId = :groupId AND n.sender.id = :senderId AND n.type = com.economato.inventory.domain.model.NotificationType.MANUAL")
+    int softDeleteManualGroupByGroupIdAndSenderId(@Param("groupId") String groupId, @Param("senderId") Integer senderId);
+}

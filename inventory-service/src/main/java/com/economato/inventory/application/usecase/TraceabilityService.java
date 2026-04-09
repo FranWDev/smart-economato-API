@@ -95,6 +95,7 @@ public class TraceabilityService {
         private final FoodCrisisRepository foodCrisisRepository;
         private final CrisisAffectedProductRepository crisisAffectedProductRepository;
         private final ObjectMapper objectMapper;
+        private final PersistentNotificationService persistentNotificationService;
 
         // Usamos aislamiento SERIALIZABLE para evitar que un producto sea vendido o
         // usado
@@ -197,7 +198,8 @@ public class TraceabilityService {
                                 i18nService.getMessage(MessageKey.CRISIS_ACTIVATION_MESSAGE,
                                                 new Object[] { supplier.getName(), quarantinedProducts.keySet(),
                                                                 request.getReason() }),
-                                AlertCode.FOOD_CRISIS_ACTIVATED);
+                                AlertCode.FOOD_CRISIS_ACTIVATED,
+                                crisis.getId());
 
                 meterRegistry.counter("food.crisis.active.count").increment();
 
@@ -265,7 +267,8 @@ public class TraceabilityService {
                                 i18nService.getMessage(MessageKey.CRISIS_LIFT_MESSAGE,
                                                 new Object[] { lockedProducts.stream().map(Product::getName)
                                                                 .collect(Collectors.toList()), "RESTORED" }),
-                                AlertCode.FOOD_CRISIS_LIFTED);
+                                AlertCode.FOOD_CRISIS_LIFTED,
+                                crisis.getId());
         }
 
         @Transactional(readOnly = true)
@@ -620,7 +623,7 @@ public class TraceabilityService {
                 return afterFrom && beforeTo;
         }
 
-        private void broadcastCrisisNotification(String title, String body, AlertCode code) {
+        private void broadcastCrisisNotification(String title, String body, AlertCode code, Long crisisId) {
                 RoleNotificationMessage message = RoleNotificationMessage.builder()
                                 .title(title)
                                 .message(body)
@@ -631,6 +634,8 @@ public class TraceabilityService {
                 for (Role role : Role.values()) {
                         notificationService.sendNotificationToRole(role, message);
                 }
+
+                persistentNotificationService.notifyCrisis(title, body, code, crisisId);
         }
 
         private Map<String, Object> parseDetails(String detailsJson) {
