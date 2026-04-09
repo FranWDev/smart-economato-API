@@ -64,29 +64,37 @@ public class IncidentChatService {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_INCIDENT_CHAT_EMPTY_MESSAGE));
         }
 
-        IncidentChatMessage message = IncidentChatMessage.builder()
-                .incident(incident)
-                .author(currentUser)
-                .content(hasText ? normalizedContent : null)
-                .hasAttachment(false)
-                .build();
+        String storedAttachmentPath = null;
+        try {
+            IncidentChatMessage message = IncidentChatMessage.builder()
+                    .incident(incident)
+                    .author(currentUser)
+                    .content(hasText ? normalizedContent : null)
+                    .hasAttachment(false)
+                    .build();
 
-        IncidentChatMessage saved = incidentChatMessageRepository.save(message);
+            IncidentChatMessage saved = incidentChatMessageRepository.save(message);
 
-        if (hasFile) {
-            String relativePath = fileStorageService.store(incidentId, saved.getId(), file);
-            saved.setHasAttachment(true);
-            saved.setAttachmentUrl(relativePath);
-            saved.setAttachmentFilename(file.getOriginalFilename());
-            saved.setAttachmentContentType(file.getContentType());
-            saved = incidentChatMessageRepository.save(saved);
+            if (hasFile) {
+                storedAttachmentPath = fileStorageService.store(incidentId, saved.getId(), file);
+                saved.setHasAttachment(true);
+                saved.setAttachmentUrl(storedAttachmentPath);
+                saved.setAttachmentFilename(file.getOriginalFilename());
+                saved.setAttachmentContentType(file.getContentType());
+                saved = incidentChatMessageRepository.save(saved);
+            }
+
+            IncidentChatMessageResponseDTO response = incidentChatMessageMapper.toResponseDTO(saved);
+            persistentNotificationService.notifyIncidentChatMessage(incident, currentUser);
+            messagingTemplate.convertAndSend("/topic/incidents/" + incidentId + "/chat", response);
+
+            return response;
+        } catch (RuntimeException ex) {
+            if (storedAttachmentPath != null) {
+                fileStorageService.delete(storedAttachmentPath);
+            }
+            throw ex;
         }
-
-        IncidentChatMessageResponseDTO response = incidentChatMessageMapper.toResponseDTO(saved);
-        persistentNotificationService.notifyIncidentChatMessage(incident, currentUser);
-        messagingTemplate.convertAndSend("/topic/incidents/" + incidentId + "/chat", response);
-
-        return response;
     }
 
     @Transactional(readOnly = true)

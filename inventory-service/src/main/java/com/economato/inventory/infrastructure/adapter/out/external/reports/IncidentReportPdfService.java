@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 
 @Slf4j
@@ -121,6 +122,7 @@ public class IncidentReportPdfService {
             Cell cell = new Cell(1, 5).add(new Paragraph("-").setFont(regular));
             table.addCell(cell);
         } else {
+            List<Paragraph> traceabilityParagraphs = new ArrayList<>();
             for (IncidentAuditAttachmentResponseDTO attachment : attachments) {
                 data(table, String.valueOf(attachment.getCookingAuditId()), regular);
                 data(table, valueOrDash(attachment.getRecipeName()), regular);
@@ -134,7 +136,7 @@ public class IncidentReportPdfService {
                     try {
                         var reverse = traceabilityService.getReverseTraceability(attachment.getCookingAuditId());
                         int ingredientCount = reverse.getIngredientTrace() != null ? reverse.getIngredientTrace().size() : 0;
-                        document.add(new Paragraph(i18nService.getMessage(
+                        traceabilityParagraphs.add(new Paragraph(i18nService.getMessage(
                                 MessageKey.INCIDENT_REPORT_TRACEABILITY_LINE,
                                 attachment.getCookingAuditId(),
                                 i18nService.getMessage(MessageKey.TRACEABILITY_SUMMARY_REVERSE, attachment.getCookingAuditId()),
@@ -142,13 +144,17 @@ public class IncidentReportPdfService {
                                 .setFont(regular).setFontSize(8));
                     } catch (Exception ex) {
                         log.warn("Unable to render reverse traceability for cookingAuditId={}", attachment.getCookingAuditId(), ex);
-                        document.add(new Paragraph(i18nService.getMessage(
+                        traceabilityParagraphs.add(new Paragraph(i18nService.getMessage(
                                 MessageKey.INCIDENT_REPORT_TRACEABILITY_UNAVAILABLE,
                                 attachment.getCookingAuditId()))
                                 .setFont(regular).setFontSize(8));
                     }
                 }
             }
+
+            document.add(table);
+            traceabilityParagraphs.forEach(document::add);
+            return;
         }
 
         document.add(table);

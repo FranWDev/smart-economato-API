@@ -9,6 +9,7 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -21,6 +22,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class FileStorageService {
 
     private final Path basePath;
@@ -81,6 +83,23 @@ public class FileStorageService {
             return resource;
         } catch (MalformedURLException e) {
             throw new RuntimeException("Unable to load file resource", e);
+        }
+    }
+
+    public void delete(String relativePath) {
+        if (relativePath == null || relativePath.isBlank()) {
+            return;
+        }
+
+        Path fullPath = basePath.resolve(relativePath).normalize();
+        if (!fullPath.startsWith(basePath)) {
+            return;
+        }
+
+        try {
+            Files.deleteIfExists(fullPath);
+        } catch (IOException e) {
+            log.warn("Unable to delete incident attachment at {}", relativePath, e);
         }
     }
 
