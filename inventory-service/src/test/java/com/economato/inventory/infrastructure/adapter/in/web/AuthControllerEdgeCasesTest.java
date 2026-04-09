@@ -17,6 +17,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+import java.util.concurrent.TimeUnit;
+
 class AuthControllerEdgeCasesTest extends BaseIntegrationTest {
 
     private static final String AUTH_URL = "/api/auth/login";
@@ -167,6 +169,8 @@ class AuthControllerEdgeCasesTest extends BaseIntegrationTest {
 
         LoginResponseDTO login1 = objectMapper.readValue(response1, LoginResponseDTO.class);
 
+        TimeUnit.MILLISECONDS.sleep(5);
+
         String response2 = mockMvc.perform(post(AUTH_URL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(asJsonString(loginRequest)))
@@ -177,6 +181,48 @@ class AuthControllerEdgeCasesTest extends BaseIntegrationTest {
 
         assertNotNull(login1.getToken());
         assertNotNull(login2.getToken());
+        assertFalse(login1.getToken().isBlank());
+        assertFalse(login2.getToken().isBlank());
+        assertEquals(login1.getRole(), login2.getRole());
+    }
+
+    @Test
+    void login_MultipleTimesWithUsernameField_ShouldAlwaysSucceed() throws Exception {
+        LoginRequestDTO loginRequest = new LoginRequestDTO();
+        loginRequest.setName("adminUser");
+        loginRequest.setPassword("admin123");
+
+        for (int i = 0; i < 3; i++) {
+            mockMvc.perform(post(AUTH_URL)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(asJsonString(loginRequest)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.token", notNullValue()))
+                    .andExpect(jsonPath("$.role").value("ADMIN"));
+        }
+    }
+
+    @Test
+    void login_FailedAttemptForOtherUser_ShouldNotAffectValidUser() throws Exception {
+        LoginRequestDTO invalidAttempt = new LoginRequestDTO();
+        invalidAttempt.setName("NonExistent");
+        invalidAttempt.setPassword("bad");
+
+        mockMvc.perform(post(AUTH_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(invalidAttempt)))
+                .andExpect(status().isUnauthorized());
+
+        LoginRequestDTO validLogin = new LoginRequestDTO();
+        validLogin.setName("Admin");
+        validLogin.setPassword("admin123");
+
+        mockMvc.perform(post(AUTH_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(validLogin)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.token", notNullValue()))
+                .andExpect(jsonPath("$.role").value("ADMIN"));
     }
 
     @Test

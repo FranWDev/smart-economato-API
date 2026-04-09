@@ -6,6 +6,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -38,6 +39,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
 import com.economato.inventory.domain.PredictorTrigger;
+import com.economato.inventory.infrastructure.config.cache.event.StockMovementEvent;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 
 import jakarta.persistence.EntityManager;
@@ -108,6 +110,7 @@ public class StockLedgerService {
     private final ProductBatchRepository batchRepository;
     private final Environment environment;
     private final LedgerProperties ledgerProperties;
+        private final ApplicationEventPublisher applicationEventPublisher;
 
     // Métricas declaradas como final para thread-safety
     private final Counter stockMovementsCounter;
@@ -131,6 +134,7 @@ public class StockLedgerService {
             ProductBatchRepository batchRepository,
             Environment environment,
             LedgerProperties ledgerProperties,
+            ApplicationEventPublisher applicationEventPublisher,
             MeterRegistry meterRegistry) {
         this.i18nService = i18nService;
         this.ledgerRepository = ledgerRepository;
@@ -144,6 +148,7 @@ public class StockLedgerService {
         this.batchRepository = batchRepository;
         this.environment = environment;
         this.ledgerProperties = ledgerProperties;
+        this.applicationEventPublisher = applicationEventPublisher;
 
         // Inicializar métricas
         this.stockMovementsCounter = Counter.builder("stock.ledger.movements.total")
@@ -553,6 +558,8 @@ public class StockLedgerService {
 
         product.setCurrentStock(normalizedStock);
         productRepository.save(product);
+
+        applicationEventPublisher.publishEvent(new StockMovementEvent(productId));
 
         log.info("Movimiento registrado: TX#{} Hash={}", nextSequence, currentHash.substring(0, 8));
 

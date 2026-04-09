@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -65,7 +66,8 @@ public class UserService {
         this.escalationRepository = escalationRepository;
     }
 
-    @Transactional(readOnly = true)
+        @Cacheable(value = "users_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
+        @Transactional(readOnly = true)
     public Page<UserResponseDTO> findAll(Pageable pageable) {
         Page<UserResponseDTO> page = repository.findByIsHiddenFalse(pageable)
                 .map(userMapper::toResponseDTO);
@@ -84,7 +86,7 @@ public class UserService {
         return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
         }
 
-    @Cacheable(value = "user", key = "#id")
+    @Cacheable(value = "user", key = "#id", unless = "#result == null")
     @Transactional(readOnly = true)
     public Optional<UserResponseDTO> findById(Integer id) {
         return repository.findProjectedById(id)
@@ -104,7 +106,12 @@ public class UserService {
         return userMapper.toResponseDTO(findByUsername(username));
     }
 
-    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "users_page", allEntries = true),
+            @CacheEvict(value = "user_stats", allEntries = true),
+            @CacheEvict(value = "users_by_role", allEntries = true),
+            @CacheEvict(value = "users_no_teacher", allEntries = true)
+        })
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public UserResponseDTO save(UserRequestDTO requestDTO) {
 
@@ -129,7 +136,14 @@ public class UserService {
         return userMapper.toResponseDTO(repository.save(user));
     }
 
-    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "user", key = "#id"),
+            @CacheEvict(value = "userByEmail", allEntries = true),
+            @CacheEvict(value = "users_page", allEntries = true),
+            @CacheEvict(value = "users_by_role", allEntries = true),
+            @CacheEvict(value = "users_no_teacher", allEntries = true),
+            @CacheEvict(value = "user_stats", allEntries = true)
+        })
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public Optional<UserResponseDTO> update(Integer id, UserRequestDTO requestDTO) {
@@ -163,7 +177,14 @@ public class UserService {
                 });
     }
 
-    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "user", key = "#id"),
+            @CacheEvict(value = "userByEmail", allEntries = true),
+            @CacheEvict(value = "users_page", allEntries = true),
+            @CacheEvict(value = "user_stats", allEntries = true),
+            @CacheEvict(value = "users_by_role", allEntries = true),
+            @CacheEvict(value = "users_no_teacher", allEntries = true)
+        })
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
@@ -184,7 +205,10 @@ public class UserService {
         repository.delete(user);
     }
 
-    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "user", key = "#id"),
+            @CacheEvict(value = "userByEmail", allEntries = true)
+        })
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void updateFirstLoginStatus(Integer id, boolean status, boolean isAdmin) {
         User user = repository.findById(id)
@@ -205,7 +229,10 @@ public class UserService {
         customUserDetailsService.evictUser(user.getUser());
     }
 
-    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "user", key = "#id"),
+            @CacheEvict(value = "userByEmail", allEntries = true)
+        })
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void changePassword(Integer id, ChangePasswordRequestDTO request,
             boolean isAdmin) {
@@ -236,6 +263,7 @@ public class UserService {
         customUserDetailsService.evictUser(user.getUser());
     }
 
+    @Cacheable(value = "users_by_role", key = "#role.name()")
     @Transactional(readOnly = true)
     public List<UserResponseDTO> findByRole(Role role) {
         if (Role.USER.equals(role)) {
@@ -256,7 +284,11 @@ public class UserService {
                 page.getTotalElements());
     }
 
-    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "user", key = "#id"),
+            @CacheEvict(value = "users_page", allEntries = true),
+            @CacheEvict(value = "users_no_teacher", allEntries = true)
+        })
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void toggleUserHiddenStatus(Integer id, boolean hidden) {
         User user = repository.findById(id)
@@ -296,7 +328,11 @@ public class UserService {
         }
     }
 
-    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "user", key = "#userId"),
+            @CacheEvict(value = "users_no_teacher", allEntries = true),
+            @CacheEvict(value = "users_page", allEntries = true)
+        })
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void assignTeacher(Integer userId, Integer teacherId) {
         User user = repository.findById(userId)
@@ -316,7 +352,11 @@ public class UserService {
         repository.save(user);
     }
 
-    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "user", allEntries = true),
+            @CacheEvict(value = "users_page", allEntries = true),
+            @CacheEvict(value = "users_no_teacher", allEntries = true)
+        })
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public BatchTeacherAssignmentResponseDTO assignTeacherBatch(BatchTeacherAssignmentRequestDTO request) {
         List<Integer> studentIds = request.getStudentIds();
@@ -381,6 +421,7 @@ public class UserService {
                 .toList();
     }
 
+    @Cacheable(value = "user_stats", key = "'global'")
     @Transactional(readOnly = true)
     public UserStatsResponseDTO getUserStats() {
         long total = repository.count();
@@ -388,7 +429,13 @@ public class UserService {
         return statsMapper.toUserStatsDTO(total, counts);
     }
 
-    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "user", key = "#userId"),
+            @CacheEvict(value = "userByEmail", allEntries = true),
+            @CacheEvict(value = "users_by_role", allEntries = true),
+            @CacheEvict(value = "users_page", allEntries = true),
+            @CacheEvict(value = "user_stats", allEntries = true)
+    })
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void escalateRole(Integer userId, RoleEscalationRequestDTO request) {
         User user = repository.findById(userId)
@@ -418,7 +465,13 @@ public class UserService {
         customUserDetailsService.evictUser(user.getUser());
     }
 
-    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "user", key = "#userId"),
+            @CacheEvict(value = "userByEmail", allEntries = true),
+            @CacheEvict(value = "users_by_role", allEntries = true),
+            @CacheEvict(value = "users_page", allEntries = true),
+            @CacheEvict(value = "user_stats", allEntries = true)
+        })
     @Transactional(rollbackFor = { ResourceNotFoundException.class })
     public void deescalateRole(Integer userId) {
         User user = repository.findById(userId)
@@ -439,6 +492,7 @@ public class UserService {
         customUserDetailsService.evictUser(user.getUser());
     }
 
+    @Cacheable(value = "users_no_teacher", key = "'all'")
     @Transactional(readOnly = true)
     public List<UserResponseDTO> getStudentsWithoutTeacher() {
         List<UserProjection> students = repository.findProjectedByTeacherIsNullAndRoleInAndIsHiddenFalse(
@@ -448,7 +502,12 @@ public class UserService {
                 .toList();
     }
 
-    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "user", allEntries = true),
+            @CacheEvict(value = "users_page", allEntries = true),
+            @CacheEvict(value = "userByEmail", allEntries = true),
+            @CacheEvict(value = "users_no_teacher", allEntries = true)
+        })
     public BatchTeacherAssignmentResponseDTO hideAllStudentsOfTeacher(Integer teacherId, boolean hidden) {
         User teacher = repository.findById(teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -478,7 +537,12 @@ public class UserService {
     }
 
     @Transactional(rollbackFor = { RuntimeException.class, Exception.class })
-    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "user", allEntries = true),
+            @CacheEvict(value = "users_page", allEntries = true),
+            @CacheEvict(value = "userByEmail", allEntries = true),
+            @CacheEvict(value = "users_no_teacher", allEntries = true)
+        })
     public BatchTeacherAssignmentResponseDTO transferStudents(TransferStudentsRequestDTO request) {
         if (request.getFromTeacherId().equals(request.getToTeacherId())) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_TEACHER_TRANSFER_SAME));
@@ -518,7 +582,12 @@ public class UserService {
                 .build();
     }
 
-    @CacheEvict(value = { "users", "user", "userByEmail" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "user", allEntries = true),
+            @CacheEvict(value = "users_page", allEntries = true),
+            @CacheEvict(value = "userByEmail", allEntries = true),
+            @CacheEvict(value = "users_no_teacher", allEntries = true)
+        })
     public BatchTeacherAssignmentResponseDTO transferAllStudents(Integer fromTeacherId, Integer toTeacherId) {
         if (fromTeacherId.equals(toTeacherId)) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_TEACHER_TRANSFER_SAME));

@@ -6,6 +6,7 @@ import com.economato.inventory.infrastructure.config.web.MessageKey;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -89,13 +90,17 @@ public class RecipeService {
                 page.getTotalElements());
     }
 
-    @Cacheable(value = "recipe", key = "#id")
+    @Cacheable(value = "recipe", key = "#id", unless = "#result == null")
     @Transactional(readOnly = true)
     public Optional<RecipeResponseDTO> findById(Integer id) {
         return repository.findProjectedById(id).map(recipeMapper::toResponseDTO);
     }
 
-    @CacheEvict(value = { "recipes_page", "recipe" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "recipes_page", allEntries = true),
+            @CacheEvict(value = "recipe_stats", allEntries = true),
+            @CacheEvict(value = "weekly_plan_requirements", allEntries = true)
+        })
     @RecipeAuditable(action = "CREATE_RECIPE")
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
@@ -108,7 +113,12 @@ public class RecipeService {
         return recipeMapper.toResponseDTO(recipe);
     }
 
-    @CacheEvict(value = { "recipes_page", "recipe" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "recipe", key = "#id"),
+            @CacheEvict(value = "recipes_page", allEntries = true),
+            @CacheEvict(value = "recipe_stats", allEntries = true),
+            @CacheEvict(value = "weekly_plan_requirements", allEntries = true)
+        })
     @RecipeAuditable(action = "UPDATE_RECIPE")
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
@@ -122,7 +132,12 @@ public class RecipeService {
                 });
     }
 
-    @CacheEvict(value = { "recipes_page", "recipe" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "recipe", key = "#id"),
+            @CacheEvict(value = "recipes_page", allEntries = true),
+            @CacheEvict(value = "recipe_stats", allEntries = true),
+            @CacheEvict(value = "weekly_plan_requirements", allEntries = true)
+        })
     @Deprecated(since = "2026-03", forRemoval = false)
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
@@ -152,7 +167,11 @@ public class RecipeService {
                 page.getTotalElements());
     }
 
-    @CacheEvict(value = { "recipes_page", "recipe" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "recipe", key = "#id"),
+            @CacheEvict(value = "recipes_page", allEntries = true),
+            @CacheEvict(value = "weekly_plan_requirements", allEntries = true)
+        })
     @RecipeAuditable(action = "TOGGLE_HIDDEN")
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void toggleRecipeHiddenStatus(Integer id, boolean hidden) {
@@ -245,6 +264,7 @@ public class RecipeService {
         }
     }
 
+    @Cacheable(value = "recipe_stats", key = "'global'")
     @Transactional(readOnly = true)
     public RecipeStatsResponseDTO getRecipeStats() {
         long total = repository.countByIsHiddenFalse();
@@ -255,16 +275,19 @@ public class RecipeService {
         return statsMapper.toRecipeStatsDTO(total, withAllergens, withoutAllergens, averagePrice);
     }
 
+    @Cacheable(value = "recipe_stats", key = "'withAllergens'")
     @Transactional(readOnly = true)
     public RecipeCountResponseDTO getRecipesWithAllergensCount() {
         return statsMapper.toRecipeCountDTO(repository.countWithAllergens());
     }
 
+    @Cacheable(value = "recipe_stats", key = "'withoutAllergens'")
     @Transactional(readOnly = true)
     public RecipeCountResponseDTO getRecipesWithoutAllergensCount() {
         return statsMapper.toRecipeCountDTO(repository.countWithoutAllergens());
     }
 
+    @Cacheable(value = "recipe_stats", key = "'averageCost'")
     @Transactional(readOnly = true)
     public RecipeAverageCostResponseDTO getRecipesAverageCost() {
         return statsMapper.toRecipeAverageCostDTO(repository.getAveragePrice());

@@ -863,6 +863,55 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$[?(@.productName == 'Harina')].requiredQuantity").value(org.hamcrest.Matchers.hasItem(8.0)));
     }
 
+        @Test
+        void whenRecipeComponentIsChangedMultipleTimes_thenRequirementsAlwaysUseLatestValue() throws Exception {
+        WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("10.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student1.getId()));
+        WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, getNextMonday(), Arrays.asList(slot1));
+
+        String rb = mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        Long planId = objectMapper.readTree(rb).get("id").asLong();
+
+        RecipeRequestDTO firstUpdate = new RecipeRequestDTO();
+        firstUpdate.setName(recipe.getName());
+        firstUpdate.setElaboration(recipe.getElaboration());
+        firstUpdate.setPresentation(recipe.getPresentation());
+        firstUpdate.setPortions(recipe.getPortions());
+        RecipeComponentRequestDTO firstComponent = new RecipeComponentRequestDTO();
+        firstComponent.setProductId(flour.getId());
+        firstComponent.setQuantity(new BigDecimal("0.9"));
+        firstUpdate.setComponents(Arrays.asList(firstComponent));
+
+        mockMvc.perform(put("/api/recipes/" + recipe.getId())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(asJsonString(firstUpdate))
+            .header("Authorization", "Bearer " + adminToken))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get(BASE_URL + "/{id}/stock-requirements", planId).header("Authorization", "Bearer " + chef1Token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.productName == 'Harina')].requiredQuantity").value(org.hamcrest.Matchers.hasItem(9.0)));
+
+        RecipeRequestDTO secondUpdate = new RecipeRequestDTO();
+        secondUpdate.setName(recipe.getName());
+        secondUpdate.setElaboration(recipe.getElaboration());
+        secondUpdate.setPresentation(recipe.getPresentation());
+        secondUpdate.setPortions(recipe.getPortions());
+        RecipeComponentRequestDTO secondComponent = new RecipeComponentRequestDTO();
+        secondComponent.setProductId(flour.getId());
+        secondComponent.setQuantity(new BigDecimal("1.1"));
+        secondUpdate.setComponents(Arrays.asList(secondComponent));
+
+        mockMvc.perform(put("/api/recipes/" + recipe.getId())
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(asJsonString(secondUpdate))
+            .header("Authorization", "Bearer " + adminToken))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get(BASE_URL + "/{id}/stock-requirements", planId).header("Authorization", "Bearer " + chef1Token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.productName == 'Harina')].requiredQuantity").value(org.hamcrest.Matchers.hasItem(11.0)));
+        }
+
     @Test
     void whenStudentIsDeleted_withActivePlan_thenFailsDueToConstraint() throws Exception {
         WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student1.getId()));

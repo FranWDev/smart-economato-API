@@ -6,7 +6,9 @@ import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -93,20 +95,21 @@ public class ProductService {
                 page.getTotalElements());
     }
 
-    @Cacheable(value = "product", key = "#id")
+    @Cacheable(value = "product", key = "#id", unless = "#result == null")
     @Transactional(readOnly = true)
     public Optional<ProductResponseDTO> findById(Integer id) {
         return repository.findProjectedById(id)
                 .map(productMapper::toResponseDTO);
     }
 
-    @Cacheable(value = "product", key = "'code:' + #codebar")
+    @Cacheable(value = "product", key = "'code:' + #codebar", unless = "#result == null")
     @Transactional(readOnly = true)
     public Optional<ProductResponseDTO> findByCodebar(String codebar) {
         return repository.findProjectedByProductCode(codebar)
                 .map(productMapper::toResponseDTO);
     }
 
+    @Cacheable(value = "products_search", key = "'name:' + (#namePart != null ? #namePart.toLowerCase() : '') + ':' + #pageable.pageNumber + '-' + #pageable.pageSize")
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> findByName(String namePart, Pageable pageable) {
         return repository.findByNameContainingIgnoreCaseAndIsHiddenFalse(namePart, pageable)
@@ -127,7 +130,15 @@ public class ProductService {
         return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
     }
 
-    @CacheEvict(value = { "products_page", "product" }, allEntries = true)
+        @Caching(
+            put = {
+                @CachePut(value = "product", key = "#result.id")
+            },
+            evict = {
+                @CacheEvict(value = "products_page", allEntries = true),
+                @CacheEvict(value = "product_stats", allEntries = true),
+                @CacheEvict(value = "products_search", allEntries = true)
+            })
     @ProductAuditable(action = "CREATE_PRODUCT")
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public ProductResponseDTO save(ProductRequestDTO requestDTO) {
@@ -169,7 +180,11 @@ public class ProductService {
         return productMapper.toResponseDTO(product);
     }
 
-    @CacheEvict(value = { "products_page", "product" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "product", key = "#id"),
+            @CacheEvict(value = "products_page", allEntries = true),
+            @CacheEvict(value = "products_search", allEntries = true)
+        })
     @ProductAuditable(action = "UPDATE_PRODUCT")
     @Retryable(includes = { OptimisticLockingFailureException.class }, maxRetries = 3, delay = 100)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
@@ -201,7 +216,12 @@ public class ProductService {
                 });
     }
 
-    @CacheEvict(value = { "products_page", "product" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "product", key = "#id"),
+            @CacheEvict(value = "products_page", allEntries = true),
+            @CacheEvict(value = "product_stats", allEntries = true),
+            @CacheEvict(value = "products_search", allEntries = true)
+        })
     @Deprecated(since = "2026-03", forRemoval = false)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
@@ -225,6 +245,7 @@ public class ProductService {
     }
 
 
+    @Cacheable(value = "products_search", key = "'containing:' + (#namePart != null ? #namePart.toLowerCase() : '')")
     @Transactional(readOnly = true)
     public List<ProductResponseDTO> findByNameContaining(String namePart) {
         return repository.findByNameContainingIgnoreCaseAndIsHiddenFalse(namePart).stream()
@@ -268,7 +289,11 @@ public class ProductService {
                 page.getTotalElements());
     }
 
-    @CacheEvict(value = { "products_page", "product" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "product", key = "#id"),
+            @CacheEvict(value = "products_page", allEntries = true),
+            @CacheEvict(value = "products_search", allEntries = true)
+        })
     @ProductAuditable(action = "TOGGLE_HIDDEN")
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void toggleProductHiddenStatus(Integer id, boolean hidden) {
@@ -287,7 +312,12 @@ public class ProductService {
     /* Por que se limpia TODA la caché?
      * Porque, al usarse normalmente con páginas, alterar un producto provoca que se altere su posición en la página.
      */
-    @CacheEvict(value = { "products_page", "product" }, allEntries = true)
+        @Caching(evict = {
+            @CacheEvict(value = "product", key = "#id"),
+            @CacheEvict(value = "products_page", allEntries = true),
+            @CacheEvict(value = "product_stats", allEntries = true),
+            @CacheEvict(value = "products_search", allEntries = true)
+        })
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
             Exception.class }, isolation = Isolation.REPEATABLE_READ)
     public Optional<ProductResponseDTO> updateStockManually(Integer id, ProductRequestDTO requestDTO) {
@@ -342,6 +372,7 @@ public class ProductService {
                 });
     }
 
+    @Cacheable(value = "product_stats", key = "'global'")
     @Transactional(readOnly = true)
     public ProductStatsResponseDTO getProductStats() {
         return ProductStatsResponseDTO.builder()

@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -92,20 +93,25 @@ public class OrderService {
                 this.environment = environment;
         }
 
+        @Cacheable(value = "orders_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
         @Transactional(readOnly = true)
         public Page<OrderResponseDTO> findAll(Pageable pageable) {
                 return repository.findAllProjectedBy(pageable)
                                 .map(orderMapper::toResponseDTO);
         }
 
-        @Cacheable(value = "order", key = "#id")
+        @Cacheable(value = "order", key = "#id", unless = "#result == null")
         @Transactional(readOnly = true)
         public Optional<OrderResponseDTO> findById(Integer id) {
                 return repository.findProjectedById(id)
                                 .map(orderMapper::toResponseDTO);
         }
 
-        @CacheEvict(value = { "orders", "order" }, allEntries = true)
+        @Caching(evict = {
+                        @CacheEvict(value = "orders_page", allEntries = true),
+                        @CacheEvict(value = "order_stats", allEntries = true),
+                        @CacheEvict(value = "orders_pending", allEntries = true)
+        })
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
         public OrderResponseDTO save(OrderRequestDTO requestDTO) {
@@ -154,7 +160,12 @@ public class OrderService {
          * Utiliza @Retryable para manejar conflictos de concurrencia con reintentos
          * automáticos
          */
-        @CacheEvict(value = { "orders", "order" }, allEntries = true)
+        @Caching(evict = {
+                        @CacheEvict(value = "order", key = "#id"),
+                        @CacheEvict(value = "orders_page", allEntries = true),
+                        @CacheEvict(value = "order_stats", allEntries = true),
+                        @CacheEvict(value = "orders_pending", allEntries = true)
+        })
         @Retryable(includes = {
                         ObjectOptimisticLockingFailureException.class }, maxRetries = 3, delay = 100, multiplier = 2)
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
@@ -209,7 +220,12 @@ public class OrderService {
                                 });
         }
 
-        @CacheEvict(value = { "orders", "order" }, allEntries = true)
+        @Caching(evict = {
+                        @CacheEvict(value = "order", key = "#id"),
+                        @CacheEvict(value = "orders_page", allEntries = true),
+                        @CacheEvict(value = "order_stats", allEntries = true),
+                        @CacheEvict(value = "orders_pending", allEntries = true)
+        })
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
         public void deleteById(Integer id) {
@@ -283,6 +299,7 @@ public class OrderService {
                                 .build();
         }
 
+        @Cacheable(value = "order_stats", key = "'totalCost'")
         @Transactional(readOnly = true)
         public OrderTotalCostResponseDTO getTotalCostAllOrders() {
                 BigDecimal totalCost = repository.getTotalCostAllOrders();
@@ -302,6 +319,12 @@ public class OrderService {
          */
         @PredictorTrigger(action = "ORDER_RECEPTION")
         @OrderAuditable(action = "RECEPCION_ORDEN")
+        @Caching(evict = {
+                        @CacheEvict(value = "order", key = "#receptionData.orderId"),
+                        @CacheEvict(value = "orders_page", allEntries = true),
+                        @CacheEvict(value = "orders_pending", allEntries = true),
+                        @CacheEvict(value = "order_stats", allEntries = true)
+        })
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class,
                         Exception.class }, isolation = Isolation.REPEATABLE_READ)
@@ -411,6 +434,7 @@ public class OrderService {
                 return responseDTO;
         }
 
+        @Cacheable(value = "orders_pending", key = "'pending'")
         @Transactional(readOnly = true)
         public List<OrderResponseDTO> findPendingReception() {
                 return repository.findProjectedByStatus(OrderStatus.PENDING, Pageable.unpaged()).getContent().stream()
@@ -419,6 +443,12 @@ public class OrderService {
         }
 
         @OrderAuditable(action = "CAMBIO_ESTADO_ORDEN")
+        @Caching(evict = {
+                        @CacheEvict(value = "order", key = "#orderId"),
+                        @CacheEvict(value = "orders_page", allEntries = true),
+                        @CacheEvict(value = "orders_pending", allEntries = true),
+                        @CacheEvict(value = "order_stats", allEntries = true)
+        })
         @Retryable(includes = {
                         ObjectOptimisticLockingFailureException.class }, maxRetries = 3, delay = 100, multiplier = 2)
         @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })

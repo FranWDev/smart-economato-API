@@ -3,12 +3,14 @@ package com.economato.inventory.infrastructure.adapter.in.messaging.kafka.consum
 import java.time.LocalDateTime;
 
 import org.springframework.context.annotation.Profile;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
 import com.economato.inventory.application.dto.event.ForecastResultEvent;
 import com.economato.inventory.application.dto.event.ForecastResultType;
 import com.economato.inventory.application.usecase.StockAlertService;
+import com.economato.inventory.infrastructure.config.cache.event.ForecastUpdatedEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ForecastResultConsumer {
 
     private final StockAlertService stockAlertService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     @KafkaListener(
         topics = "forecast-updates",
@@ -69,6 +72,8 @@ public class ForecastResultConsumer {
                     event.getProductId(),
                     event.getProjectedConsumption(),
                     calculatedAt);
+
+                applicationEventPublisher.publishEvent(new ForecastUpdatedEvent(event.getProductId()));
 
             log.info("Forecast procesado para producto {}: tipo={}, projectedConsumption={}",
                     event.getProductId(), inferredType, event.getProjectedConsumption());

@@ -96,7 +96,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: inventory-redis
-    command: redis-server --appendonly yes --maxmemory 64mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 96mb --maxmemory-policy allkeys-lru
     ports:
       - "6381:6379"
     volumes:
@@ -104,7 +104,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 192M
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -211,11 +211,11 @@ services:
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       
       # Limite de RAM para el contenedor Java
-      JAVA_OPTS: "-Xms128m -Xmx256m -XX:+UseZGC -XX:+ZGenerational --enable-preview -Dnet.bytebuddy.experimental=true"
+      JAVA_OPTS: "-Xms192m -Xmx384m -XX:+UseZGC -XX:+ZGenerational --enable-preview -Dnet.bytebuddy.experimental=true"
     deploy:
       resources:
         limits:
-          memory: 768M
+          memory: 1152M
     networks:
       - inventory-network
     restart: unless-stopped

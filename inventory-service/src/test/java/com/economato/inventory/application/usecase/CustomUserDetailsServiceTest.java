@@ -6,11 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.concurrent.TimeUnit;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
@@ -19,6 +21,9 @@ import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 import com.economato.inventory.domain.model.Role;
 import com.economato.inventory.domain.model.User;
@@ -34,13 +39,19 @@ class CustomUserDetailsServiceTest {
     @Mock
     private I18nService i18nService;
 
-    @InjectMocks
     private CustomUserDetailsService customUserDetailsService;
+    private Cache<String, UserDetails> userDetailsLocalCache;
 
     private User testUser;
 
     @BeforeEach
     void setUp() {
+        userDetailsLocalCache = Caffeine.newBuilder()
+            .expireAfterWrite(15, TimeUnit.MINUTES)
+            .maximumSize(500)
+            .build();
+        customUserDetailsService = new CustomUserDetailsService(i18nService, userRepository, userDetailsLocalCache);
+
         testUser = new User();
         testUser.setId(1);
         testUser.setName("testUser");
