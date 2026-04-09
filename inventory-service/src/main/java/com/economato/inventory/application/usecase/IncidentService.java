@@ -59,6 +59,8 @@ import java.util.stream.Collectors;
 @Transactional(rollbackFor = Exception.class)
 public class IncidentService {
 
+    private static final int MAX_ADMIN_ATTACHABLE_AUDITS = 200;
+
     private final IncidentRepository incidentRepository;
     private final IncidentTypeRepository incidentTypeRepository;
     private final IncidentAuditAttachmentRepository incidentAuditAttachmentRepository;
@@ -245,7 +247,9 @@ public class IncidentService {
 
         List<RecipeCookingAudit> audits;
         if (currentUser.getRole() == Role.ADMIN) {
-            audits = recipeCookingAuditRepository.streamAllOrderByDateDesc().toList();
+            audits = recipeCookingAuditRepository
+                    .findAllOrderByDateDesc(PageRequest.of(0, MAX_ADMIN_ATTACHABLE_AUDITS))
+                    .getContent();
         } else {
             Set<Integer> allowedUserIds = incidentParticipantService.allowedAuditUserIds(currentUser);
             audits = recipeCookingAuditRepository.findByUserIdInOrderByCookingDateDesc(new ArrayList<>(allowedUserIds));
