@@ -76,7 +76,8 @@ public class SecurityConfig {
                                                 .permitAll()
 
                                                 // WebSocket handshake
-                                                .requestMatchers("/ws-alerts/**").permitAll()
+                                                .requestMatchers("/ws-alerts/**", "/ws-notifications/**")
+                                                .permitAll()
 
                                                 // Health endpoint: público para el healthcheck de Docker
                                                 // (viene de 127.0.0.1, no de 172.19.x.x)
