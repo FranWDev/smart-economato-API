@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -34,7 +33,6 @@ import com.economato.inventory.application.dto.response.UserResponseDTO;
 import com.economato.inventory.domain.model.Role;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.TestDataUtil;
-import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.TemporaryRoleEscalationRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 
@@ -463,6 +461,68 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         void whenGetCurrentUser_withoutToken_thenUnauthorized() throws Exception {
                 mockMvc.perform(get(BASE_URL + "/me"))
                                 .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        void whenSearchUsersByNameOrUsername_thenReturnsFilteredVisibleUsers() throws Exception {
+                UserRequestDTO matchingUser = new UserRequestDTO();
+                matchingUser.setName("Profesor Busca");
+                matchingUser.setUser("prof.busca");
+                matchingUser.setPassword("password123");
+                matchingUser.setRole(Role.USER);
+
+                UserRequestDTO anotherUser = new UserRequestDTO();
+                anotherUser.setName("Usuario Normal");
+                anotherUser.setUser("normal.user");
+                anotherUser.setPassword("password123");
+                anotherUser.setRole(Role.USER);
+
+                mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(matchingUser)))
+                                .andExpect(status().isCreated());
+
+                mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(anotherUser)))
+                                .andExpect(status().isCreated());
+
+                mockMvc.perform(get(BASE_URL + "/search")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .param("term", "busca")
+                                .param("page", "0")
+                                .param("size", "8"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.content", hasSize(1)))
+                                .andExpect(jsonPath("$.content[0].name").value("Profesor Busca"))
+                                .andExpect(jsonPath("$.content[0].user").value("prof.busca"))
+                                .andExpect(jsonPath("$.content[0].hidden").value(false));
+        }
+
+        @Test
+        void whenSearchUsersWithoutAdminRole_thenForbidden() throws Exception {
+                User chef = TestDataUtil.createChefUser();
+                userRepository.saveAndFlush(chef);
+
+                LoginRequestDTO chefLogin = new LoginRequestDTO();
+                chefLogin.setName(chef.getName());
+                chefLogin.setPassword("chef123");
+
+                String chefTokenResponse = mockMvc.perform(post(AUTH_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(chefLogin)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+                String chefToken = objectMapper.readValue(chefTokenResponse, LoginResponseDTO.class).getToken();
+
+                mockMvc.perform(get(BASE_URL + "/search")
+                                .header("Authorization", "Bearer " + chefToken)
+                                .param("term", "admin")
+                                .param("page", "0")
+                                .param("size", "8"))
+                                .andExpect(status().isForbidden());
         }
 
         @Test

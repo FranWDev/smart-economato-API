@@ -73,6 +73,20 @@ public class UserController {
                 return ResponseEntity.ok(users);
         }
 
+        @GetMapping("/search")
+        @PreAuthorize("hasRole('ADMIN')")
+        @Operation(summary = "Buscar usuarios", description = "Busca usuarios visibles por nombre o usuario con paginación. Solo accesible para administradores. [Rol requerido: ADMIN]")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "200", description = "Resultados de búsqueda", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
+                        @ApiResponse(responseCode = "403", description = "Acceso denegado")
+        })
+        public ResponseEntity<Page<UserResponseDTO>> searchUsers(
+                        @Parameter(description = "Texto a buscar en nombre o usuario", required = true) @org.springframework.web.bind.annotation.RequestParam String term,
+                        Pageable pageable) {
+                Page<UserResponseDTO> users = service.searchVisibleUsers(term, pageable);
+                return ResponseEntity.ok(users);
+        }
+
         @GetMapping("/{id}")
         @PreAuthorize("hasRole('ADMIN') or #id == @userService.findByUsername(authentication.name).id")
         @Operation(summary = "Obtener usuario por ID", description = "Devuelve los datos de un usuario específico. Accesible para administradores o para el propio usuario. [Rol requerido: USER]")

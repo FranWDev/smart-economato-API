@@ -41,8 +41,6 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
     boolean existsByUser(String user);
 
-    boolean existsById(Integer id);
-
     @Query("SELECT u.role as role, COUNT(u) as count FROM User u GROUP BY u.role")
     List<RoleCountProjection> countUsersByRole();
 
@@ -51,6 +49,10 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     Page<UserProjection> findAllProjectedBy(Pageable pageable);
 
     Page<UserProjection> findByIsHiddenFalse(Pageable pageable);
+
+    @EntityGraph(attributePaths = {"teacher"})
+    @Query("SELECT u FROM User u WHERE u.isHidden = false AND (LOWER(u.name) LIKE LOWER(CONCAT('%', :term, '%')) OR LOWER(u.user) LIKE LOWER(CONCAT('%', :term, '%')))")
+    Page<UserProjection> searchVisibleByNameOrUser(@Param("term") String term, Pageable pageable);
 
     Page<UserProjection> findByIsHiddenTrue(Pageable pageable);
 
