@@ -73,6 +73,17 @@ public class UserService {
                 page.getTotalElements());
     }
 
+        @Transactional(readOnly = true)
+        public Page<UserResponseDTO> searchVisibleUsers(String term, Pageable pageable) {
+        String normalized = term == null ? "" : term.trim();
+
+        Page<UserResponseDTO> page = normalized.isEmpty()
+            ? repository.findByIsHiddenFalse(pageable).map(userMapper::toResponseDTO)
+            : repository.searchVisibleByNameOrUser(normalized, pageable).map(userMapper::toResponseDTO);
+
+        return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
+        }
+
     @Cacheable(value = "user", key = "#id")
     @Transactional(readOnly = true)
     public Optional<UserResponseDTO> findById(Integer id) {
