@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
-import org.mockito.internal.util.collections.Sets;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.*;
@@ -41,6 +40,9 @@ class ScheduledForecastRefreshServiceTest {
     @Mock
     private WebSocketNotificationService webSocketNotificationService;
 
+    @Mock
+    private PersistentNotificationService persistentNotificationService;
+
     private ScheduledForecastRefreshService service;
 
     @BeforeEach
@@ -50,7 +52,8 @@ class ScheduledForecastRefreshServiceTest {
                 stockLedgerRepository, 
                 stockLedgerService, 
                 auditEventProducer, 
-                webSocketNotificationService
+                webSocketNotificationService,
+                persistentNotificationService
         );
     }
 
@@ -72,6 +75,7 @@ class ScheduledForecastRefreshServiceTest {
         // then
         verify(auditEventProducer, times(1)).publishStockPredictionEvent(any(StockPredictionEvent.class));
         verify(webSocketNotificationService, times(1)).notifyAdminsStockPrediction(1);
+        verify(persistentNotificationService, times(1)).notifyStockPrediction(1);
     }
 
     @Test
@@ -106,6 +110,7 @@ class ScheduledForecastRefreshServiceTest {
         assertEquals(5, events.get(1).getAffectedProductIds().size());
         
         verify(webSocketNotificationService).notifyAdminsStockPrediction(25);
+        verify(persistentNotificationService).notifyStockPrediction(25);
     }
 
     @Test
@@ -119,6 +124,7 @@ class ScheduledForecastRefreshServiceTest {
 
         // then
         verify(webSocketNotificationService, never()).notifyAdminsStockPrediction(anyInt());
+        verify(persistentNotificationService, never()).notifyStockPrediction(anyInt());
         verify(productRepository, never()).findAllActive();
     }
 }

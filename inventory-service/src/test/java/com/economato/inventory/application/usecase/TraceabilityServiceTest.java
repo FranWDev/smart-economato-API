@@ -78,6 +78,7 @@ public class TraceabilityServiceTest {
     @Mock private CrisisAffectedProductRepository crisisAffectedProductRepository;
     @Mock private ProductBatchRepository productBatchRepository;
     @Mock private ObjectMapper objectMapper;
+    @Mock private PersistentNotificationService persistentNotificationService;
     @Spy private MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
     @InjectMocks

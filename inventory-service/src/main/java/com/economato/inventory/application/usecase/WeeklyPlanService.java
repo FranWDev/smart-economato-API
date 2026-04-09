@@ -61,6 +61,7 @@ public class WeeklyPlanService {
     private final SecurityContextHelper securityContextHelper;
     private final I18nService i18nService;
     private final ObjectMapper objectMapper;
+    private final PersistentNotificationService persistentNotificationService;
 
     public WeeklyPlanResponseDTO createPlan(WeeklyPlanRequestDTO request) {
         User currentUser = securityContextHelper.getCurrentUser();
@@ -88,7 +89,9 @@ public class WeeklyPlanService {
         List<WeeklyPlanSlot> slots = mapSlots(request.getSlots(), plan, chefId);
         plan.getSlots().addAll(slots);
 
-        return wrapperMapper.toResponseDTO(weeklyPlanRepository.save(plan));
+        WeeklyPlan savedPlan = weeklyPlanRepository.save(plan);
+        persistentNotificationService.notifyPlanCreated(savedPlan);
+        return wrapperMapper.toResponseDTO(savedPlan);
     }
 
     public WeeklyPlanResponseDTO updatePlan(Long planId, WeeklyPlanRequestDTO request) {
@@ -132,7 +135,9 @@ public class WeeklyPlanService {
         reservationService.validateStockForPlanActivation(plan.getId());
         plan.setStatus(WeeklyPlanStatus.ACTIVE);
 
-        return wrapperMapper.toResponseDTO(weeklyPlanRepository.save(plan));
+        WeeklyPlan savedPlan = weeklyPlanRepository.save(plan);
+        persistentNotificationService.notifyPlanActivated(savedPlan);
+        return wrapperMapper.toResponseDTO(savedPlan);
     }
 
     @PredictorTrigger(action = "WEEKLY_PLAN_CONFIRM")
@@ -199,6 +204,11 @@ public class WeeklyPlanService {
         }
 
         weeklyPlanRepository.saveAndFlush(plan);
+
+        persistentNotificationService.notifySlotConfirmed(plan, slot);
+        if (plan.getStatus() == WeeklyPlanStatus.COMPLETED) {
+            persistentNotificationService.notifyPlanCompleted(plan);
+        }
 
         confirmedStudents.forEach(s -> s.setStatus(StudentSlotStatus.CONFIRMED));
 
@@ -352,6 +362,11 @@ public class WeeklyPlanService {
         }
 
         weeklyPlanRepository.saveAndFlush(plan);
+
+        persistentNotificationService.notifyDayConfirmed(plan, dayOfWeek);
+        if (plan.getStatus() == WeeklyPlanStatus.COMPLETED) {
+            persistentNotificationService.notifyPlanCompleted(plan);
+        }
 
         List<WeeklyPlanSlotResponseDTO> confirmedSlotsDTO = slotsToConfirm.stream()
                 .map(wrapperMapper::toSlotResponseDTO)
