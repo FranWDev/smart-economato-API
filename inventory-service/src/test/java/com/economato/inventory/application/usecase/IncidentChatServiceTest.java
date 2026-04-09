@@ -1,0 +1,190 @@
+package com.economato.inventory.application.usecase;
+
+import com.economato.inventory.application.dto.response.IncidentChatMessageResponseDTO;
+import com.economato.inventory.application.mapper.IncidentChatMessageMapper;
+import com.economato.inventory.domain.model.Incident;
+import com.economato.inventory.domain.model.IncidentChatMessage;
+import com.economato.inventory.domain.model.IncidentStatus;
+import com.economato.inventory.domain.model.IncidentType;
+import com.economato.inventory.domain.model.Role;
+import com.economato.inventory.domain.model.User;
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.IncidentChatMessageRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.IncidentRepository;
+import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.access.AccessDeniedException;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class IncidentChatServiceTest {
+
+    @Mock
+    private IncidentRepository incidentRepository;
+    @Mock
+    private IncidentChatMessageRepository incidentChatMessageRepository;
+    @Mock
+    private SecurityContextHelper securityContextHelper;
+    @Mock
+    private FileStorageService fileStorageService;
+    @Mock
+    private PersistentNotificationService persistentNotificationService;
+    @Mock
+    private SimpMessagingTemplate messagingTemplate;
+    @Mock
+    private I18nService i18nService;
+
+    private IncidentChatService service;
+
+    private User admin;
+    private User creator;
+    private User relatedTeacher;
+    private User nonParticipant;
+    private Incident incident;
+
+    @BeforeEach
+    void setUp() {
+        IncidentParticipantService participantService = new IncidentParticipantService(null);
+        service = new IncidentChatService(
+                incidentRepository,
+                incidentChatMessageRepository,
+                securityContextHelper,
+                participantService,
+                new IncidentChatMessageMapper(),
+                fileStorageService,
+                persistentNotificationService,
+                messagingTemplate,
+                i18nService
+        );
+
+        admin = user(1, "Admin", "admin", Role.ADMIN, null);
+        creator = user(2, "Creator", "creator", Role.ELEVATED, null);
+        relatedTeacher = user(3, "Teacher", "teacher", Role.CHEF, null);
+        nonParticipant = user(4, "Other", "other", Role.USER, null);
+        creator.setTeacher(relatedTeacher);
+
+        IncidentType type = IncidentType.builder().id(1).name("Type").isActive(true).build();
+        incident = Incident.builder()
+                .id(100L)
+                .incidentType(type)
+                .title("Incident")
+                .description("Desc")
+                .status(IncidentStatus.ABIERTO)
+                .createdBy(creator)
+                .relatedTeacher(relatedTeacher)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        lenient().when(i18nService.getMessage(any(MessageKey.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0, MessageKey.class).getKey());
+        lenient().when(incidentRepository.findById(100L)).thenReturn(Optional.of(incident));
+        lenient().when(incidentChatMessageRepository.save(any(IncidentChatMessage.class))).thenAnswer(invocation -> {
+            IncidentChatMessage msg = invocation.getArgument(0);
+            if (msg.getId() == null) {
+                msg.setId(500L);
+            }
+            msg.setCreatedAt(LocalDateTime.now());
+            return msg;
+        });
+    }
+
+    @Test
+    void sendMessage_AsCreator_ShouldSaveAndBroadcast() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(creator);
+
+        IncidentChatMessageResponseDTO result = service.sendMessage(100L, "hello team", null);
+
+        assertNotNull(result);
+        assertEquals("hello team", result.getContent());
+        verify(incidentChatMessageRepository).save(any(IncidentChatMessage.class));
+        verify(messagingTemplate).convertAndSend(eq("/topic/incidents/100/chat"), any(IncidentChatMessageResponseDTO.class));
+        verify(persistentNotificationService).notifyIncidentChatMessage(eq(incident), eq(creator));
+    }
+
+    @Test
+    void sendMessage_AsAdmin_ShouldSucceed() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(admin);
+
+        IncidentChatMessageResponseDTO result = service.sendMessage(100L, "admin message", null);
+
+        assertNotNull(result);
+        assertEquals("admin message", result.getContent());
+        verify(incidentChatMessageRepository).save(any(IncidentChatMessage.class));
+    }
+
+    @Test
+    void sendMessage_AsRelatedTeacher_ShouldSucceed() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(relatedTeacher);
+
+        IncidentChatMessageResponseDTO result = service.sendMessage(100L, "teacher message", null);
+
+        assertNotNull(result);
+        assertEquals("teacher message", result.getContent());
+    }
+
+    @Test
+    void sendMessage_AsNonParticipant_ShouldThrow() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(nonParticipant);
+
+        assertThrows(AccessDeniedException.class, () -> service.sendMessage(100L, "not allowed", null));
+
+        verify(incidentChatMessageRepository, never()).save(any(IncidentChatMessage.class));
+    }
+
+    @Test
+    void sendMessage_WhenIncidentClosed_ShouldThrow() {
+        incident.setStatus(IncidentStatus.CERRADO_CON_RESOLUCION);
+        when(securityContextHelper.getCurrentUser()).thenReturn(creator);
+
+        assertThrows(InvalidOperationException.class, () -> service.sendMessage(100L, "should fail", null));
+    }
+
+    @Test
+    void sendMessage_EmptyContentAndNoAttachment_ShouldThrow() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(creator);
+
+        assertThrows(InvalidOperationException.class, () -> service.sendMessage(100L, "   ", null));
+
+        verify(incidentChatMessageRepository, never()).save(any(IncidentChatMessage.class));
+    }
+
+    @Test
+    void sendMessage_AsDeescalatedUser_ShouldSucceedIfCreator() {
+        creator.setRole(Role.USER);
+        when(securityContextHelper.getCurrentUser()).thenReturn(creator);
+
+        IncidentChatMessageResponseDTO result = service.sendMessage(100L, "still creator", null);
+
+        assertNotNull(result);
+        assertEquals("still creator", result.getContent());
+    }
+
+    private User user(Integer id, String name, String username, Role role, User teacher) {
+        User u = new User();
+        u.setId(id);
+        u.setName(name);
+        u.setUser(username);
+        u.setRole(role);
+        u.setTeacher(teacher);
+        return u;
+    }
+}
