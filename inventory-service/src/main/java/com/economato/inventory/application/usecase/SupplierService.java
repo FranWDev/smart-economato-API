@@ -3,6 +3,9 @@ package com.economato.inventory.application.usecase;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
 import org.springframework.stereotype.Service;
@@ -38,18 +41,21 @@ public class SupplierService {
         this.supplierMapper = supplierMapper;
     }
 
+    @Cacheable(value = "suppliers_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
     @Transactional(readOnly = true)
     public Page<SupplierResponseDTO> findAll(Pageable pageable) {
         return repository.findAllProjectedBy(pageable)
                 .map(supplierMapper::toResponseDTO);
     }
 
+    @Cacheable(value = "supplier", key = "#id", unless = "#result == null")
     @Transactional(readOnly = true)
     public Optional<SupplierResponseDTO> findById(Integer id) {
         return repository.findProjectedById(id)
                 .map(supplierMapper::toResponseDTO);
     }
 
+    @CacheEvict(value = { "suppliers_page", "supplier" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public SupplierResponseDTO save(SupplierRequestDTO requestDTO) {
         if (repository.existsByName(requestDTO.getName())) {
@@ -59,6 +65,10 @@ public class SupplierService {
         return supplierMapper.toResponseDTO(repository.save(supplier));
     }
 
+        @Caching(evict = {
+            @CacheEvict(value = "supplier", key = "#id"),
+            @CacheEvict(value = "suppliers_page", allEntries = true)
+        })
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public Optional<SupplierResponseDTO> update(Integer id, SupplierRequestDTO requestDTO) {
@@ -74,6 +84,7 @@ public class SupplierService {
                 });
     }
 
+        @CacheEvict(value = { "suppliers_page", "supplier" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {

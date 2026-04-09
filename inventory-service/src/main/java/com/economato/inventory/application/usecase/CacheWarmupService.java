@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import com.economato.inventory.application.dto.response.RecipeResponseDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
+import com.economato.inventory.application.dto.response.ProductResponseDTO;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +31,10 @@ public class CacheWarmupService implements CommandLineRunner {
     private final ProductService productService;
     private final RecipeService recipeService;
     private final UserService userService;
+    private final AllergenService allergenService;
+    private final SupplierService supplierService;
+    private final StockAlertService stockAlertService;
+    private final RecipeComponentService recipeComponentService;
 
     @Override
     public void run(String... args) throws Exception {
@@ -41,9 +46,15 @@ public class CacheWarmupService implements CommandLineRunner {
             CompletableFuture<Void> productsWarmup = CompletableFuture.runAsync(this::warmupProducts);
             CompletableFuture<Void> recipesWarmup = CompletableFuture.runAsync(this::warmupRecipes);
             CompletableFuture<Void> usersWarmup = CompletableFuture.runAsync(this::warmupUsers);
+                CompletableFuture<Void> allergensWarmup = CompletableFuture.runAsync(this::warmupAllergens);
+                CompletableFuture<Void> suppliersWarmup = CompletableFuture.runAsync(this::warmupSuppliers);
+                CompletableFuture<Void> alertsWarmup = CompletableFuture.runAsync(this::warmupAlerts);
+                CompletableFuture<Void> statsWarmup = CompletableFuture.runAsync(this::warmupStats);
+                CompletableFuture<Void> recipeComponentsWarmup = CompletableFuture.runAsync(this::warmupRecipeComponents);
 
-            CompletableFuture.allOf(productsWarmup, recipesWarmup, usersWarmup)
-                    .get(30, TimeUnit.SECONDS);
+                CompletableFuture.allOf(productsWarmup, recipesWarmup, usersWarmup, allergensWarmup,
+                    suppliersWarmup, alertsWarmup, statsWarmup, recipeComponentsWarmup)
+                    .get(60, TimeUnit.SECONDS);
 
             long duration = System.currentTimeMillis() - startTime;
             log.info("Warmup de caché completado en {}ms", duration);
@@ -60,12 +71,22 @@ public class CacheWarmupService implements CommandLineRunner {
             log.info("Pre-cargando productos...");
 
             Pageable page1 = PageRequest.of(0, 10);
-            productService.findAll(page1);
+            Page<ProductResponseDTO> products1 = productService.findAll(page1);
 
             Pageable page2 = PageRequest.of(1, 10);
             productService.findAll(page2);
 
-            log.info("Productos pre-cargados (2 páginas, 20 items)");
+            products1.stream()
+                    .limit(10)
+                    .forEach(product -> {
+                        try {
+                            productService.findById(product.getId());
+                        } catch (Exception e) {
+                            log.warn("Error cargando detalle de producto {}: {}", product.getId(), e.getMessage());
+                        }
+                    });
+
+            log.info("Productos pre-cargados (2 páginas + 10 detalles)");
         } catch (Exception e) {
             log.warn("Error pre-cargando productos: {}", e.getMessage());
         }
@@ -117,6 +138,58 @@ public class CacheWarmupService implements CommandLineRunner {
             log.info("Usuarios pre-cargados (1 página + 3 detalles)");
         } catch (Exception e) {
             log.warn("Error pre-cargando usuarios: {}", e.getMessage());
+        }
+    }
+
+    private void warmupAllergens() {
+        try {
+            log.info("Pre-cargando alérgenos...");
+            allergenService.findAll(PageRequest.of(0, 100));
+            log.info("Alérgenos pre-cargados");
+        } catch (Exception e) {
+            log.warn("Error pre-cargando alérgenos: {}", e.getMessage());
+        }
+    }
+
+    private void warmupSuppliers() {
+        try {
+            log.info("Pre-cargando proveedores...");
+            supplierService.findAll(PageRequest.of(0, 50));
+            log.info("Proveedores pre-cargados");
+        } catch (Exception e) {
+            log.warn("Error pre-cargando proveedores: {}", e.getMessage());
+        }
+    }
+
+    private void warmupAlerts() {
+        try {
+            log.info("Pre-cargando alertas predictivas...");
+            stockAlertService.getActiveAlerts();
+            log.info("Alertas predictivas pre-cargadas");
+        } catch (Exception e) {
+            log.warn("Error pre-cargando alertas: {}", e.getMessage());
+        }
+    }
+
+    private void warmupStats() {
+        try {
+            log.info("Pre-cargando estadísticas...");
+            productService.getProductStats();
+            recipeService.getRecipeStats();
+            userService.getUserStats();
+            log.info("Estadísticas pre-cargadas");
+        } catch (Exception e) {
+            log.warn("Error pre-cargando estadísticas: {}", e.getMessage());
+        }
+    }
+
+    private void warmupRecipeComponents() {
+        try {
+            log.info("Pre-cargando componentes de receta...");
+            recipeComponentService.findAll(PageRequest.of(0, 50));
+            log.info("Componentes de receta pre-cargados");
+        } catch (Exception e) {
+            log.warn("Error pre-cargando componentes de receta: {}", e.getMessage());
         }
     }
 }

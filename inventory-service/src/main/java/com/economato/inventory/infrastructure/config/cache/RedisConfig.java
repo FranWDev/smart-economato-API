@@ -11,6 +11,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
 import org.springframework.data.redis.cache.RedisCacheManager;
@@ -88,8 +89,10 @@ public class RedisConfig {
          * - allergens: 24 horas (datos maestros)
          */
         @Bean
+        @Primary
         public CacheManager cacheManager(RedisConnectionFactory connectionFactory,
                         @Qualifier("jackson2ObjectMapper") ObjectMapper objectMapper,
+                        @Qualifier("l1CaffeineCacheManager") CacheManager l1CaffeineCacheManager,
                         CircuitBreakerRegistry circuitBreakerRegistry) {
 
                 GenericJackson2JsonRedisSerializer serializer = buildRedisSerializer(objectMapper);
@@ -106,20 +109,53 @@ public class RedisConfig {
 
                 Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
 
-                cacheConfigurations.put("products_page", defaultConfig.entryTtl(Duration.ofMinutes(30)));
-                cacheConfigurations.put("recipes_page", defaultConfig.entryTtl(Duration.ofMinutes(30)));
-                cacheConfigurations.put("product", defaultConfig.entryTtl(Duration.ofHours(3)));
+                // TIER 1 — Datos maestros
+                cacheConfigurations.put("allergens_page", defaultConfig.entryTtl(Duration.ofHours(24)));
+                cacheConfigurations.put("allergen", defaultConfig.entryTtl(Duration.ofHours(48)));
+                cacheConfigurations.put("suppliers_page", defaultConfig.entryTtl(Duration.ofHours(12)));
+                cacheConfigurations.put("supplier", defaultConfig.entryTtl(Duration.ofHours(24)));
+
+                // TIER 2 — Entidades estables
                 cacheConfigurations.put("recipe", defaultConfig.entryTtl(Duration.ofHours(4)));
-                cacheConfigurations.put("users", defaultConfig.entryTtl(Duration.ofHours(2)));
+                cacheConfigurations.put("recipes_page", defaultConfig.entryTtl(Duration.ofHours(1)));
                 cacheConfigurations.put("user", defaultConfig.entryTtl(Duration.ofHours(2)));
                 cacheConfigurations.put("userByEmail", defaultConfig.entryTtl(Duration.ofHours(2)));
-                cacheConfigurations.put("userDetails", defaultConfig.entryTtl(Duration.ofHours(1)));
-                cacheConfigurations.put("orders", defaultConfig.entryTtl(Duration.ofHours(1)));
+                cacheConfigurations.put("users_page", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+                cacheConfigurations.put("users_by_role", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+                cacheConfigurations.put("users_no_teacher", defaultConfig.entryTtl(Duration.ofMinutes(30)));
                 cacheConfigurations.put("order", defaultConfig.entryTtl(Duration.ofHours(1)));
-                cacheConfigurations.put("allergens", defaultConfig.entryTtl(Duration.ofHours(48)));
-                cacheConfigurations.put("allergen", defaultConfig.entryTtl(Duration.ofHours(48)));
+                cacheConfigurations.put("orders_page", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+                cacheConfigurations.put("orders_pending", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+                cacheConfigurations.put("recipe_components_page", defaultConfig.entryTtl(Duration.ofHours(4)));
+                cacheConfigurations.put("recipe_component", defaultConfig.entryTtl(Duration.ofHours(6)));
+                cacheConfigurations.put("recipe_components_by_recipe", defaultConfig.entryTtl(Duration.ofHours(4)));
+                cacheConfigurations.put("weekly_plan", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+                cacheConfigurations.put("weekly_plan_requirements", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+
+                // TIER 3 — Datos volátiles
+                cacheConfigurations.put("product", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+                cacheConfigurations.put("products_page", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+                cacheConfigurations.put("products_search", defaultConfig.entryTtl(Duration.ofMinutes(10)));
+
+                // TIER 4 — Datos computados
+                cacheConfigurations.put("stock_alerts", defaultConfig.entryTtl(Duration.ofMinutes(3)));
+                cacheConfigurations.put("stock_predictions", defaultConfig.entryTtl(Duration.ofMinutes(10)));
+                cacheConfigurations.put("daily_forecast", defaultConfig.entryTtl(Duration.ofMinutes(10)));
+                cacheConfigurations.put("weekly_consumption", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+                cacheConfigurations.put("product_stats", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+                cacheConfigurations.put("recipe_stats", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+                cacheConfigurations.put("user_stats", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+                cacheConfigurations.put("order_stats", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+                cacheConfigurations.put("student_metrics", defaultConfig.entryTtl(Duration.ofMinutes(10)));
+                cacheConfigurations.put("kitchen_report", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+
+                // Compatibilidad con nombres legacy aún presentes en algunos flujos
+                cacheConfigurations.put("users", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+                cacheConfigurations.put("orders", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+                cacheConfigurations.put("allergens", defaultConfig.entryTtl(Duration.ofHours(24)));
                 cacheConfigurations.put("recipeComponents", defaultConfig.entryTtl(Duration.ofHours(6)));
                 cacheConfigurations.put("recipeAllergens", defaultConfig.entryTtl(Duration.ofHours(6)));
+                cacheConfigurations.put("userDetails", defaultConfig.entryTtl(Duration.ofMinutes(15)));
 
                 RedisCacheManager redisCacheManager = RedisCacheManager.builder(connectionFactory)
                                 .cacheDefaults(defaultConfig)
@@ -128,7 +164,11 @@ public class RedisConfig {
                                 .transactionAware()
                                 .build();
 
-                return new CircuitBreakerAwareCacheManager(redisCacheManager, circuitBreakerRegistry);
+                CacheManager circuitBreakerAwareCacheManager = new CircuitBreakerAwareCacheManager(
+                                redisCacheManager,
+                                circuitBreakerRegistry);
+
+                return new TwoLevelCacheManager(circuitBreakerAwareCacheManager, l1CaffeineCacheManager);
         }
 
         @Bean

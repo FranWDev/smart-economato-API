@@ -11,7 +11,6 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -32,6 +31,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.security.LedgerProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.env.Environment;
 
 @ExtendWith(MockitoExtension.class)
@@ -73,6 +73,9 @@ class StockLedgerServiceLedgerMethodsTest {
         @Mock
         private LedgerProperties ledgerProperties;
 
+        @Mock
+        private ApplicationEventPublisher applicationEventPublisher;
+
         private StockLedgerService stockLedgerService;
 
         private MeterRegistry meterRegistry;
@@ -100,6 +103,7 @@ class StockLedgerServiceLedgerMethodsTest {
                         batchRepository,
                         environment,
                         ledgerProperties,
+                        applicationEventPublisher,
                         meterRegistry
                 );
 

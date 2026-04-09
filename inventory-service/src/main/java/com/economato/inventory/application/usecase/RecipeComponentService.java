@@ -6,6 +6,8 @@ import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,19 +50,22 @@ public class RecipeComponentService {
         this.recipeComponentMapper = recipeComponentMapper;
     }
 
-    @Transactional(readOnly = true)
+        @Cacheable(value = "recipe_components_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
+        @Transactional(readOnly = true)
     public Page<RecipeComponentResponseDTO> findAll(Pageable pageable) {
         Page<RecipeComponentResponseDTO> page = repository.findAllProjectedBy(pageable)
                 .map(recipeComponentMapper::toResponseDTO);
         return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
     }
 
-    @Transactional(readOnly = true)
+        @Cacheable(value = "recipe_component", key = "#id", unless = "#result == null")
+        @Transactional(readOnly = true)
     public Optional<RecipeComponentResponseDTO> findById(Integer id) {
         return repository.findProjectedById(id)
                 .map(recipeComponentMapper::toResponseDTO);
     }
 
+        @CacheEvict(value = { "recipe_components_page", "recipe_component", "recipe_components_by_recipe" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public RecipeComponentResponseDTO save(RecipeComponentRequestDTO requestDTO) {
@@ -74,6 +79,7 @@ public class RecipeComponentService {
                 .orElseThrow(() -> new RuntimeException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
     }
 
+        @CacheEvict(value = { "recipe_components_page", "recipe_component", "recipe_components_by_recipe" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public Optional<RecipeComponentResponseDTO> update(Integer id, RecipeComponentRequestDTO requestDTO) {
@@ -89,12 +95,14 @@ public class RecipeComponentService {
                 });
     }
 
+    @CacheEvict(value = { "recipe_components_page", "recipe_component", "recipe_components_by_recipe" }, allEntries = true)
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
         repository.deleteById(id);
     }
 
+    @Cacheable(value = "recipe_components_by_recipe", key = "#recipeDTO.id")
     @Transactional(readOnly = true)
     public List<RecipeComponentResponseDTO> findByParentRecipe(RecipeResponseDTO recipeDTO) {
         if (recipeDTO.getId() == null) {

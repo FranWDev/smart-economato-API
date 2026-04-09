@@ -22,6 +22,9 @@ import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -43,6 +46,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.economato.inventory.infrastructure.config.cache.event.WeeklyPlanSlotConfirmedEvent;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -62,7 +67,9 @@ public class WeeklyPlanService {
     private final I18nService i18nService;
     private final ObjectMapper objectMapper;
     private final PersistentNotificationService persistentNotificationService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
+    @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     public WeeklyPlanResponseDTO createPlan(WeeklyPlanRequestDTO request) {
         User currentUser = securityContextHelper.getCurrentUser();
         User chef = determineChef(request.getChefId(), currentUser);
@@ -94,6 +101,7 @@ public class WeeklyPlanService {
         return wrapperMapper.toResponseDTO(savedPlan);
     }
 
+    @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     public WeeklyPlanResponseDTO updatePlan(Long planId, WeeklyPlanRequestDTO request) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -123,6 +131,7 @@ public class WeeklyPlanService {
         return wrapperMapper.toResponseDTO(plan);
     }
 
+    @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     public WeeklyPlanResponseDTO activatePlan(Long planId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -141,6 +150,7 @@ public class WeeklyPlanService {
     }
 
     @PredictorTrigger(action = "WEEKLY_PLAN_CONFIRM")
+    @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public WeeklyPlanSlotResponseDTO confirmSlot(Long planId, Long slotId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
@@ -221,9 +231,14 @@ public class WeeklyPlanService {
             .componentsState(buildComponentsState(slot.getRecipe()))
                 .build();
         cookingAuditRepository.saveAndFlush(audit);
+        Set<Integer> affectedProductIds = slot.getRecipe().getComponents().stream()
+            .map(component -> component.getProduct().getId())
+            .collect(Collectors.toSet());
+        applicationEventPublisher.publishEvent(new WeeklyPlanSlotConfirmedEvent(affectedProductIds));
         return wrapperMapper.toSlotResponseDTO(slotRepository.saveAndFlush(slot));
     }
 
+    @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public WeeklyPlanSlotResponseDTO unconfirmSlot(Long planId, Long slotId) {
         User currentUser = securityContextHelper.getCurrentUser();
@@ -281,6 +296,7 @@ public class WeeklyPlanService {
         return wrapperMapper.toSlotResponseDTO(slotRepository.saveAndFlush(slot));
     }
 
+    @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public ConfirmDayResponseDTO confirmDay(Long planId, Integer dayOfWeek) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
@@ -372,6 +388,12 @@ public class WeeklyPlanService {
                 .map(wrapperMapper::toSlotResponseDTO)
                 .toList();
 
+        Set<Integer> affectedProductIds = slotsToConfirm.stream()
+            .flatMap(slot -> slot.getRecipe().getComponents().stream())
+            .map(component -> component.getProduct().getId())
+            .collect(Collectors.toSet());
+        applicationEventPublisher.publishEvent(new WeeklyPlanSlotConfirmedEvent(affectedProductIds));
+
         return ConfirmDayResponseDTO.builder()
                 .planId(plan.getId())
                 .dayOfWeek(dayOfWeek)
@@ -381,6 +403,7 @@ public class WeeklyPlanService {
                 .build();
     }
 
+    @Cacheable(value = "weekly_plan", key = "#planId")
     @Transactional(readOnly = true)
     public WeeklyPlanResponseDTO getPlanById(Long planId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId)
@@ -432,6 +455,7 @@ public class WeeklyPlanService {
         return wrapperMapper.toResponseDTO(plan);
     }
 
+    @Cacheable(value = "weekly_plan_requirements", key = "#planId")
     @Transactional(readOnly = true)
     public List<WeeklyPlanStockRequirementDTO> getStockRequirements(Long planId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId)
@@ -441,6 +465,7 @@ public class WeeklyPlanService {
         return reservationService.getStockRequirements(planId);
     }
 
+    @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     public WeeklyPlanSlotResponseDTO cancelSlot(Long planId, Long slotId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -469,6 +494,7 @@ public class WeeklyPlanService {
         return wrapperMapper.toSlotResponseDTO(slotRepository.save(slot));
     }
 
+    @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     public WeeklyPlanSlotStudentResponseDTO cancelStudentFromSlot(Long planId, Long slotId, Integer studentId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -501,6 +527,7 @@ public class WeeklyPlanService {
         return wrapperMapper.toStudentResponseDTO(studentSlot);
     }
 
+    @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     public void cancelStudentFromDay(Long planId, Integer dayOfWeek, Integer studentId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -531,6 +558,7 @@ public class WeeklyPlanService {
         }
     }
 
+    @Cacheable(value = "student_metrics", key = "#chefId + '-' + #pageable.pageNumber + '-' + #pageable.pageSize")
     @Transactional(readOnly = true)
     public Page<StudentMetricsResponseDTO> getStudentMetrics(Integer chefId, Pageable pageable) {
         User currentUser = securityContextHelper.getCurrentUser();

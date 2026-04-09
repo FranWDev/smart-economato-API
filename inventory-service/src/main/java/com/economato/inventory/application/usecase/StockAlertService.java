@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
 
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
@@ -93,6 +95,7 @@ public class StockAlertService {
      * @return lista de alertas ordenada por severidad descendente (CRITICAL
      *         primero)
      */
+    @Cacheable(value = "stock_alerts", key = "'active'")
     @Transactional(readOnly = true)
     public List<StockAlertDTO> getActiveAlerts() {
         return computeAlerts().stream()
@@ -104,6 +107,7 @@ public class StockAlertService {
     /**
      * Devuelve las alertas filtradas por nivel de severidad mínimo.
      */
+    @Cacheable(value = "stock_alerts", key = "'severity:' + #minSeverity.name()")
     @Transactional(readOnly = true)
     public List<StockAlertDTO> getAlertsBySeverity(AlertSeverity minSeverity) {
         return getActiveAlerts().stream()
@@ -114,6 +118,7 @@ public class StockAlertService {
     /**
      * Devuelve la alerta predictiva para un producto específico, si existe.
      */
+    @Cacheable(value = "stock_alerts", key = "'product:' + #productId", unless = "#result == null")
     @Transactional(readOnly = true)
     public Optional<StockAlertDTO> getAlertByProductId(Integer productId) {
         return computeAlerts(Set.of(productId)).stream().findFirst();
@@ -137,6 +142,7 @@ public class StockAlertService {
     /**
      * Devuelve una lista paginada de todas las predicciones almacenadas.
      */
+    @Cacheable(value = "stock_predictions", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
     @Transactional(readOnly = true)
     public Page<StockPredictionResponseDTO> getAllPredictions(Pageable pageable) {
         return predictionRepository.findAll(pageable)
@@ -155,6 +161,7 @@ public class StockAlertService {
      * (si se indica {@code productId}) o para todos los productos con historial
      * (si {@code productId} es {@code null}).
      */
+    @Cacheable(value = "weekly_consumption", key = "#productId != null ? #productId : 'all'")
     @Transactional(readOnly = true)
     public List<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistory(Integer productId) {
         if (productId == null) {
@@ -193,6 +200,7 @@ public class StockAlertService {
          * incluidos los lotes activos (no agotados) ordenados por fecha de caducidad.
          * Evita N+1 cargando los batches de una sola consulta.
          */
+    @Cacheable(value = "daily_forecast", key = "#productId")
     @Transactional(readOnly = true)
     public Optional<DailyForecastResponseDTO> getDailyForecast(Integer productId) {
         return dailyForecastRepository.findOneById(productId)
@@ -225,6 +233,7 @@ public class StockAlertService {
              * Devuelve la proyección diaria de consumo para todos los productos con
              * historial en el período analizado.
              */
+    @Cacheable(value = "daily_forecast", key = "'all'")
     @Transactional(readOnly = true)
     public List<DailyForecastResponseDTO> getDailyForecastAll() {
         return dailyForecastRepository.findAll().stream()
@@ -236,6 +245,7 @@ public class StockAlertService {
     /**
      * Devuelve la proyección diaria de consumo en formato paginado.
      */
+    @Cacheable(value = "daily_forecast", key = "'page:' + #pageable.pageNumber + '-' + #pageable.pageSize")
     @Transactional(readOnly = true)
     public Page<DailyForecastResponseDTO> getDailyForecastAll(Pageable pageable) {
         return dailyForecastRepository.findAll(pageable)
@@ -396,6 +406,7 @@ public class StockAlertService {
      * Actualiza la predicción oficial de un producto basándose en el resultado del
      * predictor externo de IA (Python/Prophet).
      */
+    @CacheEvict(value = { "stock_alerts", "stock_predictions", "daily_forecast", "weekly_consumption" }, allEntries = true)
     @Transactional
     public void updatePredictionFromForecast(Integer productId, BigDecimal projectedConsumption) {
         updatePredictionFromForecast(productId, projectedConsumption, LocalDateTime.now());
@@ -405,6 +416,7 @@ public class StockAlertService {
      * Actualiza la predicción oficial de un producto usando el timestamp recibido
      * por Kafka cuando esté disponible.
      */
+    @CacheEvict(value = { "stock_alerts", "stock_predictions", "daily_forecast", "weekly_consumption" }, allEntries = true)
     @Transactional
     public void updatePredictionFromForecast(Integer productId,
             BigDecimal projectedConsumption,

@@ -2,6 +2,9 @@ package com.economato.inventory.application.usecase;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,23 +30,30 @@ public class AllergenService {
         this.allergenMapper = allergenMapper;
     }
 
+    @Cacheable(value = "allergens_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
     @Transactional(readOnly = true)
     public Page<AllergenResponseDTO> findAll(Pageable pageable) {
         return repository.findAllProjectedBy(pageable)
                 .map(allergenMapper::toResponseDTO);
     }
 
+    @Cacheable(value = "allergen", key = "#id", unless = "#result == null")
     @Transactional(readOnly = true)
     public Optional<AllergenResponseDTO> findById(Integer id) {
         return repository.findProjectedById(id)
                 .map(allergenMapper::toResponseDTO);
     }
 
+    @CacheEvict(value = { "allergens_page", "allergen" }, allEntries = true)
     public AllergenResponseDTO save(AllergenRequestDTO requestDTO) {
         Allergen allergen = allergenMapper.toEntity(requestDTO);
         return allergenMapper.toResponseDTO(repository.save(allergen));
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "allergen", key = "#id"),
+            @CacheEvict(value = "allergens_page", allEntries = true)
+    })
     public Optional<AllergenResponseDTO> update(Integer id, AllergenRequestDTO requestDTO) {
         return repository.findById(id)
                 .map(existing -> {
@@ -52,12 +62,14 @@ public class AllergenService {
                 });
     }
 
+    @CacheEvict(value = { "allergens_page", "allergen" }, allEntries = true)
     public void deleteById(Integer id) {
         if (repository.existsById(id)) {
             repository.deleteById(id);
         }
     }
 
+    @Cacheable(value = "allergen", key = "'name:' + #namePart.toLowerCase()", unless = "#result == null")
     @Transactional(readOnly = true)
     public Optional<AllergenResponseDTO> findByName(String namePart) {
         return repository.findProjectedByNameIgnoreCase(namePart)

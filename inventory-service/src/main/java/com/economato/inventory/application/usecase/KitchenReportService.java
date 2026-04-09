@@ -16,6 +16,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +49,10 @@ public class KitchenReportService {
         this.objectMapper = new ObjectMapper();
     }
 
+        @Cacheable(
+            value = "kitchen_report",
+            key = "#range.name() + '-' + (#startDate != null ? #startDate.toString() : 'null') + '-' + (#endDate != null ? #endDate.toString() : 'null')",
+            unless = "#range.name() == 'DAILY'")
     @Transactional(readOnly = true)
     public KitchenReportResponseDTO generateReport(ReportRange range, LocalDate startDate, LocalDate endDate) {
         LocalDateTime start;
