@@ -1,8 +1,6 @@
 package com.economato.inventory.infrastructure.config.web;
 
 import com.economato.inventory.infrastructure.WebSocketConnectedEvent;
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
 import com.economato.inventory.infrastructure.config.security.JwtUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,9 +17,11 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.messaging.support.MessageHeaderAccessor;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
@@ -63,59 +63,78 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             @Override
             public Message<?> preSend(Message<?> message, MessageChannel channel) {
                 StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
+                if (accessor == null) {
+                    return message;
+                }
 
-                if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-                    String authToken = null;
-                    List<String> authorization = accessor.getNativeHeader("Authorization");
+                if (accessor.getUser() instanceof Authentication authentication) {
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
 
-                    if (authorization != null && !authorization.isEmpty()) {
-                        String bearerToken = authorization.get(0);
-                        if (bearerToken.startsWith("Bearer ")) {
-                            authToken = bearerToken.substring(7);
+                StompCommand command = accessor.getCommand();
+                if (command == null) {
+                    return message;
+                }
+                switch (command) {
+                    case CONNECT -> {
+                        String authToken = null;
+                        List<String> authorization = accessor.getNativeHeader("Authorization");
+
+                        if (authorization != null && !authorization.isEmpty()) {
+                            String bearerToken = authorization.get(0);
+                            if (bearerToken.startsWith("Bearer ")) {
+                                authToken = bearerToken.substring(7);
+                            }
                         }
-                    }
 
-                    if (authToken == null) {
-                        throw new MessageDeliveryException(i18nService.getMessage(MessageKey.ERROR_AUTH_JWT_MISSING));
-                    }
+                        if (authToken == null) {
+                            throw new MessageDeliveryException(i18nService.getMessage(MessageKey.ERROR_AUTH_JWT_MISSING));
+                        }
 
-                    if (jwtUtils.validateJwtToken(authToken)) {
-                        String username = jwtUtils.getUserNameFromJwtToken(authToken);
-                        String role = jwtUtils.getRoleFromJwtToken(authToken);
+                        if (jwtUtils.validateJwtToken(authToken)) {
+                            String username = jwtUtils.getUserNameFromJwtToken(authToken);
+                            String role = jwtUtils.getRoleFromJwtToken(authToken);
 
-                        if (username != null && role != null) {
-                            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                                    userDetails, null, userDetails.getAuthorities());
-                            accessor.setUser(authentication);
-                            log.debug("WebSocket authenticated user: {} with role: {}", username, role);
-                            
-                            eventPublisher.publishEvent(new WebSocketConnectedEvent(username));
+                            if (username != null && role != null) {
+                                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                                        userDetails, null, userDetails.getAuthorities());
+                                accessor.setUser(authentication);
+                                SecurityContextHolder.getContext().setAuthentication(authentication);
+                                log.debug("WebSocket authenticated user: {} with role: {}", username, role);
+
+                                eventPublisher.publishEvent(new WebSocketConnectedEvent(username));
+                            } else {
+                                throw new MessageDeliveryException(
+                                        i18nService.getMessage(MessageKey.ERROR_AUTH_UNAUTHORIZED));
+                            }
                         } else {
-                            throw new MessageDeliveryException(
-                                    i18nService.getMessage(MessageKey.ERROR_AUTH_UNAUTHORIZED));
+                            log.warn("WebSocket connection attempt with invalid JWT token");
+                            throw new MessageDeliveryException(i18nService.getMessage(MessageKey.ERROR_AUTH_JWT_INVALID));
                         }
-                    } else {
-                        log.warn("WebSocket connection attempt with invalid JWT token");
-                        throw new MessageDeliveryException(i18nService.getMessage(MessageKey.ERROR_AUTH_JWT_INVALID));
                     }
-                } else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
-                    String destination = accessor.getDestination();
-                    if (destination != null && destination.startsWith("/topic/roles/")) {
-                        String requiredRole = destination.substring("/topic/roles/".length());
-                        UsernamePasswordAuthenticationToken user = (UsernamePasswordAuthenticationToken) accessor.getUser();
-                        
-                        if (user == null) {
-                            throw new MessageDeliveryException("Unauthorized: User not authenticated");
-                        }
+                    case SUBSCRIBE -> {
+                        String destination = accessor.getDestination();
+                        if (destination != null && destination.startsWith("/topic/roles/")) {
+                            String requiredRole = destination.substring("/topic/roles/".length());
+                            UsernamePasswordAuthenticationToken user = (UsernamePasswordAuthenticationToken) accessor.getUser();
 
-                        boolean hasRole = user.getAuthorities().stream()
-                                .anyMatch(a -> a.getAuthority().equals("ROLE_" + requiredRole));
+                            if (user == null) {
+                                throw new MessageDeliveryException("Unauthorized: User not authenticated");
+                            }
 
-                        if (!hasRole) {
-                            log.warn("User {} attempted to subscribe to unauthorized role topic: {}", user.getName(), requiredRole);
-                            throw new MessageDeliveryException("Unauthorized: User does not have the required role");
+                            boolean hasRole = user.getAuthorities().stream()
+                                    .anyMatch(a -> a.getAuthority().equals("ROLE_" + requiredRole));
+
+                            if (!hasRole) {
+                                log.warn("User {} attempted to subscribe to unauthorized role topic: {}", user.getName(), requiredRole);
+                                throw new MessageDeliveryException("Unauthorized: User does not have the required role");
+                            }
                         }
+                    }
+                    case DISCONNECT -> SecurityContextHolder.clearContext();
+                    default -> {
+                        // no-op
                     }
                 }
                 return message;
