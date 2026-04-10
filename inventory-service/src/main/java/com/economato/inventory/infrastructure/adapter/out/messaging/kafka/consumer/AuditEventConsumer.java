@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.event.InventoryAuditEvent;
 import com.economato.inventory.application.dto.event.OrderAuditEvent;
+import com.economato.inventory.application.dto.event.PresenceAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeCookingAuditEvent;
 import com.economato.inventory.domain.model.InventoryAudit;
@@ -17,6 +18,7 @@ import com.economato.inventory.domain.model.Recipe;
 import com.economato.inventory.domain.model.RecipeAudit;
 import com.economato.inventory.domain.model.RecipeCookingAudit;
 import com.economato.inventory.domain.model.User;
+import com.economato.inventory.domain.model.UserActivityLog;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.InventoryAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
@@ -24,6 +26,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserActivityLogRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +50,7 @@ public class AuditEventConsumer {
     private final RecipeRepository recipeRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
+    private final UserActivityLogRepository userActivityLogRepository;
 
     public AuditEventConsumer(
             InventoryAuditRepository inventoryAuditRepository,
@@ -56,7 +60,8 @@ public class AuditEventConsumer {
             ProductRepository productRepository,
             RecipeRepository recipeRepository,
             OrderRepository orderRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            UserActivityLogRepository userActivityLogRepository) {
         this.inventoryAuditRepository = inventoryAuditRepository;
         this.recipeAuditRepository = recipeAuditRepository;
         this.recipeCookingAuditRepository = recipeCookingAuditRepository;
@@ -65,6 +70,7 @@ public class AuditEventConsumer {
         this.recipeRepository = recipeRepository;
         this.orderRepository = orderRepository;
         this.userRepository = userRepository;
+        this.userActivityLogRepository = userActivityLogRepository;
     }
 
     @KafkaListener(topics = "inventory-audit-events", groupId = "inventory-audit-consumer-group", containerFactory = "inventoryAuditKafkaListenerContainerFactory")
@@ -214,6 +220,32 @@ public class AuditEventConsumer {
             log.error("Error al procesar evento de auditoría de cocinado: {}", e.getMessage(), e);
 
             throw new RuntimeException("Error procesando auditoría de cocinado", e);
+        }
+    }
+
+    @KafkaListener(topics = "presence-audit-events", groupId = "presence-audit-consumer-group", containerFactory = "presenceAuditKafkaListenerContainerFactory")
+    @Transactional
+    public void consumePresenceAudit(PresenceAuditEvent event) {
+        try {
+            if (event.getUserId() == null) {
+                return;
+            }
+
+            User user = userRepository.findById(event.getUserId())
+                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado: " + event.getUserId()));
+
+            UserActivityLog logEntry = new UserActivityLog();
+            logEntry.setUser(user);
+            logEntry.setAction(event.getAction());
+            logEntry.setScreen(event.getScreen());
+            logEntry.setScreenContext(event.getScreenContext());
+            logEntry.setSessionId(event.getSessionId());
+            logEntry.setTimestamp(event.getTimestamp());
+
+            userActivityLogRepository.save(logEntry);
+        } catch (Exception e) {
+            log.error("Error al procesar evento de auditoría de presencia: {}", e.getMessage(), e);
+            throw new RuntimeException("Error procesando auditoría de presencia", e);
         }
     }
 }

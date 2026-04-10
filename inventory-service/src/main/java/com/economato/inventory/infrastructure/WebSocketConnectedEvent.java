@@ -9,8 +9,10 @@ import lombok.Getter;
 @Getter
 public class WebSocketConnectedEvent {
     private final String username;
+    private final String sessionId;
 
-    public WebSocketConnectedEvent(String username) {
+    public WebSocketConnectedEvent(String username, String sessionId) {
         this.username = username;
+        this.sessionId = sessionId;
     }
 }

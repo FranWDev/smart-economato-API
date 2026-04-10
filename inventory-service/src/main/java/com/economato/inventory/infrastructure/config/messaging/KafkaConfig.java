@@ -17,6 +17,7 @@ import org.springframework.kafka.support.serializer.JsonSerializer;
 
 import com.economato.inventory.application.dto.event.InventoryAuditEvent;
 import com.economato.inventory.application.dto.event.OrderAuditEvent;
+import com.economato.inventory.application.dto.event.PresenceAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeCookingAuditEvent;
 import com.economato.inventory.application.dto.event.ForecastResultEvent;
@@ -75,6 +76,14 @@ public class KafkaConfig {
     @Bean
     public NewTopic recipeCookingAuditTopic() {
         return TopicBuilder.name(AuditEventProducer.RECIPE_COOKING_AUDIT_TOPIC)
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic presenceAuditTopic() {
+        return TopicBuilder.name(AuditEventProducer.PRESENCE_AUDIT_TOPIC)
                 .partitions(3)
                 .replicas(1)
                 .build();
@@ -164,6 +173,16 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<String, StockPredictionEvent> stockPredictionKafkaTemplate() {
         return new KafkaTemplate<>(stockPredictionProducerFactory());
+    }
+
+    @Bean
+    public ProducerFactory<String, PresenceAuditEvent> presenceAuditProducerFactory() {
+        return new DefaultKafkaProducerFactory<>(producerConfigs());
+    }
+
+    @Bean
+    public KafkaTemplate<String, PresenceAuditEvent> presenceAuditKafkaTemplate() {
+        return new KafkaTemplate<>(presenceAuditProducerFactory());
     }
 
     /**
@@ -308,6 +327,32 @@ public class KafkaConfig {
     public ConcurrentKafkaListenerContainerFactory<String, ForecastResultEvent> forecastResultKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, ForecastResultEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(forecastResultConsumerFactory());
+        factory.setConcurrency(3);
+        factory.getContainerProperties().setAckMode(
+                org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
+        return factory;
+    }
+
+    @Bean
+    public ConsumerFactory<String, PresenceAuditEvent> presenceAuditConsumerFactory() {
+        JsonDeserializer<PresenceAuditEvent> deserializer = new JsonDeserializer<>(PresenceAuditEvent.class);
+        deserializer.addTrustedPackages("*");
+        deserializer.setRemoveTypeHeaders(false);
+        deserializer.setUseTypeMapperForKey(false);
+
+        ErrorHandlingDeserializer<PresenceAuditEvent> errorHandlingDeserializer = new ErrorHandlingDeserializer<>(
+                deserializer);
+
+        return new DefaultKafkaConsumerFactory<>(
+                consumerConfigs("presence-audit-consumer-group"),
+                new StringDeserializer(),
+                errorHandlingDeserializer);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, PresenceAuditEvent> presenceAuditKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, PresenceAuditEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(presenceAuditConsumerFactory());
         factory.setConcurrency(3);
         factory.getContainerProperties().setAckMode(
                 org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
