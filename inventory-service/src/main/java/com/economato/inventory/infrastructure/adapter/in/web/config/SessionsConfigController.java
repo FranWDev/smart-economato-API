@@ -43,14 +43,6 @@ public class SessionsConfigController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Historial de cambios de sesiones")
     public ResponseEntity<Page<ConfigAuditLogResponseDTO>> auditLog(Pageable pageable) {
-        return ResponseEntity.ok(systemConfigService.getAuditByCategory("SESSIONS", pageable)
-                .map(log -> ConfigAuditLogResponseDTO.builder()
-                        .username(log.getUser() != null ? log.getUser().getName() : null)
-                        .category(log.getCategory())
-                        .fieldName(log.getFieldName())
-                        .oldValue(log.getOldValue())
-                        .newValue(log.getNewValue())
-                        .changedAt(log.getChangedAt())
-                        .build()));
+        return ResponseEntity.ok(systemConfigService.getAuditByCategoryDto("SESSIONS", pageable));
     }
 }

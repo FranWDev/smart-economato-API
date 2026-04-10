@@ -8,6 +8,7 @@ import com.economato.inventory.application.dto.request.PredictionsConfigRequestD
 import com.economato.inventory.application.dto.request.PresenceConfigRequestDTO;
 import com.economato.inventory.application.dto.request.SecurityConfigRequestDTO;
 import com.economato.inventory.application.dto.request.SessionsConfigRequestDTO;
+import com.economato.inventory.application.dto.response.ConfigAuditLogResponseDTO;
 import com.economato.inventory.domain.model.NotificationType;
 import com.economato.inventory.domain.model.SystemConfig;
 import com.economato.inventory.domain.model.SystemConfigAuditLog;
@@ -101,6 +102,13 @@ public class SystemConfigService {
     public long getStaleSessionTimeoutSeconds() { return getConfigEntity().getStaleSessionTimeoutSeconds(); }
     @Transactional(readOnly = true)
     public long getJwtExpirationMs() { return getConfigEntity().getJwtExpirationMs(); }
+    @Transactional(readOnly = true)
+    public String getUpdatedByName() {
+        return systemConfigRepository.findById(1)
+                .map(SystemConfig::getUpdatedBy)
+                .map(User::getName)
+                .orElse(null);
+    }
     @Transactional(readOnly = true)
     public int getMinPasswordLength() { return getConfigEntity().getMinPasswordLength(); }
     @Transactional(readOnly = true)
@@ -385,6 +393,27 @@ public class SystemConfigService {
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<SystemConfigAuditLog> getAuditGlobal(org.springframework.data.domain.Pageable pageable) {
         return auditLogRepository.findAllByOrderByChangedAtDesc(pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<ConfigAuditLogResponseDTO> getAuditByCategoryDto(String category, org.springframework.data.domain.Pageable pageable) {
+        return getAuditByCategory(category, pageable).map(this::toAuditDto);
+    }
+
+    @Transactional(readOnly = true)
+    public org.springframework.data.domain.Page<ConfigAuditLogResponseDTO> getAuditGlobalDto(org.springframework.data.domain.Pageable pageable) {
+        return getAuditGlobal(pageable).map(this::toAuditDto);
+    }
+
+    private ConfigAuditLogResponseDTO toAuditDto(SystemConfigAuditLog log) {
+        return ConfigAuditLogResponseDTO.builder()
+                .username(log.getUser() != null ? log.getUser().getName() : null)
+                .category(log.getCategory())
+                .fieldName(log.getFieldName())
+                .oldValue(log.getOldValue())
+                .newValue(log.getNewValue())
+                .changedAt(log.getChangedAt())
+                .build();
     }
 
     private User resolveAdmin(String adminUsername) {
