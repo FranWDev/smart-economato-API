@@ -2,16 +2,32 @@ package com.economato.inventory.infrastructure.adapter.in.web;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.cache.CacheManager;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.servlet.LocaleResolver;
 
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.StockSnapshot;
 import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
+import com.economato.inventory.application.dto.response.StockLedgerResponseDTO;
+import com.economato.inventory.application.mapper.StockLedgerMapper;
+import com.economato.inventory.application.usecase.StockLedgerService;
+import com.economato.inventory.infrastructure.config.security.SecurityConfig;
+import com.economato.inventory.infrastructure.config.security.JwtUtils;
+import com.economato.inventory.application.usecase.TokenBlacklistService;
+import com.economato.inventory.infrastructure.config.web.I18nService;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -25,7 +41,37 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-class StockLedgerControllerIntegrationTest extends BaseControllerMockTest {
+@WebMvcTest(StockLedgerController.class)
+@ActiveProfiles("test")
+@Import(SecurityConfig.class)
+class StockLedgerControllerIntegrationTest {
+        @Autowired
+        private MockMvc mockMvc;
+
+        @MockitoBean
+        private StockLedgerService stockLedgerService;
+
+        @MockitoBean
+        private StockLedgerMapper stockLedgerMapper;
+
+        @MockitoBean
+        private JwtUtils jwtUtils;
+
+        @MockitoBean
+        private UserDetailsService userDetailsService;
+
+        @MockitoBean
+        private TokenBlacklistService tokenBlacklistService;
+
+        @MockitoBean
+        private I18nService i18nService;
+
+        @MockitoBean
+        private LocaleResolver localeResolver;
+
+        @MockitoBean
+        private CacheManager cacheManager;
+
     private StockLedger testLedger;
     private List<StockLedger> testLedgers;
     private StockSnapshot testSnapshot;
@@ -73,7 +119,12 @@ class StockLedgerControllerIntegrationTest extends BaseControllerMockTest {
     void getProductHistory_ShouldReturnList() throws Exception {
 
         Page<StockLedger> page = new PageImpl<>(testLedgers, PageRequest.of(0, 20), 1);
+        StockLedgerResponseDTO dto = StockLedgerResponseDTO.builder()
+                .id(1L)
+                .productId(1)
+                .build();
         when(stockLedgerService.getProductHistory(anyInt(), any())).thenReturn(page);
+        when(stockLedgerMapper.toDTO(any(StockLedger.class))).thenReturn(dto);
 
         mockMvc.perform(get("/api/stock-ledger/history/1")
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
@@ -90,7 +141,12 @@ class StockLedgerControllerIntegrationTest extends BaseControllerMockTest {
     void getProductHistory_WithAdminRole_ShouldReturnList() throws Exception {
 
                 Page<StockLedger> page = new PageImpl<>(testLedgers, PageRequest.of(0, 10), 1);
+        StockLedgerResponseDTO dto = StockLedgerResponseDTO.builder()
+                .id(1L)
+                .productId(1)
+                .build();
         when(stockLedgerService.getProductHistory(anyInt(), any())).thenReturn(page);
+        when(stockLedgerMapper.toDTO(any(StockLedger.class))).thenReturn(dto);
 
         mockMvc.perform(get("/api/stock-ledger/history/1?page=0&size=10")
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors

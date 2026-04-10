@@ -1,6 +1,7 @@
 package com.economato.inventory.infrastructure;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -23,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Tag("slow")
 public class ConcurrencyTest {
 
     @MockitoBean

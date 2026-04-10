@@ -3,15 +3,14 @@ package com.economato.inventory.application.usecase;
 import com.economato.inventory.application.dto.event.StockPredictionEvent;
 import com.economato.inventory.application.dto.event.StockPredictionEvent.DailyConsumption;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO.DailyConsumptionDTO;
-import com.economato.inventory.domain.PredictorTrigger;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Profile;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,23 +24,40 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ScheduledForecastRefreshService {
 
+    private static final int DEFAULT_INTERVAL_HOURS = 6;
+    private static final int DEFAULT_BATCH_SIZE = 20;
+    private static final int DEFAULT_HISTORY_DAYS = 90;
+
     private final ProductRepository productRepository;
     private final StockLedgerRepository stockLedgerRepository;
     private final StockLedgerService stockLedgerService;
     private final AuditEventProducer auditEventProducer;
     private final WebSocketNotificationService webSocketNotificationService;
     private final PersistentNotificationService persistentNotificationService;
+    @Autowired(required = false)
+    private SystemConfigService systemConfigService;
 
     /**
      * Refresh forecasts for products with stock alterations in the last 6 hours.
      * Uses batches of 20 to avoid large message payloads and database load.
      */
-    @Scheduled(cron = "0 0 */6 * * *")
     @Transactional(readOnly = true)
     public void scheduleForecastRefresh() {
         log.info("Iniciando refresco programado de predicciones...");
 
-        LocalDateTime sixHoursAgo = LocalDateTime.now().minusHours(6);
+        if (systemConfigService != null) {
+            try {
+                if (!systemConfigService.getPredictionConfig().predictionRefreshEnabled()) {
+                    log.debug("Refresco de predicciones deshabilitado por configuración");
+                    return;
+                }
+            } catch (Exception ignored) {
+                // fallback
+            }
+        }
+
+        int intervalHours = getRefreshIntervalHours();
+        LocalDateTime sixHoursAgo = LocalDateTime.now().minusHours(intervalHours);
         List<Integer> movedProductIds = stockLedgerRepository.findProductIdsWithMovementsSince(sixHoursAgo);
 
         if (movedProductIds.isEmpty()) {
@@ -60,7 +76,7 @@ public class ScheduledForecastRefreshService {
             return;
         }
 
-        int batchSize = 20;
+        int batchSize = getBatchSize();
         for (int i = 0; i < activeMovedProductIds.size(); i += batchSize) {
             int end = Math.min(i + batchSize, activeMovedProductIds.size());
             List<Integer> batch = new ArrayList<>(activeMovedProductIds.subList(i, end));
@@ -78,7 +94,7 @@ public class ScheduledForecastRefreshService {
 
     private void publishPredictionEvent(List<Integer> productIds) {
         LocalDateTime end = LocalDateTime.now();
-        LocalDateTime start = end.minusDays(90).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        LocalDateTime start = end.minusDays(getHistoryDays()).withHour(0).withMinute(0).withSecond(0).withNano(0);
 
         Map<Integer, List<DailyConsumptionDTO>> batchResults =
                 stockLedgerService.getDailyConsumptionBatch(productIds, start, end);
@@ -107,5 +123,38 @@ public class ScheduledForecastRefreshService {
                 .build();
 
         auditEventProducer.publishStockPredictionEvent(event);
+    }
+
+    public int getRefreshIntervalHours() {
+        if (systemConfigService == null) {
+            return DEFAULT_INTERVAL_HOURS;
+        }
+        try {
+            return Math.max(1, systemConfigService.getPredictionConfig().predictionRefreshIntervalHours());
+        } catch (Exception ignored) {
+            return DEFAULT_INTERVAL_HOURS;
+        }
+    }
+
+    private int getBatchSize() {
+        if (systemConfigService == null) {
+            return DEFAULT_BATCH_SIZE;
+        }
+        try {
+            return Math.max(1, systemConfigService.getPredictionConfig().predictionBatchSize());
+        } catch (Exception ignored) {
+            return DEFAULT_BATCH_SIZE;
+        }
+    }
+
+    private int getHistoryDays() {
+        if (systemConfigService == null) {
+            return DEFAULT_HISTORY_DAYS;
+        }
+        try {
+            return Math.max(1, systemConfigService.getPredictionConfig().predictionHistoryDays());
+        } catch (Exception ignored) {
+            return DEFAULT_HISTORY_DAYS;
+        }
     }
 }

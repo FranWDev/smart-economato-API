@@ -33,7 +33,6 @@ import com.economato.inventory.application.dto.response.UserResponseDTO;
 import com.economato.inventory.domain.model.Role;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.TestDataUtil;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.TemporaryRoleEscalationRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 
 class UserControllerIntegrationTest extends BaseIntegrationTest {
@@ -44,16 +43,12 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         @Autowired
         private UserRepository userRepository;
 
-        @Autowired
-        private TemporaryRoleEscalationRepository escalationRepository;
-
         private String jwtToken;
         private User testAdmin;
 
         @BeforeEach
         void setUp() throws Exception {
-                escalationRepository.deleteAll();
-                userRepository.deleteAll();
+                clearDatabase();
 
                 testAdmin = TestDataUtil.createAdminUser();
                 userRepository.saveAndFlush(testAdmin);

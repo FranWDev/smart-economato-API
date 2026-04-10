@@ -27,6 +27,8 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
         @Query("SELECT p FROM Product p WHERE p.isHidden = false")
         List<Product> findAllActive();
 
+        boolean existsByUnitIgnoreCaseAndIsHiddenFalse(String unit);
+
 
         List<Product> findByNameContainingIgnoreCase(String namePart);
 

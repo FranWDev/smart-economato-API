@@ -278,7 +278,21 @@ public enum MessageKey {
     INCIDENT_REPORT_TRACEABILITY_UNAVAILABLE("incident.report.traceability.unavailable"),
     INCIDENT_REPORT_CHAT_ATTACHMENT("incident.report.chat.attachment"),
     ERROR_REPORT_INCIDENT_INVALID_INPUT("error.report.incident.invalid.input"),
-    ERROR_REPORT_INCIDENT_PDF_GENERATION("error.report.incident.pdf.generation");
+    ERROR_REPORT_INCIDENT_PDF_GENERATION("error.report.incident.pdf.generation"),
+    ERROR_CONFIG_NOT_FOUND("error.config.not.found"),
+    ERROR_CONFIG_CLEANUP_DAYS_REQUIRED("error.config.cleanup.days.required"),
+    ERROR_CONFIG_ALERT_THRESHOLDS_INVALID("error.config.alert.thresholds.invalid"),
+    ERROR_CONFIG_EXPIRATION_THRESHOLDS_INVALID("error.config.expiration.thresholds.invalid"),
+    ERROR_CONFIG_PREDICTION_INTERVAL_INVALID("error.config.prediction.interval.invalid"),
+    ERROR_CONFIG_PASSWORD_LENGTH_INVALID("error.config.password.length.invalid"),
+    ERROR_CONFIG_ESCALATION_DURATION_INVALID("error.config.escalation.duration.invalid"),
+    ERROR_CONFIG_JWT_EXPIRATION_INVALID("error.config.jwt.expiration.invalid"),
+    ERROR_CONFIG_NOTIFICATION_RETENTION_DAYS_REQUIRED("error.config.notification.retention.days.required"),
+    ERROR_VALID_UNIT_ALREADY_EXISTS("error.valid.unit.already.exists"),
+    ERROR_VALID_UNIT_NOT_FOUND("error.valid.unit.not.found"),
+    ERROR_VALID_UNIT_IN_USE("error.valid.unit.in.use"),
+    ERROR_PASSWORD_TOO_SHORT("error.password.too.short"),
+    ERROR_ESCALATION_DURATION_EXCEEDS_MAX("error.escalation.duration.exceeds.max");
 
     private final String key;
 

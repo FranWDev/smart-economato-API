@@ -27,6 +27,7 @@
         <mockito.version>5.20.0</mockito.version>
         <byte-buddy.version>1.17.4</byte-buddy.version>
         <resilience4j.version>2.3.0</resilience4j.version>
+        <test.excludedGroups>slow</test.excludedGroups>
     </properties>
 
     <dependencyManagement>
@@ -318,8 +319,20 @@
                 <version>3.5.2</version>
                 <configuration>
                     <argLine>@{argLine} -Dnet.bytebuddy.experimental=true</argLine>
+                    <forkCount>1C</forkCount>
+                    <reuseForks>true</reuseForks>
+                    <excludedGroups>${test.excludedGroups}</excludedGroups>
                 </configuration>
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>all-tests</id>
+            <properties>
+                <test.excludedGroups></test.excludedGroups>
+            </properties>
+        </profile>
+    </profiles>
 </project>

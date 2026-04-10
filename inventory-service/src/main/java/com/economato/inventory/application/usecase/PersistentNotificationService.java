@@ -15,6 +15,7 @@ import com.economato.inventory.infrastructure.config.security.SecurityContextHel
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -39,6 +40,8 @@ public class PersistentNotificationService {
     private final SecurityContextHelper securityContextHelper;
     private final RoleNotificationService roleNotificationService;
     private final I18nService i18nService;
+    @Autowired(required = false)
+    private SystemConfigService systemConfigService;
 
     public PersistentNotificationService(NotificationRepository notificationRepository,
                                         NotificationMapper notificationMapper,
@@ -81,6 +84,16 @@ public class PersistentNotificationService {
                                   String message,
                                   Long referenceId,
                                   List<User> recipients) {
+        if (type != NotificationType.MANUAL && systemConfigService != null) {
+            try {
+                if (!systemConfigService.isNotificationTypeEnabled(type)) {
+                    return;
+                }
+            } catch (Exception ignored) {
+                // fallback
+            }
+        }
+
         if (recipients == null || recipients.isEmpty()) {
             return;
         }

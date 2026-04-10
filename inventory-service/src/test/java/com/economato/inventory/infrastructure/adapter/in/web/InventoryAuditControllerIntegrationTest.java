@@ -2,11 +2,25 @@ package com.economato.inventory.infrastructure.adapter.in.web;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.web.servlet.LocaleResolver;
 
 import com.economato.inventory.application.dto.RestPage;
 import com.economato.inventory.application.dto.response.InventoryMovementResponseDTO;
+import com.economato.inventory.application.usecase.InventoryAuditService;
+import com.economato.inventory.infrastructure.config.security.SecurityConfig;
+import com.economato.inventory.infrastructure.config.security.JwtUtils;
+import com.economato.inventory.application.usecase.TokenBlacklistService;
+import com.economato.inventory.infrastructure.config.web.I18nService;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import java.math.BigDecimal;
@@ -21,7 +35,34 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-class InventoryAuditControllerIntegrationTest extends BaseControllerMockTest {
+@WebMvcTest(InventoryAuditController.class)
+@ActiveProfiles("test")
+@Import(SecurityConfig.class)
+class InventoryAuditControllerIntegrationTest {
+        @Autowired
+        private MockMvc mockMvc;
+
+        @MockitoBean
+        private InventoryAuditService inventoryAuditService;
+
+        @MockitoBean
+        private JwtUtils jwtUtils;
+
+        @MockitoBean
+        private UserDetailsService userDetailsService;
+
+        @MockitoBean
+        private TokenBlacklistService tokenBlacklistService;
+
+        @MockitoBean
+        private I18nService i18nService;
+
+        @MockitoBean
+        private LocaleResolver localeResolver;
+
+        @MockitoBean
+        private CacheManager cacheManager;
+
     private InventoryMovementResponseDTO testMovement;
     private List<InventoryMovementResponseDTO> testMovements;
 

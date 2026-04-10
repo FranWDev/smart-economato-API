@@ -11,16 +11,52 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.cache.CacheManager;
+import org.springframework.context.annotation.Import;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.servlet.LocaleResolver;
 
 import com.economato.inventory.application.dto.RestPage;
 import com.economato.inventory.application.dto.response.UserActivityLogResponseDTO;
+import com.economato.inventory.application.usecase.TokenBlacklistService;
 import com.economato.inventory.application.usecase.UserActivityLogService;
+import com.economato.inventory.infrastructure.config.security.SecurityConfig;
+import com.economato.inventory.infrastructure.config.security.JwtUtils;
+import com.economato.inventory.infrastructure.config.web.I18nService;
 
-class UserActivityLogControllerMockTest extends BaseControllerMockTest {
+@WebMvcTest(UserActivityLogController.class)
+@ActiveProfiles("test")
+@Import(SecurityConfig.class)
+class UserActivityLogControllerMockTest {
+
+    @Autowired
+    private MockMvc mockMvc;
 
     @MockitoBean
     private UserActivityLogService userActivityLogService;
+
+    @MockitoBean
+    private JwtUtils jwtUtils;
+
+    @MockitoBean
+    private UserDetailsService userDetailsService;
+
+    @MockitoBean
+    private TokenBlacklistService tokenBlacklistService;
+
+    @MockitoBean
+    private I18nService i18nService;
+
+    @MockitoBean
+    private LocaleResolver localeResolver;
+
+    @MockitoBean
+    private CacheManager cacheManager;
 
     @Test
     void getAll_asAdmin_shouldReturnPaginatedResults() throws Exception {

@@ -138,6 +138,7 @@ public class RedisConfig {
                 cacheConfigurations.put("products_search", defaultConfig.entryTtl(Duration.ofMinutes(10)));
 
                 // TIER 4 — Datos computados
+                cacheConfigurations.put("system_config", defaultConfig.entryTtl(Duration.ofSeconds(30)));
                 cacheConfigurations.put("stock_alerts", defaultConfig.entryTtl(Duration.ofMinutes(3)));
                 cacheConfigurations.put("stock_predictions", defaultConfig.entryTtl(Duration.ofMinutes(10)));
                 cacheConfigurations.put("daily_forecast", defaultConfig.entryTtl(Duration.ofMinutes(10)));

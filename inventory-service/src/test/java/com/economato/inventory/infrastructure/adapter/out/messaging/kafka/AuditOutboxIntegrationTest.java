@@ -31,10 +31,10 @@ import com.economato.inventory.domain.model.RecipeCookingAudit;
 import com.economato.inventory.domain.model.Role;
 import com.economato.inventory.domain.model.OrderAudit;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.test.context.EmbeddedKafka;
-import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.testcontainers.shaded.org.awaitility.Awaitility;
@@ -48,6 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @EmbeddedKafka(partitions = 1)
 @ActiveProfiles({ "test", "kafka-test" })
+@Tag("slow")
 // Desactivamos logs molestos de Kafka en tests
 @TestPropertySource(properties = {
         "logging.level.org.apache.kafka=ERROR",
@@ -55,9 +56,6 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.kafka.consumer.auto-offset-reset=earliest",
         "spring.kafka.bootstrap-servers=${spring.embedded.kafka.brokers}"
 })
-// DirtiesContext para que EmbeddedKafka reinicie si es necesario en cada test
-// class
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 public class AuditOutboxIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
@@ -157,11 +155,11 @@ public class AuditOutboxIntegrationTest extends BaseIntegrationTest {
 
         auditOutboxProcessor.processOutbox();
 
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).pollInterval(50, TimeUnit.MILLISECONDS).untilAsserted(() -> {
             assertThat(auditOutboxRepository.findAll()).isEmpty();
         });
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).pollInterval(50, TimeUnit.MILLISECONDS).untilAsserted(() -> {
             List<InventoryAudit> audits = inventoryAuditRepository.findAll();
             assertThat(audits).hasSize(1);
             assertThat(audits.get(0).getProduct().getId()).isEqualTo(testProduct.getId());
@@ -185,11 +183,11 @@ public class AuditOutboxIntegrationTest extends BaseIntegrationTest {
 
         auditOutboxProcessor.processOutbox();
 
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).pollInterval(50, TimeUnit.MILLISECONDS).untilAsserted(() -> {
             assertThat(auditOutboxRepository.findAll()).isEmpty();
         });
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).pollInterval(50, TimeUnit.MILLISECONDS).untilAsserted(() -> {
             List<RecipeAudit> audits = recipeAuditRepository.findAll();
             assertThat(audits).hasSize(1);
             assertThat(audits.get(0).getRecipe().getId()).isEqualTo(testRecipe.getId());
@@ -213,11 +211,11 @@ public class AuditOutboxIntegrationTest extends BaseIntegrationTest {
 
         auditOutboxProcessor.processOutbox();
 
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).pollInterval(50, TimeUnit.MILLISECONDS).untilAsserted(() -> {
             assertThat(auditOutboxRepository.findAll()).isEmpty();
         });
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).pollInterval(50, TimeUnit.MILLISECONDS).untilAsserted(() -> {
             List<OrderAudit> audits = orderAuditRepository.findAll();
             assertThat(audits).hasSize(1);
             assertThat(audits.get(0).getOrder().getId()).isEqualTo(testOrder.getId());
@@ -241,11 +239,11 @@ public class AuditOutboxIntegrationTest extends BaseIntegrationTest {
 
         auditOutboxProcessor.processOutbox();
 
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).pollInterval(50, TimeUnit.MILLISECONDS).untilAsserted(() -> {
             assertThat(auditOutboxRepository.findAll()).isEmpty();
         });
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).pollInterval(50, TimeUnit.MILLISECONDS).untilAsserted(() -> {
             List<RecipeCookingAudit> audits = recipeCookingAuditRepository.findAll();
             assertThat(audits).hasSize(1);
             assertThat(audits.get(0).getRecipe().getId()).isEqualTo(testRecipe.getId());
@@ -271,7 +269,7 @@ public class AuditOutboxIntegrationTest extends BaseIntegrationTest {
 
         auditOutboxProcessor.processOutbox();
 
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).pollInterval(50, TimeUnit.MILLISECONDS).untilAsserted(() -> {
             assertThat(auditOutboxRepository.findAll()).isEmpty();
         });
         
@@ -301,11 +299,11 @@ public class AuditOutboxIntegrationTest extends BaseIntegrationTest {
 
         auditOutboxProcessor.processOutbox();
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).pollInterval(50, TimeUnit.MILLISECONDS).untilAsserted(() -> {
             assertThat(auditOutboxRepository.findAll()).isEmpty();
         });
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).pollInterval(50, TimeUnit.MILLISECONDS).untilAsserted(() -> {
             List<InventoryAudit> audits = inventoryAuditRepository.findAll();
             assertThat(audits).isNotEmpty();
             assertThat(audits.stream().anyMatch(a -> "Valid Event".equals(a.getActionDescription()))).isTrue();
