@@ -23,6 +23,8 @@ public interface IncidentChatMessageRepository extends JpaRepository<IncidentCha
     @EntityGraph(attributePaths = {"author", "incident"})
     Optional<IncidentChatMessage> findById(Long id);
 
+    Optional<IncidentChatMessage> findTopByIncidentIdOrderByIdDesc(Long incidentId);
+
     long countByIncidentId(Long incidentId);
 
     @Query("""

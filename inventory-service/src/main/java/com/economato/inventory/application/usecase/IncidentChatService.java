@@ -1,15 +1,20 @@
 package com.economato.inventory.application.usecase;
 
 import com.economato.inventory.application.dto.RestPage;
+import com.economato.inventory.application.dto.response.ChatReadReceiptBroadcastDTO;
+import com.economato.inventory.application.dto.response.IncidentChatTypingResponseDTO;
 import com.economato.inventory.application.dto.response.IncidentChatMessageResponseDTO;
+import com.economato.inventory.application.mapper.IncidentChatReadReceiptMapper;
 import com.economato.inventory.application.mapper.IncidentChatMessageMapper;
 import com.economato.inventory.domain.model.Incident;
 import com.economato.inventory.domain.model.IncidentChatMessage;
+import com.economato.inventory.domain.model.IncidentChatReadReceipt;
 import com.economato.inventory.domain.model.IncidentStatus;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.IncidentChatMessageRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.IncidentChatReadReceiptRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.IncidentRepository;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.I18nService;
@@ -26,6 +31,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(rollbackFor = Exception.class)
@@ -35,9 +44,11 @@ public class IncidentChatService {
 
     private final IncidentRepository incidentRepository;
     private final IncidentChatMessageRepository incidentChatMessageRepository;
+    private final IncidentChatReadReceiptRepository readReceiptRepository;
     private final SecurityContextHelper securityContextHelper;
     private final IncidentParticipantService incidentParticipantService;
     private final IncidentChatMessageMapper incidentChatMessageMapper;
+    private final IncidentChatReadReceiptMapper readReceiptMapper;
     private final FileStorageService fileStorageService;
     private final PersistentNotificationService persistentNotificationService;
     private final SimpMessagingTemplate messagingTemplate;
@@ -79,12 +90,18 @@ public class IncidentChatService {
                 storedAttachmentPath = fileStorageService.store(incidentId, saved.getId(), file);
                 saved.setHasAttachment(true);
                 saved.setAttachmentUrl(storedAttachmentPath);
-                saved.setAttachmentFilename(file.getOriginalFilename());
-                saved.setAttachmentContentType(file.getContentType());
+                String attachmentFilename = null;
+                if (file != null) {
+                    attachmentFilename = file.getOriginalFilename();
+                }
+                saved.setAttachmentFilename(attachmentFilename);
+                saved.setAttachmentContentType(file != null ? file.getContentType() : null);
                 saved = incidentChatMessageRepository.save(saved);
             }
 
-            IncidentChatMessageResponseDTO response = incidentChatMessageMapper.toResponseDTO(saved);
+            IncidentChatReadReceipt authorReceipt = saveOrUpdateReadReceipt(incident, currentUser, saved.getId());
+
+            IncidentChatMessageResponseDTO response = incidentChatMessageMapper.toResponseDTO(saved, List.of(authorReceipt));
             persistentNotificationService.notifyIncidentChatMessage(incident, currentUser);
             messagingTemplate.convertAndSend("/topic/incidents/" + incidentId + "/chat", response);
 
@@ -107,11 +124,51 @@ public class IncidentChatService {
                 ? PageRequest.of(0, 50, Sort.by(Sort.Direction.ASC, "createdAt"))
                 : pageable;
 
+        List<IncidentChatReadReceipt> readReceipts = readReceiptRepository.findByIncidentId(incidentId);
+
         Page<IncidentChatMessageResponseDTO> page = incidentChatMessageRepository
                 .findByIncidentIdOrderByCreatedAtAsc(incidentId, normalized)
-                .map(incidentChatMessageMapper::toResponseDTO);
+                .map(message -> incidentChatMessageMapper.toResponseDTO(message, readReceipts));
 
         return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
+    }
+
+    @Transactional
+    public void markMessagesAsRead(Long incidentId) {
+        Incident incident = getIncidentOrThrow(incidentId);
+        User currentUser = getCurrentUserOrThrow();
+        ensureParticipant(incident, currentUser);
+
+        IncidentChatMessage lastMessage = incidentChatMessageRepository.findTopByIncidentIdOrderByIdDesc(incidentId)
+                .orElse(null);
+        if (lastMessage == null) {
+            return;
+        }
+
+        Optional<IncidentChatReadReceipt> existingReceipt = readReceiptRepository.findByIncidentIdAndUserId(incidentId, currentUser.getId());
+        if (existingReceipt.isPresent() && existingReceipt.get().getLastReadMessageId() >= lastMessage.getId()) {
+            return;
+        }
+
+        IncidentChatReadReceipt receipt = saveOrUpdateReadReceipt(incident, currentUser, lastMessage.getId());
+        ChatReadReceiptBroadcastDTO broadcastDTO = readReceiptMapper.toBroadcastDTO(receipt, incidentId);
+        messagingTemplate.convertAndSend("/topic/incidents/" + incidentId + "/chat/read-receipts", broadcastDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public void broadcastTyping(Long incidentId, boolean typing) {
+        Incident incident = getIncidentOrThrow(incidentId);
+        User currentUser = getCurrentUserOrThrow();
+        ensureParticipant(incident, currentUser);
+
+        IncidentChatTypingResponseDTO typingDTO = IncidentChatTypingResponseDTO.builder()
+                .incidentId(incidentId)
+                .userId(currentUser.getId())
+                .userName(currentUser.getName())
+                .typing(typing)
+                .build();
+
+        messagingTemplate.convertAndSend("/topic/incidents/" + incidentId + "/chat/typing", typingDTO);
     }
 
     @Transactional(readOnly = true)
@@ -144,6 +201,22 @@ public class IncidentChatService {
         }
 
         return incidentChatMessageMapper.toResponseDTO(message);
+    }
+
+    private IncidentChatReadReceipt saveOrUpdateReadReceipt(Incident incident, User user, Long lastReadMessageId) {
+        LocalDateTime now = LocalDateTime.now();
+        IncidentChatReadReceipt receipt = readReceiptRepository.findByIncidentIdAndUserId(incident.getId(), user.getId())
+                .orElseGet(() -> IncidentChatReadReceipt.builder()
+                        .incident(incident)
+                        .user(user)
+                        .build());
+
+        receipt.setIncident(incident);
+        receipt.setUser(user);
+        receipt.setLastReadMessageId(lastReadMessageId);
+        receipt.setReadAt(now);
+
+        return readReceiptRepository.save(receipt);
     }
 
     private Incident getIncidentOrThrow(Long incidentId) {

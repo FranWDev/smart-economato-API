@@ -114,6 +114,14 @@ public class IncidentController {
         return ResponseEntity.ok(incidentChatService.getHistory(id, pageable));
     }
 
+    @PostMapping("/{id}/chat/mark-read")
+    @PreAuthorize("hasAnyRole('ADMIN','CHEF','ELEVATED')")
+    @Operation(summary = "Marcar mensajes del chat como leídos")
+    public ResponseEntity<Void> markChatAsRead(@PathVariable Long id) {
+        incidentChatService.markMessagesAsRead(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping(value = "/{id}/chat", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasAnyRole('ADMIN','CHEF','ELEVATED')")
     @Operation(summary = "Enviar mensaje al chat")
