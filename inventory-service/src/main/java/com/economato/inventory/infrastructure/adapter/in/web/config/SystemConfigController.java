@@ -36,6 +36,7 @@ public class SystemConfigController {
     @Operation(summary = "Obtener snapshot completo de configuración")
     public ResponseEntity<SystemConfigSnapshotResponseDTO> getCurrent() {
         var c = systemConfigService.getConfigEntity();
+                var updatedByName = systemConfigService.getUpdatedByName();
 
         return ResponseEntity.ok(SystemConfigSnapshotResponseDTO.builder()
                 .presence(PresenceConfigResponseDTO.builder()
@@ -99,7 +100,7 @@ public class SystemConfigController {
                         .outboxMaxConsecutiveFailures(c.getOutboxMaxConsecutiveFailures())
                         .kafkaSendTimeoutSeconds(c.getKafkaSendTimeoutSeconds())
                         .build())
-                .updatedBy(c.getUpdatedBy() != null ? c.getUpdatedBy().getName() : null)
+                                .updatedBy(updatedByName)
                 .updatedAt(c.getUpdatedAt())
                 .build());
     }

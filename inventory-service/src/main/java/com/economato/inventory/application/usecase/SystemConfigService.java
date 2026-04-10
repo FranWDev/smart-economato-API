@@ -102,6 +102,13 @@ public class SystemConfigService {
     @Transactional(readOnly = true)
     public long getJwtExpirationMs() { return getConfigEntity().getJwtExpirationMs(); }
     @Transactional(readOnly = true)
+    public String getUpdatedByName() {
+        return systemConfigRepository.findById(1)
+                .map(SystemConfig::getUpdatedBy)
+                .map(User::getName)
+                .orElse(null);
+    }
+    @Transactional(readOnly = true)
     public int getMinPasswordLength() { return getConfigEntity().getMinPasswordLength(); }
     @Transactional(readOnly = true)
     public int getMaxEscalationMinutes() { return getConfigEntity().getMaxEscalationMinutes(); }
