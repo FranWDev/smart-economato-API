@@ -258,7 +258,7 @@ class BlockMiningServiceTest {
     }
 
     @Test
-5    void mineBlock_highDifficultyProducesStricterPrefix() {
+    void mineBlock_highDifficultyProducesStricterPrefix() {
         String previousBlockHash = "0000000000000000000000000000000000000000000000000000000000000000";
         String merkleRoot = "1111111111111111111111111111111111111111111111111111111111111111";
         LocalDateTime timestamp = LocalDateTime.now();
