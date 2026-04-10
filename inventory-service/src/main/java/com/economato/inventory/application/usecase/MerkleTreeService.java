@@ -24,10 +24,6 @@ public class MerkleTreeService {
                 .register(meterRegistry);
     }
 
-    /**
-     * Computes the Merkle root of a transaction hash list.
-     * Precondition: txHashes must be already sorted by transaction_id ASC by the caller.
-     */
     public String computeMerkleRoot(List<String> txHashes) {
         return merkleRootTimer.record(() -> doComputeMerkleRoot(txHashes));
     }
@@ -114,6 +110,44 @@ public class MerkleTreeService {
         }
 
         return level.get(0);
+    }
+
+    public List<String> generateProofPath(List<String> leaves, int leafIndex) {
+        if (leaves == null || leaves.isEmpty()) {
+            throw new IllegalArgumentException("Cannot generate proof path for empty leaf list");
+        }
+        if (leafIndex < 0 || leafIndex >= leaves.size()) {
+            throw new IllegalArgumentException("Invalid leaf index for proof path: " + leafIndex);
+        }
+
+        return computeProof(leaves, leafIndex);
+    }
+
+    public String rebuildFromProofPath(String leafHash, List<String> proofPath) {
+        if (leafHash == null || leafHash.isEmpty()) {
+            throw new IllegalArgumentException("Leaf hash cannot be null or empty");
+        }
+        
+        String current = leafHash;
+        if (proofPath != null) {
+            for (String step : proofPath) {
+                if (step == null || step.length() < 3) {
+                    throw new IllegalArgumentException("Invalid proof path step format: " + step);
+                }
+                String side = step.substring(0, 2);
+                String siblingHash = step.substring(2);
+                
+                if ("L:".equals(side)) {
+                    current = hmacSha256(siblingHash + current);
+                } else if ("R:".equals(side)) {
+                    current = hmacSha256(current + siblingHash);
+                } else {
+                    throw new IllegalArgumentException("Invalid proof path side: " + side);
+                }
+            }
+        }
+        
+        return current;
     }
 
     private String hmacSha256(String data) {

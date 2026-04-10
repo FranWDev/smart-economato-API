@@ -51,6 +51,7 @@ public class BlockchainService {
     private final StockSnapshotRepository snapshotRepository;
     private final BlockMiningService blockMiningService;
     private final MerkleTreeService merkleTreeService;
+    private final BlockchainMerkleVerificationService merkleVerificationService;
     private final LedgerProperties ledgerProperties;
     private final BlockchainProperties blockchainProperties;
     private final Optional<AuditEventProducer> auditEventProducer;
@@ -65,6 +66,7 @@ public class BlockchainService {
             StockSnapshotRepository snapshotRepository,
             BlockMiningService blockMiningService,
             MerkleTreeService merkleTreeService,
+            BlockchainMerkleVerificationService merkleVerificationService,
             LedgerProperties ledgerProperties,
             BlockchainProperties blockchainProperties,
             Optional<AuditEventProducer> auditEventProducer,
@@ -75,6 +77,7 @@ public class BlockchainService {
         this.snapshotRepository = snapshotRepository;
         this.blockMiningService = blockMiningService;
         this.merkleTreeService = merkleTreeService;
+        this.merkleVerificationService = merkleVerificationService;
         this.ledgerProperties = ledgerProperties;
         this.blockchainProperties = blockchainProperties;
         this.auditEventProducer = auditEventProducer;
@@ -145,25 +148,15 @@ public class BlockchainService {
     }
 
     public boolean verifyBlockchainIntegrity() {
-        return verificationTimer.record(() -> {
-            List<LedgerBlock> blocks = blockRepository.findAllByOrderByBlockNumberAsc();
-            if (blocks.isEmpty()) {
+        if (blockchainProperties.getMerkleVerificationEnabled()) {
+            try {
+                return merkleVerificationService.verifyBlockchainIntegrityMerkle();
+            } catch (Exception e) {
+                log.error("Merkle verification failed with exception", e);
                 return false;
             }
-
-            LedgerBlock previous = blocks.get(0);
-            for (int i = 1; i < blocks.size(); i++) {
-                LedgerBlock current = blocks.get(i);
-                if (!current.getPreviousBlockHash().equals(previous.getBlockHash())) {
-                    return false;
-                }
-                if (!current.getBlockHash().startsWith("0".repeat(Math.max(0, current.getDifficulty())))) {
-                    return false;
-                }
-                previous = current;
-            }
-            return true;
-        });
+        }
+        return false;
     }
 
     private void ensureGenesisBlock() {

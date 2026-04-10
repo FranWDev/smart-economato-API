@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
 import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.StockLedger;
@@ -29,6 +31,7 @@ import com.economato.inventory.infrastructure.config.security.SecurityContextHel
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.config.security.LedgerProperties;
+import com.economato.inventory.infrastructure.config.security.BlockchainProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.context.ApplicationEventPublisher;
@@ -74,6 +77,12 @@ class StockLedgerServiceLedgerMethodsTest {
         private LedgerProperties ledgerProperties;
 
         @Mock
+        private BlockchainProperties blockchainProperties;
+
+        @Mock
+        private LedgerMerkleVerificationService ledgerMerkleVerificationService;
+
+        @Mock
         private ApplicationEventPublisher applicationEventPublisher;
 
         private StockLedgerService stockLedgerService;
@@ -103,6 +112,8 @@ class StockLedgerServiceLedgerMethodsTest {
                         batchRepository,
                         environment,
                         ledgerProperties,
+                        blockchainProperties,
+                        ledgerMerkleVerificationService,
                         applicationEventPublisher,
                         meterRegistry
                 );
@@ -224,5 +235,39 @@ class StockLedgerServiceLedgerMethodsTest {
                 assertNotNull(results);
                 assertTrue(results.isEmpty());
                 verify(ledgerRepository, times(1)).findDistinctProductIds();
+        }
+
+        @Test
+        void verifyChainIntegrity_WhenMerkleEnabled_DelegatesToMerkleService() {
+                when(productRepository.findById(1)).thenReturn(Optional.of(testProduct1));
+                when(ledgerMerkleVerificationService.verifyLedgerChainIntegrityMerkle(1))
+                        .thenReturn(List.of());
+                when(ledgerRepository.findByProductIdOrderBySequenceNumber(1))
+                        .thenReturn(ledgerEntries1);
+                when(i18nService.getMessage(eq(MessageKey.LEDGER_INTEGRITY_VALID), any(Object[].class)))
+                        .thenReturn("Cadena íntegra");
+
+                IntegrityCheckResult result = stockLedgerService.verifyChainIntegrity(1);
+
+                assertTrue(result.isValid());
+                verify(ledgerMerkleVerificationService, times(1)).verifyLedgerChainIntegrityMerkle(1);
+                verify(ledgerRepository, times(1)).findByProductIdOrderBySequenceNumber(1);
+        }
+
+        @Test
+        void verifyChainIntegrity_WhenMerkleReturnsErrors_ReturnsInvalid() {
+                when(productRepository.findById(1)).thenReturn(Optional.of(testProduct1));
+                when(ledgerMerkleVerificationService.verifyLedgerChainIntegrityMerkle(1))
+                        .thenReturn(List.of("Hash corruption at sequence 1"));
+                when(ledgerRepository.findByProductIdOrderBySequenceNumber(1))
+                        .thenReturn(ledgerEntries1);
+                when(i18nService.getMessage(eq(MessageKey.LEDGER_INTEGRITY_CORRUPTED), any(Object[].class)))
+                        .thenReturn("CORRUPCION");
+
+                IntegrityCheckResult result = stockLedgerService.verifyChainIntegrity(1);
+
+                assertFalse(result.isValid());
+                verify(ledgerMerkleVerificationService, times(1)).verifyLedgerChainIntegrityMerkle(1);
+                verify(ledgerRepository, times(1)).findByProductIdOrderBySequenceNumber(1);
         }
 }

@@ -99,3 +99,30 @@ CREATE TRIGGER trg_stock_ledger_no_delete
     BEFORE DELETE ON stock_ledger
     FOR EACH ROW
     EXECUTE FUNCTION enforce_stock_ledger_immutability();
+
+-- Merkle tree proofs for O(log n) verification (Phase 1: Infrastructure)
+CREATE TABLE IF NOT EXISTS blockchain_merkle_proofs (
+    id BIGSERIAL PRIMARY KEY,
+    block_number BIGINT NOT NULL,
+    product_id UUID,
+    sequence_number BIGINT,
+    merkle_proof JSONB,
+    proof_type VARCHAR(32) NOT NULL DEFAULT 'TRANSACTION',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_scope CHECK (
+        (product_id IS NOT NULL AND sequence_number IS NOT NULL AND proof_type = 'LEDGER')
+        OR
+        (product_id IS NULL AND sequence_number IS NULL AND proof_type = 'BLOCK')
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_merkle_proof_block ON blockchain_merkle_proofs (block_number);
+CREATE INDEX IF NOT EXISTS idx_merkle_proof_ledger ON blockchain_merkle_proofs (product_id, sequence_number);
+CREATE INDEX IF NOT EXISTS idx_merkle_proof_type ON blockchain_merkle_proofs (proof_type);
+
+-- Covering indexes for O(log n) verification
+CREATE INDEX IF NOT EXISTS idx_ledger_block_merkle 
+    ON ledger_block (block_number, merkle_root, previous_block_hash);
+
+CREATE INDEX IF NOT EXISTS idx_stock_ledger_tx_composite 
+    ON stock_ledger (product_id, sequence_number, merkle_root);
