@@ -40,6 +40,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
 import com.economato.inventory.domain.PredictorTrigger;
 import com.economato.inventory.infrastructure.config.cache.event.StockMovementEvent;
+import com.economato.inventory.infrastructure.config.cache.event.NewLedgerTransactionEvent;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 
 import jakarta.persistence.EntityManager;
@@ -509,6 +510,7 @@ public class StockLedgerService {
                 .build();
 
         transaction = ledgerRepository.saveAndFlush(transaction);
+        applicationEventPublisher.publishEvent(new NewLedgerTransactionEvent(transaction.getId()));
 
         // Crear lote automáticamente para cualquier delta positivo sin targetBatchId
         // (incluye REVERSION para que se cree el lote consolidado)
@@ -862,114 +864,6 @@ public class StockLedgerService {
             return null;
         }
         return timestamp.truncatedTo(ChronoUnit.MICROS);
-    }
-
-    @Transactional(rollbackFor = Exception.class)
-    public String resetProductLedger(Integer productId) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new InvalidOperationException("Producto no encontrado: " + productId));
-
-        List<StockLedger> history = ledgerRepository.findByProductIdOrderBySequenceNumber(productId);
-        int deletedCount = history.size();
-
-        log.warn("RESTABLECIENDO HISTORIAL: Producto {} - {} transacciones serán eliminadas",
-                productId, deletedCount);
-
-        batchDetailRepository.deleteAllByProductId(productId);
-        batchRepository.deleteAllByProductId(productId);
-        ledgerRepository.deleteAllByProductId(productId);
-        snapshotRepository.deleteById(productId);
-
-        log.info("Historial restablecido: Producto {} - {} transacciones eliminadas. Stock actual: {}",
-                productId, deletedCount, product.getCurrentStock());
-
-        return i18nService.getMessage(MessageKey.LEDGER_RESET_SUCCESS,
-                new Object[] { deletedCount, product.getName(), product.getCurrentStock(), product.getUnit() });
-    }
-
-    /**
-     * RECONSTRUCCIÓN DE CADENA (DISASTER RECOVERY).
-     * * Este método recalcula todos los hashes de un producto de principio a fin.
-     * Úsese SOLO si se ha confirmado una corrupción de datos por causas externas
-     * (ej. error de hardware o manipulación manual de DB) y se desea normalizar el
-     * estado.
-     * 
-     * No tiene integracion en el frontend, deberas hacer un curl o usar Postman
-     * para invocarlo. Se recomienda ejecutar
-     * verifyChainIntegrity antes y después para comparar resultados.
-     */
-    @Transactional(rollbackFor = Exception.class)
-    public IntegrityCheckResult repairProductLedger(Integer productId) {
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new InvalidOperationException("Producto no encontrado: " + productId));
-
-        List<StockLedger> chain = ledgerRepository.findByProductIdOrderBySequenceNumber(productId);
-
-        if (chain.isEmpty()) {
-            return new IntegrityCheckResult(productId, product.getName(), true,
-                    i18nService.getMessage(MessageKey.LEDGER_REPAIR_NO_TRANSACTIONS), null);
-        }
-
-        String expectedPreviousHash = GENESIS_HASH;
-        int repairedTransactions = 0;
-
-        for (StockLedger tx : chain) {
-            BigDecimal normalizedDelta = tx.getQuantityDelta().setScale(3, RoundingMode.HALF_UP);
-            BigDecimal normalizedStock = tx.getResultingStock().setScale(3, RoundingMode.HALF_UP);
-            LocalDateTime normalizedTimestamp = normalizeTimestamp(tx.getTransactionTimestamp());
-
-            String recalculatedHash = calculateTransactionHash(
-                    productId,
-                    normalizedDelta,
-                    normalizedStock,
-                    tx.getMovementType(),
-                    tx.getDescription(),
-                    tx.getUser() != null ? tx.getUser().getId() : null,
-                    tx.getOrderId(),
-                    tx.getExpirationDate(),
-                    tx.getCorrelationId(),
-                    normalizedTimestamp,
-                    expectedPreviousHash,
-                    tx.getSequenceNumber());
-
-            boolean wasModified = !expectedPreviousHash.equals(tx.getPreviousHash())
-                    || !recalculatedHash.equals(tx.getCurrentHash())
-                    || !normalizedTimestamp.equals(tx.getTransactionTimestamp());
-
-            tx.setPreviousHash(expectedPreviousHash);
-            tx.setCurrentHash(recalculatedHash);
-            tx.setTransactionTimestamp(normalizedTimestamp);
-            tx.setVerified(true);
-
-            if (wasModified) {
-                repairedTransactions++;
-            }
-
-            expectedPreviousHash = recalculatedHash;
-        }
-
-        ledgerRepository.saveAll(chain);
-
-        Optional<StockSnapshot> snapshotOptional = snapshotRepository.findById(productId);
-        if (snapshotOptional.isPresent()) {
-            StockSnapshot snapshot = snapshotOptional.get();
-            snapshot.setLastTransactionHash(expectedPreviousHash);
-            snapshot.setLastSequenceNumber(chain.get(chain.size() - 1).getSequenceNumber());
-            snapshot.setLastVerified(LocalDateTime.now());
-            snapshot.setIntegrityStatus("VALID");
-            snapshotRepository.save(snapshot);
-        }
-
-        IntegrityCheckResult verification = verifyChainIntegrity(productId);
-        String message = i18nService.getMessage(MessageKey.LEDGER_REPAIR_STATUS,
-                new Object[] { repairedTransactions, chain.size(), verification.getMessage() });
-
-        return new IntegrityCheckResult(
-                productId,
-                product.getName(),
-                verification.isValid(),
-                message,
-                verification.getErrors());
     }
 
     @PredictorTrigger(action = "BATCH_MOVEMENT")

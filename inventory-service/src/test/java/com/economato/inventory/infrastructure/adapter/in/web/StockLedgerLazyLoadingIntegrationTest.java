@@ -66,18 +66,19 @@ class StockLedgerLazyLoadingIntegrationTest extends BaseIntegrationTest {
         product = productRepository.saveAndFlush(product);
         productId = product.getId();
 
-        StockLedger ledger = new StockLedger();
-        ledger.setProduct(product);
-        ledger.setQuantityDelta(new BigDecimal("10.000"));
-        ledger.setResultingStock(new BigDecimal("110.000"));
-        ledger.setMovementType(MovementType.ENTRADA);
-        ledger.setDescription("Movimiento prueba lazy user");
-        ledger.setPreviousHash("0");
-        ledger.setCurrentHash("hash" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 28));
-        ledger.setTransactionTimestamp(LocalDateTime.now());
-        ledger.setUser(adminUser);
-        ledger.setSequenceNumber(1L);
-        ledger.setVerified(true);
+        StockLedger ledger = StockLedger.builder()
+                .product(product)
+                .quantityDelta(new BigDecimal("10.000"))
+                .resultingStock(new BigDecimal("110.000"))
+                .movementType(MovementType.ENTRADA)
+                .description("Movimiento prueba lazy user")
+                .previousHash("0")
+                .currentHash("hash" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 28))
+                .transactionTimestamp(LocalDateTime.now())
+                .user(adminUser)
+                .sequenceNumber(1L)
+                .verified(true)
+                .build();
         stockLedgerRepository.saveAndFlush(ledger);
 
         entityManager.clear();

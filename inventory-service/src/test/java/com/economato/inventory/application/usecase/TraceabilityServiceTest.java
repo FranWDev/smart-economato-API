@@ -352,9 +352,9 @@ public class TraceabilityServiceTest {
     }
 
     private StockLedger buildTx(String hash) {
-        StockLedger tx = new StockLedger();
-        tx.setProduct(product);
-        tx.setCurrentHash(hash);
-        return tx;
+        return StockLedger.builder()
+                .product(product)
+                .currentHash(hash)
+                .build();
     }
 }

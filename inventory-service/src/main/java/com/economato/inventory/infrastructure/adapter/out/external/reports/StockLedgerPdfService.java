@@ -6,9 +6,11 @@ import com.economato.inventory.application.usecase.StockLedgerService;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
+import com.economato.inventory.domain.model.LedgerBlock;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.LedgerBlockRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.config.security.LedgerProperties;
 import com.itextpdf.kernel.colors.ColorConstants;
@@ -67,17 +69,20 @@ public class StockLedgerPdfService {
     private static final DeviceRgb UNVERIFIED_COLOR = new DeviceRgb(239, 68, 68);
 
     private final StockLedgerRepository stockLedgerRepository;
+        private final LedgerBlockRepository ledgerBlockRepository;
     private final ProductRepository productRepository;
     private final I18nService i18nService;
     private final StockLedgerService stockLedgerService;
     private final LedgerProperties ledgerProperties;
 
     public StockLedgerPdfService(StockLedgerRepository stockLedgerRepository,
+                        LedgerBlockRepository ledgerBlockRepository,
             ProductRepository productRepository,
             I18nService i18nService,
             StockLedgerService stockLedgerService,
             LedgerProperties ledgerProperties) {
         this.stockLedgerRepository = stockLedgerRepository;
+                this.ledgerBlockRepository = ledgerBlockRepository;
         this.productRepository = productRepository;
         this.i18nService = i18nService;
         this.stockLedgerService = stockLedgerService;
@@ -92,6 +97,9 @@ public class StockLedgerPdfService {
 
             List<StockLedger> ledgerEntries = stockLedgerRepository
                     .findByProductIdOrderBySequenceNumber(productId);
+            LedgerBlock latestConfirmedBlock = ledgerEntries.isEmpty()
+                    ? ledgerBlockRepository.findTopByOrderByBlockNumberDesc().orElse(null)
+                    : ledgerEntries.get(ledgerEntries.size() - 1).getBlock();
 
             IntegrityCheckResult integrityResult = stockLedgerService.verifyChainIntegrity(productId);
             Set<Long> corruptedSequences = extractCorruptedSequences(integrityResult);
@@ -120,7 +128,7 @@ public class StockLedgerPdfService {
             addLedgerTable(document, ledgerEntries, corruptedSequences, boldFont, regularFont);
 
             String contentHash = generateContentHash(ledgerEntries);
-            addAuthenticationSignature(document, ledgerEntries, integrityResult, corruptedSequences, contentHash,
+            addAuthenticationSignature(document, ledgerEntries, latestConfirmedBlock, integrityResult, corruptedSequences, contentHash,
                     boldFont, regularFont);
 
             document.close();
@@ -179,8 +187,9 @@ public class StockLedgerPdfService {
             }
 
             Mac mac = Mac.getInstance("HmacSHA256");
+            String secret = ledgerProperties.getHmacSecretForVersion(ledgerProperties.getCurrentHmacVersion());
             SecretKeySpec secretKey = new SecretKeySpec(
-                    ledgerProperties.getHmacSecret().getBytes(StandardCharsets.UTF_8),
+                    secret.getBytes(StandardCharsets.UTF_8),
                     "HmacSHA256");
             mac.init(secretKey);
             byte[] hashBytes = mac.doFinal(content.toString().getBytes(StandardCharsets.UTF_8));
@@ -337,6 +346,7 @@ public class StockLedgerPdfService {
         }
 
         private void addAuthenticationSignature(Document document, List<StockLedger> ledgerEntries,
+                        LedgerBlock latestConfirmedBlock,
                         IntegrityCheckResult integrityResult, Set<Long> corruptedSequences, String contentHash,
                         PdfFont boldFont, PdfFont regularFont) {
                 document.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
@@ -432,6 +442,20 @@ public class StockLedgerPdfService {
                 .setPadding(8)
                 .setBorder(new SolidBorder(BORDER_COLOR, 1));
         signatureTable.addCell(lastHashCell);
+
+        String blockNumber = latestConfirmedBlock != null ? String.valueOf(latestConfirmedBlock.getBlockNumber()) : i18nService.getMessage(MessageKey.GENERAL_NONE);
+        String blockHash = latestConfirmedBlock != null ? latestConfirmedBlock.getBlockHash() : i18nService.getMessage(MessageKey.GENERAL_NONE);
+        String merkleRoot = latestConfirmedBlock != null ? latestConfirmedBlock.getMerkleRoot() : i18nService.getMessage(MessageKey.GENERAL_NONE);
+
+        Cell blockInfoCell = new Cell()
+                .add(new Paragraph("Block #: " + blockNumber + " | Block hash: " + blockHash + " | Merkle root: " + merkleRoot)
+                        .setFont(boldFont)
+                        .setFontSize(8)
+                        .setFontColor(TEXT_GRAY))
+                .setPadding(8)
+                .setBorder(new SolidBorder(BORDER_COLOR, 1))
+                .setBackgroundColor(SIGNATURE_BG);
+        signatureTable.addCell(blockInfoCell);
 
         document.add(signatureTable);
 

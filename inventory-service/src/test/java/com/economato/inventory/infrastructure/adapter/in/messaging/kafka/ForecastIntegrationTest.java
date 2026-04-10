@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Tag;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.junit.jupiter.EnabledIf;
 import com.economato.inventory.infrastructure.adapter.in.web.BaseIntegrationTest;
 import com.economato.inventory.infrastructure.config.KafkaTestContainerConfig;
 
@@ -18,6 +19,8 @@ import com.economato.inventory.infrastructure.config.KafkaTestContainerConfig;
 @SpringBootTest
 @ActiveProfiles({ "kafka-test" })
 @Import(KafkaTestContainerConfig.class)
+@EnabledIf(expression = "#{T(org.testcontainers.DockerClientFactory).instance().isDockerAvailable()}",
+    reason = "Docker is required for Kafka Testcontainers integration test")
 @Tag("slow")
 public class ForecastIntegrationTest extends BaseIntegrationTest {
 /* 

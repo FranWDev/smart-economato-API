@@ -8,7 +8,6 @@ import java.time.LocalDateTime;
 import lombok.*;
 
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -18,7 +17,9 @@ import lombok.*;
         @Index(name = "idx_ledger_timestamp", columnList = "transaction_timestamp"),
         @Index(name = "idx_ledger_type", columnList = "movement_type"),
     @Index(name = "idx_ledger_prev_hash", columnList = "previous_hash"),
-    @Index(name = "idx_ledger_expiration", columnList = "expiration_date")
+    @Index(name = "idx_ledger_expiration", columnList = "expiration_date"),
+    @Index(name = "idx_ledger_block_id", columnList = "block_id"),
+    @Index(name = "idx_ledger_block_id_tx_id", columnList = "block_id, transaction_id")
 })
 public class StockLedger {
 
@@ -78,6 +79,10 @@ public class StockLedger {
 
     @Column(name = "correlation_id", length = 64)
     private String correlationId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "block_id", foreignKey = @ForeignKey(name = "fk_ledger_block"))
+    private LedgerBlock block;
 
     @NotNull(message = "{validation.stockLedger.sequenceNumber.notNull}")
     @Column(name = "sequence_number", nullable = false)

@@ -54,6 +54,13 @@ public class StockSnapshot {
     @Column(name = "integrity_status", nullable = false, length = 20)
     private String integrityStatus = "UNVERIFIED";
 
+    @Column(name = "last_block_number")
+    private Long lastBlockNumber;
+
+    @Size(max = 64)
+    @Column(name = "last_block_hash", length = 64)
+    private String lastBlockHash;
+
     @Version
     @Column(name = "version")
     private Long version;
