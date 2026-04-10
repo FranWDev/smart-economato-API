@@ -25,14 +25,6 @@ public class ConfigAuditLogController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Obtener historial global de configuración")
     public ResponseEntity<Page<ConfigAuditLogResponseDTO>> getGlobalAudit(Pageable pageable) {
-        return ResponseEntity.ok(systemConfigService.getAuditGlobal(pageable)
-                .map(log -> ConfigAuditLogResponseDTO.builder()
-                        .username(log.getUser() != null ? log.getUser().getName() : null)
-                        .category(log.getCategory())
-                        .fieldName(log.getFieldName())
-                        .oldValue(log.getOldValue())
-                        .newValue(log.getNewValue())
-                        .changedAt(log.getChangedAt())
-                        .build()));
+        return ResponseEntity.ok(systemConfigService.getAuditGlobalDto(pageable));
     }
 }

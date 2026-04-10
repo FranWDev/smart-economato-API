@@ -55,15 +55,7 @@ public class NotificationsConfigController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Historial de cambios de notificaciones")
     public ResponseEntity<Page<ConfigAuditLogResponseDTO>> auditLog(Pageable pageable) {
-        return ResponseEntity.ok(systemConfigService.getAuditByCategory("NOTIFICATIONS", pageable)
-                .map(log -> ConfigAuditLogResponseDTO.builder()
-                        .username(log.getUser() != null ? log.getUser().getName() : null)
-                        .category(log.getCategory())
-                        .fieldName(log.getFieldName())
-                        .oldValue(log.getOldValue())
-                        .newValue(log.getNewValue())
-                        .changedAt(log.getChangedAt())
-                        .build()));
+        return ResponseEntity.ok(systemConfigService.getAuditByCategoryDto("NOTIFICATIONS", pageable));
     }
 
     private NotificationsConfigResponseDTO toDto(com.economato.inventory.domain.model.SystemConfig c) {

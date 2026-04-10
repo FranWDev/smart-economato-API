@@ -54,14 +54,6 @@ public class PredictionsConfigController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Historial de cambios de predicciones")
     public ResponseEntity<Page<ConfigAuditLogResponseDTO>> auditLog(Pageable pageable) {
-        return ResponseEntity.ok(systemConfigService.getAuditByCategory("PREDICTIONS", pageable)
-                .map(log -> ConfigAuditLogResponseDTO.builder()
-                        .username(log.getUser() != null ? log.getUser().getName() : null)
-                        .category(log.getCategory())
-                        .fieldName(log.getFieldName())
-                        .oldValue(log.getOldValue())
-                        .newValue(log.getNewValue())
-                        .changedAt(log.getChangedAt())
-                        .build()));
+        return ResponseEntity.ok(systemConfigService.getAuditByCategoryDto("PREDICTIONS", pageable));
     }
 }

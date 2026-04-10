@@ -53,14 +53,6 @@ public class IncidentsConfigController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Historial de cambios de incidencias")
     public ResponseEntity<Page<ConfigAuditLogResponseDTO>> auditLog(Pageable pageable) {
-        return ResponseEntity.ok(systemConfigService.getAuditByCategory("INCIDENTS", pageable)
-                .map(log -> ConfigAuditLogResponseDTO.builder()
-                        .username(log.getUser() != null ? log.getUser().getName() : null)
-                        .category(log.getCategory())
-                        .fieldName(log.getFieldName())
-                        .oldValue(log.getOldValue())
-                        .newValue(log.getNewValue())
-                        .changedAt(log.getChangedAt())
-                        .build()));
+        return ResponseEntity.ok(systemConfigService.getAuditByCategoryDto("INCIDENTS", pageable));
     }
 }
