@@ -70,6 +70,17 @@ CREATE TABLE IF NOT EXISTS incident_chat_message (
 CREATE INDEX IF NOT EXISTS idx_incident_chat_incident_created
     ON incident_chat_message(incident_id, created_at);
 
+CREATE TABLE IF NOT EXISTS incident_chat_read_receipt (
+    incident_chat_read_receipt_id BIGSERIAL PRIMARY KEY,
+    incident_id BIGINT NOT NULL,
+    user_id INTEGER NOT NULL,
+    last_read_message_id BIGINT NOT NULL,
+    read_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_chat_read_receipt_incident FOREIGN KEY (incident_id) REFERENCES incident(incident_id),
+    CONSTRAINT fk_chat_read_receipt_user FOREIGN KEY (user_id) REFERENCES users(user_id),
+    CONSTRAINT uk_incident_chat_read_receipt_incident_user UNIQUE (incident_id, user_id)
+);
+
 INSERT INTO incident_type(name, description, is_active)
 SELECT 'Cocinado erróneo', 'Incidencia asociada a errores durante el proceso de cocinado', TRUE
 WHERE NOT EXISTS (SELECT 1 FROM incident_type WHERE LOWER(name) = LOWER('Cocinado erróneo'));

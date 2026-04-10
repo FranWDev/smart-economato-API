@@ -1,15 +1,20 @@
 package com.economato.inventory.application.usecase;
 
 import com.economato.inventory.application.dto.response.IncidentChatMessageResponseDTO;
+import com.economato.inventory.application.dto.response.ChatReadReceiptBroadcastDTO;
+import com.economato.inventory.application.dto.response.IncidentChatTypingResponseDTO;
+import com.economato.inventory.application.mapper.IncidentChatReadReceiptMapper;
 import com.economato.inventory.application.mapper.IncidentChatMessageMapper;
 import com.economato.inventory.domain.model.Incident;
 import com.economato.inventory.domain.model.IncidentChatMessage;
+import com.economato.inventory.domain.model.IncidentChatReadReceipt;
 import com.economato.inventory.domain.model.IncidentStatus;
 import com.economato.inventory.domain.model.IncidentType;
 import com.economato.inventory.domain.model.Role;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.IncidentChatMessageRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.IncidentChatReadReceiptRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.IncidentRepository;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.I18nService;
@@ -23,15 +28,18 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,7 +51,11 @@ class IncidentChatServiceTest {
     @Mock
     private IncidentChatMessageRepository incidentChatMessageRepository;
     @Mock
+    private IncidentChatReadReceiptRepository readReceiptRepository;
+    @Mock
     private SecurityContextHelper securityContextHelper;
+    @Mock
+    private IncidentChatReadReceiptMapper readReceiptMapper;
     @Mock
     private FileStorageService fileStorageService;
     @Mock
@@ -62,14 +74,17 @@ class IncidentChatServiceTest {
     private Incident incident;
 
     @BeforeEach
+    @SuppressWarnings("unused")
     void setUp() {
         IncidentParticipantService participantService = new IncidentParticipantService(null);
         service = new IncidentChatService(
                 incidentRepository,
                 incidentChatMessageRepository,
+                readReceiptRepository,
                 securityContextHelper,
                 participantService,
                 new IncidentChatMessageMapper(),
+                readReceiptMapper,
                 fileStorageService,
                 persistentNotificationService,
                 messagingTemplate,
@@ -104,6 +119,26 @@ class IncidentChatServiceTest {
             }
             msg.setCreatedAt(LocalDateTime.now());
             return msg;
+        });
+        lenient().when(readReceiptRepository.save(any(IncidentChatReadReceipt.class))).thenAnswer(invocation -> {
+            IncidentChatReadReceipt receipt = invocation.getArgument(0);
+            if (receipt.getId() == null) {
+                receipt.setId(700L);
+            }
+            return receipt;
+        });
+        lenient().when(readReceiptRepository.findByIncidentIdAndUserId(any(), any())).thenReturn(Optional.empty());
+        lenient().when(readReceiptRepository.findByIncidentId(any())).thenReturn(List.of());
+        lenient().when(readReceiptMapper.toBroadcastDTO(any(IncidentChatReadReceipt.class), any())).thenAnswer(invocation -> {
+            IncidentChatReadReceipt receipt = invocation.getArgument(0);
+            Long incidentId = invocation.getArgument(1);
+            return ChatReadReceiptBroadcastDTO.builder()
+                    .incidentId(incidentId)
+                    .userId(receipt.getUser() != null ? receipt.getUser().getId() : null)
+                    .userName(receipt.getUser() != null ? receipt.getUser().getName() : null)
+                    .lastReadMessageId(receipt.getLastReadMessageId())
+                    .readAt(receipt.getReadAt())
+                    .build();
         });
     }
 
@@ -145,7 +180,8 @@ class IncidentChatServiceTest {
     void sendMessage_AsNonParticipant_ShouldThrow() {
         when(securityContextHelper.getCurrentUser()).thenReturn(nonParticipant);
 
-        assertThrows(AccessDeniedException.class, () -> service.sendMessage(100L, "not allowed", null));
+        var thrown = assertThrows(AccessDeniedException.class, () -> service.sendMessage(100L, "not allowed", null));
+        assertNotNull(thrown);
 
         verify(incidentChatMessageRepository, never()).save(any(IncidentChatMessage.class));
     }
@@ -155,14 +191,16 @@ class IncidentChatServiceTest {
         incident.setStatus(IncidentStatus.CERRADO_CON_RESOLUCION);
         when(securityContextHelper.getCurrentUser()).thenReturn(creator);
 
-        assertThrows(InvalidOperationException.class, () -> service.sendMessage(100L, "should fail", null));
+        var thrown = assertThrows(InvalidOperationException.class, () -> service.sendMessage(100L, "should fail", null));
+        assertNotNull(thrown);
     }
 
     @Test
     void sendMessage_EmptyContentAndNoAttachment_ShouldThrow() {
         when(securityContextHelper.getCurrentUser()).thenReturn(creator);
 
-        assertThrows(InvalidOperationException.class, () -> service.sendMessage(100L, "   ", null));
+        var thrown = assertThrows(InvalidOperationException.class, () -> service.sendMessage(100L, "   ", null));
+        assertNotNull(thrown);
 
         verify(incidentChatMessageRepository, never()).save(any(IncidentChatMessage.class));
     }
@@ -178,6 +216,146 @@ class IncidentChatServiceTest {
         assertEquals("still creator", result.getContent());
     }
 
+    @Test
+    void markMessagesAsRead_AsParticipant_ShouldCreateReceiptAndBroadcast() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(creator);
+        when(incidentChatMessageRepository.findTopByIncidentIdOrderByIdDesc(100L))
+                .thenReturn(Optional.of(chatMessage(10L, incident, creator, "last")));
+        when(readReceiptRepository.findByIncidentIdAndUserId(100L, creator.getId())).thenReturn(Optional.empty());
+
+        service.markMessagesAsRead(100L);
+
+        verify(readReceiptRepository).save(any(IncidentChatReadReceipt.class));
+        verify(messagingTemplate).convertAndSend(eq("/topic/incidents/100/chat/read-receipts"), any(ChatReadReceiptBroadcastDTO.class));
+    }
+
+    @Test
+    void markMessagesAsRead_AsParticipant_ShouldUpdateExistingReceipt() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(creator);
+        when(incidentChatMessageRepository.findTopByIncidentIdOrderByIdDesc(100L))
+                .thenReturn(Optional.of(chatMessage(10L, incident, creator, "last")));
+
+        IncidentChatReadReceipt existing = readReceipt(creator, 5L);
+        when(readReceiptRepository.findByIncidentIdAndUserId(100L, creator.getId())).thenReturn(Optional.of(existing));
+
+        service.markMessagesAsRead(100L);
+
+        verify(readReceiptRepository).save(existing);
+        verify(messagingTemplate).convertAndSend(eq("/topic/incidents/100/chat/read-receipts"), any(ChatReadReceiptBroadcastDTO.class));
+        assertEquals(10L, existing.getLastReadMessageId());
+    }
+
+    @Test
+    void markMessagesAsRead_WhenAlreadyUpToDate_ShouldNotBroadcast() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(creator);
+        when(incidentChatMessageRepository.findTopByIncidentIdOrderByIdDesc(100L))
+                .thenReturn(Optional.of(chatMessage(10L, incident, creator, "last")));
+
+        IncidentChatReadReceipt existing = readReceipt(creator, 10L);
+        when(readReceiptRepository.findByIncidentIdAndUserId(100L, creator.getId())).thenReturn(Optional.of(existing));
+
+        service.markMessagesAsRead(100L);
+
+        verify(readReceiptRepository, never()).save(any(IncidentChatReadReceipt.class));
+        verify(messagingTemplate, never()).convertAndSend(eq("/topic/incidents/100/chat/read-receipts"), any(ChatReadReceiptBroadcastDTO.class));
+    }
+
+    @Test
+    void markMessagesAsRead_AsNonParticipant_ShouldThrow() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(nonParticipant);
+
+        var thrown = assertThrows(AccessDeniedException.class, () -> service.markMessagesAsRead(100L));
+        assertNotNull(thrown);
+
+        verify(readReceiptRepository, never()).save(any(IncidentChatReadReceipt.class));
+    }
+
+    @Test
+    void markMessagesAsRead_WhenNoMessages_ShouldDoNothing() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(creator);
+        when(incidentChatMessageRepository.findTopByIncidentIdOrderByIdDesc(100L)).thenReturn(Optional.empty());
+
+        service.markMessagesAsRead(100L);
+
+        verify(readReceiptRepository, never()).save(any(IncidentChatReadReceipt.class));
+        verify(messagingTemplate, never()).convertAndSend(eq("/topic/incidents/100/chat/read-receipts"), any(ChatReadReceiptBroadcastDTO.class));
+    }
+
+    @Test
+    void sendMessage_ShouldAutoMarkAsReadForAuthor() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(creator);
+        when(readReceiptRepository.findByIncidentIdAndUserId(100L, creator.getId())).thenReturn(Optional.empty());
+
+        service.sendMessage(100L, "hello team", null);
+
+        var captor = forClass(IncidentChatReadReceipt.class);
+        verify(readReceiptRepository).save(captor.capture());
+        assertEquals(100L, captor.getValue().getIncident().getId());
+        assertEquals(creator.getId(), captor.getValue().getUser().getId());
+        assertEquals(500L, captor.getValue().getLastReadMessageId());
+    }
+
+    @Test
+    void broadcastTyping_AsParticipant_ShouldBroadcastTypingTrue() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(creator);
+
+        service.broadcastTyping(100L, true);
+
+        var captor = forClass(IncidentChatTypingResponseDTO.class);
+        verify(messagingTemplate, times(1)).convertAndSend(eq("/topic/incidents/100/chat/typing"), captor.capture());
+        assertEquals(100L, captor.getValue().getIncidentId());
+        assertEquals(creator.getId(), captor.getValue().getUserId());
+        assertEquals(creator.getName(), captor.getValue().getUserName());
+        assertEquals(true, captor.getValue().isTyping());
+    }
+
+    @Test
+    void broadcastTyping_AsParticipant_ShouldBroadcastTypingFalse() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(creator);
+
+        service.broadcastTyping(100L, false);
+
+        var captor = forClass(IncidentChatTypingResponseDTO.class);
+        verify(messagingTemplate).convertAndSend(eq("/topic/incidents/100/chat/typing"), captor.capture());
+        assertEquals(false, captor.getValue().isTyping());
+    }
+
+    @Test
+    void broadcastTyping_AsAdmin_ShouldSucceed() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(admin);
+
+        service.broadcastTyping(100L, true);
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/incidents/100/chat/typing"), any(IncidentChatTypingResponseDTO.class));
+    }
+
+    @Test
+    void broadcastTyping_AsNonParticipant_ShouldThrow() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(nonParticipant);
+
+        var thrown = assertThrows(AccessDeniedException.class, () -> service.broadcastTyping(100L, true));
+        assertNotNull(thrown);
+
+        verify(messagingTemplate, never()).convertAndSend(eq("/topic/incidents/100/chat/typing"), any(IncidentChatTypingResponseDTO.class));
+    }
+
+    @Test
+    void broadcastTyping_WhenIncidentNotFound_ShouldThrow() {
+        when(incidentRepository.findById(999L)).thenReturn(Optional.empty());
+
+        var thrown = assertThrows(com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException.class,
+            () -> service.broadcastTyping(999L, true));
+        assertNotNull(thrown);
+    }
+
+    @Test
+    void broadcastTyping_WhenUserNotAuthenticated_ShouldThrow() {
+        when(securityContextHelper.getCurrentUser()).thenReturn(null);
+
+        var thrown = assertThrows(AccessDeniedException.class, () -> service.broadcastTyping(100L, true));
+        assertNotNull(thrown);
+    }
+
     private User user(Integer id, String name, String username, Role role, User teacher) {
         User u = new User();
         u.setId(id);
@@ -186,5 +364,25 @@ class IncidentChatServiceTest {
         u.setRole(role);
         u.setTeacher(teacher);
         return u;
+    }
+
+    private IncidentChatMessage chatMessage(Long id, Incident incident, User author, String content) {
+        return IncidentChatMessage.builder()
+                .id(id)
+                .incident(incident)
+                .author(author)
+                .content(content)
+                .hasAttachment(false)
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    private IncidentChatReadReceipt readReceipt(User user, Long lastReadMessageId) {
+        return IncidentChatReadReceipt.builder()
+                .incident(incident)
+                .user(user)
+                .lastReadMessageId(lastReadMessageId)
+                .readAt(LocalDateTime.now())
+                .build();
     }
 }
