@@ -136,49 +136,6 @@ public class StockLedgerController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "Restablecer historial de un producto", description = "Elimina PERMANENTEMENTE todo el historial del ledger de un producto. "
-            +
-            "Solo debe usarse cuando se detecta corrupción y se desea empezar desde cero. " +
-            "Esta operación NO modifica el stock actual del producto, solo borra el historial de transacciones. " +
-            "Requiere permisos de ADMIN. [Rol requerido: ADMIN]")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Historial restablecido correctamente"),
-            @ApiResponse(responseCode = "403", description = "Requiere permisos de ADMIN"),
-            @ApiResponse(responseCode = "404", description = "Producto no encontrado")
-    })
-    @DeleteMapping("/reset/{productId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<String> resetProductLedger(@PathVariable Integer productId) {
-        String message = stockLedgerService.resetProductLedger(productId);
-        return ResponseEntity.ok(message);
-    }
-
-    @Operation(summary = "Reparar cadena de un producto", description = "Recalcula y reencadena los hashes de un producto para reparar inconsistencias históricas. "
-            +
-            "Solo disponible para administradores. [Rol requerido: ADMIN]")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Cadena reparada correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = IntegrityCheckResponseDTO.class))),
-            @ApiResponse(responseCode = "403", description = "Requiere permisos de ADMIN"),
-            @ApiResponse(responseCode = "404", description = "Producto no encontrado")
-    })
-    @PostMapping("/repair/{productId}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<IntegrityCheckResponseDTO> repairProductLedger(@PathVariable Integer productId) {
-        IntegrityCheckResult result = stockLedgerService.repairProductLedger(productId);
-        List<StockLedger> history = stockLedgerService.getProductHistory(productId);
-
-        IntegrityCheckResponseDTO response = IntegrityCheckResponseDTO.builder()
-                .productId(result.getProductId())
-                .productName(result.getProductName())
-                .valid(result.isValid())
-                .message(result.getMessage())
-                .errors(result.getErrors())
-                .totalTransactions(history.size())
-                .build();
-
-        return ResponseEntity.ok(response);
-    }
-
     @Operation(summary = "Procesar movimientos de stock en batch (transacción atómica)", description = "Permite actualizar el stock de múltiples productos en una sola transacción. "
             +
             "Si algún movimiento falla, se revierten TODOS los cambios (atomicidad). " +

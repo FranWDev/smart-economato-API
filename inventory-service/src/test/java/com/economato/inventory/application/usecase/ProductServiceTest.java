@@ -444,7 +444,6 @@ class ProductServiceTest {
         when(repository.findById(1)).thenReturn(Optional.of(testProduct));
         when(movementRepository.existsByProductId(1)).thenReturn(false);
         when(recipeComponentRepository.existsByProductId(1)).thenReturn(false);
-        when(stockLedgerService.resetProductLedger(1)).thenReturn("Success");
         doNothing().when(repository).delete(testProduct);
 
         productService.deleteById(1);
@@ -452,7 +451,6 @@ class ProductServiceTest {
         verify(repository).findById(1);
         verify(movementRepository).existsByProductId(1);
         verify(recipeComponentRepository).existsByProductId(1);
-        verify(stockLedgerService).resetProductLedger(1);
         verify(repository).delete(testProduct);
     }
 

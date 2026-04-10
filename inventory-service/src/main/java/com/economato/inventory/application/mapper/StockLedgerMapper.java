@@ -15,6 +15,8 @@ public interface StockLedgerMapper {
     @Mapping(target = "productId", source = "product.id")
     @Mapping(target = "productName", source = "product.name")
     @Mapping(target = "userName", source = "user.name")
+    @Mapping(target = "blockNumber", source = "block.blockNumber")
+    @Mapping(target = "blockHash", source = "block.blockHash")
     StockLedgerResponseDTO toDTO(StockLedger stockLedger);
 
 }

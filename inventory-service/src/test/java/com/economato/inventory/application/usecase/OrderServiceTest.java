@@ -408,8 +408,9 @@ class OrderServiceTest {
 
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
         when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
-        StockLedger ledger = new StockLedger();
-        ledger.setId(1L);
+        StockLedger ledger = StockLedger.builder()
+            .id(1L)
+            .build();
         when(stockLedgerService.recordStockMovement(
             anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class)))
             .thenReturn(ledger);

@@ -83,16 +83,17 @@ class StockLedgerControllerIntegrationTest {
         testProduct.setId(1);
         testProduct.setName("Test Product");
 
-        testLedger = new StockLedger();
-        testLedger.setId(1L);
-        testLedger.setProduct(testProduct);
-        testLedger.setSequenceNumber(1L);
-        testLedger.setMovementType(MovementType.ENTRADA);
-        testLedger.setQuantityDelta(new BigDecimal("50"));
-        testLedger.setResultingStock(new BigDecimal("50"));
-        testLedger.setTransactionTimestamp(LocalDateTime.now());
-        testLedger.setPreviousHash("genesis");
-        testLedger.setCurrentHash("abc123");
+        testLedger = StockLedger.builder()
+                .id(1L)
+                .product(testProduct)
+                .sequenceNumber(1L)
+                .movementType(MovementType.ENTRADA)
+                .quantityDelta(new BigDecimal("50"))
+                .resultingStock(new BigDecimal("50"))
+                .transactionTimestamp(LocalDateTime.now())
+                .previousHash("genesis")
+                .currentHash("abc123")
+                .build();
 
         testLedgers = Arrays.asList(testLedger);
 
@@ -211,52 +212,4 @@ class StockLedgerControllerIntegrationTest {
                 .andExpect(status().isOk());
     }
 
-    @Test
-
-    void resetChain_ShouldReturnOk() throws Exception {
-
-        when(stockLedgerService.resetProductLedger(1)).thenReturn("Historial restablecido");
-
-        mockMvc.perform(delete("/api/stock-ledger/reset/1")
-                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
-                        .user("admin").roles("ADMIN"))
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk());
-    }
-
-    @Test
-
-    void resetChain_WithChefRole_ShouldReturnForbidden() throws Exception {
-
-        mockMvc.perform(delete("/api/stock-ledger/reset/1")
-                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
-                        .user("chef").roles("CHEF"))
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    void repairChain_WithAdminRole_ShouldReturnOk() throws Exception {
-
-        when(stockLedgerService.repairProductLedger(1)).thenReturn(testIntegrityResult);
-        when(stockLedgerService.getProductHistory(1)).thenReturn(testLedgers);
-
-        mockMvc.perform(post("/api/stock-ledger/repair/1")
-                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
-                        .user("admin").roles("ADMIN"))
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.valid").value(true))
-                .andExpect(jsonPath("$.totalTransactions").value(1));
-    }
-
-    @Test
-    void repairChain_WithChefRole_ShouldReturnForbidden() throws Exception {
-
-        mockMvc.perform(post("/api/stock-ledger/repair/1")
-                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
-                        .user("chef").roles("CHEF"))
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden());
-    }
 }

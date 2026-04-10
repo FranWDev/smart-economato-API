@@ -15,39 +15,40 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import com.economato.inventory.domain.model.StockLedger;
+import com.economato.inventory.domain.model.LedgerBlock;
 
 @Repository
 public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> {
 
-    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.correlationId = :correlationId")
+        @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user LEFT JOIN FETCH l.block WHERE l.correlationId = :correlationId")
     List<StockLedger> findByCorrelationId(@Param("correlationId") String correlationId);
 
     @Query("SELECT DISTINCT l.product.id FROM StockLedger l WHERE l.correlationId = :correlationId")
     List<Integer> findProductIdsByCorrelationId(@Param("correlationId") String correlationId);
 
-    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.orderId = :orderId")
+        @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user LEFT JOIN FETCH l.block WHERE l.orderId = :orderId")
     List<StockLedger> findByOrderId(@Param("orderId") Integer orderId);
 
-    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.product.id = :productId ORDER BY l.sequenceNumber ASC")
+        @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user LEFT JOIN FETCH l.block WHERE l.product.id = :productId ORDER BY l.sequenceNumber ASC")
     List<StockLedger> findByProductIdOrderBySequenceNumber(@Param("productId") Integer productId);
 
-    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.product.id IN :productIds ORDER BY l.product.id ASC, l.sequenceNumber ASC")
+        @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user LEFT JOIN FETCH l.block WHERE l.product.id IN :productIds ORDER BY l.product.id ASC, l.sequenceNumber ASC")
     List<StockLedger> findByProductIdInOrderBySequenceNumber(@Param("productIds") Collection<Integer> productIds);
 
-    @EntityGraph(attributePaths = { "product", "user" })
+        @EntityGraph(attributePaths = { "product", "user", "block" })
     Page<StockLedger> findByProductId(@Param("productId") Integer productId, Pageable pageable);
 
-    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.product.id = :productId ORDER BY l.sequenceNumber DESC LIMIT 1")
+        @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user LEFT JOIN FETCH l.block WHERE l.product.id = :productId ORDER BY l.sequenceNumber DESC LIMIT 1")
     Optional<StockLedger> findLastTransactionByProductId(@Param("productId") Integer productId);
 
     long countByProductId(Integer productId);
 
     boolean existsByCurrentHash(String currentHash);
 
-    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.verified = false")
+        @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user LEFT JOIN FETCH l.block WHERE l.verified = false")
     List<StockLedger> findByVerifiedFalse();
 
-    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.product.id = :productId AND l.sequenceNumber BETWEEN :startSeq AND :endSeq ORDER BY l.sequenceNumber ASC")
+        @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user LEFT JOIN FETCH l.block WHERE l.product.id = :productId AND l.sequenceNumber BETWEEN :startSeq AND :endSeq ORDER BY l.sequenceNumber ASC")
     List<StockLedger> findByProductIdAndSequenceRange(
             @Param("productId") Integer productId,
             @Param("startSeq") Long startSeq,
@@ -75,23 +76,19 @@ public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> 
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
 
-    @Modifying(clearAutomatically = true)
-    @Transactional
-    void deleteAllByProductId(Integer productId);
-
-    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.product.id IN :productIds AND l.movementType = 'ENTRADA' AND l.orderId IS NOT NULL AND l.transactionTimestamp BETWEEN :startDate AND :endDate ORDER BY l.transactionTimestamp ASC")
+        @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user LEFT JOIN FETCH l.block WHERE l.product.id IN :productIds AND l.movementType = 'ENTRADA' AND l.orderId IS NOT NULL AND l.transactionTimestamp BETWEEN :startDate AND :endDate ORDER BY l.transactionTimestamp ASC")
     List<StockLedger> findEntradasWithOrderIdByProductIdsAndDateRange(
             @Param("productIds") List<Integer> productIds,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
 
-    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.product.id IN :productIds AND l.movementType = 'SALIDA' AND l.transactionTimestamp BETWEEN :startDate AND :endDate ORDER BY l.transactionTimestamp ASC")
+        @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user LEFT JOIN FETCH l.block WHERE l.product.id IN :productIds AND l.movementType = 'SALIDA' AND l.transactionTimestamp BETWEEN :startDate AND :endDate ORDER BY l.transactionTimestamp ASC")
     List<StockLedger> findSalidasByProductIdsAndDateRange(
             @Param("productIds") List<Integer> productIds,
             @Param("startDate") LocalDateTime startDate,
             @Param("endDate") LocalDateTime endDate);
 
-    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user WHERE l.product.id = :productId AND l.movementType = 'ENTRADA' AND l.transactionTimestamp < :date ORDER BY l.transactionTimestamp DESC LIMIT 1")
+        @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user LEFT JOIN FETCH l.block WHERE l.product.id = :productId AND l.movementType = 'ENTRADA' AND l.transactionTimestamp < :date ORDER BY l.transactionTimestamp DESC LIMIT 1")
     Optional<StockLedger> findLastEntradaBeforeDate(
             @Param("productId") Integer productId,
             @Param("date") LocalDateTime date);
@@ -104,7 +101,7 @@ public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> 
            "AND l.sequenceNumber = (SELECT MAX(l2.sequenceNumber) FROM StockLedger l2 WHERE l2.product.id = l.product.id)")
     List<Object[]> findLatestHashesByProductIds(@Param("productIds") List<Integer> productIds);
 
-    @Query("SELECT l.product.id, l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user " +
+    @Query("SELECT l.product.id, l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user LEFT JOIN FETCH l.block " +
            "WHERE l.product.id IN :productIds " +
            "AND l.movementType = 'ENTRADA' " +
            "AND l.transactionTimestamp < :date " +
@@ -112,6 +109,31 @@ public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> 
            "WHERE l2.product.id = l.product.id AND l2.movementType = 'ENTRADA' " +
            "AND l2.transactionTimestamp < :date)")
     List<Object[]> findLastEntradasBeforeDateBatch(@Param("productIds") Collection<Integer> productIds, @Param("date") LocalDateTime date);
+
+    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user LEFT JOIN FETCH l.block " +
+            "WHERE l.block IS NULL ORDER BY l.id ASC")
+    List<StockLedger> findPendingTransactionsOrderByIdAsc(Pageable pageable);
+
+    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user LEFT JOIN FETCH l.block " +
+            "WHERE l.block IS NULL ORDER BY l.id ASC")
+    List<StockLedger> findPendingTransactionsOrderByIdAsc();
+
+    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user LEFT JOIN FETCH l.block " +
+            "WHERE l.block.id = :blockId ORDER BY l.id ASC")
+    List<StockLedger> findByBlockIdOrderByIdAsc(@Param("blockId") Long blockId);
+
+    @Query("SELECT l FROM StockLedger l JOIN FETCH l.product LEFT JOIN FETCH l.user LEFT JOIN FETCH l.block " +
+            "WHERE l.block IS NOT NULL ORDER BY l.block.id ASC, l.id ASC")
+    List<StockLedger> findAllConfirmedOrderByBlockIdAndIdAsc();
+
+    long countByBlockIsNull();
+
+    long countByIdInAndBlockIsNull(Collection<Long> txIds);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional
+    @Query("UPDATE StockLedger l SET l.block = :block WHERE l.id IN :txIds AND l.block IS NULL")
+    int assignBlockToTransactions(@Param("block") LedgerBlock block, @Param("txIds") Collection<Long> txIds);
 
     @Query("SELECT DISTINCT l.product.id FROM StockLedger l WHERE l.transactionTimestamp >= :since")
     List<Integer> findProductIdsWithMovementsSince(@Param("since") LocalDateTime since);

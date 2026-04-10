@@ -122,50 +122,53 @@ class StockLedgerServiceLedgerMethodsTest {
                 testProduct2.setName("Product 2");
 
                 // Crear ledger entries para producto 1
-                StockLedger entry1 = new StockLedger();
-                entry1.setId(1L);
-                entry1.setProduct(testProduct1);
-                entry1.setSequenceNumber(1L);
-                entry1.setQuantityDelta(new BigDecimal("100.000"));
-                entry1.setResultingStock(new BigDecimal("100.000"));
-                entry1.setMovementType(MovementType.ENTRADA);
-                entry1.setDescription("Initial entry");
-                entry1.setTransactionTimestamp(LocalDateTime.now());
-                entry1.setUser(testUser);
-                entry1.setPreviousHash("GENESIS");
-                entry1.setCurrentHash("hash1_12345678");
-                entry1.setVerified(true);
+                StockLedger entry1 = StockLedger.builder()
+                        .id(1L)
+                        .product(testProduct1)
+                        .sequenceNumber(1L)
+                        .quantityDelta(new BigDecimal("100.000"))
+                        .resultingStock(new BigDecimal("100.000"))
+                        .movementType(MovementType.ENTRADA)
+                        .description("Initial entry")
+                        .transactionTimestamp(LocalDateTime.now())
+                        .user(testUser)
+                        .previousHash("GENESIS")
+                        .currentHash("hash1_12345678")
+                        .verified(true)
+                        .build();
 
-                StockLedger entry2 = new StockLedger();
-                entry2.setId(2L);
-                entry2.setProduct(testProduct1);
-                entry2.setSequenceNumber(2L);
-                entry2.setQuantityDelta(new BigDecimal("-50.000"));
-                entry2.setResultingStock(new BigDecimal("50.000"));
-                entry2.setMovementType(MovementType.SALIDA);
-                entry2.setDescription("Sale");
-                entry2.setTransactionTimestamp(LocalDateTime.now());
-                entry2.setUser(testUser);
-                entry2.setPreviousHash("hash1_12345678");
-                entry2.setCurrentHash("hash2_87654321");
-                entry2.setVerified(true);
+                StockLedger entry2 = StockLedger.builder()
+                        .id(2L)
+                        .product(testProduct1)
+                        .sequenceNumber(2L)
+                        .quantityDelta(new BigDecimal("-50.000"))
+                        .resultingStock(new BigDecimal("50.000"))
+                        .movementType(MovementType.SALIDA)
+                        .description("Sale")
+                        .transactionTimestamp(LocalDateTime.now())
+                        .user(testUser)
+                        .previousHash("hash1_12345678")
+                        .currentHash("hash2_87654321")
+                        .verified(true)
+                        .build();
 
                 ledgerEntries1 = Arrays.asList(entry1, entry2);
 
                 // Crear ledger entries para producto 2
-                StockLedger entry3 = new StockLedger();
-                entry3.setId(3L);
-                entry3.setProduct(testProduct2);
-                entry3.setSequenceNumber(1L);
-                entry3.setQuantityDelta(new BigDecimal("50.000"));
-                entry3.setResultingStock(new BigDecimal("50.000"));
-                entry3.setMovementType(MovementType.ENTRADA);
-                entry3.setDescription("Initial entry");
-                entry3.setTransactionTimestamp(LocalDateTime.now());
-                entry3.setUser(testUser);
-                entry3.setPreviousHash("GENESIS");
-                entry3.setCurrentHash("hash3_11112222");
-                entry3.setVerified(true);
+                StockLedger entry3 = StockLedger.builder()
+                        .id(3L)
+                        .product(testProduct2)
+                        .sequenceNumber(1L)
+                        .quantityDelta(new BigDecimal("50.000"))
+                        .resultingStock(new BigDecimal("50.000"))
+                        .movementType(MovementType.ENTRADA)
+                        .description("Initial entry")
+                        .transactionTimestamp(LocalDateTime.now())
+                        .user(testUser)
+                        .previousHash("GENESIS")
+                        .currentHash("hash3_11112222")
+                        .verified(true)
+                        .build();
 
                 ledgerEntries2 = Arrays.asList(entry3);
         }

@@ -43,6 +43,12 @@ public class StockLedgerResponseDTO {
     @Schema(description = "Hash de esta transacción", example = "b2e4f6c1...")
     private String currentHash;
 
+    @Schema(description = "Número de bloque confirmado", example = "12")
+    private Long blockNumber;
+
+    @Schema(description = "Hash del bloque confirmado", example = "0000ff12...")
+    private String blockHash;
+
     @Schema(description = "Timestamp de la transacción")
     private LocalDateTime transactionTimestamp;
 

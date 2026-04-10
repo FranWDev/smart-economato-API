@@ -216,7 +216,7 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
         }
 
         @Test
-        void whenDeleteProduct_thenReturnsNoContent() throws Exception {
+        void whenDeleteProductWithDependencies_thenReturnsBadRequest() throws Exception {
 
                 ProductRequestDTO productRequest = TestDataUtil.createProductRequestDTO();
 
@@ -237,11 +237,12 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
 
                 mockMvc.perform(delete(BASE_URL + "/{id}", productId)
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andExpect(status().isNoContent());
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.message", containsString("integridad")));
 
                 mockMvc.perform(get(BASE_URL + "/{id}", productId)
                                 .header("Authorization", "Bearer " + jwtToken))
-                                .andExpect(status().isNotFound());
+                                .andExpect(status().isOk());
         }
 
         @Test

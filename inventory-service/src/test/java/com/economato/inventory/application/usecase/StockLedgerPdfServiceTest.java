@@ -28,6 +28,7 @@ import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.external.reports.StockLedgerPdfService;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.LedgerBlockRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.config.web.I18nService;
@@ -42,6 +43,9 @@ class StockLedgerPdfServiceTest {
 
         @Mock
         private ProductRepository productRepository;
+
+        @Mock
+        private LedgerBlockRepository ledgerBlockRepository;
 
         @Mock
         private I18nService i18nService;
@@ -96,7 +100,11 @@ class StockLedgerPdfServiceTest {
                                                 "Cadena íntegra",
                                                 null));
 
-                lenient().when(ledgerProperties.getHmacSecret()).thenReturn("test-hmac-secret-for-ledger-integrity-verification");
+                lenient().when(ledgerProperties.getCurrentHmacVersion()).thenReturn(1);
+                lenient().when(ledgerProperties.getHmacSecretForVersion(1))
+                                .thenReturn("test-hmac-secret-for-ledger-integrity-verification");
+                lenient().when(ledgerBlockRepository.findTopByOrderByBlockNumberDesc())
+                                .thenReturn(java.util.Optional.empty());
         }
 
         private List<StockLedger> createTestLedgerEntries() {

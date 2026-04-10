@@ -16,6 +16,7 @@ import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
 import com.economato.inventory.application.dto.event.InventoryAuditEvent;
+import com.economato.inventory.application.dto.event.BlockchainAuditEvent;
 import com.economato.inventory.application.dto.event.OrderAuditEvent;
 import com.economato.inventory.application.dto.event.PresenceAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeAuditEvent;
@@ -94,6 +95,16 @@ public class KafkaConfig {
         return TopicBuilder.name("forecast-updates")
                 .partitions(3)
                 .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic ledgerBlockTopic() {
+        return TopicBuilder.name(AuditEventProducer.LEDGER_BLOCK_TOPIC)
+                .partitions(1)
+                .replicas(1)
+                .config("retention.ms", "-1")
+                .config("cleanup.policy", "compact")
                 .build();
     }
 
@@ -183,6 +194,16 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<String, PresenceAuditEvent> presenceAuditKafkaTemplate() {
         return new KafkaTemplate<>(presenceAuditProducerFactory());
+    }
+
+    @Bean
+    public ProducerFactory<String, BlockchainAuditEvent> blockchainAuditProducerFactory() {
+        return new DefaultKafkaProducerFactory<>(producerConfigs());
+    }
+
+    @Bean
+    public KafkaTemplate<String, BlockchainAuditEvent> blockchainAuditKafkaTemplate() {
+        return new KafkaTemplate<>(blockchainAuditProducerFactory());
     }
 
     /**
@@ -354,6 +375,32 @@ public class KafkaConfig {
         ConcurrentKafkaListenerContainerFactory<String, PresenceAuditEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(presenceAuditConsumerFactory());
         factory.setConcurrency(3);
+        factory.getContainerProperties().setAckMode(
+                org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
+        return factory;
+    }
+
+    @Bean
+    public ConsumerFactory<String, BlockchainAuditEvent> blockchainAuditConsumerFactory() {
+        JsonDeserializer<BlockchainAuditEvent> deserializer = new JsonDeserializer<>(BlockchainAuditEvent.class);
+        deserializer.addTrustedPackages("*");
+        deserializer.setRemoveTypeHeaders(false);
+        deserializer.setUseTypeMapperForKey(false);
+
+        ErrorHandlingDeserializer<BlockchainAuditEvent> errorHandlingDeserializer = new ErrorHandlingDeserializer<>(
+                deserializer);
+
+        return new DefaultKafkaConsumerFactory<>(
+                consumerConfigs("ledger-block-consumer-group"),
+                new StringDeserializer(),
+                errorHandlingDeserializer);
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, BlockchainAuditEvent> blockchainAuditKafkaListenerContainerFactory() {
+        ConcurrentKafkaListenerContainerFactory<String, BlockchainAuditEvent> factory = new ConcurrentKafkaListenerContainerFactory<>();
+        factory.setConsumerFactory(blockchainAuditConsumerFactory());
+        factory.setConcurrency(1);
         factory.getContainerProperties().setAckMode(
                 org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
         return factory;
