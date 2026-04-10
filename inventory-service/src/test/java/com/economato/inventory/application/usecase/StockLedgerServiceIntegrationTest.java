@@ -426,47 +426,6 @@ class StockLedgerServiceIntegrationTest {
 
         @Test
         @Transactional
-        @DisplayName("Debe reparar una cadena corrupta y dejarla íntegra")
-        void testRepairProductLedger_ShouldFixCorruptedChain() {
-
-                stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.005"), MovementType.MODIFICACION, "TX1", testUser, null, java.time.LocalDate.now().plusDays(30));
-                stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.002"), MovementType.MODIFICACION, "TX2", testUser, null, java.time.LocalDate.now().plusDays(30));
-                stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("0.003"), MovementType.MODIFICACION, "TX3", testUser, null, java.time.LocalDate.now().plusDays(30));
-
-                List<StockLedger> historyBeforeCorruption = stockLedgerService.getProductHistory(testProduct.getId());
-                Long secondTxId = historyBeforeCorruption.get(1).getId();
-
-                jdbcTemplate.update(
-                                "UPDATE stock_ledger SET current_hash = ? WHERE transaction_id = ?",
-                                "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-                                secondTxId);
-
-                entityManager.flush();
-                entityManager.clear();
-
-                IntegrityCheckResult corruptedResult = stockLedgerService.verifyChainIntegrity(testProduct.getId());
-                assertFalse(corruptedResult.isValid());
-
-                IntegrityCheckResult repaired = stockLedgerService.repairProductLedger(testProduct.getId());
-                assertTrue(repaired.isValid());
-                assertTrue(repaired.getMessage().contains("Ledger reparado"));
-
-                IntegrityCheckResult afterRepair = stockLedgerService.verifyChainIntegrity(testProduct.getId());
-                assertTrue(afterRepair.isValid());
-                assertNull(afterRepair.getErrors());
-
-                List<StockLedger> repairedHistory = stockLedgerService.getProductHistory(testProduct.getId());
-                assertEquals("GENESIS", repairedHistory.get(0).getPreviousHash());
-                for (int i = 1; i < repairedHistory.size(); i++) {
-                        assertEquals(repairedHistory.get(i - 1).getCurrentHash(), repairedHistory.get(i).getPreviousHash());
-                }
-        }
-
-        @Test
-        @Transactional
         @DisplayName("Debe obtener el historial completo de transacciones")
         void testGetProductHistory() {
 
@@ -582,50 +541,6 @@ class StockLedgerServiceIntegrationTest {
                 assertTrue(transactions.stream().allMatch(StockLedger::getVerified));
         }
 
-        @Test
-        @Transactional
-        @DisplayName("Debe restablecer el historial completo de un producto")
-        void testResetProductLedger() {
-
-                stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("50.0"), MovementType.ENTRADA, "TX1", testUser, null, java.time.LocalDate.now().plusDays(30));
-                stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("30.0"), MovementType.ENTRADA, "TX2", testUser, null, java.time.LocalDate.now().plusDays(30));
-                stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("-20.0"), MovementType.SALIDA, "TX3", testUser, null, java.time.LocalDate.now().plusDays(30));
-
-                List<StockLedger> historyBefore = stockLedgerService.getProductHistory(testProduct.getId());
-                assertEquals(3, historyBefore.size(), "Debe haber 3 transacciones");
-                assertTrue(snapshotRepository.existsById(testProduct.getId()), "El snapshot debe existir");
-
-                String result = stockLedgerService.resetProductLedger(testProduct.getId());
-
-                List<StockLedger> historyAfter = stockLedgerService.getProductHistory(testProduct.getId());
-                assertEquals(0, historyAfter.size(), "No debe haber transacciones");
-                assertFalse(snapshotRepository.existsById(testProduct.getId()), "El snapshot debe estar borrado");
-                assertTrue(result.contains("3 transacciones eliminadas"),
-                                "El mensaje debe confirmar 3 transacciones eliminadas");
-        }
-
-        @Test
-        @Transactional
-        @DisplayName("Debe permitir crear nuevas transacciones después del reseteo")
-        void testResetProductLedger_AllowsNewTransactions() {
-
-                stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("100.0"), MovementType.ENTRADA, "Old TX", testUser, null, java.time.LocalDate.now().plusDays(30));
-
-                stockLedgerService.resetProductLedger(testProduct.getId());
-
-                StockLedger newTx = stockLedgerService.recordStockMovement(
-                                testProduct.getId(), new BigDecimal("50.0"), MovementType.ENTRADA, "New TX", testUser, null, java.time.LocalDate.now().plusDays(30));
-
-                assertNotNull(newTx);
-                assertEquals(1L, newTx.getSequenceNumber(), "Debe empezar en secuencia 1");
-                assertEquals("GENESIS", newTx.getPreviousHash(), "Debe tener previousHash GENESIS");
-
-                IntegrityCheckResult integrity = stockLedgerService
-                                .verifyChainIntegrity(testProduct.getId());
-                assertTrue(integrity.isValid(), "La nueva cadena debe ser válida");
-        }
+        // Reset/repair flows were removed when the ledger became append-only.
+        // Coverage now focuses on history retrieval, integrity verification, and snapshot updates.
 }

@@ -42,8 +42,9 @@ class ProductBatchServiceTest {
         Product product = new Product();
         product.setId(1);
 
-        StockLedger ledger = new StockLedger();
-        ledger.setId(5L);
+        StockLedger ledger = StockLedger.builder()
+                .id(5L)
+                .build();
 
         ProductBatch persisted = ProductBatch.builder()
                 .id(10L)

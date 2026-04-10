@@ -241,10 +241,7 @@ public class ProductService {
             throw new InvalidOperationException(
                     i18nService.getMessage(MessageKey.ERROR_PRODUCT_DELETE_IN_RECIPE));
         }
-        
-        // Limpiamos datos relacionados del ledger y lotes antes de borrar el producto
-        stockLedgerService.resetProductLedger(id);
-        
+
         repository.delete(product);
     }
 

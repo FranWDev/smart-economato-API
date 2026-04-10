@@ -85,19 +85,20 @@ class ProductLedgerPdfControllerIntegrationTest extends BaseIntegrationTest {
 
         private void createLedgerEntry(Product product, Long seqNum, String quantity, String type, String description,
                 String prevHash, String resultingStockValue) {
-                StockLedger ledger = new StockLedger();
-                ledger.setProduct(product);
-                ledger.setQuantityDelta(new BigDecimal(quantity));
-                ledger.setSequenceNumber(seqNum);
-                ledger.setMovementType(MovementType.valueOf(type));
-                ledger.setDescription(description);
-                ledger.setResultingStock(new BigDecimal(resultingStockValue));
-                ledger.setTransactionTimestamp(java.time.LocalDateTime.now());
-                ledger.setUser(testUser);
-                ledger.setPreviousHash(prevHash != null ? prevHash : "0");
-                // Use UUID to ensure uniqueness across all tests
-                ledger.setCurrentHash("hash_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12));
-                ledger.setVerified(true);
+                StockLedger ledger = StockLedger.builder()
+                        .product(product)
+                        .quantityDelta(new BigDecimal(quantity))
+                        .sequenceNumber(seqNum)
+                        .movementType(MovementType.valueOf(type))
+                        .description(description)
+                        .resultingStock(new BigDecimal(resultingStockValue))
+                        .transactionTimestamp(java.time.LocalDateTime.now())
+                        .user(testUser)
+                        .previousHash(prevHash != null ? prevHash : "0")
+                        // Use UUID to ensure uniqueness across all tests
+                        .currentHash("hash_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12))
+                        .verified(true)
+                        .build();
                 stockLedgerRepository.save(ledger);
         }
 
