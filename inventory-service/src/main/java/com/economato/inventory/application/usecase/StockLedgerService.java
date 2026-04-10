@@ -42,6 +42,7 @@ import com.economato.inventory.domain.PredictorTrigger;
 import com.economato.inventory.infrastructure.config.cache.event.StockMovementEvent;
 import com.economato.inventory.infrastructure.config.cache.event.NewLedgerTransactionEvent;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.security.BlockchainProperties;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -111,7 +112,9 @@ public class StockLedgerService {
     private final ProductBatchRepository batchRepository;
     private final Environment environment;
     private final LedgerProperties ledgerProperties;
-        private final ApplicationEventPublisher applicationEventPublisher;
+        private final BlockchainProperties blockchainProperties;
+    private final LedgerMerkleVerificationService ledgerMerkleVerificationService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     // Métricas declaradas como final para thread-safety
     private final Counter stockMovementsCounter;
@@ -135,6 +138,8 @@ public class StockLedgerService {
             ProductBatchRepository batchRepository,
             Environment environment,
             LedgerProperties ledgerProperties,
+            BlockchainProperties blockchainProperties,
+            LedgerMerkleVerificationService ledgerMerkleVerificationService,
             ApplicationEventPublisher applicationEventPublisher,
             MeterRegistry meterRegistry) {
         this.i18nService = i18nService;
@@ -149,6 +154,8 @@ public class StockLedgerService {
         this.batchRepository = batchRepository;
         this.environment = environment;
         this.ledgerProperties = ledgerProperties;
+        this.blockchainProperties = blockchainProperties;
+        this.ledgerMerkleVerificationService = ledgerMerkleVerificationService;
         this.applicationEventPublisher = applicationEventPublisher;
 
         // Inicializar métricas
@@ -629,82 +636,18 @@ public class StockLedgerService {
                 .map(Product::getName)
                 .orElse("Desconocido");
 
+        List<String> merkleErrors = ledgerMerkleVerificationService.verifyLedgerChainIntegrityMerkle(productId);
         List<StockLedger> chain = ledgerRepository.findByProductIdOrderBySequenceNumber(productId);
 
-        if (chain.isEmpty()) {
-            return new IntegrityCheckResult(productId, productName, true,
-                    i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_NO_TRANSACTIONS),
-                    null);
-        }
-
-        List<String> errors = new ArrayList<>();
-        String expectedPreviousHash = GENESIS_HASH;
-
-        for (int i = 0; i < chain.size(); i++) {
-            StockLedger tx = chain.get(i);
-
-            if (!tx.getPreviousHash().equals(expectedPreviousHash)) {
-                String error = i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_PREVIOUS_HASH_MISMATCH,
-                        new Object[] {
-                                tx.getSequenceNumber(),
-                                expectedPreviousHash.substring(0, Math.min(8, expectedPreviousHash.length())),
-                                tx.getPreviousHash().substring(0, Math.min(8, tx.getPreviousHash().length()))
-                        });
-                errors.add(error);
-            }
-
-            // Normalizar los BigDecimal con la misma escala usada en la creación
-            BigDecimal normalizedDelta = tx.getQuantityDelta().setScale(3, RoundingMode.HALF_UP);
-            BigDecimal normalizedStock = tx.getResultingStock().setScale(3, RoundingMode.HALF_UP);
-
-            LocalDateTime normalizedTimestamp = normalizeTimestamp(tx.getTransactionTimestamp());
-
-            String recalculatedHash = calculateTransactionHash(
-                    productId,
-                    normalizedDelta,
-                    normalizedStock,
-                    tx.getMovementType(),
-                    tx.getDescription(),
-                    tx.getUser() != null ? tx.getUser().getId() : null,
-                    tx.getOrderId(),
-                    tx.getExpirationDate(),
-                    tx.getCorrelationId(),
-                    normalizedTimestamp,
-                    tx.getPreviousHash(),
-                    tx.getSequenceNumber());
-
-            if (!recalculatedHash.equals(tx.getCurrentHash())) {
-                String error = i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_HASH_CORRUPT,
-                        new Object[] {
-                                tx.getSequenceNumber(),
-                                recalculatedHash.substring(0, Math.min(8, recalculatedHash.length())),
-                                tx.getCurrentHash().substring(0, Math.min(8, tx.getCurrentHash().length())),
-                                normalizedDelta,
-                                normalizedStock
-                        });
-                errors.add(error);
-            }
-
-            if (tx.getSequenceNumber() != (i + 1L)) {
-                String error = i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_SEQUENCE_BROKEN,
-                        new Object[] { tx.getSequenceNumber(), (i + 1L) });
-                errors.add(error);
-            }
-
-            expectedPreviousHash = tx.getCurrentHash();
-        }
-
-        if (errors.isEmpty()) {
-            log.info("Cadena íntegra: {} transacciones verificadas", chain.size());
+        if (merkleErrors.isEmpty()) {
             return new IntegrityCheckResult(productId, productName, true,
                     i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_VALID, new Object[] { chain.size() }),
                     null);
-        } else {
-            log.debug("CORRUPCIÓN DETECTADA: {} errores encontrados", errors.size());
-            return new IntegrityCheckResult(productId, productName, false,
-                    i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_CORRUPTED, new Object[] { errors.size() }),
-                    errors);
         }
+
+        return new IntegrityCheckResult(productId, productName, false,
+                i18nService.getMessage(MessageKey.LEDGER_INTEGRITY_CORRUPTED, new Object[] { merkleErrors.size() }),
+                merkleErrors);
     }
 
     @Transactional(readOnly = true)

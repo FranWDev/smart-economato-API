@@ -280,4 +280,113 @@ class MerkleTreeServiceTest {
         // Different input orders should produce different roots (not commutative)
         assertNotEquals(root1, root2);
     }
+
+    // === New tests for O(log n) verification (Phase 1) ===
+
+    @Test
+    void generateProofPath_singleLeaf_returnsEmptyPath() {
+        List<String> leaves = List.of("leaf1");
+        List<String> path = service.generateProofPath(leaves, 0);
+
+        assertNotNull(path);
+        assertEquals(0, path.size());
+    }
+
+    @Test
+    void generateProofPath_multipleLeaves_returnsPathWithCorrectLength() {
+        // Tree of 8 leaves has depth 3, so proof path should have 3 siblings
+        List<String> leaves = new ArrayList<>();
+        for (int i = 0; i < 8; i++) {
+            leaves.add("leaf" + i);
+        }
+
+        List<String> path0 = service.generateProofPath(leaves, 0);
+        List<String> path7 = service.generateProofPath(leaves, 7);
+
+        assertNotNull(path0);
+        assertNotNull(path7);
+        assertEquals(3, path0.size()); // Depth of tree
+        assertEquals(3, path7.size()); // Depth of tree
+        
+        // Paths should have "L:" or "R:" prefix followed by hashes
+        for (String step : path0) {
+            assertTrue(step.startsWith("L:") || step.startsWith("R:"));
+            // Hash length may vary depending on merkle tree construction
+            assertTrue(step.length() > 2, "Proof step should have side prefix + hash");
+        }
+    }
+
+    @Test
+    void rebuildFromProofPath_validPath_reconstructsMerkleRoot() {
+        // Build a tree and verify we can rebuild the root using a leaf + proof path
+        List<String> leaves = new ArrayList<>();
+        for (int i = 0; i < 8; i++) {
+            leaves.add("leaf" + i);
+        }
+
+        String expectedRoot = service.computeMerkleRoot(leaves);
+        String leaf = leaves.get(3);
+        List<String> proofPath = service.generateProofPath(leaves, 3);
+
+        String rebuiltRoot = service.rebuildFromProofPath(leaf, proofPath);
+
+        assertNotNull(rebuiltRoot);
+        assertEquals(expectedRoot, rebuiltRoot, "Rebuilt root should match computed root");
+    }
+
+    @Test
+    void rebuildFromProofPath_allLeaves_allReconstructToSameRoot() {
+        // Verify that each leaf + its proof path reconstructs the same root
+        List<String> leaves = new ArrayList<>();
+        for (int i = 0; i < 16; i++) {
+            leaves.add("leaf" + i);
+        }
+
+        String expectedRoot = service.computeMerkleRoot(leaves);
+
+        // Test every leaf in the tree
+        for (int i = 0; i < leaves.size(); i++) {
+            String leaf = leaves.get(i);
+            List<String> proofPath = service.generateProofPath(leaves, i);
+            String rebuiltRoot = service.rebuildFromProofPath(leaf, proofPath);
+
+            assertEquals(expectedRoot, rebuiltRoot, 
+                    "Leaf " + i + " should reconstruct to same root");
+        }
+    }
+
+    @Test
+    void rebuildFromProofPath_emptyProofPath_returnsSameLeafHash() {
+        // Single leaf tree: proof path is empty, rebuild should return leaf itself
+        List<String> leaves = List.of("singleleaf");
+        String leaf = leaves.get(0);
+        List<String> emptyPath = service.generateProofPath(leaves, 0);
+
+        String result = service.rebuildFromProofPath(leaf, emptyPath);
+
+        assertEquals(leaf, result);
+    }
+
+    @Test
+    void rebuildFromProofPath_nullProofPath_treatAsEmptyPath() {
+        String leaf = "someleafhash";
+        String result = service.rebuildFromProofPath(leaf, null);
+
+        // Should treat null as empty path
+        assertEquals(leaf, result);
+    }
+
+    @Test
+    void generateProofPath_invalidIndex_throwsException() {
+        List<String> leaves = List.of("leaf1", "leaf2", "leaf3");
+
+        assertThrows(IllegalArgumentException.class, () -> service.generateProofPath(leaves, -1));
+        assertThrows(IllegalArgumentException.class, () -> service.generateProofPath(leaves, 10));
+    }
+
+    @Test
+    void rebuildFromProofPath_invalidInput_throwsException() {
+        assertThrows(IllegalArgumentException.class, () -> service.rebuildFromProofPath(null, List.of()));
+        assertThrows(IllegalArgumentException.class, () -> service.rebuildFromProofPath("", List.of()));
+    }
 }

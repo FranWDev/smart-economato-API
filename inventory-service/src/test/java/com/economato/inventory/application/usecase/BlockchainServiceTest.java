@@ -41,6 +41,7 @@ class BlockchainServiceTest {
     @Mock private StockSnapshotRepository snapshotRepository;
     @Mock private BlockMiningService blockMiningService;
     @Mock private MerkleTreeService merkleTreeService;
+    @Mock private BlockchainMerkleVerificationService merkleVerificationService;
     private final LedgerProperties ledgerProperties = new LedgerProperties();
     private final BlockchainProperties blockchainProperties = new BlockchainProperties();
     private final Optional<AuditEventProducer> auditEventProducer = Optional.empty();
@@ -56,11 +57,12 @@ class BlockchainServiceTest {
         blockchainProperties.setBlockSize(10);
         blockchainProperties.setMiningIntervalMs(30000L);
         blockchainProperties.setDifficulty(2);
+        blockchainProperties.setMerkleVerificationEnabled(true);
         meterRegistry = new SimpleMeterRegistry();
 
         service = new BlockchainService(
             blockRepository, ledgerRepository, snapshotRepository,
-            blockMiningService, merkleTreeService, ledgerProperties,
+            blockMiningService, merkleTreeService, merkleVerificationService, ledgerProperties,
             blockchainProperties, auditEventProducer, txManager, meterRegistry
         );
     }
@@ -112,7 +114,7 @@ class BlockchainServiceTest {
 
     @Test
     void verifyBlockchainIntegrity_emptyBlockchain_returnsFalse() {
-        when(blockRepository.findAllByOrderByBlockNumberAsc()).thenReturn(List.of());
+        when(merkleVerificationService.verifyBlockchainIntegrityMerkle()).thenReturn(false);
 
         boolean valid = service.verifyBlockchainIntegrity();
 
@@ -121,8 +123,7 @@ class BlockchainServiceTest {
 
     @Test
     void verifyBlockchainIntegrity_singleGenesisBlock_returnsTrue() {
-        LedgerBlock genesis = createMockBlock(0L).get();
-        when(blockRepository.findAllByOrderByBlockNumberAsc()).thenReturn(List.of(genesis));
+        when(merkleVerificationService.verifyBlockchainIntegrityMerkle()).thenReturn(true);
 
         boolean valid = service.verifyBlockchainIntegrity();
 
@@ -131,8 +132,7 @@ class BlockchainServiceTest {
 
     @Test
     void verifyBlockchainIntegrity_validChain_returnsTrue() {
-        List<LedgerBlock> blocks = createMockBlockChain(3);
-        when(blockRepository.findAllByOrderByBlockNumberAsc()).thenReturn(blocks);
+        when(merkleVerificationService.verifyBlockchainIntegrityMerkle()).thenReturn(true);
 
         boolean valid = service.verifyBlockchainIntegrity();
 
@@ -141,22 +141,7 @@ class BlockchainServiceTest {
 
     @Test
     void verifyBlockchainIntegrity_brokenChainLink_returnsFalse() {
-        List<LedgerBlock> blocks = createMockBlockChain(3);
-        LedgerBlock broken = LedgerBlock.builder()
-            .id(blocks.get(1).getId())
-            .blockNumber(blocks.get(1).getBlockNumber())
-            .blockHash(blocks.get(1).getBlockHash())
-            .previousBlockHash("wronghash")
-            .merkleRoot(blocks.get(1).getMerkleRoot())
-            .nonce(blocks.get(1).getNonce())
-            .difficulty(blocks.get(1).getDifficulty())
-            .timestamp(blocks.get(1).getTimestamp())
-            .transactionCount(blocks.get(1).getTransactionCount())
-            .hmacKeyVersion(blocks.get(1).getHmacKeyVersion())
-            .build();
-        blocks.set(1, broken);
-
-        when(blockRepository.findAllByOrderByBlockNumberAsc()).thenReturn(blocks);
+        when(merkleVerificationService.verifyBlockchainIntegrityMerkle()).thenReturn(false);
 
         boolean valid = service.verifyBlockchainIntegrity();
 
@@ -165,22 +150,7 @@ class BlockchainServiceTest {
 
     @Test
     void verifyBlockchainIntegrity_invalidProofOfWork_returnsFalse() {
-        List<LedgerBlock> blocks = createMockBlockChain(2);
-        LedgerBlock invalidPow = LedgerBlock.builder()
-            .id(blocks.get(1).getId())
-            .blockNumber(blocks.get(1).getBlockNumber())
-            .blockHash("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
-            .previousBlockHash(blocks.get(1).getPreviousBlockHash())
-            .merkleRoot(blocks.get(1).getMerkleRoot())
-            .nonce(blocks.get(1).getNonce())
-            .difficulty(blocks.get(1).getDifficulty())
-            .timestamp(blocks.get(1).getTimestamp())
-            .transactionCount(blocks.get(1).getTransactionCount())
-            .hmacKeyVersion(blocks.get(1).getHmacKeyVersion())
-            .build();
-        blocks.set(1, invalidPow);
-
-        when(blockRepository.findAllByOrderByBlockNumberAsc()).thenReturn(blocks);
+        when(merkleVerificationService.verifyBlockchainIntegrityMerkle()).thenReturn(false);
 
         boolean valid = service.verifyBlockchainIntegrity();
 

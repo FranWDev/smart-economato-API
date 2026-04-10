@@ -26,4 +26,10 @@ public class BlockchainProperties {
     @NotNull
     @Min(0)
     private Integer difficulty = 2;
+
+    private String verificationStrategy = "MERKLE";
+
+    private Boolean merkleVerificationEnabled = true;
+
+    private Boolean ledgerMerkleVerificationEnabled = true;
 }
