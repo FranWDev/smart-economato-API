@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import com.economato.inventory.infrastructure.CircuitBreakerClosedEvent;
 import com.economato.inventory.infrastructure.CircuitBreakerOpenEvent;
 import com.economato.inventory.infrastructure.WebSocketConnectedEvent;
+import com.economato.inventory.infrastructure.WebSocketDisconnectedEvent;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
 
@@ -23,6 +24,7 @@ public class WebSocketNotificationService {
     private final SimpMessagingTemplate messagingTemplate;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
     private final I18nService i18nService;
+    private final UserPresenceService userPresenceService;
 
     /**
      * Maneja eventos de circuit breaker OPEN y envía alertas al frontend a través de WebSocket.
@@ -33,14 +35,14 @@ public class WebSocketNotificationService {
         String instanceName = event.getInstanceName();
         log.info("Received CircuitBreakerOpenEvent for instance: {}", instanceName);
 
-        if ("db".equals(instanceName)) {
-            sendCircuitBreakerAlert(AlertCode.DB_FAILURE);
-        } else if ("redis".equals(instanceName)) {
-            sendCircuitBreakerAlert(AlertCode.REDIS_FAILURE);
-        } else if ("kafka".equals(instanceName)) {
-            sendCircuitBreakerAlert(AlertCode.KAFKA_FAILURE);
-        } else if ("replica".equals(instanceName)) {
-            sendCircuitBreakerAlert(AlertCode.REPLICA_FAILURE);
+        switch (instanceName) {
+            case "db" -> sendCircuitBreakerAlert(AlertCode.DB_FAILURE);
+            case "redis" -> sendCircuitBreakerAlert(AlertCode.REDIS_FAILURE);
+            case "kafka" -> sendCircuitBreakerAlert(AlertCode.KAFKA_FAILURE);
+            case "replica" -> sendCircuitBreakerAlert(AlertCode.REPLICA_FAILURE);
+            default -> {
+                // no-op
+            }
         }
     }
 
@@ -52,14 +54,14 @@ public class WebSocketNotificationService {
         String instanceName = event.getInstanceName();
         log.info("Received CircuitBreakerClosedEvent for instance: {}", instanceName);
 
-        if ("db".equals(instanceName)) {
-            sendCircuitBreakerAlert(AlertCode.DB_RECOVERED);
-        } else if ("redis".equals(instanceName)) {
-            sendCircuitBreakerAlert(AlertCode.REDIS_RECOVERED);
-        } else if ("kafka".equals(instanceName)) {
-            sendCircuitBreakerAlert(AlertCode.KAFKA_RECOVERED);
-        } else if ("replica".equals(instanceName)) {
-            sendCircuitBreakerAlert(AlertCode.REPLICA_RECOVERED);
+        switch (instanceName) {
+            case "db" -> sendCircuitBreakerAlert(AlertCode.DB_RECOVERED);
+            case "redis" -> sendCircuitBreakerAlert(AlertCode.REDIS_RECOVERED);
+            case "kafka" -> sendCircuitBreakerAlert(AlertCode.KAFKA_RECOVERED);
+            case "replica" -> sendCircuitBreakerAlert(AlertCode.REPLICA_RECOVERED);
+            default -> {
+                // no-op
+            }
         }
     }
 
@@ -72,7 +74,7 @@ public class WebSocketNotificationService {
             log.info("Sending System Alert via WebSocket: code={}, timestamp={}", 
                     alertCode.getCode(), message.getTimestamp());
             messagingTemplate.convertAndSend("/topic/alerts", message);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("Failed to send WebSocket alert for code: {}", alertCode.getCode(), e);
         }
     }
@@ -83,7 +85,7 @@ public class WebSocketNotificationService {
             log.info("Sending System Alert to user {} via WebSocket: code={}, timestamp={}", 
                     username, alertCode.getCode(), message.getTimestamp());
             messagingTemplate.convertAndSendToUser(username, "/queue/alerts", message);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("Failed to send WebSocket alert to user {} for code: {}", username, alertCode.getCode(), e);
         }
     }
@@ -95,6 +97,7 @@ public class WebSocketNotificationService {
     @EventListener
     public void handleWebSocketConnected(WebSocketConnectedEvent event) {
         String username = event.getUsername();
+        userPresenceService.userConnected(username, event.getSessionId(), null, null, null, null);
         log.debug("Checking open circuit breakers for new WebSocket connection from user: {}", username);
         
         try {
@@ -121,9 +124,14 @@ public class WebSocketNotificationService {
                 log.info("Replica circuit breaker is OPEN, notifying user: {}", username);
                 sendCircuitBreakerAlertToUser(username, AlertCode.REPLICA_FAILURE);
             }
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("Error checking circuit breakers for user: {}", username, e);
         }
+    }
+
+    @EventListener
+    public void handleWebSocketDisconnected(WebSocketDisconnectedEvent event) {
+        userPresenceService.userDisconnected(event.getUsername(), event.getSessionId());
     }
 
     /**
@@ -143,7 +151,7 @@ public class WebSocketNotificationService {
             // podríamos enviarlo a un tópico específico /topic/admin/notifications si existiera.
             // Para seguir el patrón existente, usamos /topic/alerts.
             messagingTemplate.convertAndSend("/topic/alerts", message);
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.error("Failed to send WebSocket prediction notification", e);
         }
     }

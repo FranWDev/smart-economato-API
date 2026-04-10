@@ -1,6 +1,7 @@
 package com.economato.inventory.infrastructure.config.web;
 
 import com.economato.inventory.infrastructure.WebSocketConnectedEvent;
+import com.economato.inventory.infrastructure.WebSocketDisconnectedEvent;
 import com.economato.inventory.infrastructure.config.security.JwtUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -103,7 +104,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                                 SecurityContextHolder.getContext().setAuthentication(authentication);
                                 log.debug("WebSocket authenticated user: {} with role: {}", username, role);
 
-                                eventPublisher.publishEvent(new WebSocketConnectedEvent(username));
+                                eventPublisher.publishEvent(new WebSocketConnectedEvent(username, accessor.getSessionId()));
                             } else {
                                 throw new MessageDeliveryException(
                                         i18nService.getMessage(MessageKey.ERROR_AUTH_UNAUTHORIZED));
@@ -116,7 +117,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     case SUBSCRIBE -> {
                         String destination = accessor.getDestination();
                         if (destination != null && destination.startsWith("/topic/roles/")) {
-                            String requiredRole = destination.substring("/topic/roles/".length());
+                            String requiredRole = destination.substring("/topic/roles/".length()).split("/")[0];
                             UsernamePasswordAuthenticationToken user = (UsernamePasswordAuthenticationToken) accessor.getUser();
 
                             if (user == null) {
@@ -132,7 +133,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                             }
                         }
                     }
-                    case DISCONNECT -> SecurityContextHolder.clearContext();
+                    case DISCONNECT -> {
+                        if (accessor.getUser() != null) {
+                            eventPublisher.publishEvent(new WebSocketDisconnectedEvent(accessor.getUser().getName(), accessor.getSessionId()));
+                        }
+                        SecurityContextHolder.clearContext();
+                    }
                     default -> {
                         // no-op
                     }

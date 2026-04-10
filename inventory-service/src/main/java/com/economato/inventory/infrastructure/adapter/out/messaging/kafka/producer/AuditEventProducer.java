@@ -2,6 +2,7 @@ package com.economato.inventory.infrastructure.adapter.out.messaging.kafka.produ
 
 import com.economato.inventory.application.dto.event.InventoryAuditEvent;
 import com.economato.inventory.application.dto.event.OrderAuditEvent;
+import com.economato.inventory.application.dto.event.PresenceAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeCookingAuditEvent;
 import com.economato.inventory.application.dto.event.StockPredictionEvent;
@@ -24,6 +25,7 @@ public class AuditEventProducer {
     public static final String ORDER_AUDIT_TOPIC = "order-audit-events";
     public static final String RECIPE_COOKING_AUDIT_TOPIC = "recipe-cooking-audit-events";
     public static final String STOCK_PREDICTION_TOPIC = "stock-prediction-events";
+    public static final String PRESENCE_AUDIT_TOPIC = "presence-audit-events";
 
     private final AuditOutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
@@ -51,6 +53,10 @@ public class AuditEventProducer {
 
     public void publishStockPredictionEvent(StockPredictionEvent event) {
         saveToOutbox(STOCK_PREDICTION_TOPIC, "prediction-" + event.getTriggerType(), event);
+    }
+
+    public void publishPresenceAudit(PresenceAuditEvent event) {
+        saveToOutbox(PRESENCE_AUDIT_TOPIC, "user-" + event.getUserId(), event);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false)

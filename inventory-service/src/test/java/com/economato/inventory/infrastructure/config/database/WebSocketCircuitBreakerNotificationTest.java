@@ -77,7 +77,7 @@ public class WebSocketCircuitBreakerNotificationTest {
 
         // Act: Simulate a new WebSocket connection via event
         String username = "testuser";
-        webSocketNotificationService.handleWebSocketConnected(new WebSocketConnectedEvent(username));
+        webSocketNotificationService.handleWebSocketConnected(new WebSocketConnectedEvent(username, "session-1"));
 
         // Assert: Verify the user receives DB_FAILURE notification
         verify(messagingTemplate).convertAndSendToUser(
@@ -98,7 +98,7 @@ public class WebSocketCircuitBreakerNotificationTest {
 
         // Act: Simulate a new WebSocket connection via event
         String username = "testuser";
-        webSocketNotificationService.handleWebSocketConnected(new WebSocketConnectedEvent(username));
+        webSocketNotificationService.handleWebSocketConnected(new WebSocketConnectedEvent(username, "session-1"));
 
         // Assert: Verify the user receives REDIS_FAILURE notification
         verify(messagingTemplate).convertAndSendToUser(
@@ -119,7 +119,7 @@ public class WebSocketCircuitBreakerNotificationTest {
 
         // Act: Simulate a new WebSocket connection via event
         String username = "testuser";
-        webSocketNotificationService.handleWebSocketConnected(new WebSocketConnectedEvent(username));
+        webSocketNotificationService.handleWebSocketConnected(new WebSocketConnectedEvent(username, "session-1"));
 
         // Assert: Verify the user receives KAFKA_FAILURE notification
         verify(messagingTemplate).convertAndSendToUser(
@@ -142,7 +142,7 @@ public class WebSocketCircuitBreakerNotificationTest {
 
         // Act: Simulate a new WebSocket connection via event
         String username = "testuser";
-        webSocketNotificationService.handleWebSocketConnected(new WebSocketConnectedEvent(username));
+        webSocketNotificationService.handleWebSocketConnected(new WebSocketConnectedEvent(username, "session-1"));
 
         // Assert: Verify the user receives REPLICA_FAILURE notification
         verify(messagingTemplate).convertAndSendToUser(
@@ -171,7 +171,7 @@ public class WebSocketCircuitBreakerNotificationTest {
 
         // Act: Simulate a new WebSocket connection via event
         String username = "testuser";
-        webSocketNotificationService.handleWebSocketConnected(new WebSocketConnectedEvent(username));
+        webSocketNotificationService.handleWebSocketConnected(new WebSocketConnectedEvent(username, "session-1"));
 
         // Assert: Verify the user receives both DB_FAILURE and REDIS_FAILURE notifications
         verify(messagingTemplate).convertAndSendToUser(
@@ -202,7 +202,7 @@ public class WebSocketCircuitBreakerNotificationTest {
 
         // Act: Simulate a new WebSocket connection via event
         String username = "testuser";
-        webSocketNotificationService.handleWebSocketConnected(new WebSocketConnectedEvent(username));
+        webSocketNotificationService.handleWebSocketConnected(new WebSocketConnectedEvent(username, "session-1"));
 
         // Assert: Verify NO alerts are sent to the user
         verify(messagingTemplate, never()).convertAndSendToUser(
@@ -223,7 +223,7 @@ public class WebSocketCircuitBreakerNotificationTest {
 
         // Act: Simulate a new WebSocket connection via event
         String username = "testuser";
-        webSocketNotificationService.handleWebSocketConnected(new WebSocketConnectedEvent(username));
+        webSocketNotificationService.handleWebSocketConnected(new WebSocketConnectedEvent(username, "session-1"));
 
         // Assert: Verify NO alerts are sent (only OPEN state should trigger notifications)
         verify(messagingTemplate, never()).convertAndSendToUser(
