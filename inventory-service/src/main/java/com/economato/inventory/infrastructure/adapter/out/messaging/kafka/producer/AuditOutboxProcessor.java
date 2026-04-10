@@ -7,10 +7,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.springframework.context.annotation.Profile;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import com.economato.inventory.application.usecase.SystemConfigService;
 import com.economato.inventory.application.dto.event.InventoryAuditEvent;
 import com.economato.inventory.application.dto.event.OrderAuditEvent;
 import com.economato.inventory.application.dto.event.PresenceAuditEvent;
@@ -57,6 +59,8 @@ public class AuditOutboxProcessor {
     private final KafkaTemplate<String, StockPredictionEvent> stockPredictionKafkaTemplate;
     private final KafkaTemplate<String, PresenceAuditEvent> presenceAuditKafkaTemplate;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
+    @Autowired(required = false)
+    private SystemConfigService systemConfigService;
 
     public AuditOutboxProcessor(
             AuditOutboxRepository outboxRepository,
@@ -87,7 +91,6 @@ public class AuditOutboxProcessor {
                 .register(meterRegistry);
     }
 
-    @Scheduled(fixedDelay = 5000)
     public void processOutbox() {
         CircuitBreaker kafkaCb = circuitBreakerRegistry.circuitBreaker("kafka");
         if (kafkaCb.getState() == CircuitBreaker.State.OPEN) {
@@ -97,14 +100,15 @@ public class AuditOutboxProcessor {
 
         List<AuditOutbox> outboxEvents;
         try {
-            outboxEvents = outboxRepository.findTop50ByOrderByCreatedAtAsc();
+            int batchSize = getOutboxBatchSize();
+            outboxEvents = outboxRepository.findAllByOrderByCreatedAtAsc(PageRequest.of(0, batchSize));
         } catch (CallNotPermittedException e) {
             log.warn("DB circuit breaker OPEN, cannot read outbox: {}", e.getMessage());
             return;
         }
 
         int consecutiveKafkaFailures = 0;
-        final int MAX_CONSECUTIVE_FAILURES = 3; // Umbral para detectar caída de Kafka y evitar procesar eventos
+        final int maxConsecutiveFailures = getOutboxMaxConsecutiveFailures(); // Umbral para detectar caída de Kafka y evitar procesar eventos
                                                 // innecesariamente
 
         for (AuditOutbox event : outboxEvents) {
@@ -182,7 +186,7 @@ public class AuditOutboxProcessor {
 
                 if (future != null) {
                     try {
-                        future.get(5, TimeUnit.SECONDS);
+                        future.get(getKafkaSendTimeoutSeconds(), TimeUnit.SECONDS);
                     } catch (InterruptedException e) {
                         Thread.currentThread().interrupt();
                         throw new RuntimeException("Kafka send interrupted", e);
@@ -201,7 +205,7 @@ public class AuditOutboxProcessor {
                 recordKafkaFailure(e);
 
                 consecutiveKafkaFailures++;
-                if (consecutiveKafkaFailures >= MAX_CONSECUTIVE_FAILURES) {
+                if (consecutiveKafkaFailures >= maxConsecutiveFailures) {
                     log.warn(
                             "Detected {} consecutive Kafka failures. Kafka likely down. Breaking out of batch to fail fast.",
                             consecutiveKafkaFailures);
@@ -224,6 +228,50 @@ public class AuditOutboxProcessor {
             circuitBreaker.onError(0, TimeUnit.MILLISECONDS, cause);
         } catch (Exception ex) {
             log.warn("Failed to record Kafka failure in circuit breaker: {}", ex.getMessage());
+        }
+    }
+
+    public long getOutboxIntervalMs() {
+        if (systemConfigService == null) {
+            return 5000L;
+        }
+        try {
+            return Math.max(1000L, systemConfigService.getOutboxConfig().outboxProcessingIntervalMs());
+        } catch (Exception ignored) {
+            return 5000L;
+        }
+    }
+
+    private int getOutboxBatchSize() {
+        if (systemConfigService == null) {
+            return 50;
+        }
+        try {
+            return Math.max(1, systemConfigService.getOutboxConfig().outboxBatchSize());
+        } catch (Exception ignored) {
+            return 50;
+        }
+    }
+
+    private int getOutboxMaxConsecutiveFailures() {
+        if (systemConfigService == null) {
+            return 3;
+        }
+        try {
+            return Math.max(1, systemConfigService.getOutboxConfig().outboxMaxConsecutiveFailures());
+        } catch (Exception ignored) {
+            return 3;
+        }
+    }
+
+    private int getKafkaSendTimeoutSeconds() {
+        if (systemConfigService == null) {
+            return 5;
+        }
+        try {
+            return Math.max(1, systemConfigService.getOutboxConfig().kafkaSendTimeoutSeconds());
+        } catch (Exception ignored) {
+            return 5;
         }
     }
 }

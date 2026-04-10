@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.context.event.EventListener;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -39,6 +40,9 @@ public class UserPresenceService {
     private final SimpMessagingTemplate messagingTemplate;
     @Autowired(required = false)
     private AuditEventProducer auditEventProducer;
+    @Autowired(required = false)
+    @Lazy
+    private SystemConfigService systemConfigService;
     private final UserRepository userRepository;
 
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, UserSessionInfo>> sessionsByUser = new ConcurrentHashMap<>();
@@ -171,7 +175,16 @@ public class UserPresenceService {
 
     @Scheduled(fixedDelay = 15000)
     public void cleanupStaleSessions() {
-        LocalDateTime threshold = LocalDateTime.now().minusSeconds(STALE_SECONDS);
+        long staleSeconds = STALE_SECONDS;
+        if (systemConfigService != null) {
+            try {
+                staleSeconds = systemConfigService.getStaleSessionTimeoutSeconds();
+            } catch (Exception ignored) {
+                staleSeconds = STALE_SECONDS;
+            }
+        }
+
+        LocalDateTime threshold = LocalDateTime.now().minusSeconds(staleSeconds);
         List<UserSessionInfo> stale = sessionsByUser.values().stream()
                 .flatMap(sessions -> sessions.values().stream())
                 .filter(session -> session.getLastActivityAt() != null && session.getLastActivityAt().isBefore(threshold))
@@ -265,6 +278,16 @@ public class UserPresenceService {
         if (info.getUserId() == null) {
             log.debug("Skipping presence audit for username={} action={} due to missing userId", info.getUsername(), action);
             return;
+        }
+
+        if (systemConfigService != null) {
+            try {
+                if (!systemConfigService.isPresenceAuditEnabled()) {
+                    return;
+                }
+            } catch (Exception ignored) {
+                // fallback to default behavior
+            }
         }
 
         PresenceAuditEvent event = PresenceAuditEvent.builder()

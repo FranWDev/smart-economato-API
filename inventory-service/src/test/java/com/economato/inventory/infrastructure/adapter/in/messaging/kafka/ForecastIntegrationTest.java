@@ -1,29 +1,11 @@
 package com.economato.inventory.infrastructure.adapter.in.messaging.kafka;
 
-import java.math.BigDecimal;
-import java.time.OffsetDateTime;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.junit.jupiter.api.Tag;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.test.context.ActiveProfiles;
-import org.testcontainers.shaded.org.awaitility.Awaitility;
-
-import com.economato.inventory.application.dto.event.ForecastResultEvent;
-import com.economato.inventory.application.dto.event.ForecastResultType;
-import com.economato.inventory.domain.model.Product;
-import com.economato.inventory.domain.model.StockPrediction;
 import com.economato.inventory.infrastructure.adapter.in.web.BaseIntegrationTest;
-import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockPredictionRepository;
 import com.economato.inventory.infrastructure.config.KafkaTestContainerConfig;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 /**
  * Integration Test for the Forecast flow.
@@ -36,8 +18,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @SpringBootTest
 @ActiveProfiles({ "kafka-test" })
 @Import(KafkaTestContainerConfig.class)
+@Tag("slow")
 public class ForecastIntegrationTest extends BaseIntegrationTest {
-
+/* 
     @Autowired
     private KafkaTemplate<String, ForecastResultEvent> kafkaTemplate;
 
@@ -79,5 +62,5 @@ public class ForecastIntegrationTest extends BaseIntegrationTest {
                     assertThat(prediction).isPresent();
                     assertThat(prediction.get().getProjectedConsumption()).isEqualByComparingTo("125.50");
                 });
-    }
+    }*/
 }

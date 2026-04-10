@@ -1,6 +1,7 @@
 package com.economato.inventory.application.usecase;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -9,6 +10,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -65,6 +67,8 @@ public class ProductService {
     private final StockLedgerService stockLedgerService;
     private final ProductBatchService productBatchService;
     private final SecurityContextHelper securityContextHelper;
+    @Autowired(required = false)
+    private ValidUnitService validUnitService;
 
     public ProductService(I18nService i18nService,
             ProductRepository repository,
@@ -306,7 +310,27 @@ public class ProductService {
     }
 
     private boolean isValidUnit(String unit) {
-        return unit != null && VALID_UNITS.contains(unit.toUpperCase());
+        if (unit == null) {
+            return false;
+        }
+        String normalized = unit.toUpperCase();
+        if (validUnitService == null) {
+            return VALID_UNITS.contains(normalized);
+        }
+        try {
+            List<com.economato.inventory.domain.model.ValidUnit> activeUnits = validUnitService.getActive();
+            if (activeUnits == null) {
+                activeUnits = Collections.emptyList();
+            }
+            if (activeUnits.isEmpty()) {
+                return VALID_UNITS.contains(normalized);
+            }
+            return activeUnits.stream()
+                    .map(v -> v.getCode().toUpperCase())
+                    .anyMatch(normalized::equals);
+        } catch (Exception ignored) {
+            return VALID_UNITS.contains(normalized);
+        }
     }
 
     /* Por que se limpia TODA la caché?

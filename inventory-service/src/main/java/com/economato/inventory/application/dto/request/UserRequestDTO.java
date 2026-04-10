@@ -30,7 +30,6 @@ public class UserRequestDTO {
         private String user;
 
         @NotBlank(message = "{validation.userRequestDTO.password.notBlank}", groups = OnCreate.class)
-        @Size(min = 6, message = "{validation.userRequestDTO.password.size}", groups = {OnCreate.class, OnUpdate.class})
         @Schema(description = "Contraseña del usuario", example = "123456", minLength = 6,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         private String password;

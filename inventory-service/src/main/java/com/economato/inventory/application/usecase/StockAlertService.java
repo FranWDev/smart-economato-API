@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
@@ -69,9 +70,9 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class StockAlertService {
 
-    private static final int HISTORY_WEEKS = 12;
+    private static final int DEFAULT_HISTORY_WEEKS = 12;
 
-    private static final int HORIZON_DAYS = 14;
+    private static final int DEFAULT_HORIZON_DAYS = 14;
 
     private static final int SEASON_PERIOD = 1;
 
@@ -87,6 +88,8 @@ public class StockAlertService {
     private final HoltWintersForecaster forecaster;
     private final MessageSource messageSource;
     private final ProductBatchService productBatchService;
+    @Autowired(required = false)
+    private SystemConfigService systemConfigService;
 
     /**
      * Calcula y devuelve todas las alertas predictivas activas
@@ -257,7 +260,7 @@ public class StockAlertService {
     }
 
     private List<StockAlertDTO> computeAlerts(Set<Integer> filterIds) {
-        LocalDateTime since = LocalDateTime.now().minusWeeks(HISTORY_WEEKS);
+        LocalDateTime since = LocalDateTime.now().minusWeeks(getForecastHistoryWeeks());
         Map<Integer, BigDecimal> persistedPredictions = buildPredictionMap();
 
         if (filterIds != null && !filterIds.isEmpty()) {
@@ -506,7 +509,7 @@ public class StockAlertService {
             return;
         }
 
-        LocalDateTime since = LocalDateTime.now().minusWeeks(HISTORY_WEEKS);
+        LocalDateTime since = LocalDateTime.now().minusWeeks(getForecastHistoryWeeks());
         List<WeeklyIngredientConsumption> weeklyData = cookingAuditRepository.findWeeklyConsumptionPerIngredient(since,
                 since);
 
@@ -527,7 +530,7 @@ public class StockAlertService {
                 .map(value -> BigDecimal.valueOf(value).setScale(3, RoundingMode.HALF_UP))
                 .collect(Collectors.toList());
 
-            List<BigDecimal> dailySeries = forecaster.forecastDaily(consumption, SEASON_PERIOD, HORIZON_DAYS).stream()
+            List<BigDecimal> dailySeries = forecaster.forecastDaily(consumption, SEASON_PERIOD, getForecastHorizonDays()).stream()
                 .map(value -> BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP))
                 .collect(Collectors.toList());
 
@@ -536,7 +539,7 @@ public class StockAlertService {
                     .product(product)
                     .build());
             weeklyHistory.setWeeklyConsumption(weeklySeries);
-            weeklyHistory.setWeeksOfHistory(HISTORY_WEEKS);
+            weeklyHistory.setWeeksOfHistory(getForecastHistoryWeeks());
             weeklyHistory.setCalculatedAt(calculatedAt);
             weeklyHistoryRepository.save(weeklyHistory);
 
@@ -545,11 +548,11 @@ public class StockAlertService {
                     .product(product)
                     .build());
             dailyForecast.setDailyForecast(dailySeries);
-            dailyForecast.setHorizonDays(HORIZON_DAYS);
+            dailyForecast.setHorizonDays(getForecastHorizonDays());
             dailyForecast.setCalculatedAt(calculatedAt);
             dailyForecastRepository.save(dailyForecast);
 
-            double projectedRaw = forecaster.forecast(consumption, SEASON_PERIOD, HORIZON_DAYS);
+            double projectedRaw = forecaster.forecast(consumption, SEASON_PERIOD, getForecastHorizonDays());
             BigDecimal projected = BigDecimal.valueOf(projectedRaw).setScale(4, RoundingMode.HALF_UP);
 
             StockPrediction prediction = predictionRepository.findById(productId)
@@ -584,7 +587,7 @@ public class StockAlertService {
         if (projected.compareTo(BigDecimal.ZERO) <= 0) {
             daysRemaining = Integer.MAX_VALUE; 
         } else {
-            BigDecimal dailyRate = projected.divide(BigDecimal.valueOf(HORIZON_DAYS), 6, RoundingMode.HALF_UP);
+            BigDecimal dailyRate = projected.divide(BigDecimal.valueOf(getForecastHorizonDays()), 6, RoundingMode.HALF_UP);
             if (dailyRate.compareTo(BigDecimal.ZERO) == 0) {
                 daysRemaining = Integer.MAX_VALUE;
             } else {
@@ -625,25 +628,27 @@ public class StockAlertService {
     // -------------------------------------------------------------------------
 
     private AlertSeverity classifySeverity(int days) {
-        if (days >= 21)
+        Thresholds t = getAlertThresholdsOrDefault();
+        if (days >= t.alertThresholdOkDays())
             return AlertSeverity.OK;
-        if (days >= 14)
+        if (days >= t.alertThresholdLowDays())
             return AlertSeverity.LOW;
-        if (days >= 7)
+        if (days >= t.alertThresholdMediumDays())
             return AlertSeverity.MEDIUM;
-        if (days >= 3)
+        if (days >= t.alertThresholdHighDays())
             return AlertSeverity.HIGH;
         return AlertSeverity.CRITICAL;
     }
 
     private AlertSeverity classifyExpirationSeverity(long daysToExpire) {
-        if (daysToExpire < 3) {
+        Thresholds t = getAlertThresholdsOrDefault();
+        if (daysToExpire < t.expirationCriticalDays()) {
             return AlertSeverity.CRITICAL;
         }
-        if (daysToExpire < 7) {
+        if (daysToExpire < t.expirationHighDays()) {
             return AlertSeverity.HIGH;
         }
-        if (daysToExpire < 14) {
+        if (daysToExpire < t.expirationMediumDays()) {
             return AlertSeverity.MEDIUM;
         }
         return AlertSeverity.LOW;
@@ -683,15 +688,15 @@ public class StockAlertService {
         switch (resolution) {
             case COVERED_BY_ORDER -> {
                 key = "stock.alert.message.covered";
-                args = new Object[] { name, stockStr, unit, HORIZON_DAYS, projStr, unit, pendStr, unit };
+                args = new Object[] { name, stockStr, unit, getForecastHorizonDays(), projStr, unit, pendStr, unit };
             }
             case PARTIALLY_COVERED -> {
                 key = "stock.alert.message.partially.covered";
-                args = new Object[] { name, stockStr, unit, HORIZON_DAYS, projStr, unit, pendStr, unit, gapStr, unit };
+                args = new Object[] { name, stockStr, unit, getForecastHorizonDays(), projStr, unit, pendStr, unit, gapStr, unit };
             }
             case UNCOVERED -> {
                 key = "stock.alert.message.uncovered";
-                args = new Object[] { name, stockStr, unit, HORIZON_DAYS, projStr, unit, gapStr, unit };
+                args = new Object[] { name, stockStr, unit, getForecastHorizonDays(), projStr, unit, gapStr, unit };
             }
             default -> {
                 key = "stock.alert.message.default";
@@ -806,5 +811,55 @@ public class StockAlertService {
         }
 
         return 999;
+    }
+
+    private int getForecastHistoryWeeks() {
+        if (systemConfigService == null) {
+            return DEFAULT_HISTORY_WEEKS;
+        }
+        try {
+            return systemConfigService.getConfigEntity().getForecastHistoryWeeks();
+        } catch (Exception ignored) {
+            return DEFAULT_HISTORY_WEEKS;
+        }
+    }
+
+    private int getForecastHorizonDays() {
+        if (systemConfigService == null) {
+            return DEFAULT_HORIZON_DAYS;
+        }
+        try {
+            return systemConfigService.getConfigEntity().getForecastHorizonDays();
+        } catch (Exception ignored) {
+            return DEFAULT_HORIZON_DAYS;
+        }
+    }
+
+    private Thresholds getAlertThresholdsOrDefault() {
+        if (systemConfigService == null) {
+            return new Thresholds(21, 14, 7, 3, 3, 7, 14);
+        }
+        try {
+            var cfg = systemConfigService.getAlertThresholds();
+            return new Thresholds(
+                    cfg.alertThresholdOkDays(),
+                    cfg.alertThresholdLowDays(),
+                    cfg.alertThresholdMediumDays(),
+                    cfg.alertThresholdHighDays(),
+                    cfg.expirationCriticalDays(),
+                    cfg.expirationHighDays(),
+                    cfg.expirationMediumDays());
+        } catch (Exception ignored) {
+            return new Thresholds(21, 14, 7, 3, 3, 7, 14);
+        }
+    }
+
+    private record Thresholds(int alertThresholdOkDays,
+                              int alertThresholdLowDays,
+                              int alertThresholdMediumDays,
+                              int alertThresholdHighDays,
+                              int expirationCriticalDays,
+                              int expirationHighDays,
+                              int expirationMediumDays) {
     }
 }

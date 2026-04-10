@@ -2,29 +2,70 @@ package com.economato.inventory.infrastructure.adapter.in.web;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.cache.CacheManager;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.servlet.LocaleResolver;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.application.mapper.StockLedgerMapper;
+import com.economato.inventory.application.usecase.StockLedgerService;
+import com.economato.inventory.infrastructure.config.security.SecurityConfig;
+import com.economato.inventory.infrastructure.config.security.JwtUtils;
+import com.economato.inventory.application.usecase.TokenBlacklistService;
+import com.economato.inventory.infrastructure.config.web.I18nService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-class StockConsumptionIntegrationTest extends BaseControllerMockTest {
+@WebMvcTest(StockLedgerController.class)
+@ActiveProfiles("test")
+@Import(SecurityConfig.class)
+class StockConsumptionIntegrationTest {
+
+        @Autowired
+        private MockMvc mockMvc;
+
+        @MockitoBean
+        private StockLedgerService stockLedgerService;
+
+        @MockitoBean
+        private StockLedgerMapper stockLedgerMapper;
+
+        @MockitoBean
+        private JwtUtils jwtUtils;
+
+        @MockitoBean
+        private UserDetailsService userDetailsService;
+
+        @MockitoBean
+        private TokenBlacklistService tokenBlacklistService;
+
+        @MockitoBean
+        private I18nService i18nService;
+
+        @MockitoBean
+        private LocaleResolver localeResolver;
+
+        @MockitoBean
+        private CacheManager cacheManager;
 
     private Product testProduct;
     private ProductConsumptionResponseDTO testResponse;
@@ -51,7 +92,6 @@ class StockConsumptionIntegrationTest extends BaseControllerMockTest {
 
     @Test
     void getProductConsumption_WithDate_ShouldReturnConsumption() throws Exception {
-        LocalDate date = LocalDate.of(2024, 5, 3);
         when(stockLedgerService.getProductConsumption(eq(1), any(), any())).thenReturn(testResponse);
 
         mockMvc.perform(get("/api/stock-ledger/consumption/1")

@@ -11,9 +11,12 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long>, JpaSpecificationExecutor<Notification> {
+
+    long deleteByIsReadTrue();
 
     @Override
     @EntityGraph(attributePaths = {"recipient", "sender"})
@@ -32,4 +35,16 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Notification n SET n.isDeletedBySender = true WHERE n.groupId = :groupId AND n.sender.id = :senderId AND n.type = com.economato.inventory.domain.model.NotificationType.MANUAL")
     int softDeleteManualGroupByGroupIdAndSenderId(@Param("groupId") String groupId, @Param("senderId") Integer senderId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM Notification n WHERE n.createdAt < :threshold AND n.isRead = true")
+    int deleteReadByCreatedAtBefore(@Param("threshold") LocalDateTime threshold);
+
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM Notification n WHERE n.createdAt BETWEEN :from AND :to AND n.isRead = true")
+    int deleteReadByCreatedAtBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM Notification n WHERE n.createdAt < :threshold AND n.isRead = true AND n.isDeletedByRecipient = true")
+    int deleteOldReadAndDeletedBefore(@Param("threshold") LocalDateTime threshold);
 }

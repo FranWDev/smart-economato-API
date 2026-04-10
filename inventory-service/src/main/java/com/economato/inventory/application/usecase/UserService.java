@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -49,6 +50,8 @@ public class UserService {
     private final TemporaryRoleEscalationMapper escalationMapper;
     private final CustomUserDetailsService customUserDetailsService;
     private final TemporaryRoleEscalationRepository escalationRepository;
+    @Autowired(required = false)
+    private SystemConfigService systemConfigService;
 
     public UserService(I18nService i18nService, UserRepository repository, PasswordEncoder passwordEncoder,
             UserMapper userMapper,
@@ -124,6 +127,7 @@ public class UserService {
         }
 
         User user = userMapper.toEntity(requestDTO);
+        validatePasswordLength(requestDTO.getPassword());
         user.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
         user.setFirstLogin(true);
 
@@ -165,6 +169,7 @@ public class UserService {
                     userMapper.updateEntity(requestDTO, existing);
 
                     if (requestDTO.getPassword() != null && !requestDTO.getPassword().isEmpty()) {
+                        validatePasswordLength(requestDTO.getPassword());
                         existing.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
                     }
 
@@ -239,6 +244,8 @@ public class UserService {
         User user = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { id })));
+
+        validatePasswordLength(request.getNewPassword());
 
         if (isAdmin) {
             user.setPassword(passwordEncoder.encode(request.getNewPassword()));
@@ -449,6 +456,13 @@ public class UserService {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_CANNOT_ESCALATE_ADMIN));
         }
 
+        int maxEscalationMinutes = resolveMaxEscalationMinutes();
+        if (request.getDurationMinutes() != null && request.getDurationMinutes() > maxEscalationMinutes) {
+            throw new InvalidOperationException(i18nService.getMessage(
+                    MessageKey.ERROR_ESCALATION_DURATION_EXCEEDS_MAX,
+                    new Object[] { maxEscalationMinutes }));
+        }
+
         user.setRole(Role.ELEVATED);
         repository.save(user);
 
@@ -619,5 +633,36 @@ public class UserService {
                 .message("Transferencia total completada con éxito")
                 .failedStudentIds(List.of())
                 .build();
+    }
+
+    private void validatePasswordLength(String password) {
+        int minLength = resolveMinPasswordLength();
+        if (password == null || password.length() < minLength) {
+            throw new InvalidOperationException(i18nService.getMessage(
+                    MessageKey.ERROR_PASSWORD_TOO_SHORT,
+                    new Object[] { minLength }));
+        }
+    }
+
+    private int resolveMinPasswordLength() {
+        if (systemConfigService == null) {
+            return 6;
+        }
+        try {
+            return systemConfigService.getMinPasswordLength();
+        } catch (Exception ignored) {
+            return 6;
+        }
+    }
+
+    private int resolveMaxEscalationMinutes() {
+        if (systemConfigService == null) {
+            return 1440;
+        }
+        try {
+            return systemConfigService.getMaxEscalationMinutes();
+        } catch (Exception ignored) {
+            return 1440;
+        }
     }
 }

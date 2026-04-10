@@ -3,6 +3,7 @@ package com.economato.inventory.application.usecase;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -29,6 +30,8 @@ public class FileStorageService {
     private final long maxFileSize;
     private final Set<String> allowedTypes;
     private final I18nService i18nService;
+    @Autowired(required = false)
+    private SystemConfigService systemConfigService;
 
     public FileStorageService(@Value("${app.uploads.base-path:uploads}") String basePath,
                               @Value("${app.uploads.max-file-size:10485760}") long maxFileSize,
@@ -108,13 +111,36 @@ public class FileStorageService {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_INCIDENT_CHAT_EMPTY_MESSAGE));
         }
 
-        if (file.getSize() > maxFileSize) {
+        if (file.getSize() > resolveMaxFileSize()) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_INCIDENT_FILE_TOO_LARGE));
         }
 
         String contentType = file.getContentType();
-        if (contentType == null || !allowedTypes.contains(contentType)) {
+        if (contentType == null || !resolveAllowedTypes().contains(contentType)) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_INCIDENT_FILE_TYPE_NOT_ALLOWED));
+        }
+    }
+
+    private long resolveMaxFileSize() {
+        if (systemConfigService == null) {
+            return maxFileSize;
+        }
+        try {
+            return systemConfigService.getMaxUploadFileSizeBytes();
+        } catch (Exception ignored) {
+            return maxFileSize;
+        }
+    }
+
+    private Set<String> resolveAllowedTypes() {
+        if (systemConfigService == null) {
+            return allowedTypes;
+        }
+        try {
+            Set<String> cfg = systemConfigService.getAllowedFileTypes();
+            return cfg.isEmpty() ? allowedTypes : cfg;
+        } catch (Exception ignored) {
+            return allowedTypes;
         }
     }
 

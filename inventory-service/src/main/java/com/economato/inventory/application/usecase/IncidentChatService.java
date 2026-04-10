@@ -20,6 +20,7 @@ import com.economato.inventory.infrastructure.config.security.SecurityContextHel
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -53,6 +54,8 @@ public class IncidentChatService {
     private final PersistentNotificationService persistentNotificationService;
     private final SimpMessagingTemplate messagingTemplate;
     private final I18nService i18nService;
+    @Autowired(required = false)
+    private SystemConfigService systemConfigService;
 
     public IncidentChatMessageResponseDTO sendMessage(Long incidentId, String content, MultipartFile file) {
         Incident incident = getIncidentOrThrow(incidentId);
@@ -64,7 +67,7 @@ public class IncidentChatService {
         }
 
         String normalizedContent = content == null ? null : content.trim();
-        if (normalizedContent != null && normalizedContent.length() > MAX_CHAT_CONTENT_LENGTH) {
+        if (normalizedContent != null && normalizedContent.length() > maxChatLength()) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_INCIDENT_CHAT_MESSAGE_TOO_LONG));
         }
 
@@ -241,5 +244,16 @@ public class IncidentChatService {
     private boolean isClosed(Incident incident) {
         return incident.getStatus() == IncidentStatus.CERRADO_CON_RESOLUCION
                 || incident.getStatus() == IncidentStatus.CERRADO_SIN_RESOLUCION;
+    }
+
+    private int maxChatLength() {
+        if (systemConfigService == null) {
+            return MAX_CHAT_CONTENT_LENGTH;
+        }
+        try {
+            return systemConfigService.getMaxChatMessageLength();
+        } catch (Exception ignored) {
+            return MAX_CHAT_CONTENT_LENGTH;
+        }
     }
 }

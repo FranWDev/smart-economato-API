@@ -1,6 +1,6 @@
 package com.economato.inventory.infrastructure.config.security;
 
-import com.economato.inventory.infrastructure.config.security.JwtProperties;
+import com.economato.inventory.application.usecase.SystemConfigService;
 import com.economato.inventory.application.dto.response.LoginResponseDTO;
 import com.economato.inventory.domain.model.Role;
 import io.jsonwebtoken.Claims;
@@ -12,6 +12,8 @@ import io.jsonwebtoken.security.MacAlgorithm;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -24,6 +26,9 @@ public class JwtUtils {
     private final SecretKey key;
     private final JwtParser jwtParser;
     private static final MacAlgorithm ALG = Jwts.SIG.HS256;
+    @Autowired(required = false)
+    @Lazy
+    private SystemConfigService systemConfigService;
 
     public JwtUtils(JwtProperties jwtProperties) {
         this.jwtProperties = jwtProperties;
@@ -52,7 +57,15 @@ public class JwtUtils {
 
         String cleanRole = role.replace("ROLE_", "");
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtProperties.getExpiration());
+        long expiration = jwtProperties.getExpiration();
+        if (systemConfigService != null) {
+            try {
+                expiration = systemConfigService.getJwtExpirationMs();
+            } catch (Exception ignored) {
+                expiration = jwtProperties.getExpiration();
+            }
+        }
+        Date expiryDate = new Date(now.getTime() + expiration);
 
         String token = Jwts.builder()
                 .subject(userPrincipal.getUsername())

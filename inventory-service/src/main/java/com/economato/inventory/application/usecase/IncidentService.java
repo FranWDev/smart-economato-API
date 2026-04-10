@@ -34,6 +34,7 @@ import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -73,6 +74,8 @@ public class IncidentService {
     private final PersistentNotificationService persistentNotificationService;
     private final RecipeService recipeService;
     private final I18nService i18nService;
+    @Autowired(required = false)
+    private SystemConfigService systemConfigService;
 
     public IncidentResponseDTO createIncident(CreateIncidentRequestDTO request) {
         User currentUser = getCurrentUserOrThrow();
@@ -248,7 +251,7 @@ public class IncidentService {
         List<RecipeCookingAudit> audits;
         if (currentUser.getRole() == Role.ADMIN) {
             audits = recipeCookingAuditRepository
-                    .findAllOrderByDateDesc(PageRequest.of(0, MAX_ADMIN_ATTACHABLE_AUDITS))
+                    .findAllOrderByDateDesc(PageRequest.of(0, maxAdminAttachableAudits()))
                     .getContent();
         } else {
             Set<Integer> allowedUserIds = incidentParticipantService.allowedAuditUserIds(currentUser);
@@ -302,6 +305,17 @@ public class IncidentService {
     private boolean isClosed(Incident incident) {
         return incident.getStatus() == IncidentStatus.CERRADO_CON_RESOLUCION
                 || incident.getStatus() == IncidentStatus.CERRADO_SIN_RESOLUCION;
+    }
+
+    private int maxAdminAttachableAudits() {
+        if (systemConfigService == null) {
+            return MAX_ADMIN_ATTACHABLE_AUDITS;
+        }
+        try {
+            return systemConfigService.getMaxAdminAttachableAudits();
+        } catch (Exception ignored) {
+            return MAX_ADMIN_ATTACHABLE_AUDITS;
+        }
     }
 
     private void ensureCreatorRole(User user) {

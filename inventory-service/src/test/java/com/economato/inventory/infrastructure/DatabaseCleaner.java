@@ -2,7 +2,6 @@ package com.economato.inventory.infrastructure;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Table;
-import jakarta.persistence.metamodel.EntityType;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +12,7 @@ import java.util.stream.Collectors;
 public class DatabaseCleaner {
 
     private final EntityManager entityManager;
+    private volatile Set<String> cachedTableNames;
 
     public DatabaseCleaner(EntityManager entityManager) {
         this.entityManager = entityManager;
@@ -20,17 +20,18 @@ public class DatabaseCleaner {
 
     @Transactional
     public void clear() {
+        if (cachedTableNames == null) {
+            cachedTableNames = entityManager.getMetamodel().getEntities().stream()
+                    .map(entity -> {
+                        Table tableAnnotation = entity.getJavaType().getAnnotation(Table.class);
+                        return tableAnnotation != null ? tableAnnotation.name() : entity.getName().toLowerCase();
+                    })
+                    .collect(Collectors.toSet());
+        }
+
         entityManager.createNativeQuery("SET REFERENTIAL_INTEGRITY FALSE").executeUpdate();
 
-        Set<EntityType<?>> entities = entityManager.getMetamodel().getEntities();
-        Set<String> tableNames = entities.stream()
-                .map(entity -> {
-                    Table tableAnnotation = entity.getJavaType().getAnnotation(Table.class);
-                    return tableAnnotation != null ? tableAnnotation.name() : entity.getName().toLowerCase();
-                })
-                .collect(Collectors.toSet());
-
-        for (String tableName : tableNames) {
+        for (String tableName : cachedTableNames) {
             try {
                 entityManager.createNativeQuery("TRUNCATE TABLE " + tableName + " RESTART IDENTITY").executeUpdate();
             } catch (Exception e) {
