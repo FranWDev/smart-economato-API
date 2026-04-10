@@ -8,7 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 
 @Controller
@@ -18,22 +20,42 @@ public class IncidentChatWebSocketController {
     private final IncidentChatService incidentChatService;
 
     @MessageMapping("/incidents/{incidentId}/chat.send")
-    @PreAuthorize("hasAnyRole('ADMIN','CHEF','ELEVATED')")
     public void send(@DestinationVariable Long incidentId,
-                     @Valid @Payload IncidentChatMessageRequestDTO request) {
-        incidentChatService.sendMessage(incidentId, request.getContent(), null);
+                     @Valid @Payload IncidentChatMessageRequestDTO request,
+                     Authentication authentication) {
+        withAuthentication(authentication, () -> incidentChatService.sendMessage(incidentId, request.getContent(), null));
     }
 
     @MessageMapping("/incidents/{incidentId}/chat.markRead")
-    @PreAuthorize("hasAnyRole('ADMIN','CHEF','ELEVATED')")
-    public void markAsRead(@DestinationVariable Long incidentId) {
-        incidentChatService.markMessagesAsRead(incidentId);
+    public void markAsRead(@DestinationVariable Long incidentId, Authentication authentication) {
+        withAuthentication(authentication, () -> incidentChatService.markMessagesAsRead(incidentId));
     }
 
     @MessageMapping("/incidents/{incidentId}/chat.typing")
-    @PreAuthorize("hasAnyRole('ADMIN','CHEF','ELEVATED')")
     public void typing(@DestinationVariable Long incidentId,
-                       @Payload IncidentChatTypingRequestDTO request) {
-        incidentChatService.broadcastTyping(incidentId, request.isTyping());
+                       @Payload IncidentChatTypingRequestDTO request,
+                       Authentication authentication) {
+        withAuthentication(authentication, () -> incidentChatService.broadcastTyping(incidentId, request.isTyping()));
+    }
+
+    private void withAuthentication(Authentication authentication, Runnable action) {
+        if (authentication == null || authentication.getAuthorities() == null || authentication.getAuthorities().stream().noneMatch(authority ->
+                "ROLE_ADMIN".equals(authority.getAuthority())
+                        || "ROLE_CHEF".equals(authority.getAuthority())
+                        || "ROLE_ELEVATED".equals(authority.getAuthority()))) {
+            throw new AccessDeniedException("Forbidden");
+        }
+
+        Authentication previous = SecurityContextHolder.getContext().getAuthentication();
+        try {
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            action.run();
+        } finally {
+            if (previous != null) {
+                SecurityContextHolder.getContext().setAuthentication(previous);
+            } else {
+                SecurityContextHolder.clearContext();
+            }
+        }
     }
 }
