@@ -21,8 +21,7 @@ public class BlockchainAuditEvent implements Serializable {
     private String blockHash;
     private String previousBlockHash;
     private String merkleRoot;
-    private Long nonce;
-    private Integer difficulty;
+
     private Integer transactionCount;
     private Integer hmacKeyVersion;
     private LocalDateTime timestamp;

@@ -92,8 +92,8 @@ class BlockchainAdminControllerIntegrationTest {
                 .previousBlockHash("0000000000000000000000000000000000000000000000000000000000000001")
                 .merkleRoot("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
                 .blockHash("0000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
-                .nonce(123L)
-                .difficulty(2)
+                .nonce(0L)
+                .difficulty(0)
                 .timestamp(LocalDateTime.of(2026, 4, 10, 10, 15, 0))
                 .transactionCount(10)
                 .hmacKeyVersion(1)
@@ -140,7 +140,6 @@ class BlockchainAdminControllerIntegrationTest {
                 .andExpect(jsonPath("$.blockCount").value(6))
                 .andExpect(jsonPath("$.pendingTransactions").value(2))
                 .andExpect(jsonPath("$.latestBlockNumber").value(5))
-                .andExpect(jsonPath("$.difficulty").value(2))
                 .andExpect(jsonPath("$.valid").value(true));
     }
 

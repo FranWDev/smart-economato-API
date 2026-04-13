@@ -9,14 +9,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-import java.util.List;
-
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-class McpToolReadControllerIntegrationTest extends BaseIntegrationTest {
+class McpSecurityIntegrationTest extends BaseIntegrationTest {
 
     private static final String SERVICE_KEY = "test-service-key-for-integration-tests";
 
@@ -30,53 +27,42 @@ class McpToolReadControllerIntegrationTest extends BaseIntegrationTest {
     void setUp() {
         clearDatabase();
         userRepository.saveAndFlush(TestDataUtil.createAdminUser());
+        when(mcpToolReadService.getActiveAlerts()).thenReturn(java.util.List.of());
     }
 
     @Test
-    void getProductDeep_withoutAuth_returnsUnauthorized() throws Exception {
-        mockMvc.perform(get("/api/mcp/products/1/deep")
-                .header("X-Service-Key", SERVICE_KEY))
-                .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void getProductLedger_withAuth_delegatesLimit() throws Exception {
+    void mcpEndpoint_withServiceKeyAndJwt_returns200() throws Exception {
         String token = loginAsAdmin();
-        when(mcpToolReadService.getProductLedger(1, 15)).thenReturn(List.of());
-
-        mockMvc.perform(get("/api/mcp/products/1/ledger")
-                        .header("X-Service-Key", SERVICE_KEY)
-                        .header("Authorization", "Bearer " + token)
-                        .param("limit", "15"))
-                .andExpect(status().isOk());
-
-        verify(mcpToolReadService).getProductLedger(1, 15);
-    }
-
-    @Test
-    void getExpiringSoon_withAuth_delegatesDays() throws Exception {
-        String token = loginAsAdmin();
-        when(mcpToolReadService.getExpiringSoon(9)).thenReturn(List.of());
-
-        mockMvc.perform(get("/api/mcp/expiring-soon")
-                        .header("X-Service-Key", SERVICE_KEY)
-                        .header("Authorization", "Bearer " + token)
-                        .param("days", "9"))
-                .andExpect(status().isOk());
-
-        verify(mcpToolReadService).getExpiringSoon(9);
-    }
-
-    @Test
-    void getActiveAlerts_withAuth_returnsOk() throws Exception {
-        String token = loginAsAdmin();
-        when(mcpToolReadService.getActiveAlerts()).thenReturn(List.of());
 
         mockMvc.perform(get("/api/mcp/alerts/active")
-                .header("X-Service-Key", SERVICE_KEY)
+                        .header("X-Service-Key", SERVICE_KEY)
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
+    }
 
-        verify(mcpToolReadService).getActiveAlerts();
+    @Test
+    void mcpEndpoint_withoutServiceKey_returns403() throws Exception {
+        String token = loginAsAdmin();
+
+        mockMvc.perform(get("/api/mcp/alerts/active")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void mcpEndpoint_withWrongServiceKey_returns403() throws Exception {
+        String token = loginAsAdmin();
+
+        mockMvc.perform(get("/api/mcp/alerts/active")
+                        .header("X-Service-Key", "wrong-key")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void mcpEndpoint_withServiceKeyButNoJwt_returns401() throws Exception {
+        mockMvc.perform(get("/api/mcp/alerts/active")
+                        .header("X-Service-Key", SERVICE_KEY))
+                .andExpect(status().isUnauthorized());
     }
 }

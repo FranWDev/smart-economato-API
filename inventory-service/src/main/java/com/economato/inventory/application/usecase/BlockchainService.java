@@ -49,7 +49,7 @@ public class BlockchainService {
     private final LedgerBlockRepository blockRepository;
     private final StockLedgerRepository ledgerRepository;
     private final StockSnapshotRepository snapshotRepository;
-    private final BlockMiningService blockMiningService;
+    private final BlockSealingService blockSealingService;
     private final MerkleTreeService merkleTreeService;
     private final BlockchainMerkleVerificationService merkleVerificationService;
     private final LedgerProperties ledgerProperties;
@@ -64,7 +64,7 @@ public class BlockchainService {
             LedgerBlockRepository blockRepository,
             StockLedgerRepository ledgerRepository,
             StockSnapshotRepository snapshotRepository,
-            BlockMiningService blockMiningService,
+            BlockSealingService blockSealingService,
             MerkleTreeService merkleTreeService,
             BlockchainMerkleVerificationService merkleVerificationService,
             LedgerProperties ledgerProperties,
@@ -75,7 +75,7 @@ public class BlockchainService {
         this.blockRepository = blockRepository;
         this.ledgerRepository = ledgerRepository;
         this.snapshotRepository = snapshotRepository;
-        this.blockMiningService = blockMiningService;
+        this.blockSealingService = blockSealingService;
         this.merkleTreeService = merkleTreeService;
         this.merkleVerificationService = merkleVerificationService;
         this.ledgerProperties = ledgerProperties;
@@ -135,13 +135,13 @@ public class BlockchainService {
                 return;
             }
 
-            BlockMiningService.MiningResult miningResult = blockMiningService.mineBlock(
+            BlockSealingService.SealingResult sealingResult = blockSealingService.sealBlock(
                     candidate.blockNumber(),
                     candidate.previousBlockHash(),
                     candidate.merkleRoot(),
                     candidate.timestamp());
 
-            persistMinedBlock(candidate, miningResult);
+            persistMinedBlock(candidate, sealingResult);
         } finally {
             miningLock.unlock();
         }
@@ -216,7 +216,7 @@ public class BlockchainService {
         });
     }
 
-    private void persistMinedBlock(MiningCandidate candidate, BlockMiningService.MiningResult miningResult) {
+    private void persistMinedBlock(MiningCandidate candidate, BlockSealingService.SealingResult miningResult) {
         writeTx.executeWithoutResult(status -> {
             long stillPending = ledgerRepository.countByIdInAndBlockIsNull(candidate.txIds());
             if (stillPending != candidate.txIds().size()) {
@@ -257,8 +257,6 @@ public class BlockchainService {
                             .blockHash(savedBlock.getBlockHash())
                             .previousBlockHash(savedBlock.getPreviousBlockHash())
                             .merkleRoot(savedBlock.getMerkleRoot())
-                            .nonce(savedBlock.getNonce())
-                            .difficulty(savedBlock.getDifficulty())
                             .transactionCount(savedBlock.getTransactionCount())
                             .hmacKeyVersion(savedBlock.getHmacKeyVersion())
                             .timestamp(savedBlock.getTimestamp())
