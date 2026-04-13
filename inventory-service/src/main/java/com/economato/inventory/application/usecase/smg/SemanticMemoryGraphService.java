@@ -12,6 +12,7 @@ import com.economato.inventory.infrastructure.config.ai.AiSmgProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -20,6 +21,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SemanticMemoryGraphService {
@@ -73,8 +75,10 @@ public class SemanticMemoryGraphService {
             int originalTokens = estimateOriginalTokens(messages);
             double ratio = compressedTokens == 0 ? 1d : (double) originalTokens / (double) compressedTokens;
 
-            meterRegistry.counter("ai.smg.entities.extracted").increment(entityMemory.totalEntityCount());
+                meterRegistry.counter("ai.smg.entities.extracted.total").increment(entityMemory.totalEntityCount());
             meterRegistry.gauge("ai.smg.compression.ratio", ratio);
+                log.debug("SMG compression: messages={}, entities={}, topics={}, intents={}, tokens={}, ratio={}",
+                    messages.size(), entityMemory.totalEntityCount(), topics.size(), intents.size(), compressedTokens, ratio);
 
             return new CompressedContext(
                     systemContext,

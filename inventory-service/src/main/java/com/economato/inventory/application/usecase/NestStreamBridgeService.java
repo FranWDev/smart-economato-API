@@ -1,8 +1,10 @@
 package com.economato.inventory.application.usecase;
 
+import com.economato.inventory.application.dto.event.AiAuditEvent;
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
 import com.economato.inventory.application.dto.mcp.NestStreamEvent;
 import com.economato.inventory.infrastructure.adapter.in.web.AiStreamException;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -23,6 +25,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -33,6 +37,8 @@ public class NestStreamBridgeService {
     private static final String EVENT_TOKEN = "token";
     private static final String EVENT_DONE = "done";
     private static final String EVENT_ERROR = "error";
+    private static final String EVENT_TOOL = "tool";
+    private static final String EVENT_TOOL_CALLED = "tool_called";
 
     @Qualifier("nestRestClient")
     private final RestClient nestRestClient;
@@ -40,14 +46,17 @@ public class NestStreamBridgeService {
     private final CircuitBreakerRegistry circuitBreakerRegistry;
     private final MeterRegistry meterRegistry;
     private final ObjectMapper objectMapper;
+    private final Optional<AuditEventProducer> auditEventProducer;
 
     public StreamCompletionResult streamCompletion(NestCompletionRequest request,
                                                    SseEmitter emitter,
                                                    String userJwt) {
         Timer.Sample timerSample = Timer.start(meterRegistry);
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("nest");
+        log.info("AI stream started: provider={}, user={}", request.provider(), request.userName());
 
         if (circuitBreaker.getState() == CircuitBreaker.State.OPEN) {
+            log.warn("Nest circuit breaker OPEN: provider={}, user={}", request.provider(), request.userName());
             counter("ai.nest.stream.errors.total", "type", "circuit_open").increment();
             throw new AiStreamException("Nest stream is unavailable: circuit breaker is OPEN");
         }
@@ -60,7 +69,7 @@ public class NestStreamBridgeService {
                     .accept(MediaType.TEXT_EVENT_STREAM)
                     .headers(headers -> applyHeaders(headers, userJwt))
                     .body(request)
-                    .exchange((clientRequest, clientResponse) -> handleResponse(clientResponse, emitter));
+                    .exchange((clientRequest, clientResponse) -> handleResponse(clientResponse, emitter, request));
 
             long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
             circuitBreaker.onSuccess(durationMs, TimeUnit.MILLISECONDS);
@@ -72,7 +81,7 @@ public class NestStreamBridgeService {
         } catch (AiStreamException ex) {
             long durationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
             circuitBreaker.onError(durationMs, TimeUnit.MILLISECONDS, resolveRootCause(ex));
-            counter("ai.nest.stream.errors.total", "type", "stream_error").increment();
+            counter("ai.nest.stream.errors.total", "type", resolveNestErrorType(ex)).increment();
             timerSample.stop(timer("ai.nest.stream.duration"));
             throw ex;
         } catch (Exception ex) {
@@ -84,7 +93,9 @@ public class NestStreamBridgeService {
         }
     }
 
-    private StreamCompletionResult handleResponse(ClientHttpResponse response, SseEmitter emitter) {
+    private StreamCompletionResult handleResponse(ClientHttpResponse response,
+                                                  SseEmitter emitter,
+                                                  NestCompletionRequest request) {
         try {
             if (response.getStatusCode().isError()) {
                 throw new AiStreamException("Nest stream responded with HTTP " + response.getStatusCode().value());
@@ -119,6 +130,17 @@ public class NestStreamBridgeService {
                                 outputTokens = event.outputTokens();
                                 emitter.send(SseEmitter.event().name(EVENT_DONE).data(""));
                                 emitter.complete();
+                            } else if (EVENT_TOOL.equals(event.type()) || EVENT_TOOL_CALLED.equals(event.type())) {
+                                String toolName = event.data() != null ? event.data() : "unknown";
+                                publishAudit(AiAuditEvent.builder()
+                                        .eventType("AI_TOOL_CALLED")
+                                        .userName(request.userName())
+                                        .provider(request.provider())
+                                        .userLanguage(request.userLanguage())
+                                        .toolName(toolName)
+                                        .eventTimestamp(LocalDateTime.now())
+                                        .build());
+                                log.debug("Nest tool call received: tool={}, provider={}", toolName, request.provider());
                             } else if (EVENT_ERROR.equals(event.type())) {
                                 String message = event.data() != null ? event.data() : "Unknown stream error";
                                 emitter.send(SseEmitter.event().name(EVENT_ERROR).data(message));
@@ -180,6 +202,21 @@ public class NestStreamBridgeService {
             current = current.getCause();
         }
         return current != null ? current : exception;
+    }
+
+    private String resolveNestErrorType(Exception ex) {
+        String message = ex.getMessage() == null ? "" : ex.getMessage().toLowerCase();
+        if (message.contains("timeout")) {
+            return "timeout";
+        }
+        if (message.contains("connect") || message.contains("connection")) {
+            return "connection";
+        }
+        return "connection";
+    }
+
+    private void publishAudit(AiAuditEvent event) {
+        auditEventProducer.ifPresent(producer -> producer.publishAiAudit(event));
     }
 
     public record StreamCompletionResult(

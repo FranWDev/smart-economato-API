@@ -1,6 +1,7 @@
 package com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer;
 
 import com.economato.inventory.application.dto.event.InventoryAuditEvent;
+import com.economato.inventory.application.dto.event.AiAuditEvent;
 import com.economato.inventory.application.dto.event.BlockchainAuditEvent;
 import com.economato.inventory.application.dto.event.OrderAuditEvent;
 import com.economato.inventory.application.dto.event.PresenceAuditEvent;
@@ -28,6 +29,7 @@ public class AuditEventProducer {
     public static final String STOCK_PREDICTION_TOPIC = "stock-prediction-events";
     public static final String PRESENCE_AUDIT_TOPIC = "presence-audit-events";
     public static final String LEDGER_BLOCK_TOPIC = "ledger-block-events";
+    public static final String AI_AUDIT_TOPIC = "ai-audit-events";
 
     private final AuditOutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
@@ -63,6 +65,11 @@ public class AuditEventProducer {
 
     public void publishBlockchainEvent(BlockchainAuditEvent event) {
         saveToOutbox(LEDGER_BLOCK_TOPIC, "block-" + event.getBlockNumber(), event);
+    }
+
+    public void publishAiAudit(AiAuditEvent event) {
+        String key = event.getUserId() == null ? "ai-user-anonymous" : "ai-user-" + event.getUserId();
+        saveToOutbox(AI_AUDIT_TOPIC, key, event);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false)
