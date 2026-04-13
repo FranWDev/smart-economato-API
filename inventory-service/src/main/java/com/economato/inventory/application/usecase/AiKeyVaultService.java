@@ -1,10 +1,12 @@
 package com.economato.inventory.application.usecase;
 
+import com.economato.inventory.application.dto.event.AiAuditEvent;
 import com.economato.inventory.domain.model.AiProvider;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.domain.model.UserApiKey;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserApiKeyRepository;
 import com.economato.inventory.infrastructure.config.ai.AiProviderProperties;
 import com.economato.inventory.infrastructure.config.ai.AiRateLimitProperties;
@@ -13,6 +15,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,7 +28,9 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(rollbackFor = Exception.class)
@@ -41,6 +46,7 @@ public class AiKeyVaultService {
     private final UserApiKeyRepository userApiKeyRepository;
     private final AiRateLimitProperties aiRateLimitProperties;
     private final MeterRegistry meterRegistry;
+    private final Optional<AuditEventProducer> auditEventProducer;
 
     public void saveKey(Integer userId, AiProvider provider, String plainApiKey) {
         validateInputs(userId, provider, plainApiKey);
@@ -55,13 +61,27 @@ public class AiKeyVaultService {
             created.setUser(buildUserRef(userId));
             created.setProvider(provider);
             created.setActive(true);
-            userApiKeyRepository.save(created);
+            UserApiKey saved = userApiKeyRepository.save(created);
+            log.info("API key saved: userId={}, provider={}, version={}", userId, provider, saved.getEncryptionKeyVersion());
+            publishAudit(AiAuditEvent.builder()
+                    .eventType("AI_KEY_ADDED")
+                    .userId(userId)
+                    .provider(provider.name())
+                    .eventTimestamp(LocalDateTime.now())
+                    .build());
             return;
         }
 
         applyEncryptedKey(existing, plainApiKey);
         existing.setActive(true);
-        userApiKeyRepository.save(existing);
+        UserApiKey saved = userApiKeyRepository.save(existing);
+        log.info("API key saved: userId={}, provider={}, version={}", userId, provider, saved.getEncryptionKeyVersion());
+        publishAudit(AiAuditEvent.builder()
+                .eventType("AI_KEY_UPDATED")
+                .userId(userId)
+                .provider(provider.name())
+                .eventTimestamp(LocalDateTime.now())
+                .build());
     }
 
     public void updateKey(Integer userId, AiProvider provider, String newPlainApiKey) {
@@ -73,7 +93,14 @@ public class AiKeyVaultService {
                 .orElseThrow(() -> new ResourceNotFoundException("Active API key not found for provider: " + provider));
 
         applyEncryptedKey(existing, newPlainApiKey);
-        userApiKeyRepository.save(existing);
+        UserApiKey saved = userApiKeyRepository.save(existing);
+        log.info("API key saved: userId={}, provider={}, version={}", userId, provider, saved.getEncryptionKeyVersion());
+        publishAudit(AiAuditEvent.builder()
+            .eventType("AI_KEY_UPDATED")
+            .userId(userId)
+            .provider(provider.name())
+            .eventTimestamp(LocalDateTime.now())
+            .build());
     }
 
     @Transactional(readOnly = true)
@@ -98,7 +125,14 @@ public class AiKeyVaultService {
                 .findByIdAndUserId(keyId, userId)
                 .orElseThrow(() -> new ResourceNotFoundException("API key not found"));
 
+        AiProvider provider = key.getProvider();
         userApiKeyRepository.delete(key);
+        publishAudit(AiAuditEvent.builder()
+            .eventType("AI_KEY_REMOVED")
+            .userId(userId)
+            .provider(provider != null ? provider.name() : null)
+            .eventTimestamp(LocalDateTime.now())
+            .build());
     }
 
     @Transactional(readOnly = true)
@@ -137,6 +171,7 @@ public class AiKeyVaultService {
             key.setEncryptionKeyVersion(toVersion);
         }
         userApiKeyRepository.saveAll(keys);
+        log.info("API key re-encryption: fromVersion={}, toVersion={}, count={}", fromVersion, toVersion, keys.size());
     }
 
     private void enforceUserApiKeyLimit(Integer userId) {
@@ -275,6 +310,10 @@ public class AiKeyVaultService {
 
     private Timer timer(String name) {
         return meterRegistry.timer(name);
+    }
+
+    private void publishAudit(AiAuditEvent event) {
+        auditEventProducer.ifPresent(producer -> producer.publishAiAudit(event));
     }
 
     public record ApiKeyMetadata(

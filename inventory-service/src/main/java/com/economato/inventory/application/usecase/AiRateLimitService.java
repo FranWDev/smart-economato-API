@@ -6,6 +6,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.ai.AiRateLimitProperties;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -28,6 +29,7 @@ public class AiRateLimitService {
     private final CircuitBreakerRegistry circuitBreakerRegistry;
     private final AiChatRepository aiChatRepository;
     private final AiChatMessageRepository aiChatMessageRepository;
+    private final MeterRegistry meterRegistry;
 
     public boolean isAllowed(Integer userId) {
         if (userId == null) {
@@ -35,7 +37,11 @@ public class AiRateLimitService {
         }
 
         if (isRedisCircuitOpen()) {
-            return Boolean.TRUE.equals(aiRateLimitProperties.getFailOpen());
+            boolean allowed = Boolean.TRUE.equals(aiRateLimitProperties.getFailOpen());
+            if (!allowed) {
+                recordRejected("per_minute");
+            }
+            return allowed;
         }
 
         long now = Instant.now().toEpochMilli();
@@ -46,11 +52,19 @@ public class AiRateLimitService {
             stringRedisTemplate.opsForZSet().removeRangeByScore(key, 0, threshold);
             Long count = stringRedisTemplate.opsForZSet().zCard(key);
             recordSuccess();
-            return count == null || count < aiRateLimitProperties.getMessagesPerMinute();
+            boolean allowed = count == null || count < aiRateLimitProperties.getMessagesPerMinute();
+            if (!allowed) {
+                recordRejected("per_minute");
+            }
+            return allowed;
         } catch (Exception ex) {
             log.debug("Redis rate-limit check failed for user {}: {}", userId, ex.getMessage());
             recordFailure(ex);
-            return Boolean.TRUE.equals(aiRateLimitProperties.getFailOpen());
+            boolean allowed = Boolean.TRUE.equals(aiRateLimitProperties.getFailOpen());
+            if (!allowed) {
+                recordRejected("per_minute");
+            }
+            return allowed;
         }
     }
 
@@ -82,7 +96,11 @@ public class AiRateLimitService {
             return false;
         }
         long activeChats = aiChatRepository.countByUserIdAndStatus(userId, AiChatStatus.ACTIVE);
-        return activeChats < aiRateLimitProperties.getMaxChatsPerUser();
+        boolean allowed = activeChats < aiRateLimitProperties.getMaxChatsPerUser();
+        if (!allowed) {
+            recordRejected("max_chats");
+        }
+        return allowed;
     }
 
     public boolean canSendMessage(Long chatId) {
@@ -90,7 +108,11 @@ public class AiRateLimitService {
             return false;
         }
         long messages = aiChatMessageRepository.countByChatId(chatId);
-        return messages < aiRateLimitProperties.getMaxMessagesPerChat();
+        boolean allowed = messages < aiRateLimitProperties.getMaxMessagesPerChat();
+        if (!allowed) {
+            recordRejected("max_messages");
+        }
+        return allowed;
     }
 
     private String buildKey(Integer userId) {
@@ -129,5 +151,9 @@ public class AiRateLimitService {
             current = current.getCause();
         }
         return current != null ? current : exception;
+    }
+
+    private void recordRejected(String reason) {
+        meterRegistry.counter("ai.ratelimit.rejected.total", "reason", reason).increment();
     }
 }
