@@ -58,7 +58,7 @@ public class AiChatController {
 
     @Operation(summary = "Enviar mensaje en streaming", description = "Envía un mensaje y devuelve la respuesta AI como SSE")
     @PostMapping(value = "/chats/{chatId}/messages/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter sendMessage(
+    public SseEmitter sendMessage(26
             @PathVariable Long chatId,
             @Valid @RequestBody McpChatMessageRequest request,
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {

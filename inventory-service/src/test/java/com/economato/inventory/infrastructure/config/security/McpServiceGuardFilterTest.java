@@ -1,6 +1,4 @@
 package com.economato.inventory.infrastructure.config.security;
-
-import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,11 +24,7 @@ class McpServiceGuardFilterTest {
 
     @BeforeEach
     void setUp() {
-        AiNestProperties aiNestProperties = new AiNestProperties();
-        aiNestProperties.setServiceKey("test-service-key");
-        aiNestProperties.setBaseUrl("http://localhost:9999");
-        aiNestProperties.setAllowedOrigin("http://localhost:9999");
-        filter = new McpServiceGuardFilter(aiNestProperties);
+        filter = new McpServiceGuardFilter("test-service-key");
     }
 
     @Test
