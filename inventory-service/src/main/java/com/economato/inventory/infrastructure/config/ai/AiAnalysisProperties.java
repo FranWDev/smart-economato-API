@@ -1,12 +1,13 @@
 package com.economato.inventory.infrastructure.config.ai;
 
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+import org.springframework.validation.annotation.Validated;
+
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
-import org.springframework.validation.annotation.Validated;
 
 @Getter
 @Setter
@@ -30,4 +31,13 @@ public class AiAnalysisProperties {
     @NotNull
     @Min(1)
     private Integer menuOptimizerMaxRecipes = 50;
+
+    @NotNull
+    private Double stockHealthStockWeight = 0.5;
+
+    @NotNull
+    private Double stockHealthBatchWeight = 0.3;
+
+    @NotNull
+    private Double stockHealthAlertWeight = 0.2;
 }

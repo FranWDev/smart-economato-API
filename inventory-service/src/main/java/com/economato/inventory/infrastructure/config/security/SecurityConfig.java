@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,7 +22,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.servlet.LocaleResolver;
 
-import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
 
@@ -37,18 +37,18 @@ public class SecurityConfig {
         private final McpServiceGuardFilter mcpServiceGuardFilter;
         private final I18nService i18nService;
         private final LocaleResolver localeResolver;
-        private final AiNestProperties aiNestProperties;
+        private final String aiNestAllowedOrigin;
 
         public SecurityConfig(JwtFilter jwtFilter,
                         McpServiceGuardFilter mcpServiceGuardFilter,
                         I18nService i18nService,
                         LocaleResolver localeResolver,
-                        AiNestProperties aiNestProperties) {
+                        @Value("${ai.nest.allowed-origin:http://localhost}") String aiNestAllowedOrigin) {
                 this.jwtFilter = jwtFilter;
                 this.mcpServiceGuardFilter = mcpServiceGuardFilter;
                 this.i18nService = i18nService;
                 this.localeResolver = localeResolver;
-                this.aiNestProperties = aiNestProperties;
+                this.aiNestAllowedOrigin = aiNestAllowedOrigin;
         }
 
         @Bean
@@ -146,7 +146,7 @@ public class SecurityConfig {
                                                                         String.format("{\"status\":401,\"message\":\"%s\"}",
                                                                                         message));
                                                 }))
-                                .addFilterBefore(mcpServiceGuardFilter, JwtFilter.class)
+                                .addFilterBefore(mcpServiceGuardFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                                 .build();
         }
@@ -159,7 +159,7 @@ public class SecurityConfig {
         @Bean
         public CorsConfigurationSource corsConfigurationSource() {
                 CorsConfiguration mcpConfiguration = new CorsConfiguration();
-                mcpConfiguration.setAllowedOrigins(List.of(aiNestProperties.getAllowedOrigin()));
+                mcpConfiguration.setAllowedOrigins(List.of(aiNestAllowedOrigin));
                 mcpConfiguration.setAllowedMethods(Arrays.asList("GET", "POST"));
                 mcpConfiguration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Service-Key",
                                 "X-User-Language"));

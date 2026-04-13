@@ -22,6 +22,8 @@ import static org.hamcrest.Matchers.*;
 
 class McpUtilityControllerIntegrationTest extends BaseIntegrationTest {
 
+    private static final String SERVICE_KEY = "test-service-key-for-integration-tests";
+
     @Autowired
     private ProductRepository productRepository;
 
@@ -42,6 +44,7 @@ class McpUtilityControllerIntegrationTest extends BaseIntegrationTest {
         String token = loginAsAdmin();
 
         mockMvc.perform(get("/api/mcp/context")
+            .header("X-Service-Key", SERVICE_KEY)
                 .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalProducts", is(0)));
@@ -49,7 +52,8 @@ class McpUtilityControllerIntegrationTest extends BaseIntegrationTest {
 
     @Test
     void getSystemContext_WhenNotAuthenticated_ShouldReturnUnauthorized() throws Exception {
-        mockMvc.perform(get("/api/mcp/context"))
+        mockMvc.perform(get("/api/mcp/context")
+            .header("X-Service-Key", SERVICE_KEY))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -60,6 +64,7 @@ class McpUtilityControllerIntegrationTest extends BaseIntegrationTest {
         productRepository.saveAndFlush(product);
 
         mockMvc.perform(get("/api/mcp/search")
+            .header("X-Service-Key", SERVICE_KEY)
                 .header("Authorization", "Bearer " + token)
                 .param("q", "Cucumber"))
                 .andExpect(status().isOk())
@@ -76,6 +81,7 @@ class McpUtilityControllerIntegrationTest extends BaseIntegrationTest {
         McpBulkRequest request = new McpBulkRequest(Arrays.asList(product.getId()), null);
 
         mockMvc.perform(post("/api/mcp/bulk/products")
+            .header("X-Service-Key", SERVICE_KEY)
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))

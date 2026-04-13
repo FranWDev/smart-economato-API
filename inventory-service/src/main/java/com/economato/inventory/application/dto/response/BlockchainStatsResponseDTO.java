@@ -25,9 +25,6 @@ public class BlockchainStatsResponseDTO {
     @Schema(description = "Hash del último bloque", example = "0000abcd...")
     private String latestBlockHash;
 
-    @Schema(description = "Dificultad configurada", example = "2")
-    private Integer difficulty;
-
     @Schema(description = "¿La cadena parece íntegra?", example = "true")
     private boolean valid;
 }

@@ -27,11 +27,6 @@ public class LedgerBlockResponseDTO {
     @Schema(description = "Hash del bloque", example = "0000ff12...")
     private String blockHash;
 
-    @Schema(description = "Nonce encontrado por PoW", example = "34122")
-    private Long nonce;
-
-    @Schema(description = "Dificultad usada", example = "2")
-    private Integer difficulty;
 
     @Schema(description = "Marca temporal del bloque")
     private LocalDateTime timestamp;

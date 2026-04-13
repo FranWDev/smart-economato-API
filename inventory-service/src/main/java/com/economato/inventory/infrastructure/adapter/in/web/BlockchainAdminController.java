@@ -80,7 +80,6 @@ public class BlockchainAdminController {
                 .pendingTransactions(stockLedgerRepository.countByBlockIsNull())
                 .latestBlockNumber(latestBlock != null ? latestBlock.getBlockNumber() : null)
                 .latestBlockHash(latestBlock != null ? latestBlock.getBlockHash() : null)
-                .difficulty(latestBlock != null ? latestBlock.getDifficulty() : 0)
                 .valid(valid)
                 .build();
 
@@ -129,8 +128,6 @@ public class BlockchainAdminController {
                 .previousBlockHash(block.getPreviousBlockHash())
                 .merkleRoot(block.getMerkleRoot())
                 .blockHash(block.getBlockHash())
-                .nonce(block.getNonce())
-                .difficulty(block.getDifficulty())
                 .timestamp(block.getTimestamp())
                 .transactionCount(block.getTransactionCount())
                 .hmacKeyVersion(block.getHmacKeyVersion())
