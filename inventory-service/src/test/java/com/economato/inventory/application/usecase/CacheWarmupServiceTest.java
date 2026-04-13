@@ -13,10 +13,14 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import com.economato.inventory.application.dto.response.ProductResponseDTO;
 import com.economato.inventory.application.dto.response.RecipeResponseDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
+import com.economato.inventory.infrastructure.config.ai.AiSmgProperties;
 
 @ExtendWith(MockitoExtension.class)
 class CacheWarmupServiceTest {
@@ -35,6 +39,14 @@ class CacheWarmupServiceTest {
     private StockAlertService stockAlertService;
     @Mock
     private RecipeComponentService recipeComponentService;
+        @Mock
+        private StringRedisTemplate stringRedisTemplate;
+        @Mock
+        private ProductRepository productRepository;
+        @Mock
+        private RecipeRepository recipeRepository;
+        @Mock
+        private AiSmgProperties aiSmgProperties;
 
     @Test
     void run_executesExpandedWarmupFlows() throws Exception {
@@ -58,7 +70,11 @@ class CacheWarmupServiceTest {
                 allergenService,
                 supplierService,
                 stockAlertService,
-                recipeComponentService);
+                recipeComponentService,
+                stringRedisTemplate,
+                productRepository,
+                recipeRepository,
+                aiSmgProperties);
 
         warmup.run();
 
