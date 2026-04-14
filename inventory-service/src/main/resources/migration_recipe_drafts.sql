@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS recipe_draft (
     recipe_name VARCHAR(150) NOT NULL,
     elaboration TEXT,
     presentation TEXT,
-    portions NUMERIC(10, 2) NOT NULL DEFAULT 1,
+    portions NUMERIC(10, 2) DEFAULT 1,
     components_json TEXT NOT NULL,
     allergen_ids_json TEXT,
     is_hidden BOOLEAN NOT NULL DEFAULT FALSE,

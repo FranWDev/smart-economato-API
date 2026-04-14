@@ -34,7 +34,6 @@ public class RecipeRequestDTO {
     @Schema(description = "Descripción de la presentación del plato", example = "Servido en paellera tradicional")
     private String presentation;
 
-    @NotNull(message = "{validation.recipeRequestDTO.portions.notNull}")
     @DecimalMin(value = "0.1", message = "{validation.recipeRequestDTO.portions.decimalMin}")
     @Schema(description = "Número de raciones que rinde la receta", example = "10.0")
     private BigDecimal portions;

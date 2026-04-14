@@ -293,7 +293,7 @@ class AiChatConcurrencyTest {
                     releaseStream.await(5, TimeUnit.SECONDS);
                     return new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1);
                 });
-        when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
 
         var firstEmitter = service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt");
         assertNotNull(firstEmitter);

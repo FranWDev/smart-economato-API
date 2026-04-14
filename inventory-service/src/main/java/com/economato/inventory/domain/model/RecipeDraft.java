@@ -62,9 +62,8 @@ public class RecipeDraft {
     @Size(max = 1000, message = "{validation.recipe.presentation.size}")
     private String presentation;
 
-    @Column(name = "portions", nullable = false, precision = 10, scale = 2)
+    @Column(name = "portions", precision = 10, scale = 2)
     @Builder.Default
-    @NotNull(message = "{validation.recipe.portions.notNull}")
     @DecimalMin(value = "0.01", message = "{validation.recipe.portions.decimalMin}")
     private BigDecimal portions = BigDecimal.ONE;
 

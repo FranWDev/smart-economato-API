@@ -70,6 +70,7 @@ public class RedisConfig {
                 // copy() para evitar mutar el ObjectMapper global que Spring Boot configura, ya que --
                 // activateDefaultTyping es una operación global que afectaría a toda la aplicación y podría causar problemas de seguridad o serialización en otros contextos.
                 ObjectMapper redisMapper = baseMapper.copy();
+                redisMapper.configure(com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
                 redisMapper.activateDefaultTyping(
                                 ptv,
                                 ObjectMapper.DefaultTyping.NON_FINAL,

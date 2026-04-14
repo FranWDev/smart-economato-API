@@ -57,6 +57,7 @@ public class User {
         @OneToMany(mappedBy = "user")
         private List<InventoryAudit> inventoryMovements;
 
+        @JsonIgnore
         @ManyToOne(fetch = FetchType.LAZY)
         @JoinColumn(name = "teacher_id")
         private User teacher;
