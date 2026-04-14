@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import org.mockito.Mock;
 import static org.mockito.Mockito.never;
@@ -91,5 +93,38 @@ class AiRateLimitFailoverTest {
                 .thenThrow(new RuntimeException("redis down"));
 
         assertFalse(service.isAllowed(10));
+    }
+
+    @Test
+    void redisRecovers_rateLimitResumes() {
+        when(redisCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.OPEN, CircuitBreaker.State.CLOSED);
+
+        assertTrue(service.isAllowed(10));
+
+        when(zSetOperations.removeRangeByScore(anyString(), anyDouble(), anyDouble())).thenReturn(0L);
+        when(zSetOperations.zCard(anyString())).thenReturn(0L);
+
+        assertTrue(service.isAllowed(10));
+    }
+
+    @Test
+    void redisDown_circuitBreakerOpens() {
+        properties.setFailOpen(false);
+        when(redisCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
+        when(zSetOperations.removeRangeByScore(anyString(), anyDouble(), anyDouble()))
+                .thenThrow(new RuntimeException("redis connection failed"));
+
+        assertFalse(service.isAllowed(10));
+        verify(redisCircuitBreaker).onError(anyLong(), any(java.util.concurrent.TimeUnit.class), any(Throwable.class));
+    }
+
+    @Test
+    void slidingWindow_expiresCorrectly() {
+        when(redisCircuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
+        when(zSetOperations.removeRangeByScore(anyString(), anyDouble(), anyDouble())).thenReturn(1L);
+        when(zSetOperations.zCard(anyString())).thenReturn(1L, 0L);
+
+        assertTrue(service.isAllowed(10));
+        assertTrue(service.isAllowed(10));
     }
 }

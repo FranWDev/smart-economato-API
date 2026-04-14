@@ -1,31 +1,33 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
-import com.economato.inventory.infrastructure.adapter.in.web.AiStreamException;
-import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
+import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
+import com.economato.inventory.infrastructure.adapter.in.web.AiStreamException;
+import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
 class AiNestFailoverTest {
@@ -38,6 +40,10 @@ class AiNestFailoverTest {
     private CircuitBreaker circuitBreaker;
     @Mock
     private ClientHttpResponse clientHttpResponse;
+    @Mock
+    private RestClient.RequestBodyUriSpec requestBodyUriSpec;
+    @Mock
+    private RestClient.RequestBodySpec requestBodySpec;
 
     private NestStreamBridgeService service;
 
@@ -60,6 +66,45 @@ class AiNestFailoverTest {
                 new ObjectMapper(),
                 Optional.empty()
         );
+    }
+
+    @Test
+    void circuitBreakerHalfOpen_singleProbeRequest() {
+        when(circuitBreaker.getState()).thenReturn(CircuitBreaker.State.HALF_OPEN);
+        when(nestRestClient.post()).thenReturn(requestBodyUriSpec);
+        when(requestBodyUriSpec.uri(any(String.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
+        when(requestBodySpec.accept(any())).thenReturn(requestBodySpec);
+        when(requestBodySpec.headers(any())).thenReturn(requestBodySpec);
+        when(requestBodySpec.body(any(NestCompletionRequest.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.exchange(any())).thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1));
+
+        service.streamCompletion(
+                new NestCompletionRequest("ctx", "key", "OPENAI", "Admin", "es", "gpt-4o"),
+                new SseEmitter(),
+                "jwt");
+
+        verify(nestRestClient, times(1)).post();
+        verify(circuitBreaker).onSuccess(anyLong(), eq(TimeUnit.MILLISECONDS));
+    }
+
+    @Test
+    void nestRecovers_circuitBreakerCloses() {
+        when(circuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
+        when(nestRestClient.post()).thenReturn(requestBodyUriSpec);
+        when(requestBodyUriSpec.uri(any(String.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
+        when(requestBodySpec.accept(any())).thenReturn(requestBodySpec);
+        when(requestBodySpec.headers(any())).thenReturn(requestBodySpec);
+        when(requestBodySpec.body(any(NestCompletionRequest.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.exchange(any())).thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 2, 3));
+
+        service.streamCompletion(
+                new NestCompletionRequest("ctx", "key", "OPENAI", "Admin", "es", "gpt-4o"),
+                new SseEmitter(),
+                "jwt");
+
+        verify(circuitBreaker).onSuccess(anyLong(), eq(TimeUnit.MILLISECONDS));
     }
 
     @Test

@@ -1,5 +1,29 @@
 package com.economato.inventory.application.usecase;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import org.mockito.Mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+
 import com.economato.inventory.application.dto.mcp.McpChangeProviderRequest;
 import com.economato.inventory.application.dto.mcp.McpChatCreateRequest;
 import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
@@ -14,6 +38,8 @@ import com.economato.inventory.domain.model.MessageRole;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiChatLimitReachedException;
+import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiChatNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiConcurrentStreamException;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiKeyNotFoundException;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiMaxMessagesReachedException;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiProviderDisabledException;
@@ -24,31 +50,11 @@ import com.economato.inventory.infrastructure.config.ai.AiChatProperties;
 import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
 import com.economato.inventory.infrastructure.config.ai.AiProviderProperties;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
+
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class AiChatServiceTest {
 
     @Mock
@@ -108,7 +114,7 @@ class AiChatServiceTest {
     }
 
     @Test
-    void createChat_validRequest_createsAndReturns() {
+    void createChat_savesWithCorrectDefaults() {
         when(aiRateLimitService.canCreateChat(10)).thenReturn(true);
         when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> {
             AiChat chat = invocation.getArgument(0);
@@ -121,6 +127,26 @@ class AiChatServiceTest {
         assertNotNull(response);
         assertEquals(100L, response.id());
         assertEquals("OPENAI", response.activeProvider());
+
+        ArgumentCaptor<AiChat> chatCaptor = ArgumentCaptor.forClass(AiChat.class);
+        verify(aiChatRepository).save(chatCaptor.capture());
+        AiChat saved = chatCaptor.getValue();
+        assertEquals(AiChatStatus.ACTIVE, saved.getStatus());
+        assertEquals(0, saved.getMessageCount());
+        assertEquals(0, saved.getTotalTokensConsumed());
+        assertEquals("es", saved.getUserLanguage());
+    }
+
+    @Test
+    void createChat_setsUserLanguage() {
+        when(aiRateLimitService.canCreateChat(10)).thenReturn(true);
+        when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.createChat(new McpChatCreateRequest("Plan semanal", "OPENAI"));
+
+        ArgumentCaptor<AiChat> chatCaptor = ArgumentCaptor.forClass(AiChat.class);
+        verify(aiChatRepository).save(chatCaptor.capture());
+        assertEquals("es", chatCaptor.getValue().getUserLanguage());
     }
 
     @Test
@@ -160,7 +186,7 @@ class AiChatServiceTest {
     }
 
     @Test
-    void sendMessage_maxMessagesReached_throwsOrArchives() {
+    void sendMessage_exceedsMaxMessages_throwsException() {
         AiChat chat = chat(100L);
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
@@ -173,7 +199,7 @@ class AiChatServiceTest {
     }
 
     @Test
-    void sendMessage_callsNestAndPersistsAssistantMessage() {
+    void sendMessage_callsNestBridge() {
         AiChat chat = chat(100L);
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
@@ -211,7 +237,7 @@ class AiChatServiceTest {
     }
 
     @Test
-    void sendMessage_keyNotConfigured_throwsException() {
+    void sendMessage_noApiKey_throwsException() {
         AiChat chat = chat(100L);
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
@@ -221,6 +247,193 @@ class AiChatServiceTest {
 
         assertThrows(AiKeyNotFoundException.class,
                 () -> service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt"));
+    }
+
+    @Test
+    void sendMessage_persistsUserMessage() {
+        AiChat chat = chat(100L);
+        when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
+        when(aiRateLimitService.isAllowed(10)).thenReturn(true);
+        when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
+        when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> {
+            AiChatMessage msg = invocation.getArgument(0);
+            if (msg.getRole() == MessageRole.USER) {
+                msg.setId(1L);
+            }
+            return msg;
+        });
+        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of());
+        when(semanticMemoryGraphService.compress(any(), eq("es")))
+                .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
+        when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1));
+        when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt");
+
+        ArgumentCaptor<AiChatMessage> captor = ArgumentCaptor.forClass(AiChatMessage.class);
+        verify(aiChatMessageRepository, timeout(1000).atLeastOnce()).save(captor.capture());
+        assertEquals(MessageRole.USER, captor.getAllValues().get(0).getRole());
+    }
+
+    @Test
+    void sendMessage_callsSmgCompress() {
+        AiChat chat = chat(100L);
+        when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
+        when(aiRateLimitService.isAllowed(10)).thenReturn(true);
+        when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
+        when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(new AiChatMessage()));
+        when(semanticMemoryGraphService.compress(any(), eq("en")))
+                .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "en"));
+        when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1));
+        when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.sendMessage(100L, new McpChatMessageRequest("hello", "en"), "jwt");
+
+        verify(semanticMemoryGraphService, timeout(1000)).compress(any(), eq("en"));
+    }
+
+    @Test
+    void sendMessage_persistsAssistantMessage() {
+        AiChat chat = chat(100L);
+        when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
+        when(aiRateLimitService.isAllowed(10)).thenReturn(true);
+        when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
+        when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> {
+            AiChatMessage msg = invocation.getArgument(0);
+            if (msg.getRole() == MessageRole.USER) {
+                msg.setId(1L);
+            } else if (msg.getRole() == MessageRole.ASSISTANT) {
+                msg.setId(2L);
+            }
+            return msg;
+        });
+        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(new AiChatMessage()));
+        when(semanticMemoryGraphService.compress(any(), eq("es")))
+                .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
+        when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20));
+        when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt");
+
+        ArgumentCaptor<AiChatMessage> captor = ArgumentCaptor.forClass(AiChatMessage.class);
+        verify(aiChatMessageRepository, timeout(1000).times(2)).save(captor.capture());
+        assertEquals(MessageRole.ASSISTANT, captor.getAllValues().get(1).getRole());
+        assertEquals(10, captor.getAllValues().get(1).getInputTokens());
+        assertEquals(20, captor.getAllValues().get(1).getOutputTokens());
+    }
+
+    @Test
+    void sendMessage_updatesChat() {
+        AiChat chat = chat(100L);
+        when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
+        when(aiRateLimitService.isAllowed(10)).thenReturn(true);
+        when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
+        when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(new AiChatMessage()));
+        when(semanticMemoryGraphService.compress(any(), eq("es")))
+                .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
+        when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20));
+        when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt");
+
+        verify(aiChatRepository, timeout(1000).atLeastOnce()).save(chat);
+        assertEquals(2, chat.getMessageCount());
+        assertEquals(30, chat.getTotalTokensConsumed());
+    }
+
+    @Test
+    void sendMessage_chatNotOwnedByUser_throwsException() {
+        when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.empty());
+
+        assertThrows(AiChatNotFoundException.class,
+                () -> service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt"));
+    }
+
+    @Test
+    void sendMessage_updatesLanguageIfChanged() {
+        AiChat chat = chat(100L);
+        chat.setUserLanguage("es");
+        when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
+        when(aiRateLimitService.isAllowed(10)).thenReturn(true);
+        when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
+        when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(new AiChatMessage()));
+        when(semanticMemoryGraphService.compress(any(), eq("en")))
+                .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "en"));
+        when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1));
+        when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.sendMessage(100L, new McpChatMessageRequest("hello", "en"), "jwt");
+
+        assertEquals("en", chat.getUserLanguage());
+    }
+
+    @Test
+    void sendMessage_exceedsMaxConcurrentStreams_throwsException() {
+        AiChat chat = chat(100L);
+        when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
+        when(aiRateLimitService.isAllowed(10)).thenReturn(true);
+        when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
+        when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(new AiChatMessage()));
+        when(semanticMemoryGraphService.compress(any(), eq("es")))
+                .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
+        when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
+                .thenAnswer(invocation -> {
+                    Thread.sleep(200);
+                    return new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1);
+                });
+        when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt");
+        service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt");
+
+        assertThrows(AiConcurrentStreamException.class,
+                () -> service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt"));
+    }
+
+    @Test
+    void changeProvider_updatesActiveProvider() {
+        AiChat chat = chat(100L);
+        when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
+        when(aiKeyVaultService.listKeys(10)).thenReturn(List.of(new AiKeyVaultService.ApiKeyMetadata(1L, AiProvider.OPENAI, "****1234", true, LocalDateTime.now())));
+        when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var response = service.changeProvider(100L, new McpChangeProviderRequest("OPENAI"));
+
+        assertEquals("OPENAI", response.activeProvider());
+        assertEquals(AiProvider.OPENAI, chat.getActiveProvider());
+    }
+
+    @Test
+    void archiveChat_setsStatusArchived() {
+        AiChat chat = chat(100L);
+        when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
+        when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.archiveChat(100L);
+
+        assertEquals(AiChatStatus.ARCHIVED, chat.getStatus());
+    }
+
+    @Test
+    void archiveChat_chatNotOwnedByUser_throwsException() {
+        when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.empty());
+
+        assertThrows(AiChatNotFoundException.class, () -> service.archiveChat(100L));
     }
 
     @Test

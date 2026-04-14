@@ -10,6 +10,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -44,6 +45,7 @@ class AiKeyVaultConcurrencyTest {
     private AiVaultProperties aiVaultProperties;
 
     @BeforeEach
+    @SuppressWarnings("unused")
     void setUp() {
         aiVaultProperties = new AiVaultProperties();
         aiVaultProperties.setMasterKey("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
@@ -73,7 +75,7 @@ class AiKeyVaultConcurrencyTest {
     }
 
     @Test
-    void concurrentDecrypts_sameKey_consistent() throws Exception {
+    void concurrentEncryptDecrypt_sameKey_consistent() throws Exception {
         AtomicReference<UserApiKey> stored = new AtomicReference<>();
         when(userApiKeyRepository.findByUserIdAndProvider(10, AiProvider.OPENAI)).thenReturn(Optional.empty());
         when(userApiKeyRepository.findByUserIdAndActiveTrue(10)).thenReturn(List.of());
@@ -149,5 +151,63 @@ class AiKeyVaultConcurrencyTest {
 
         assertNotNull(stored.get());
         assertEquals(2, stored.get().getEncryptionKeyVersion());
+    }
+
+    @Test
+    void concurrentKeyOperations_sameUser_noCorruption() throws Exception {
+        AtomicReference<UserApiKey> stored = new AtomicReference<>();
+        AtomicInteger idSeq = new AtomicInteger(1);
+        when(userApiKeyRepository.findByUserIdAndProvider(10, AiProvider.OPENAI)).thenReturn(Optional.empty());
+        when(userApiKeyRepository.findByUserIdAndActiveTrue(10)).thenReturn(List.of());
+        when(userApiKeyRepository.save(any(UserApiKey.class))).thenAnswer(invocation -> {
+            UserApiKey key = invocation.getArgument(0);
+            if (key.getId() == null) {
+                key.setId((long) idSeq.getAndIncrement());
+            }
+            key.setCreatedAt(LocalDateTime.now());
+            stored.set(key);
+            return key;
+        });
+        when(userApiKeyRepository.findByUserIdAndProviderAndActiveTrue(10, AiProvider.OPENAI))
+                .thenAnswer(invocation -> Optional.ofNullable(stored.get()));
+        when(userApiKeyRepository.findByIdAndUserId(any(), any())).thenAnswer(invocation -> Optional.ofNullable(stored.get()));
+
+        CountDownLatch latch = new CountDownLatch(3);
+        ExecutorService executor = Executors.newFixedThreadPool(3);
+
+        executor.submit(() -> {
+            try {
+                service.saveKey(10, AiProvider.OPENAI, "sk-concurrent-1234");
+            } finally {
+                latch.countDown();
+            }
+        });
+        executor.submit(() -> {
+            try {
+                service.updateKey(10, AiProvider.OPENAI, "sk-concurrent-5678");
+            } catch (Exception ignored) {
+                // A concurrent update may race with save/delete; the invariant is that storage stays consistent.
+            } finally {
+                latch.countDown();
+            }
+        });
+        executor.submit(() -> {
+            try {
+                service.deleteKey(10, 1L);
+            } catch (Exception ignored) {
+                // A concurrent delete may race with save/update; storage must not corrupt.
+            } finally {
+                latch.countDown();
+            }
+        });
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        executor.shutdownNow();
+
+        UserApiKey key = stored.get();
+        if (key != null) {
+            assertEquals(10, key.getUser().getId());
+            assertEquals(AiProvider.OPENAI, key.getProvider());
+        }
     }
 }

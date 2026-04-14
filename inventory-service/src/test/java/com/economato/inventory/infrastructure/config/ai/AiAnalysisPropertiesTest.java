@@ -1,8 +1,8 @@
 package com.economato.inventory.infrastructure.config.ai;
 
-import org.junit.jupiter.api.Test;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 class AiAnalysisPropertiesTest {
 
@@ -18,6 +18,17 @@ class AiAnalysisPropertiesTest {
         AiAnalysisProperties properties = new AiAnalysisProperties();
 
         assertEquals(7, properties.getWasteRiskDaysThreshold());
+    }
+
+    @Test
+    void stockHealthWeights_sumToOne() {
+        AiAnalysisProperties properties = new AiAnalysisProperties();
+
+        double sum = properties.getStockHealthStockWeight()
+                + properties.getStockHealthBatchWeight()
+                + properties.getStockHealthAlertWeight();
+
+        assertTrue(Math.abs(1.0 - sum) <= 0.0001);
     }
 
     @Test

@@ -1,20 +1,26 @@
 package com.economato.inventory.infrastructure.config.ai;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-@ExtendWith(MockitoExtension.class)
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
+
 class AiSmgPropertiesTest {
 
     private AiSmgProperties properties;
+    private Validator validator;
 
     @BeforeEach
     void setUp() {
+        ValidatorFactory validatorFactory = Validation.buildDefaultValidatorFactory();
+        validator = validatorFactory.getValidator();
         properties = new AiSmgProperties();
         properties.setTokenBudget(6000);
         properties.setWorkingMemoryWeight(0.57);
@@ -25,7 +31,16 @@ class AiSmgPropertiesTest {
     }
 
     @Test
-    void weightsSumToOne_withinTolerance() {
+    void tokenBudget_belowMinimum_validationFails() {
+        properties.setTokenBudget(999);
+
+        Set<ConstraintViolation<AiSmgProperties>> violations = validator.validate(properties);
+
+        assertTrue(violations.stream().anyMatch(v -> "tokenBudget".equals(v.getPropertyPath().toString())));
+    }
+
+    @Test
+    void layerWeights_sumToOne() {
         double sum = properties.getWorkingMemoryWeight()
                 + properties.getEntityMemoryWeight()
                 + properties.getTopicMemoryWeight()
@@ -36,18 +51,20 @@ class AiSmgPropertiesTest {
     }
 
     @Test
-    void tokenBudgetDistribution_respectsWeights() {
-        int tokenBudget = properties.getTokenBudget();
+    void decayLambda_negativeValue_validationFails() {
+        properties.setDecayLambda(-1.0);
 
-        int wm = (int) (tokenBudget * properties.getWorkingMemoryWeight());
-        int entity = (int) (tokenBudget * properties.getEntityMemoryWeight());
-        int topic = (int) (tokenBudget * properties.getTopicMemoryWeight());
-        int intent = (int) (tokenBudget * properties.getIntentMemoryWeight());
-        int system = (int) (tokenBudget * properties.getSystemContextWeight());
+        Set<ConstraintViolation<AiSmgProperties>> violations = validator.validate(properties);
 
-        assertTrue(wm > entity);
-        assertTrue(entity > topic);
-        assertTrue(topic > intent);
-        assertEquals(600, system);
+        assertTrue(violations.stream().anyMatch(v -> "decayLambda".equals(v.getPropertyPath().toString())));
+    }
+
+    @Test
+    void defaults_areCorrect() {
+        AiSmgProperties defaults = new AiSmgProperties();
+
+        assertEquals(6000, defaults.getTokenBudget());
+        assertEquals(3.0, defaults.getDecayLambda());
+        assertEquals(5, defaults.getTopicSplitGapMinutes());
     }
 }

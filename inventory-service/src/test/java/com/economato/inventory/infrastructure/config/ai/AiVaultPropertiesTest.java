@@ -1,29 +1,51 @@
 package com.economato.inventory.infrastructure.config.ai;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
-
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-@ExtendWith(MockitoExtension.class)
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
+
 class AiVaultPropertiesTest {
 
     private AiVaultProperties properties;
+    private Validator validator;
 
     @BeforeEach
     void setUp() {
+        ValidatorFactory validatorFactory = Validation.buildDefaultValidatorFactory();
+        validator = validatorFactory.getValidator();
         properties = new AiVaultProperties();
         properties.setMasterKey("master-key");
         properties.setCurrentKeyVersion(1);
     }
 
     @Test
-    void getKeyForVersion_withEmptyVersionMap_returnsMasterKey() {
+    void masterKey_notBlank_validationFails() {
+        properties.setMasterKey(" ");
+
+        Set<ConstraintViolation<AiVaultProperties>> violations = validator.validate(properties);
+
+        assertTrue(violations.stream().anyMatch(v -> "masterKey".equals(v.getPropertyPath().toString())));
+    }
+
+    @Test
+    void currentKeyVersion_defaultIsOne() {
+        AiVaultProperties defaults = new AiVaultProperties();
+
+        assertEquals(1, defaults.getCurrentKeyVersion());
+    }
+
+    @Test
+    void getKeyForVersion_emptyMap_returnsMasterKey() {
         properties.setKeyVersions(Map.of());
 
         String key = properties.getKeyForVersion(1);
@@ -32,7 +54,7 @@ class AiVaultPropertiesTest {
     }
 
     @Test
-    void getKeyForVersion_withPopulatedMap_returnsCorrectKey() {
+    void getKeyForVersion_withMap_returnsCorrectKey() {
         properties.setKeyVersions(Map.of(1, "key-v1", 2, "key-v2"));
 
         String key = properties.getKeyForVersion(2);
@@ -41,19 +63,9 @@ class AiVaultPropertiesTest {
     }
 
     @Test
-    void getKeyForVersion_withNonExistentVersion_throwsIllegalArgument() {
+    void getKeyForVersion_unknownVersion_throwsException() {
         properties.setKeyVersions(Map.of(1, "key-v1"));
 
         assertThrows(IllegalArgumentException.class, () -> properties.getKeyForVersion(3));
-    }
-
-    @Test
-    void getKeyForVersion_withCurrentVersion_returnsCurrentKey() {
-        properties.setCurrentKeyVersion(2);
-        properties.setKeyVersions(Map.of(1, "key-v1", 2, "key-v2"));
-
-        String key = properties.getKeyForVersion(properties.getCurrentKeyVersion());
-
-        assertEquals("key-v2", key);
     }
 }

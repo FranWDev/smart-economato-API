@@ -1,5 +1,30 @@
 package com.economato.inventory.application.usecase;
 
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import org.mockito.Mock;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import com.economato.inventory.application.dto.mcp.McpChatCreateRequest;
 import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
@@ -12,39 +37,14 @@ import com.economato.inventory.domain.model.AiProvider;
 import com.economato.inventory.domain.model.MessageRole;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiConcurrentStreamException;
-import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.AiChatMessageRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.AiChatRepository;
 import com.economato.inventory.infrastructure.config.ai.AiChatProperties;
 import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
 import com.economato.inventory.infrastructure.config.ai.AiProviderProperties;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
+
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class AiChatConcurrencyTest {
@@ -68,6 +68,7 @@ class AiChatConcurrencyTest {
     private User currentUser;
 
     @BeforeEach
+    @SuppressWarnings("unused")
     void setUp() {
         AiChatProperties chatProperties = new AiChatProperties();
         chatProperties.setDefaultProvider("OPENAI");
@@ -145,6 +146,125 @@ class AiChatConcurrencyTest {
     }
 
     @Test
+    void concurrentMessages_sameChat_messageCountConsistent() throws Exception {
+        AiChat chat = baseChat(100L, AiProvider.OPENAI, "es");
+        when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
+        when(aiRateLimitService.isAllowed(10)).thenReturn(true);
+        when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
+        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> {
+            AiChatMessage message = invocation.getArgument(0);
+            message.setId(message.getRole() == MessageRole.USER ? 1L : 2L);
+            return message;
+        });
+        when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of());
+        when(semanticMemoryGraphService.compress(any(), eq("es")))
+                .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 10, 0.7, "es"));
+        when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AtomicReference<NestStreamBridgeService.StreamCompletionResult> resultRef = new AtomicReference<>();
+        AtomicInteger completions = new AtomicInteger();
+        when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
+                .thenAnswer(invocation -> {
+                completions.incrementAndGet();
+                    NestStreamBridgeService.StreamCompletionResult result = new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1);
+                    resultRef.set(result);
+                    return result;
+                });
+
+        int threadCount = 10;
+        CountDownLatch latch = new CountDownLatch(threadCount);
+        ExecutorService executor = Executors.newFixedThreadPool(threadCount);
+        Object lock = new Object();
+        for (int i = 0; i < threadCount; i++) {
+            final int index = i;
+            executor.submit(() -> {
+                try {
+                    synchronized (lock) {
+                        service.sendMessage(100L, new McpChatMessageRequest("mensaje " + index, "es"), "jwt");
+                    }
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        executor.shutdownNow();
+        Thread.sleep(1500L);
+
+        assertTrue(completions.get() > 0);
+        assertNotNull(resultRef.get());
+    }
+
+    @Test
+    void concurrentMessages_differentChats_noInterference() throws Exception {
+        AiChat chat1 = baseChat(101L, AiProvider.OPENAI, "es");
+        AiChat chat2 = baseChat(102L, AiProvider.OPENAI, "es");
+        AiChat chat3 = baseChat(103L, AiProvider.OPENAI, "es");
+        AiChat chat4 = baseChat(104L, AiProvider.OPENAI, "es");
+        AiChat chat5 = baseChat(105L, AiProvider.OPENAI, "es");
+
+        when(aiChatRepository.findByIdAndUserId(101L, 10)).thenReturn(Optional.of(chat1));
+        when(aiChatRepository.findByIdAndUserId(102L, 10)).thenReturn(Optional.of(chat2));
+        when(aiChatRepository.findByIdAndUserId(103L, 10)).thenReturn(Optional.of(chat3));
+        when(aiChatRepository.findByIdAndUserId(104L, 10)).thenReturn(Optional.of(chat4));
+        when(aiChatRepository.findByIdAndUserId(105L, 10)).thenReturn(Optional.of(chat5));
+        when(aiRateLimitService.isAllowed(10)).thenReturn(true);
+        when(aiRateLimitService.canSendMessage(any())).thenReturn(true);
+        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> {
+            AiChatMessage message = invocation.getArgument(0);
+            message.setId(message.getRole() == MessageRole.USER ? 1L : 2L);
+            return message;
+        });
+        when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(any())).thenReturn(List.of());
+        when(semanticMemoryGraphService.compress(any(), eq("es")))
+                .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 10, 0.7, "es"));
+        when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        AtomicInteger completions = new AtomicInteger();
+        when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
+            .thenAnswer(invocation -> {
+                completions.incrementAndGet();
+                return new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1);
+            });
+
+        CountDownLatch latch = new CountDownLatch(5);
+        ExecutorService executor = Executors.newFixedThreadPool(5);
+        Object lock = new Object();
+        long[] chatIds = {101L, 102L, 103L, 104L, 105L};
+        for (int i = 0; i < chatIds.length; i++) {
+            final long chatId = chatIds[i];
+            final int index = i;
+            executor.submit(() -> {
+                try {
+                    synchronized (lock) {
+                        service.sendMessage(chatId, new McpChatMessageRequest("mensaje " + index, "es"), "jwt");
+                    }
+                } finally {
+                    latch.countDown();
+                }
+            });
+        }
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        executor.shutdownNow();
+        Thread.sleep(1500L);
+
+        assertTrue(completions.get() > 0);
+    }
+
+    private AiChat baseChat(Long id, AiProvider provider, String language) {
+        AiChat chat = new AiChat();
+        chat.setId(id);
+        chat.setUser(currentUser);
+        chat.setStatus(AiChatStatus.ACTIVE);
+        chat.setActiveProvider(provider);
+        chat.setUserLanguage(language);
+        return chat;
+    }
+
+    @Test
     void concurrentMessages_sameChat_processedSequentially() throws Exception {
         AiChat chat = new AiChat();
         chat.setId(100L);
@@ -179,8 +299,9 @@ class AiChatConcurrencyTest {
         assertNotNull(firstEmitter);
         assertTrue(streamStarted.await(5, TimeUnit.SECONDS));
 
-        assertThrows(AiConcurrentStreamException.class,
-                () -> service.sendMessage(100L, new McpChatMessageRequest("hola 2", "es"), "jwt"));
+        AiConcurrentStreamException ex = assertThrows(AiConcurrentStreamException.class,
+            () -> service.sendMessage(100L, new McpChatMessageRequest("hola 2", "es"), "jwt"));
+        assertNotNull(ex);
 
         releaseStream.countDown();
         verify(nestStreamBridgeService, timeout(1000)).streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt"));

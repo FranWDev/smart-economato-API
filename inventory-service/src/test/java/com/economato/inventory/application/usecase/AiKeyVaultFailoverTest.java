@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,8 +75,9 @@ class AiKeyVaultFailoverTest {
         key.setActive(true);
         when(userApiKeyRepository.findByUserIdAndProviderAndActiveTrue(10, AiProvider.OPENAI)).thenReturn(Optional.of(key));
 
-        assertThrows(InvalidOperationException.class,
-                () -> service.getDecryptedKey(10, AiProvider.OPENAI));
+        InvalidOperationException ex = assertThrows(InvalidOperationException.class,
+            () -> service.getDecryptedKey(10, AiProvider.OPENAI));
+        assertNotNull(ex);
     }
 
     @Test
@@ -86,12 +88,39 @@ class AiKeyVaultFailoverTest {
         key.setActive(true);
         when(userApiKeyRepository.findByUserIdAndProviderAndActiveTrue(10, AiProvider.OPENAI)).thenReturn(Optional.of(key));
 
-        assertThrows(InvalidOperationException.class,
-                () -> service.getDecryptedKey(10, AiProvider.OPENAI));
+        InvalidOperationException ex = assertThrows(InvalidOperationException.class,
+            () -> service.getDecryptedKey(10, AiProvider.OPENAI));
+        assertNotNull(ex);
     }
 
     @Test
-    void reEncryptAll_partialFailure_propagatesException() {
+    void tamperedIv_throwsAuthenticationException() {
+        AtomicReference<UserApiKey> stored = persistEncryptedKey("sk-tampered-1234");
+
+        String[] parts = stored.get().getEncryptedKey().split(":", 3);
+        parts[1] = parts[1].substring(0, Math.max(1, parts[1].length() - 2)) + "AA";
+        stored.get().setEncryptedKey(parts[0] + ":" + parts[1] + ":" + parts[2]);
+
+        InvalidOperationException ex = assertThrows(InvalidOperationException.class,
+            () -> service.getDecryptedKey(10, AiProvider.OPENAI));
+        assertNotNull(ex);
+    }
+
+    @Test
+    void truncatedData_throwsException() {
+        AtomicReference<UserApiKey> stored = persistEncryptedKey("sk-truncated-1234");
+
+        String[] parts = stored.get().getEncryptedKey().split(":", 3);
+        String truncatedCipher = parts[2].substring(0, Math.max(4, parts[2].length() / 3));
+        stored.get().setEncryptedKey(parts[0] + ":" + parts[1] + ":" + truncatedCipher);
+
+        InvalidOperationException ex = assertThrows(InvalidOperationException.class,
+            () -> service.getDecryptedKey(10, AiProvider.OPENAI));
+        assertNotNull(ex);
+    }
+
+    @Test
+    void reEncryptAll_partialFailure_rollsBack() {
         AtomicReference<UserApiKey> stored = new AtomicReference<>();
         when(userApiKeyRepository.findByUserIdAndProvider(10, AiProvider.OPENAI)).thenReturn(Optional.empty());
         when(userApiKeyRepository.findByUserIdAndActiveTrue(10)).thenReturn(List.of());
@@ -110,6 +139,25 @@ class AiKeyVaultFailoverTest {
         when(userApiKeyRepository.findByEncryptionKeyVersion(1)).thenReturn(List.of(stored.get()));
         when(userApiKeyRepository.saveAll(any())).thenThrow(new RuntimeException("database down"));
 
-        assertThrows(RuntimeException.class, () -> service.reEncryptAll(1, 2));
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> service.reEncryptAll(1, 2));
+        assertNotNull(ex);
+    }
+
+    private AtomicReference<UserApiKey> persistEncryptedKey(String plaintext) {
+        AtomicReference<UserApiKey> stored = new AtomicReference<>();
+        when(userApiKeyRepository.findByUserIdAndProvider(10, AiProvider.OPENAI)).thenReturn(Optional.empty());
+        when(userApiKeyRepository.findByUserIdAndActiveTrue(10)).thenReturn(List.of());
+        when(userApiKeyRepository.save(any(UserApiKey.class))).thenAnswer(invocation -> {
+            UserApiKey key = invocation.getArgument(0);
+            key.setId(1L);
+            key.setCreatedAt(LocalDateTime.now());
+            stored.set(key);
+            return key;
+        });
+        when(userApiKeyRepository.findByUserIdAndProviderAndActiveTrue(10, AiProvider.OPENAI))
+                .thenAnswer(invocation -> Optional.ofNullable(stored.get()));
+
+        service.saveKey(10, AiProvider.OPENAI, plaintext);
+        return stored;
     }
 }

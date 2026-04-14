@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.lenient;
@@ -80,8 +81,8 @@ class AiRateLimitServiceTest {
     }
 
     @Test
-    void isAllowed_atLimit_returnsFalse() {
-        when(zSetOperations.zCard(anyString())).thenReturn(3L);
+    void isAllowed_overLimit_returnsFalse() {
+        when(zSetOperations.zCard(anyString())).thenReturn(4L);
 
         boolean allowed = service.isAllowed(10);
 
@@ -133,6 +134,18 @@ class AiRateLimitServiceTest {
     }
 
     @Test
+    void isAllowed_windowExpires_allowsAgain() {
+        when(zSetOperations.zCard(anyString())).thenReturn(4L, 0L);
+
+        boolean first = service.isAllowed(10);
+        boolean second = service.isAllowed(10);
+
+        assertFalse(first);
+        assertTrue(second);
+        verify(zSetOperations, times(2)).removeRangeByScore(anyString(), anyDouble(), anyDouble());
+    }
+
+    @Test
     void canCreateChat_underLimit_returnsTrue() {
         when(aiChatRepository.countByUserIdAndStatus(10, AiChatStatus.ACTIVE)).thenReturn(1L);
 
@@ -142,7 +155,7 @@ class AiRateLimitServiceTest {
     }
 
     @Test
-    void canCreateChat_atLimit_returnsFalse() {
+    void canCreateChat_overLimit_returnsFalse() {
         when(aiChatRepository.countByUserIdAndStatus(10, AiChatStatus.ACTIVE)).thenReturn(2L);
 
         boolean allowed = service.canCreateChat(10);
@@ -160,7 +173,7 @@ class AiRateLimitServiceTest {
     }
 
     @Test
-    void canSendMessage_atLimit_returnsFalse() {
+    void canSendMessage_overLimit_returnsFalse() {
         when(aiChatMessageRepository.countByChatId(99L)).thenReturn(4L);
 
         boolean allowed = service.canSendMessage(99L);

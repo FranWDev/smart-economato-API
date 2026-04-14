@@ -1,23 +1,8 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.domain.model.AiProvider;
-import com.economato.inventory.domain.model.UserApiKey;
-import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserApiKeyRepository;
-import com.economato.inventory.infrastructure.config.ai.AiProviderProperties;
-import com.economato.inventory.infrastructure.config.ai.AiRateLimitProperties;
-import com.economato.inventory.infrastructure.config.ai.AiVaultProperties;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,12 +13,28 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import org.mockito.Mock;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.economato.inventory.domain.model.AiProvider;
+import com.economato.inventory.domain.model.UserApiKey;
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserApiKeyRepository;
+import com.economato.inventory.infrastructure.config.ai.AiProviderProperties;
+import com.economato.inventory.infrastructure.config.ai.AiRateLimitProperties;
+import com.economato.inventory.infrastructure.config.ai.AiVaultProperties;
+
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
 class AiKeyVaultServiceTest {
@@ -106,22 +107,78 @@ class AiKeyVaultServiceTest {
     }
 
     @Test
-    void saveKey_withInvalidPrefix_throwsException() {
-        assertThrows(InvalidOperationException.class,
-                () -> service.saveKey(10, AiProvider.OPENAI, "invalid-key"));
+    void saveKey_storesCorrectHint() {
+        when(userApiKeyRepository.findByUserIdAndProvider(10, AiProvider.OPENAI)).thenReturn(Optional.empty());
+        when(userApiKeyRepository.findByUserIdAndActiveTrue(10)).thenReturn(List.of());
+        when(userApiKeyRepository.save(any(UserApiKey.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.saveKey(10, AiProvider.OPENAI, "sk-test123456");
+
+        ArgumentCaptor<UserApiKey> captor = ArgumentCaptor.forClass(UserApiKey.class);
+        verify(userApiKeyRepository).save(captor.capture());
+        assertEquals("****3456", captor.getValue().getKeyHint());
     }
 
     @Test
-    void saveKey_exceedingMaxKeys_throwsException() {
+    void saveKey_storesCorrectVersion() {
+        when(userApiKeyRepository.findByUserIdAndProvider(10, AiProvider.OPENAI)).thenReturn(Optional.empty());
+        when(userApiKeyRepository.findByUserIdAndActiveTrue(10)).thenReturn(List.of());
+        when(userApiKeyRepository.save(any(UserApiKey.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.saveKey(10, AiProvider.OPENAI, "sk-test123456");
+
+        ArgumentCaptor<UserApiKey> captor = ArgumentCaptor.forClass(UserApiKey.class);
+        verify(userApiKeyRepository).save(captor.capture());
+        assertEquals(aiVaultProperties.getCurrentKeyVersion(), captor.getValue().getEncryptionKeyVersion());
+    }
+
+    @Test
+    void saveKey_formatIsVersionIvCiphertext() {
+        when(userApiKeyRepository.findByUserIdAndProvider(10, AiProvider.OPENAI)).thenReturn(Optional.empty());
+        when(userApiKeyRepository.findByUserIdAndActiveTrue(10)).thenReturn(List.of());
+        when(userApiKeyRepository.save(any(UserApiKey.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.saveKey(10, AiProvider.OPENAI, "sk-format1234");
+
+        ArgumentCaptor<UserApiKey> captor = ArgumentCaptor.forClass(UserApiKey.class);
+        verify(userApiKeyRepository).save(captor.capture());
+        String encrypted = captor.getValue().getEncryptedKey();
+
+        String[] parts = encrypted.split(":", 3);
+        assertEquals(3, parts.length);
+        assertEquals("1", parts[0]);
+        assertTrue(Base64.getDecoder().decode(parts[1]).length > 0);
+        assertTrue(Base64.getDecoder().decode(parts[2]).length > 0);
+    }
+
+    @Test
+    void saveKey_disabledProvider_throwsException() {
+        aiProviderProperties.getConfigs().get("OPENAI").setEnabled(false);
+
+        InvalidOperationException ex = assertThrows(InvalidOperationException.class,
+            () -> service.saveKey(10, AiProvider.OPENAI, "sk-test123456"));
+        assertTrue(ex.getMessage().contains("Provider disabled"));
+    }
+
+    @Test
+    void saveKey_invalidPrefix_throwsException() {
+        InvalidOperationException ex = assertThrows(InvalidOperationException.class,
+            () -> service.saveKey(10, AiProvider.OPENAI, "invalid-key"));
+        assertTrue(ex.getMessage().contains("Invalid API key format"));
+    }
+
+    @Test
+    void saveKey_exceedsMaxKeysPerUser_throwsException() {
         when(userApiKeyRepository.findByUserIdAndProvider(10, AiProvider.OPENAI)).thenReturn(Optional.empty());
         when(userApiKeyRepository.findByUserIdAndActiveTrue(10)).thenReturn(List.of(new UserApiKey(), new UserApiKey()));
 
-        assertThrows(InvalidOperationException.class,
-                () -> service.saveKey(10, AiProvider.OPENAI, "sk-test123456"));
+        InvalidOperationException ex = assertThrows(InvalidOperationException.class,
+            () -> service.saveKey(10, AiProvider.OPENAI, "sk-test123456"));
+        assertTrue(ex.getMessage().contains("Maximum number of API keys"));
     }
 
     @Test
-    void saveKey_duplicateProvider_updatesExisting() {
+    void saveKey_existingKey_replacesIt() {
         UserApiKey existing = new UserApiKey();
         existing.setProvider(AiProvider.OPENAI);
         existing.setEncryptedKey("old");
@@ -138,7 +195,7 @@ class AiKeyVaultServiceTest {
     }
 
     @Test
-    void getDecryptedKey_returnsOriginalPlaintext() {
+    void getDecryptedKey_roundTrip() {
         AtomicReference<UserApiKey> stored = new AtomicReference<>();
         when(userApiKeyRepository.findByUserIdAndProvider(10, AiProvider.OPENAI)).thenReturn(Optional.empty());
         when(userApiKeyRepository.findByUserIdAndActiveTrue(10)).thenReturn(List.of());
@@ -159,11 +216,47 @@ class AiKeyVaultServiceTest {
     }
 
     @Test
+    void getDecryptedKey_specialCharacters() {
+        AtomicReference<UserApiKey> stored = new AtomicReference<>();
+        when(userApiKeyRepository.findByUserIdAndProvider(10, AiProvider.OPENAI)).thenReturn(Optional.empty());
+        when(userApiKeyRepository.findByUserIdAndActiveTrue(10)).thenReturn(List.of());
+        when(userApiKeyRepository.save(any(UserApiKey.class))).thenAnswer(invocation -> {
+            UserApiKey key = invocation.getArgument(0);
+            stored.set(key);
+            return key;
+        });
+        when(userApiKeyRepository.findByUserIdAndProviderAndActiveTrue(10, AiProvider.OPENAI))
+                .thenAnswer(invocation -> Optional.ofNullable(stored.get()));
+
+        String original = "sk-áßÇñ-+/=?$#";
+        service.saveKey(10, AiProvider.OPENAI, original);
+
+        assertEquals(original, service.getDecryptedKey(10, AiProvider.OPENAI));
+    }
+
+    @Test
     void getDecryptedKey_withNonExistentKey_throwsException() {
         when(userApiKeyRepository.findByUserIdAndProviderAndActiveTrue(10, AiProvider.OPENAI)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class,
-                () -> service.getDecryptedKey(10, AiProvider.OPENAI));
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+            () -> service.getDecryptedKey(10, AiProvider.OPENAI));
+        assertTrue(ex.getMessage().contains("Active API key not found"));
+    }
+
+    @Test
+    void updateKey_updatesEncryptedValue() {
+        UserApiKey existing = new UserApiKey();
+        existing.setProvider(AiProvider.OPENAI);
+        existing.setEncryptedKey("old-encrypted");
+        existing.setEncryptionKeyVersion(1);
+
+        when(userApiKeyRepository.findByUserIdAndProviderAndActiveTrue(10, AiProvider.OPENAI)).thenReturn(Optional.of(existing));
+        when(userApiKeyRepository.save(any(UserApiKey.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateKey(10, AiProvider.OPENAI, "sk-updated-1234");
+
+        assertNotEquals("old-encrypted", existing.getEncryptedKey());
+        assertEquals("****1234", existing.getKeyHint());
     }
 
     @Test
@@ -186,8 +279,10 @@ class AiKeyVaultServiceTest {
                 1, "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
         ));
 
-        assertThrows(InvalidOperationException.class,
-                () -> service.getDecryptedKey(10, AiProvider.OPENAI));
+        InvalidOperationException ex = assertThrows(InvalidOperationException.class,
+            () -> service.getDecryptedKey(10, AiProvider.OPENAI));
+        assertTrue(ex.getMessage().contains("Failed to decrypt API key")
+            || ex.getMessage().contains("No vault key configured"));
     }
 
     @Test
@@ -213,24 +308,46 @@ class AiKeyVaultServiceTest {
     }
 
     @Test
-    void reEncryptAll_migratesKeysToNewVersion() {
-        UserApiKey key = new UserApiKey();
-        key.setEncryptedKey("1:AAAAAAAAAAAA:BBBB");
-        key.setEncryptionKeyVersion(1);
-        when(userApiKeyRepository.findByEncryptionKeyVersion(1)).thenReturn(List.of());
+    void reEncryptAll_rotatesKeys() {
+        AtomicReference<UserApiKey> stored = new AtomicReference<>();
+        when(userApiKeyRepository.findByUserIdAndProvider(10, AiProvider.OPENAI)).thenReturn(Optional.empty());
+        when(userApiKeyRepository.findByUserIdAndActiveTrue(10)).thenReturn(List.of());
+        when(userApiKeyRepository.save(any(UserApiKey.class))).thenAnswer(invocation -> {
+            UserApiKey key = invocation.getArgument(0);
+            stored.set(key);
+            return key;
+        });
+        when(userApiKeyRepository.findByEncryptionKeyVersion(1)).thenAnswer(invocation -> List.of(stored.get()));
+        when(userApiKeyRepository.findByUserIdAndProviderAndActiveTrue(10, AiProvider.OPENAI))
+                .thenAnswer(invocation -> Optional.ofNullable(stored.get()));
 
+        String original = "sk-rotate-7788";
+        service.saveKey(10, AiProvider.OPENAI, original);
         service.reEncryptAll(1, 2);
 
-        verify(userApiKeyRepository).findByEncryptionKeyVersion(1);
-        verify(userApiKeyRepository).saveAll(any());
+        assertEquals(2, stored.get().getEncryptionKeyVersion());
+        assertEquals(original, service.getDecryptedKey(10, AiProvider.OPENAI));
     }
 
     @Test
     void deleteKey_verifiesOwnership() {
         when(userApiKeyRepository.findByIdAndUserId(1L, 10)).thenReturn(Optional.empty());
 
-        assertThrows(ResourceNotFoundException.class,
-                () -> service.deleteKey(10, 1L));
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+            () -> service.deleteKey(10, 1L));
+        assertTrue(ex.getMessage().contains("API key not found"));
+    }
+
+    @Test
+    void deleteKey_removesFromDb() {
+        UserApiKey key = new UserApiKey();
+        key.setId(5L);
+        key.setProvider(AiProvider.OPENAI);
+        when(userApiKeyRepository.findByIdAndUserId(5L, 10)).thenReturn(Optional.of(key));
+
+        service.deleteKey(10, 5L);
+
+        verify(userApiKeyRepository).delete(key);
     }
 
     @Test
