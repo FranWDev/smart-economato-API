@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS ai_chat (
     last_message_at TIMESTAMP,
     message_count INTEGER NOT NULL DEFAULT 0,
     total_tokens_consumed BIGINT NOT NULL DEFAULT 0,
+    version BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT fk_ai_chat_user FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 

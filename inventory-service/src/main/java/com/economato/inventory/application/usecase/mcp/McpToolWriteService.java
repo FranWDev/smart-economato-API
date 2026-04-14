@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Locale;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -131,8 +132,10 @@ public class McpToolWriteService {
     }
 
     public Map<String, Object> reportIncident(McpIncidentRequest request) {
+        Integer incidentTypeId = mapIncidentTypeId(request.severity());
+
         CreateIncidentRequestDTO dto = CreateIncidentRequestDTO.builder()
-                .incidentTypeId(1)
+                .incidentTypeId(incidentTypeId)
                 .title(request.title())
                 .description(request.description())
                 .build();
@@ -142,6 +145,20 @@ public class McpToolWriteService {
         result.put("incidentId", created.getId());
         result.put("status", created.getStatus() != null ? created.getStatus().name() : null);
         return result;
+    }
+
+    private Integer mapIncidentTypeId(String severityRaw) {
+        if (severityRaw == null || severityRaw.isBlank()) {
+            return 1;
+        }
+
+        String severity = severityRaw.trim().toUpperCase(Locale.ROOT);
+        return switch (severity) {
+            case "ALTA", "HIGH" -> 3;
+            case "MEDIA", "MEDIUM" -> 2;
+            case "BAJA", "LOW" -> 1;
+            default -> 1;
+        };
     }
 
     private User requireCurrentUser() {

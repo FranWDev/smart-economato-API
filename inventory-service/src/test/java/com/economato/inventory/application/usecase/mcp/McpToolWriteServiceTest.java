@@ -157,5 +157,26 @@ class McpToolWriteServiceTest {
 
         assertEquals(50L, result.get("incidentId"));
         assertEquals("ABIERTO", result.get("status"));
+
+        ArgumentCaptor<com.economato.inventory.application.dto.request.CreateIncidentRequestDTO> captor =
+            ArgumentCaptor.forClass(com.economato.inventory.application.dto.request.CreateIncidentRequestDTO.class);
+        verify(incidentService).createIncident(captor.capture());
+        assertEquals(3, captor.getValue().getIncidentTypeId());
+        }
+
+        @Test
+        void reportIncident_ShouldMapSpanishSeverityValues() {
+        IncidentResponseDTO response = IncidentResponseDTO.builder()
+            .id(51L)
+            .status(IncidentStatus.ABIERTO)
+            .build();
+        when(incidentService.createIncident(any())).thenReturn(response);
+
+        service.reportIncident(new McpIncidentRequest("Title", "Desc", "MEDIA"));
+
+        ArgumentCaptor<com.economato.inventory.application.dto.request.CreateIncidentRequestDTO> captor =
+            ArgumentCaptor.forClass(com.economato.inventory.application.dto.request.CreateIncidentRequestDTO.class);
+        verify(incidentService).createIncident(captor.capture());
+        assertEquals(2, captor.getValue().getIncidentTypeId());
     }
 }
