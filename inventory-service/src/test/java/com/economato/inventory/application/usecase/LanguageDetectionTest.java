@@ -147,7 +147,6 @@ class LanguageDetectionTest {
         when(semanticMemoryGraphService.compress(any(), eq("es"))).thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
         when(nestStreamBridgeService.streamCompletion(any(), any(), eq("jwt")))
                 .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20));
-        when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         service.sendMessage(100L, new McpChatMessageRequest("hola", "xx"), "jwt");
 

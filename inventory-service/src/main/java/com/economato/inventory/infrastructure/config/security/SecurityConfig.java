@@ -160,7 +160,7 @@ public class SecurityConfig {
         public CorsConfigurationSource corsConfigurationSource() {
                 CorsConfiguration mcpConfiguration = new CorsConfiguration();
                 mcpConfiguration.setAllowedOrigins(List.of(aiNestAllowedOrigin));
-                mcpConfiguration.setAllowedMethods(Arrays.asList("GET", "POST"));
+                mcpConfiguration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
                 mcpConfiguration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Service-Key",
                                 "X-User-Language"));
                 mcpConfiguration.setAllowCredentials(false);

@@ -1,19 +1,12 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.application.dto.event.AiAuditEvent;
-import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
-import com.economato.inventory.application.dto.mcp.NestStreamEvent;
-import com.economato.inventory.infrastructure.adapter.in.web.AiStreamException;
-import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
-import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -22,12 +15,21 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
+import com.economato.inventory.application.dto.event.AiAuditEvent;
+import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
+import com.economato.inventory.application.dto.mcp.NestStreamEvent;
+import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiStreamException;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
+import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service

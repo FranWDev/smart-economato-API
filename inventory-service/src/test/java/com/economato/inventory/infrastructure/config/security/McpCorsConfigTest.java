@@ -61,6 +61,8 @@ class McpCorsConfigTest {
         assertNotNull(config);
         assertTrue(config.getAllowedHeaders().contains("X-Service-Key"));
         assertTrue(config.getAllowedHeaders().contains("X-User-Language"));
+        assertTrue(config.getAllowedMethods().contains("PATCH"));
+        assertTrue(config.getAllowedMethods().contains("DELETE"));
         assertFalse(Boolean.TRUE.equals(config.getAllowCredentials()));
     }
 
