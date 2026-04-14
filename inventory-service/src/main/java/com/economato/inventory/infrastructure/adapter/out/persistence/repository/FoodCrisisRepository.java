@@ -11,6 +11,8 @@ import java.util.Optional;
 public interface FoodCrisisRepository extends JpaRepository<FoodCrisis, Long> {
     Optional<FoodCrisis> findByCrisisCode(String crisisCode);
 
+       java.util.List<FoodCrisis> findByStatus(FoodCrisis.CrisisStatus status);
+
     @Query("SELECT DISTINCT f FROM FoodCrisis f " +
            "LEFT JOIN FETCH f.supplier " +
            "LEFT JOIN FETCH f.affectedProducts ap " +
@@ -22,6 +24,15 @@ public interface FoodCrisisRepository extends JpaRepository<FoodCrisis, Long> {
 
     @Query("SELECT DISTINCT f FROM FoodCrisis f LEFT JOIN FETCH f.supplier")
     java.util.List<FoodCrisis> findAllWithSupplier();
+
+    @Query("SELECT DISTINCT f FROM FoodCrisis f " +
+           "LEFT JOIN FETCH f.supplier " +
+           "LEFT JOIN FETCH f.affectedProducts ap " +
+           "LEFT JOIN FETCH ap.product " +
+           "LEFT JOIN FETCH f.activatedBy " +
+           "LEFT JOIN FETCH f.liftedBy " +
+           "WHERE f.status = :status")
+    java.util.List<FoodCrisis> findByStatusWithDetails(@org.springframework.data.repository.query.Param("status") FoodCrisis.CrisisStatus status);
 
     @Query(value = "SELECT f FROM FoodCrisis f LEFT JOIN FETCH f.supplier WHERE f.status = 'LIFTED' AND " +
            "(:searchTerm IS NULL OR :searchTerm = '' OR " +

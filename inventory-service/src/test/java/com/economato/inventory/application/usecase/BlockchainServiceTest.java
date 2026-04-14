@@ -39,7 +39,7 @@ class BlockchainServiceTest {
     @Mock private LedgerBlockRepository blockRepository;
     @Mock private StockLedgerRepository ledgerRepository;
     @Mock private StockSnapshotRepository snapshotRepository;
-    @Mock private BlockMiningService blockMiningService;
+    @Mock private BlockSealingService blockSealingService;
     @Mock private MerkleTreeService merkleTreeService;
     @Mock private BlockchainMerkleVerificationService merkleVerificationService;
     private final LedgerProperties ledgerProperties = new LedgerProperties();
@@ -56,13 +56,12 @@ class BlockchainServiceTest {
         ledgerProperties.setCurrentHmacVersion(1);
         blockchainProperties.setBlockSize(10);
         blockchainProperties.setMiningIntervalMs(30000L);
-        blockchainProperties.setDifficulty(2);
         blockchainProperties.setMerkleVerificationEnabled(true);
         meterRegistry = new SimpleMeterRegistry();
 
         service = new BlockchainService(
             blockRepository, ledgerRepository, snapshotRepository,
-            blockMiningService, merkleTreeService, merkleVerificationService, ledgerProperties,
+            blockSealingService, merkleTreeService, merkleVerificationService, ledgerProperties,
             blockchainProperties, auditEventProducer, txManager, meterRegistry
         );
     }
@@ -149,7 +148,7 @@ class BlockchainServiceTest {
     }
 
     @Test
-    void verifyBlockchainIntegrity_invalidProofOfWork_returnsFalse() {
+    void verifyBlockchainIntegrity_invalidMerkleRoot_returnsFalse() {
         when(merkleVerificationService.verifyBlockchainIntegrityMerkle()).thenReturn(false);
 
         boolean valid = service.verifyBlockchainIntegrity();
@@ -188,16 +187,15 @@ class BlockchainServiceTest {
 
     private Optional<LedgerBlock> createMockBlock(Long blockNumber) {
         String previousHash = blockNumber == 0L ? "GENESIS" : createMockBlock(blockNumber - 1).get().getBlockHash();
-        int difficulty = blockNumber == 0L ? 0 : 2;
 
         return Optional.of(LedgerBlock.builder()
             .id(blockNumber)
             .blockNumber(blockNumber)
-            .blockHash(generateHash(blockNumber, difficulty))
+            .blockHash(generateHash(blockNumber))
             .previousBlockHash(previousHash)
             .merkleRoot("merkleroot" + blockNumber)
-            .nonce(blockNumber * 10)
-            .difficulty(difficulty)
+            .nonce(0L)
+            .difficulty(0)
             .timestamp(LocalDateTime.now())
             .transactionCount(blockNumber.intValue() * 2)
             .hmacKeyVersion(1)
@@ -208,15 +206,14 @@ class BlockchainServiceTest {
         List<LedgerBlock> blocks = new ArrayList<>();
         String previousHash = "GENESIS";
         for (long i = 0; i < size; i++) {
-            int difficulty = i == 0 ? 0 : 2;
             LedgerBlock block = LedgerBlock.builder()
                 .id(i)
                 .blockNumber(i)
-                .blockHash(generateHash(i, difficulty))
+                .blockHash(generateHash(i))
                 .previousBlockHash(previousHash)
                 .merkleRoot("merkleroot" + i)
-                .nonce(i * 10)
-                .difficulty(difficulty)
+                .nonce(0L)
+                .difficulty(0)
                 .timestamp(LocalDateTime.now())
                 .transactionCount((int) (i * 2))
                 .hmacKeyVersion(1)
@@ -227,10 +224,8 @@ class BlockchainServiceTest {
         return blocks;
     }
 
-        private String generateHash(long seed, int difficulty) {
-        int prefixLength = Math.max(0, difficulty);
-        int hexLength = 64 - prefixLength;
-        return "0".repeat(prefixLength) + String.format("%0" + hexLength + "x", seed);
+        private String generateHash(long seed) {
+        return String.format("%064x", seed);
         }
 
     private List<StockLedger> createMockLedgers(List<Long> txIds) {

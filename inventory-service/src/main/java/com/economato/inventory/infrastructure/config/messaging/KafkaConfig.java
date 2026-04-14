@@ -16,6 +16,7 @@ import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
 import com.economato.inventory.application.dto.event.InventoryAuditEvent;
+import com.economato.inventory.application.dto.event.AiAuditEvent;
 import com.economato.inventory.application.dto.event.BlockchainAuditEvent;
 import com.economato.inventory.application.dto.event.OrderAuditEvent;
 import com.economato.inventory.application.dto.event.PresenceAuditEvent;
@@ -85,6 +86,14 @@ public class KafkaConfig {
     @Bean
     public NewTopic presenceAuditTopic() {
         return TopicBuilder.name(AuditEventProducer.PRESENCE_AUDIT_TOPIC)
+                .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic aiAuditTopic() {
+        return TopicBuilder.name(AuditEventProducer.AI_AUDIT_TOPIC)
                 .partitions(3)
                 .replicas(1)
                 .build();
@@ -194,6 +203,16 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<String, PresenceAuditEvent> presenceAuditKafkaTemplate() {
         return new KafkaTemplate<>(presenceAuditProducerFactory());
+    }
+
+    @Bean
+    public ProducerFactory<String, AiAuditEvent> aiAuditProducerFactory() {
+        return new DefaultKafkaProducerFactory<>(producerConfigs());
+    }
+
+    @Bean
+    public KafkaTemplate<String, AiAuditEvent> aiAuditKafkaTemplate() {
+        return new KafkaTemplate<>(aiAuditProducerFactory());
     }
 
     @Bean

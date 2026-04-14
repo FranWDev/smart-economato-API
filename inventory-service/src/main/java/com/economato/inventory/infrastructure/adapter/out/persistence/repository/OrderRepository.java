@@ -34,6 +34,8 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
 
        List<Order> findByOrderDateBetween(LocalDateTime start, LocalDateTime end);
 
+       long countBySupplierId(Integer supplierId);
+
        Optional<OrderDetailResponseDTO> findById(OrderResponseDTO order2);
 
        @Query("SELECT DISTINCT o FROM Order o " +

@@ -27,6 +27,8 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
 
   Optional<RecipeCookingAudit> findByCorrelationId(String correlationId);
 
+    long countByRecipeIdAndCookingDateAfter(Integer recipeId, LocalDateTime since);
+
   @Query("SELECT rca FROM RecipeCookingAudit rca LEFT JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.user.id = :userId ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findByUserId(@Param("userId") Integer userId);
 

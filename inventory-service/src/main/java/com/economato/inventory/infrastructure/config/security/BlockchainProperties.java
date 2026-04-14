@@ -23,9 +23,7 @@ public class BlockchainProperties {
     @Min(1000)
     private Long miningIntervalMs = 30000L;
 
-    @NotNull
-    @Min(0)
-    private Integer difficulty = 2;
+
 
     private String verificationStrategy = "MERKLE";
 

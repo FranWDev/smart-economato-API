@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -240,5 +241,75 @@ public class TestDataUtil {
         dto.setWeekStartDate(weekStartDate);
         dto.setSlots(slots);
         return dto;
+    }
+
+    public static AiChat createAiChat(User user, AiProvider provider) {
+        return createAiChat(user, provider, AiChatStatus.ACTIVE);
+    }
+
+    public static AiChat createAiChat(User user, AiProvider provider, AiChatStatus status) {
+        AiChat chat = new AiChat();
+        chat.setUser(user);
+        chat.setTitle("Chat de prueba AI");
+        chat.setStatus(status);
+        chat.setActiveProvider(provider);
+        chat.setUserLanguage("es");
+        chat.setCreatedAt(LocalDateTime.now());
+        chat.setLastMessageAt(LocalDateTime.now());
+        chat.setMessageCount(0);
+        chat.setTotalTokensConsumed(0L);
+        return chat;
+    }
+
+    public static AiChatMessage createAiChatMessage(AiChat chat, MessageRole role, String content) {
+        AiChatMessage message = new AiChatMessage();
+        message.setChat(chat);
+        message.setRole(role);
+        message.setContent(content);
+        message.setCreatedAt(LocalDateTime.now());
+        return message;
+    }
+
+    public static AiChatMessage createAiChatToolMessage(AiChat chat, String toolName, String toolResult) {
+        AiChatMessage message = createAiChatMessage(chat, MessageRole.TOOL, "Tool invocation");
+        message.setToolName(toolName);
+        message.setToolResult(toolResult);
+        return message;
+    }
+
+    public static UserApiKey createUserApiKey(User user, AiProvider provider, String encryptedKey, String hint) {
+        UserApiKey key = new UserApiKey();
+        key.setUser(user);
+        key.setProvider(provider);
+        key.setEncryptedKey(encryptedKey);
+        key.setKeyHint(hint);
+        key.setEncryptionKeyVersion(1);
+        key.setActive(true);
+        key.setCreatedAt(LocalDateTime.now());
+        return key;
+    }
+
+    public static List<AiChatMessage> createChatHistory(AiChat chat, int messageCount) {
+        List<AiChatMessage> history = new ArrayList<>();
+        for (int i = 0; i < messageCount; i++) {
+            if (i % 2 == 0) {
+                history.add(createAiChatMessage(chat, MessageRole.USER,
+                        "¿Cuánto stock queda de harina para esta semana? (" + i + ")"));
+            } else {
+                history.add(createAiChatMessage(chat, MessageRole.ASSISTANT,
+                        "Actualmente hay 45.5 KG de harina y el consumo proyectado es estable. (" + i + ")"));
+            }
+        }
+        return history;
+    }
+
+    public static List<AiChatMessage> createChatHistoryWithToolCalls(AiChat chat) {
+        List<AiChatMessage> history = new ArrayList<>();
+        history.add(createAiChatMessage(chat, MessageRole.USER, "Necesito revisar stock y hacer un pedido"));
+        history.add(createAiChatToolMessage(chat, "get-product-deep", "{\"productId\":42,\"name\":\"Harina\"}"));
+        history.add(createAiChatMessage(chat, MessageRole.ASSISTANT, "He analizado el stock de harina"));
+        history.add(createAiChatToolMessage(chat, "create-order", "{\"orderId\":1001,\"status\":\"PENDING\"}"));
+        history.add(createAiChatMessage(chat, MessageRole.ASSISTANT, "Pedido generado correctamente"));
+        return history;
     }
 }

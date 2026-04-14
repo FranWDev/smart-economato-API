@@ -13,6 +13,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 import com.economato.inventory.application.usecase.SystemConfigService;
+import com.economato.inventory.application.dto.event.AiAuditEvent;
 import com.economato.inventory.application.dto.event.InventoryAuditEvent;
 import com.economato.inventory.application.dto.event.OrderAuditEvent;
 import com.economato.inventory.application.dto.event.PresenceAuditEvent;
@@ -58,6 +59,7 @@ public class AuditOutboxProcessor {
     private final KafkaTemplate<String, RecipeCookingAuditEvent> recipeCookingKafkaTemplate;
     private final KafkaTemplate<String, StockPredictionEvent> stockPredictionKafkaTemplate;
     private final KafkaTemplate<String, PresenceAuditEvent> presenceAuditKafkaTemplate;
+    private final KafkaTemplate<String, AiAuditEvent> aiAuditKafkaTemplate;
     private final CircuitBreakerRegistry circuitBreakerRegistry;
     @Autowired(required = false)
     private SystemConfigService systemConfigService;
@@ -71,6 +73,7 @@ public class AuditOutboxProcessor {
             KafkaTemplate<String, RecipeCookingAuditEvent> recipeCookingKafkaTemplate,
             KafkaTemplate<String, StockPredictionEvent> stockPredictionKafkaTemplate,
             KafkaTemplate<String, PresenceAuditEvent> presenceAuditKafkaTemplate,
+            KafkaTemplate<String, AiAuditEvent> aiAuditKafkaTemplate,
             MeterRegistry meterRegistry,
             CircuitBreakerRegistry circuitBreakerRegistry) {
         this.outboxRepository = outboxRepository;
@@ -81,6 +84,7 @@ public class AuditOutboxProcessor {
         this.recipeCookingKafkaTemplate = recipeCookingKafkaTemplate;
         this.stockPredictionKafkaTemplate = stockPredictionKafkaTemplate;
         this.presenceAuditKafkaTemplate = presenceAuditKafkaTemplate;
+        this.aiAuditKafkaTemplate = aiAuditKafkaTemplate;
         this.circuitBreakerRegistry = circuitBreakerRegistry;
 
         // Registrar Gauge para eventos pendientes en Outbox
@@ -134,6 +138,9 @@ public class AuditOutboxProcessor {
                         case AuditEventProducer.PRESENCE_AUDIT_TOPIC:
                             auditEvent = objectMapper.readValue(event.getPayload(), PresenceAuditEvent.class);
                             break;
+                        case AuditEventProducer.AI_AUDIT_TOPIC:
+                            auditEvent = objectMapper.readValue(event.getPayload(), AiAuditEvent.class);
+                            break;
                         default:
                             log.warn("Topic no reconocido en Outbox: {}", event.getTopic());
                             outboxRepository.delete(event);
@@ -180,6 +187,10 @@ public class AuditOutboxProcessor {
                         case AuditEventProducer.PRESENCE_AUDIT_TOPIC:
                             future = presenceAuditKafkaTemplate.send(event.getTopic(), event.getEventKey(),
                                 (PresenceAuditEvent) auditEvent);
+                            break;
+                        case AuditEventProducer.AI_AUDIT_TOPIC:
+                            future = aiAuditKafkaTemplate.send(event.getTopic(), event.getEventKey(),
+                                    (AiAuditEvent) auditEvent);
                             break;
                     }
                 }

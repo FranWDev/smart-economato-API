@@ -1,6 +1,7 @@
 package com.economato.inventory.application.usecase;
 
 import com.economato.inventory.domain.model.LedgerBlock;
+import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.LedgerBlockRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -56,11 +57,6 @@ public class BlockchainMerkleVerificationService {
                     log.warn("Merkle verification failed: chain link broken at block {}", current.getBlockNumber());
                     return false;
                 }
-
-                if (!isValidProofOfWork(current)) {
-                    log.warn("Merkle verification failed: invalid PoW at block {}", current.getBlockNumber());
-                    return false;
-                }
             }
 
             log.info("Merkle blockchain verification complete: {} blocks verified in O(log n)", blocks.size());
@@ -79,11 +75,6 @@ public class BlockchainMerkleVerificationService {
 
             LedgerBlock block = blockOpt.get();
 
-            if (!isValidProofOfWork(block)) {
-                log.warn("Merkle verification failed: invalid PoW at block {}", blockNumber);
-                return false;
-            }
-            
             return true;
         });
     }
@@ -120,12 +111,6 @@ public class BlockchainMerkleVerificationService {
                     return false;
                 }
 
-                if (!isValidProofOfWork(current)) {
-                    log.warn("Merkle verification failed: invalid PoW at block {}", 
-                            current.getBlockNumber());
-                    return false;
-                }
-
                 previousBlock = current;
                 expectedBlockNumber++;
             }
@@ -144,8 +129,31 @@ public class BlockchainMerkleVerificationService {
                 return false;
             }
 
-            blockOpt.get();
-            return true;
+            LedgerBlock block = blockOpt.get();
+            
+            // Obtener las transacciones del bloque
+            List<StockLedger> transactions = ledgerRepository.findByBlockIdOrderByIdAsc(block.getId());
+            if (transactions.isEmpty()) {
+                log.warn("Merkle root verification failed: block {} has no transactions", blockNumber);
+                // El genesis block no tiene transacciones, su merkle root es HMAC("GENESIS_BLOCK")
+                return block.getBlockNumber() == 0;
+            }
+
+            // Extraer los hashes de las transacciones
+            List<String> txHashes = transactions.stream()
+                    .map(StockLedger::getCurrentHash)
+                    .toList();
+
+            // Recalcular el Merkle root
+            String recomputedMerkleRoot = merkleTreeService.computeMerkleRoot(txHashes);
+
+            // Comparar con el almacenado
+            boolean valid = recomputedMerkleRoot.equals(block.getMerkleRoot());
+            if (!valid) {
+                log.warn("Merkle root verification failed: block {} stored={} recomputed={}", 
+                        blockNumber, block.getMerkleRoot(), recomputedMerkleRoot);
+            }
+            return valid;
         });
     }
 
@@ -159,14 +167,14 @@ public class BlockchainMerkleVerificationService {
             }
 
             LedgerBlock genesis = blocks.get(0);
-            if (!isValidGenesisBlock(genesis) || !isValidProofOfWork(genesis)) {
+            if (!isValidGenesisBlock(genesis)) {
                 log.warn("Spot-check failed: invalid genesis block");
                 return false;
             }
 
             LedgerBlock latest = blocks.get(blocks.size() - 1);
-            if (!isValidProofOfWork(latest)) {
-                log.warn("Spot-check failed: invalid PoW at latest block {}", latest.getBlockNumber());
+            if (!verifyBlockMerkleRoot(latest.getBlockNumber())) {
+                log.warn("Spot-check failed: invalid Merkle root at latest block {}", latest.getBlockNumber());
                 return false;
             }
 
@@ -178,7 +186,7 @@ public class BlockchainMerkleVerificationService {
                     int idx = i * interval;
                     if (idx < blocks.size() - 1) {
                         LedgerBlock sample = blocks.get(idx);
-                        if (!isValidProofOfWork(sample)) {
+                        if (!verifyBlockMerkleRoot(sample.getBlockNumber())) {
                             log.warn("Spot-check failed at sampled block {}", sample.getBlockNumber());
                             return false;
                         }
@@ -195,18 +203,5 @@ public class BlockchainMerkleVerificationService {
     private boolean isValidGenesisBlock(LedgerBlock genesis) {
         return genesis.getBlockNumber() == 0 &&
                genesis.getPreviousBlockHash().equals("GENESIS");
-    }
-
-    private boolean isValidProofOfWork(LedgerBlock block) {
-        int difficulty = block.getDifficulty();
-        String hash = block.getBlockHash();
-
-        for (int i = 0; i < difficulty; i++) {
-            if (i >= hash.length() || hash.charAt(i) != '0') {
-                return false;
-            }
-        }
-
-        return true;
     }
 }

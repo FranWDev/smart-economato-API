@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -33,13 +34,21 @@ import jakarta.servlet.http.HttpServletResponse;
 public class SecurityConfig {
 
         private final JwtFilter jwtFilter;
+        private final McpServiceGuardFilter mcpServiceGuardFilter;
         private final I18nService i18nService;
         private final LocaleResolver localeResolver;
+        private final String aiNestAllowedOrigin;
 
-        public SecurityConfig(JwtFilter jwtFilter, I18nService i18nService, LocaleResolver localeResolver) {
+        public SecurityConfig(JwtFilter jwtFilter,
+                        McpServiceGuardFilter mcpServiceGuardFilter,
+                        I18nService i18nService,
+                        LocaleResolver localeResolver,
+                        @Value("${ai.nest.allowed-origin:http://localhost}") String aiNestAllowedOrigin) {
                 this.jwtFilter = jwtFilter;
+                this.mcpServiceGuardFilter = mcpServiceGuardFilter;
                 this.i18nService = i18nService;
                 this.localeResolver = localeResolver;
+                this.aiNestAllowedOrigin = aiNestAllowedOrigin;
         }
 
         @Bean
@@ -137,6 +146,7 @@ public class SecurityConfig {
                                                                         String.format("{\"status\":401,\"message\":\"%s\"}",
                                                                                         message));
                                                 }))
+                                .addFilterBefore(mcpServiceGuardFilter, UsernamePasswordAuthenticationFilter.class)
                                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                                 .build();
         }
@@ -148,6 +158,14 @@ public class SecurityConfig {
 
         @Bean
         public CorsConfigurationSource corsConfigurationSource() {
+                CorsConfiguration mcpConfiguration = new CorsConfiguration();
+                mcpConfiguration.setAllowedOrigins(List.of(aiNestAllowedOrigin));
+                mcpConfiguration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+                mcpConfiguration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Service-Key",
+                                "X-User-Language"));
+                mcpConfiguration.setAllowCredentials(false);
+                mcpConfiguration.setMaxAge(86400L);
+
                 CorsConfiguration configuration = new CorsConfiguration();
                 // Permitir dev local + LAN y dominio de producción.
                 // Nota: con allowCredentials=true no se puede usar "*" en allowedOrigins.
@@ -168,12 +186,14 @@ public class SecurityConfig {
                                 "http://192.168.8.*:*",
                                 "https://economato.servehttp.com"));
                 configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-                configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "Origin"));
+                configuration.setAllowedHeaders(
+                                Arrays.asList("Authorization", "Content-Type", "Accept", "Origin", "X-User-Language"));
                 configuration.setExposedHeaders(List.of("Authorization"));
                 configuration.setAllowCredentials(true);
                 configuration.setMaxAge(86400L);
 
                 UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+                source.registerCorsConfiguration("/api/mcp/**", mcpConfiguration);
                 source.registerCorsConfiguration("/**", configuration);
                 return source;
         }
