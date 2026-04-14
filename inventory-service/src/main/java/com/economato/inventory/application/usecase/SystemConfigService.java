@@ -94,6 +94,7 @@ public class SystemConfigService {
             case INCIDENT_OPENED -> cfg.isNotifyIncidentOpened();
             case INCIDENT_CLOSED -> cfg.isNotifyIncidentClosed();
             case INCIDENT_CHAT_MESSAGE -> cfg.isNotifyIncidentChatMessage();
+            case DRAFT_SUBMITTED, DRAFT_APPROVED, DRAFT_REJECTED, DRAFT_RESUBMITTED -> true;
             case MANUAL -> true;
         };
     }
