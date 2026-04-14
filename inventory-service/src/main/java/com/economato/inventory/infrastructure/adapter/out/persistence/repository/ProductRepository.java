@@ -56,6 +56,8 @@ public interface ProductRepository extends JpaRepository<Product, Integer> {
         @Query("SELECT p FROM Product p LEFT JOIN FETCH p.supplier WHERE p.id IN :ids")
         List<Product> findAllByIdWithSupplier(@Param("ids") Collection<Integer> ids);
 
+        List<Product> findBySupplierId(Integer supplierId);
+
         @Lock(LockModeType.PESSIMISTIC_READ)
         @Query("SELECT p FROM Product p WHERE p.id = :id")
         Optional<Product> findByIdForRead(@Param("id") Integer id);

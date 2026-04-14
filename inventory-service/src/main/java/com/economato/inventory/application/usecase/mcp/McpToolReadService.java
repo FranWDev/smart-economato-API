@@ -216,14 +216,11 @@ public class McpToolReadService {
         Supplier supplier = supplierRepository.findById(supplierId)
                 .orElseThrow(() -> new ResourceNotFoundException("Supplier not found"));
 
-        List<McpProductDto> products = productRepository.findAll().stream()
-                .filter(p -> p.getSupplier() != null && supplierId.equals(p.getSupplier().getId()))
+        List<McpProductDto> products = productRepository.findBySupplierId(supplierId).stream()
                 .map(this::mapProduct)
                 .toList();
 
-        int recentOrderCount = (int) orderRepository.findAll().stream()
-                .filter(o -> o.getSupplier() != null && supplierId.equals(o.getSupplier().getId()))
-                .count();
+        int recentOrderCount = Math.toIntExact(orderRepository.countBySupplierId(supplierId));
 
         boolean hasCrisis = !foodCrisisRepository.findByStatus(FoodCrisis.CrisisStatus.ACTIVE).stream()
                 .filter(c -> c.getSupplier() != null)

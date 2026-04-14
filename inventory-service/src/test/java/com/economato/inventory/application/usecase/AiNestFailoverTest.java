@@ -21,7 +21,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
-import com.economato.inventory.infrastructure.adapter.in.web.AiStreamException;
+import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiStreamException;
 import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 

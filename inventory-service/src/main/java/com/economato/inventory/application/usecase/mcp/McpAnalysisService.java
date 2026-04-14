@@ -1,5 +1,21 @@
 package com.economato.inventory.application.usecase.mcp;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.economato.inventory.application.dto.mcp.McpCostBreakdownDto;
 import com.economato.inventory.application.dto.mcp.McpMenuDayDto;
 import com.economato.inventory.application.dto.mcp.McpMenuRecipeDto;
@@ -21,22 +37,8 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockPredictionRepository;
 import com.economato.inventory.infrastructure.config.ai.AiAnalysisProperties;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -115,12 +117,12 @@ public class McpAnalysisService {
         BigDecimal dailyBudget = safeBudget.divide(BigDecimal.valueOf(5), 4, RoundingMode.HALF_UP);
         var candidates = recipeRepository.findAll().stream()
                 .filter(recipe -> recipe.getAllergens().stream().noneMatch(a -> excluded.contains(a.getName().toLowerCase())))
-                .limit(aiAnalysisProperties.getMenuOptimizerMaxRecipes())
                 .sorted(Comparator.comparing(r -> r.getTotalCost().divide(
                         r.getPortions() == null || r.getPortions().compareTo(BigDecimal.ZERO) <= 0 ? BigDecimal.ONE : r.getPortions(),
                         4,
                         RoundingMode.HALF_UP
-                )))
+            )))
+            .limit(aiAnalysisProperties.getMenuOptimizerMaxRecipes())
                 .toList();
 
         List<McpMenuDayDto> days = new ArrayList<>();
@@ -203,8 +205,11 @@ public class McpAnalysisService {
                 })
                 .count();
 
+        List<ProductBatch> activeBatches = productBatchService.getAllActiveBatches();
         List<ProductBatch> expiringBatches = productBatchService.getExpiringBatches(aiAnalysisProperties.getWasteRiskDaysThreshold());
-        int totalActiveBatches = (int) products.stream().flatMap(p -> productBatchService.getActiveBatches(p.getId()).stream()).count();
+        Map<Integer, List<ProductBatch>> batchesByProductId = activeBatches.stream()
+            .collect(Collectors.groupingBy(batch -> batch.getProduct().getId()));
+        int totalActiveBatches = batchesByProductId.values().stream().mapToInt(List::size).sum();
         int batchesWithoutExpiryRisk = Math.max(0, totalActiveBatches - expiringBatches.size());
 
         int totalAlerts = stockAlertService.getActiveAlerts().size();
@@ -213,7 +218,9 @@ public class McpAnalysisService {
         double stockRatio = totalProducts == 0 ? 0d : (double) productsAbovePrediction / totalProducts;
         double batchRatio = totalActiveBatches == 0 ? 0d : (double) batchesWithoutExpiryRisk / totalActiveBatches;
         double alertRatio = totalProducts == 0 ? 0d : (double) alertsResolved / totalProducts;
-        int score = (int) Math.round((0.4 * stockRatio + 0.3 * batchRatio + 0.3 * alertRatio) * 100d);
+        int score = (int) Math.round((aiAnalysisProperties.getStockHealthStockWeight() * stockRatio
+            + aiAnalysisProperties.getStockHealthBatchWeight() * batchRatio
+            + aiAnalysisProperties.getStockHealthAlertWeight() * alertRatio) * 100d);
 
         return new McpStockHealthDto(
                 Math.max(0, Math.min(score, 100)),

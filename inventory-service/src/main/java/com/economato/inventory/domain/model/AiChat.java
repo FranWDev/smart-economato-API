@@ -63,4 +63,9 @@ public class AiChat {
     @Column(name = "total_tokens_consumed", nullable = false)
     @Builder.Default
     private long totalTokensConsumed = 0L;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    @Builder.Default
+    private Long version = 0L;
 }

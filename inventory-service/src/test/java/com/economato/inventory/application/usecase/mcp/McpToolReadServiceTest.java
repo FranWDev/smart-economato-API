@@ -6,12 +6,15 @@ import com.economato.inventory.application.usecase.ProductBatchService;
 import com.economato.inventory.application.usecase.StockAlertService;
 import com.economato.inventory.application.usecase.WeeklyPlanService;
 import com.economato.inventory.domain.model.MovementType;
+import com.economato.inventory.domain.model.FoodCrisis;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.domain.model.StockDailyForecast;
 import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.StockWeeklyConsumptionHistory;
 import com.economato.inventory.domain.model.User;
+import com.economato.inventory.domain.model.Supplier;
+import com.economato.inventory.application.dto.mcp.McpSupplierDeepDto;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.FoodCrisisRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
@@ -37,9 +40,11 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -162,5 +167,38 @@ class McpToolReadServiceTest {
         assertEquals(1, result.size());
         assertEquals("SALIDA", result.get(0).movementType());
         assertEquals("Admin", result.get(0).userName());
+    }
+
+    @Test
+    void getSupplierDeep_ShouldUseSupplierScopedQueries() {
+        Supplier supplier = new Supplier();
+        supplier.setId(3);
+        supplier.setName("Proveedor Central");
+        supplier.setPhone("555-123");
+        supplier.setEmail("proveedor@test.local");
+        when(supplierRepository.findById(3)).thenReturn(Optional.of(supplier));
+
+        Product product = new Product();
+        product.setId(42);
+        product.setName("Tomate");
+        product.setProductCode("P42");
+        product.setCurrentStock(new BigDecimal("10.000"));
+        product.setUnit("kg");
+        product.setUnitPrice(new BigDecimal("2.50"));
+        when(productRepository.findBySupplierId(3)).thenReturn(List.of(product));
+        when(orderRepository.countBySupplierId(3)).thenReturn(2L);
+        when(foodCrisisRepository.findByStatus(FoodCrisis.CrisisStatus.ACTIVE)).thenReturn(List.of());
+
+        McpSupplierDeepDto result = service.getSupplierDeep(3);
+
+        assertEquals(3, result.getId());
+        assertEquals(1, result.getProducts().size());
+        assertEquals("Tomate", result.getProducts().get(0).getName());
+        assertEquals(2, result.getRecentOrderCount());
+        assertFalse(result.isHasCrisis());
+        verify(productRepository).findBySupplierId(3);
+        verify(orderRepository).countBySupplierId(3);
+        verify(productRepository, never()).findAll();
+        verify(orderRepository, never()).findAll();
     }
 }

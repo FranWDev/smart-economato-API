@@ -1,6 +1,13 @@
 package com.economato.inventory.infrastructure.adapter.in.web.mcp;
 
-import com.economato.inventory.infrastructure.adapter.in.web.AiStreamException;
+import java.time.LocalDateTime;
+
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
 import com.economato.inventory.infrastructure.adapter.in.web.ErrorResponse;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiChatLimitReachedException;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiChatNotFoundException;
@@ -9,13 +16,7 @@ import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiKey
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiMaxMessagesReachedException;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiProviderDisabledException;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiRateLimitExceededException;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
-
-import java.time.LocalDateTime;
+import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiStreamException;
 
 @RestControllerAdvice(basePackages = "com.economato.inventory.infrastructure.adapter.in.web.mcp")
 public class AiExceptionHandler {
@@ -32,7 +33,8 @@ public class AiExceptionHandler {
 
     @ExceptionHandler(AiKeyNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleAiKeyNotFound(AiKeyNotFoundException ex) {
-        return build(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        return ResponseEntity.status(422)
+                .body(new ErrorResponse(422, ex.getMessage(), LocalDateTime.now()));
     }
 
     @ExceptionHandler(AiChatLimitReachedException.class)

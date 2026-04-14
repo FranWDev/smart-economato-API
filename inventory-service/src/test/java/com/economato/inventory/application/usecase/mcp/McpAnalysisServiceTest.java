@@ -1,6 +1,7 @@
 package com.economato.inventory.application.usecase.mcp;
 
 import com.economato.inventory.application.dto.mcp.McpCostBreakdownDto;
+import com.economato.inventory.application.dto.mcp.McpMenuSuggestionDto;
 import com.economato.inventory.application.dto.mcp.McpReorderSuggestionDto;
 import com.economato.inventory.application.dto.mcp.McpStockHealthDto;
 import com.economato.inventory.application.dto.projection.PendingProductQuantity;
@@ -11,6 +12,7 @@ import com.economato.inventory.application.usecase.ProductBatchService;
 import com.economato.inventory.application.usecase.StockAlertService;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.ProductBatch;
+import com.economato.inventory.domain.model.Recipe;
 import com.economato.inventory.domain.model.StockPrediction;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
@@ -27,7 +29,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -129,8 +133,10 @@ class McpAnalysisServiceTest {
         ProductBatch b2 = ProductBatch.builder().id(2L).product(p1).expirationDate(LocalDate.now().plusDays(10)).remainingQuantity(BigDecimal.ONE).build();
         ProductBatch b3 = ProductBatch.builder().id(3L).product(p2).expirationDate(LocalDate.now().plusDays(12)).remainingQuantity(BigDecimal.ONE).build();
         when(productBatchService.getExpiringBatches(7)).thenReturn(List.of(b1));
-        when(productBatchService.getActiveBatches(1)).thenReturn(List.of(b1, b2));
-        when(productBatchService.getActiveBatches(2)).thenReturn(List.of(b3));
+        when(productBatchService.getAllActiveBatches()).thenReturn(List.of(b1, b2, b3));
+        when(aiAnalysisProperties.getStockHealthStockWeight()).thenReturn(0.5);
+        when(aiAnalysisProperties.getStockHealthBatchWeight()).thenReturn(0.3);
+        when(aiAnalysisProperties.getStockHealthAlertWeight()).thenReturn(0.2);
 
         StockAlertDTO alert = StockAlertDTO.builder()
                 .productId(2)
@@ -149,5 +155,84 @@ class McpAnalysisServiceTest {
         assertEquals(3, result.totalActiveBatches());
         assertEquals(1, result.alertsResolved());
         assertEquals(1, result.totalAlerts());
+    }
+
+    @Test
+    void getStockHealthScore_ShouldUseConfiguredWeights() {
+        Product p1 = new Product();
+        p1.setId(1);
+        p1.setCurrentStock(new BigDecimal("20.000"));
+        Product p2 = new Product();
+        p2.setId(2);
+        p2.setCurrentStock(new BigDecimal("5.000"));
+        when(productRepository.findAllActive()).thenReturn(List.of(p1, p2));
+
+        StockPrediction pred1 = new StockPrediction();
+        pred1.setId(1);
+        pred1.setProjectedConsumption(new BigDecimal("10.000"));
+        StockPrediction pred2 = new StockPrediction();
+        pred2.setId(2);
+        pred2.setProjectedConsumption(new BigDecimal("8.000"));
+        when(stockPredictionRepository.findAll()).thenReturn(List.of(pred1, pred2));
+
+        when(aiAnalysisProperties.getWasteRiskDaysThreshold()).thenReturn(7);
+        when(aiAnalysisProperties.getStockHealthStockWeight()).thenReturn(1.0);
+        when(aiAnalysisProperties.getStockHealthBatchWeight()).thenReturn(0.0);
+        when(aiAnalysisProperties.getStockHealthAlertWeight()).thenReturn(0.0);
+
+        ProductBatch b1 = ProductBatch.builder().id(1L).product(p1).expirationDate(LocalDate.now().plusDays(1)).remainingQuantity(BigDecimal.ONE).build();
+        ProductBatch b2 = ProductBatch.builder().id(2L).product(p1).expirationDate(LocalDate.now().plusDays(10)).remainingQuantity(BigDecimal.ONE).build();
+        ProductBatch b3 = ProductBatch.builder().id(3L).product(p2).expirationDate(LocalDate.now().plusDays(12)).remainingQuantity(BigDecimal.ONE).build();
+        when(productBatchService.getExpiringBatches(7)).thenReturn(List.of(b1));
+        when(productBatchService.getAllActiveBatches()).thenReturn(List.of(b1, b2, b3));
+
+        StockAlertDTO alert = StockAlertDTO.builder()
+                .productId(2)
+                .productName("P2")
+                .severity(AlertSeverity.HIGH)
+                .resolution(AlertResolution.UNCOVERED)
+                .build();
+        when(stockAlertService.getActiveAlerts()).thenReturn(List.of(alert));
+
+        McpStockHealthDto result = service.getStockHealthScore();
+
+        assertEquals(50, result.score());
+        assertEquals(1, result.productsAbovePrediction());
+        assertEquals(2, result.totalProducts());
+        assertEquals(3, result.totalActiveBatches());
+    }
+
+    @Test
+    void getMenuOptimizer_ShouldSortBeforeLimitingCheapestRecipes() {
+        Recipe expensive = new Recipe();
+        expensive.setId(1);
+        expensive.setName("Expensive");
+        expensive.setTotalCost(new BigDecimal("100.00"));
+        expensive.setPortions(new BigDecimal("1.00"));
+        expensive.setAllergens(Set.of());
+
+        Recipe cheap = new Recipe();
+        cheap.setId(2);
+        cheap.setName("Cheap");
+        cheap.setTotalCost(new BigDecimal("1.00"));
+        cheap.setPortions(new BigDecimal("1.00"));
+        cheap.setAllergens(Set.of());
+
+        Recipe mid = new Recipe();
+        mid.setId(3);
+        mid.setName("Mid");
+        mid.setTotalCost(new BigDecimal("2.00"));
+        mid.setPortions(new BigDecimal("1.00"));
+        mid.setAllergens(new HashSet<>());
+
+        when(recipeRepository.findAll()).thenReturn(List.of(expensive, cheap, mid));
+        when(aiAnalysisProperties.getMenuOptimizerMaxRecipes()).thenReturn(2);
+
+        McpMenuSuggestionDto result = service.getMenuOptimizer(new BigDecimal("100"), List.of());
+
+        assertEquals(5, result.days().size());
+        assertEquals("Cheap", result.days().get(0).recipes().get(0).recipeName());
+        assertEquals("Mid", result.days().get(1).recipes().get(0).recipeName());
+        assertEquals("Cheap", result.days().get(2).recipes().get(0).recipeName());
     }
 }

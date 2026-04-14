@@ -20,8 +20,8 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
 import com.economato.inventory.application.usecase.AiChatService;
 import com.economato.inventory.infrastructure.TestDataUtil;
-import com.economato.inventory.infrastructure.adapter.in.web.AiStreamException;
 import com.economato.inventory.infrastructure.adapter.in.web.BaseIntegrationTest;
+import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiStreamException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 
 class AiResilienceEndToEndTest extends BaseIntegrationTest {

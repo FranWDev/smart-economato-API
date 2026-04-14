@@ -1,30 +1,31 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
-import com.economato.inventory.infrastructure.adapter.in.web.AiStreamException;
-import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import org.mockito.Mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
+import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiStreamException;
+import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
 class NestStreamBridgeServiceTest {
