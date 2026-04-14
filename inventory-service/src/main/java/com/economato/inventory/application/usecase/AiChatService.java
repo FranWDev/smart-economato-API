@@ -302,7 +302,7 @@ public class AiChatService {
                     .errorType(resolveErrorType(ex))
                     .eventTimestamp(LocalDateTime.now())
                     .build());
-                persistSystemError(chat, ex);
+                persistSystemError(chat, currentUser, ex);
                 try {
                     emitter.completeWithError(ex);
                 } catch (Exception ignored) {
@@ -508,18 +508,33 @@ public class AiChatService {
         counter("ai.chat.tokens.total", "direction", "output", "provider", provider.name()).increment(outputTokens);
     }
 
-    private void persistSystemError(AiChat chat, Exception ex) {
-        try {
+    private void persistSystemError(AiChat chat, User currentUser, Exception ex) {
+        Runnable errorWork = () -> {
+            AiChat managedChat = aiChatRepository.findByIdAndUserId(chat.getId(), currentUser.getId())
+                    .orElseThrow(() -> new AiChatNotFoundException("AI chat not found"));
+
             AiChatMessage systemMessage = AiChatMessage.builder()
-                    .chat(chat)
+                    .chat(managedChat)
                     .role(MessageRole.SYSTEM)
                     .content("Stream error: " + ex.getMessage())
                     .build();
             aiChatMessageRepository.save(systemMessage);
-            chat.setLastMessageAt(LocalDateTime.now());
-            chat.setMessageCount(chat.getMessageCount() + 1);
-            aiChatRepository.save(chat);
-            countMessage(MessageRole.SYSTEM, chat.getActiveProvider());
+            managedChat.setLastMessageAt(LocalDateTime.now());
+            managedChat.setMessageCount(managedChat.getMessageCount() + 1);
+            aiChatRepository.save(managedChat);
+            countMessage(MessageRole.SYSTEM, managedChat.getActiveProvider());
+        };
+
+        try {
+            if (transactionManager == null) {
+                errorWork.run();
+                return;
+            }
+
+            new TransactionTemplate(transactionManager).execute(status -> {
+                errorWork.run();
+                return null;
+            });
         } catch (Exception ignored) {
             // Ignore secondary persistence failures in error path.
         }

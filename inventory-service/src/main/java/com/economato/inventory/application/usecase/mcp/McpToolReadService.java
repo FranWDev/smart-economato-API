@@ -5,6 +5,7 @@ import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.WeeklyPlanResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyPlanSlotResponseDTO;
 import com.economato.inventory.application.usecase.ProductBatchService;
+import java.math.RoundingMode;
 import com.economato.inventory.application.usecase.StockAlertService;
 import com.economato.inventory.application.usecase.WeeklyPlanService;
 import com.economato.inventory.domain.model.FoodCrisis;
@@ -121,7 +122,7 @@ public class McpToolReadService {
         BigDecimal portions = recipe.getPortions() == null || recipe.getPortions().compareTo(BigDecimal.ZERO) <= 0
                 ? BigDecimal.ONE
                 : recipe.getPortions();
-        BigDecimal costPerPortion = recipe.getTotalCost().divide(portions, 4, java.math.RoundingMode.HALF_UP);
+        BigDecimal costPerPortion = recipe.getTotalCost().divide(portions, 4, RoundingMode.HALF_UP);
         long recentCookingCount = recipeCookingAuditRepository.countByRecipeIdAndCookingDateAfter(
                 recipeId,
                 LocalDateTime.now().minusDays(30)
@@ -154,9 +155,9 @@ public class McpToolReadService {
         boolean feasible = true;
         for (var component : recipe.getComponents()) {
             Product product = component.getProduct();
-            BigDecimal required = component.getQuantity().multiply(safePortions).divide(recipePortions, 4, java.math.RoundingMode.HALF_UP);
+            BigDecimal required = component.getQuantity().multiply(safePortions).divide(recipePortions, 4, RoundingMode.HALF_UP);
             BigDecimal availability = product.getAvailabilityPercentage() == null ? BigDecimal.valueOf(100) : product.getAvailabilityPercentage();
-            BigDecimal available = product.getCurrentStock().multiply(availability).divide(BigDecimal.valueOf(100), 4, java.math.RoundingMode.DOWN);
+            BigDecimal available = product.getCurrentStock().multiply(availability).divide(BigDecimal.valueOf(100), 4, RoundingMode.DOWN);
             BigDecimal deficit = required.subtract(available);
             if (deficit.compareTo(BigDecimal.ZERO) > 0) {
                 feasible = false;
@@ -240,7 +241,7 @@ public class McpToolReadService {
     }
 
     public List<McpCrisisDto> getActiveCrises() {
-        return foodCrisisRepository.findByStatus(FoodCrisis.CrisisStatus.ACTIVE).stream()
+        return foodCrisisRepository.findByStatusWithDetails(FoodCrisis.CrisisStatus.ACTIVE).stream()
                 .map(crisis -> new McpCrisisDto(
                         crisis.getId(),
                         crisis.getCrisisCode(),
