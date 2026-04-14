@@ -196,8 +196,9 @@ public class UserController {
 
                 boolean isAdmin = authentication.getAuthorities().stream()
                                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+                boolean isSelf = id.equals(service.findByUsername(authentication.getName()).getId());
 
-                service.changePassword(id, request, isAdmin);
+                service.changePassword(id, request, isAdmin, isSelf);
                 return ResponseEntity.ok().build();
         }
 

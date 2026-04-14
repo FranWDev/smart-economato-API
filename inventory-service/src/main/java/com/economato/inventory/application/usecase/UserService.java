@@ -240,17 +240,21 @@ public class UserService {
         })
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void changePassword(Integer id, ChangePasswordRequestDTO request,
-            boolean isAdmin) {
+            boolean isAdmin, boolean isSelf) {
         User user = repository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { id })));
 
         validatePasswordLength(request.getNewPassword());
+        boolean wasFirstLogin = user.isFirstLogin();
 
         if (isAdmin) {
             user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+            if (wasFirstLogin && isSelf) {
+                user.setFirstLogin(false);
+            }
         } else {
-            if (user.isFirstLogin()) {
+            if (wasFirstLogin) {
                 user.setFirstLogin(false);
             } else {
                 if (request.getOldPassword() == null || request.getOldPassword().isEmpty()) {

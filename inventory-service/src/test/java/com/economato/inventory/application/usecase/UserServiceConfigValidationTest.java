@@ -78,7 +78,7 @@ class UserServiceConfigValidationTest {
         ChangePasswordRequestDTO request = new ChangePasswordRequestDTO();
         request.setNewPassword("short6");
 
-        var thrown = assertThrows(InvalidOperationException.class, () -> service.changePassword(1, request, false));
+        var thrown = assertThrows(InvalidOperationException.class, () -> service.changePassword(1, request, false, false));
         assertNotNull(thrown);
         verify(passwordEncoder, never()).encode(anyString());
     }

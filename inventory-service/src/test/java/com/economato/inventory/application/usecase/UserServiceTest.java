@@ -442,18 +442,34 @@ class UserServiceTest {
         ChangePasswordRequestDTO request = new ChangePasswordRequestDTO();
         request.setNewPassword(newPassword);
 
+        testUser.setFirstLogin(true);
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
         when(passwordEncoder.encode(newPassword)).thenReturn("encodedNewPassword");
         when(repository.save(any(User.class))).thenReturn(testUser);
 
-        userService.changePassword(1, request, true);
+        userService.changePassword(1, request, true, true);
 
         verify(passwordEncoder).encode(newPassword);
         verify(repository).save(testUser);
-        // Admin change doesn't update firstLogin status in current logic, verify it
-        // stays as is
-        // or whatever default behavior. Here testUser default is not specified but
-        // let's assume it doesn't throw.
+        assertFalse(testUser.isFirstLogin());
+    }
+
+    @Test
+    void changePassword_WhenAdminChangesAnotherUser_ShouldNotUpdateFirstLogin() {
+        String newPassword = "newPassword123";
+        ChangePasswordRequestDTO request = new ChangePasswordRequestDTO();
+        request.setNewPassword(newPassword);
+
+        testUser.setFirstLogin(true);
+        when(repository.findById(1)).thenReturn(Optional.of(testUser));
+        when(passwordEncoder.encode(newPassword)).thenReturn("encodedNewPassword");
+        when(repository.save(any(User.class))).thenReturn(testUser);
+
+        userService.changePassword(1, request, true, false);
+
+        verify(passwordEncoder).encode(newPassword);
+        verify(repository).save(testUser);
+        assertTrue(testUser.isFirstLogin());
     }
 
     @Test
@@ -467,7 +483,7 @@ class UserServiceTest {
         when(passwordEncoder.encode(newPassword)).thenReturn("encodedNewPassword");
         when(repository.save(any(User.class))).thenReturn(testUser);
 
-        userService.changePassword(1, request, false);
+        userService.changePassword(1, request, false, false);
 
         verify(passwordEncoder).encode(newPassword);
         verify(repository).save(testUser);
@@ -489,7 +505,7 @@ class UserServiceTest {
         when(passwordEncoder.encode(newPassword)).thenReturn("encodedNewPassword");
         when(repository.save(any(User.class))).thenReturn(testUser);
 
-        userService.changePassword(1, request, false);
+        userService.changePassword(1, request, false, false);
 
         verify(passwordEncoder).matches(oldPassword, "encodedOldPassword");
         verify(passwordEncoder).encode(newPassword);
@@ -509,7 +525,7 @@ class UserServiceTest {
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
         when(passwordEncoder.matches(oldPassword, "encodedOldPassword")).thenReturn(false);
 
-        assertThrows(InvalidOperationException.class, () -> userService.changePassword(1, request, false));
+        assertThrows(InvalidOperationException.class, () -> userService.changePassword(1, request, false, false));
         verify(repository, never()).save(testUser);
     }
 
@@ -522,7 +538,7 @@ class UserServiceTest {
         testUser.setFirstLogin(false);
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
 
-        assertThrows(InvalidOperationException.class, () -> userService.changePassword(1, request, false));
+        assertThrows(InvalidOperationException.class, () -> userService.changePassword(1, request, false, false));
         verify(repository, never()).save(testUser);
     }
 
