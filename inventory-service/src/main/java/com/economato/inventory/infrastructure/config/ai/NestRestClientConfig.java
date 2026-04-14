@@ -16,14 +16,14 @@ public class NestRestClientConfig {
 
     @Bean
     @Qualifier("nestRestClient")
-    public RestClient nestRestClient(RestClient.Builder builder, AiNestProperties properties) {
+    public RestClient nestRestClient(AiNestProperties properties) {
         warnIfInsecureRemoteBaseUrl(properties.getBaseUrl());
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Math.toIntExact(properties.getConnectionTimeoutMs()));
         requestFactory.setReadTimeout(Math.toIntExact(properties.getReadTimeoutMs()));
 
-        return builder
+        return RestClient.builder()
                 .baseUrl(properties.getBaseUrl())
                 .requestFactory(requestFactory)
                 .defaultHeader("X-Service-Key", properties.getServiceKey())
