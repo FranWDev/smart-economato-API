@@ -41,7 +41,7 @@ public class ScheduledForecastRefreshService {
      * Refresh forecasts for products with stock alterations in the last 6 hours.
      * Uses batches of 20 to avoid large message payloads and database load.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public void scheduleForecastRefresh() {
         log.info("Iniciando refresco programado de predicciones...");
 

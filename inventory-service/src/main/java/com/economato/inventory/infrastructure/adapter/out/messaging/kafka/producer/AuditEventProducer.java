@@ -8,16 +8,10 @@ import com.economato.inventory.application.dto.event.PresenceAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeAuditEvent;
 import com.economato.inventory.application.dto.event.RecipeCookingAuditEvent;
 import com.economato.inventory.application.dto.event.StockPredictionEvent;
-import com.economato.inventory.domain.model.AuditOutbox;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.AuditOutboxRepository;
-import tools.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.annotation.Propagation;
 
-@Slf4j
+
 @Service
 @Profile({ "!test", "kafka-test" })
 public class AuditEventProducer {
@@ -31,12 +25,10 @@ public class AuditEventProducer {
     public static final String LEDGER_BLOCK_TOPIC = "ledger-block-events";
     public static final String AI_AUDIT_TOPIC = "ai-audit-events";
 
-    private final AuditOutboxRepository outboxRepository;
-    private final ObjectMapper objectMapper;
+    private final AuditOutboxWriter auditOutboxWriter;
 
-    public AuditEventProducer(AuditOutboxRepository outboxRepository, ObjectMapper objectMapper) {
-        this.outboxRepository = outboxRepository;
-        this.objectMapper = objectMapper;
+    public AuditEventProducer(AuditOutboxWriter auditOutboxWriter) {
+        this.auditOutboxWriter = auditOutboxWriter;
     }
 
     public void publishInventoryAudit(InventoryAuditEvent event) {
@@ -72,19 +64,7 @@ public class AuditEventProducer {
         saveToOutbox(AI_AUDIT_TOPIC, key, event);
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false)
     private void saveToOutbox(String topic, String key, Object event) {
-        try {
-            String payload = objectMapper.writeValueAsString(event);
-            AuditOutbox outbox = AuditOutbox.builder()
-                    .topic(topic)
-                    .eventKey(key)
-                    .payload(payload)
-                    .build();
-            outboxRepository.save(outbox);
-            log.debug("Evento de auditoría guardado en Outbox: topic={}, key={}", topic, key);
-        } catch (Exception e) {
-            log.error("Excepción al guardar evento en Outbox: {}", e.getMessage(), e);
-        }
+        auditOutboxWriter.saveToOutbox(topic, key, event);
     }
 }
