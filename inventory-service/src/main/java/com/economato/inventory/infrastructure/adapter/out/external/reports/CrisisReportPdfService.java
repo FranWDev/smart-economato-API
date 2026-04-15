@@ -131,8 +131,9 @@ public class CrisisReportPdfService {
         if (batches == null || batches.isEmpty()) return;
         addSectionTitle(document, i18nService.getMessage(MessageKey.CRISIS_REPORT_SECTION_AFFECTED_BATCHES), bold);
 
-        Table table = new Table(new float[]{1, 2, 2, 1.5f, 1.5f}).setWidth(UnitValue.createPercentValue(100)).setMarginBottom(15);
+        Table table = new Table(new float[]{1, 1.5f, 2, 2, 1.5f, 1.5f}).setWidth(UnitValue.createPercentValue(100)).setMarginBottom(15);
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_ID), bold);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_BATCH_CODE), bold);
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_NAME), bold);
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_EXPIRATION_DATE), bold);
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_QUANTITY), bold);
@@ -140,6 +141,7 @@ public class CrisisReportPdfService {
 
         for (CrisisAffectedBatchDTO batch : batches) {
             addDataCell(table, batch.getBatchId().toString(), regular);
+            addDataCell(table, batch.getBatchCode() != null ? batch.getBatchCode() : "-", regular);
             addDataCell(table, batch.getProductName(), regular);
             addDataCell(table, batch.getExpirationDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")), regular);
             addDataCell(table, batch.getRemainingQuantity().toString(), regular);

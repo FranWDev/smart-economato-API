@@ -412,7 +412,7 @@ class OrderServiceTest {
             .id(1L)
             .build();
         when(stockLedgerService.recordStockMovement(
-            anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class)))
+            anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class), nullable(String.class), nullable(String.class)))
             .thenReturn(ledger);
         when(repository.save(testOrder)).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
@@ -423,7 +423,7 @@ class OrderServiceTest {
         verify(repository).findByIdWithDetails(1);
         verify(productRepository).findAllById(any());
         verify(stockLedgerService).recordStockMovement(
-            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class), nullable(String.class), nullable(String.class));
         verify(repository).save(testOrder);
     }
 
@@ -463,7 +463,7 @@ class OrderServiceTest {
         when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         StockLedger ledger = new StockLedger();
         when(stockLedgerService.recordStockMovement(
-            anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class)))
+            anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class), nullable(String.class), nullable(String.class)))
             .thenReturn(ledger);
         when(repository.save(testOrder)).thenReturn(testOrder);
 
@@ -479,7 +479,7 @@ class OrderServiceTest {
         verify(repository).findByIdWithDetails(1);
         verify(productRepository).findAllById(any());
         verify(stockLedgerService).recordStockMovement(
-            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class), nullable(String.class), nullable(String.class));
         verify(repository).save(testOrder);
     }
 
@@ -625,7 +625,7 @@ class OrderServiceTest {
         when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         StockLedger ledger = new StockLedger();
         when(stockLedgerService.recordStockMovement(
-            anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class)))
+            anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class), nullable(String.class), nullable(String.class)))
             .thenReturn(ledger);
         when(repository.save(any(Order.class))).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(any(Order.class))).thenReturn(testOrderResponseDTO);
@@ -636,7 +636,7 @@ class OrderServiceTest {
         verify(repository).findByIdWithDetails(1);
         verify(productRepository).findAllById(any());
         verify(stockLedgerService).recordStockMovement(
-            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class), nullable(String.class), nullable(String.class));
         verify(repository).save(any(Order.class));
     }
 
@@ -662,7 +662,7 @@ class OrderServiceTest {
         when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         StockLedger ledger = new StockLedger();
         when(stockLedgerService.recordStockMovement(
-            anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class)))
+            anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class), nullable(String.class), nullable(String.class)))
             .thenReturn(ledger);
         when(repository.save(any(Order.class))).thenReturn(testOrder);
 
@@ -678,7 +678,7 @@ class OrderServiceTest {
         verify(repository).findByIdWithDetails(1);
         verify(productRepository).findAllById(any());
         verify(stockLedgerService).recordStockMovement(
-            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class), nullable(String.class), nullable(String.class));
         verify(repository).save(any(Order.class));
     }
 
@@ -708,7 +708,7 @@ class OrderServiceTest {
         when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         StockLedger ledger = new StockLedger();
         when(stockLedgerService.recordStockMovement(
-            anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class)))
+            anyInt(), any(BigDecimal.class), any(MovementType.class), any(), any(User.class), anyInt(), nullable(LocalDate.class), nullable(String.class), nullable(String.class)))
             .thenReturn(ledger);
         when(repository.save(any(Order.class))).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(any(Order.class))).thenReturn(testOrderResponseDTO);
@@ -717,7 +717,7 @@ class OrderServiceTest {
 
         assertNotNull(result);
         verify(stockLedgerService, times(2)).recordStockMovement(
-            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class), nullable(String.class), nullable(String.class));
     }
 
     @Test
@@ -744,6 +744,6 @@ class OrderServiceTest {
 
         assertThrows(InvalidOperationException.class, () -> orderService.receiveOrder(receptionData));
         verify(stockLedgerService, never()).recordStockMovement(
-            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class));
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class), nullable(String.class), nullable(String.class));
     }
 }

@@ -1,10 +1,11 @@
 package com.economato.inventory.application.dto.request;
 
+import java.time.LocalDate;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -23,4 +24,8 @@ public class UpdateBatchExpirationRequestDTO {
     @Size(max = 500)
     @Schema(description = "Motivo del cambio de caducidad", example = "Corrección de fecha errónea en recepción")
     private String reason;
+    
+    @Size(max = 100)
+    @Schema(description = "Código identificativo del lote", example = "LOT-2026-001")
+    private String batchCode;
 }

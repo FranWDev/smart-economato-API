@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -43,5 +44,11 @@ public class ReverseTraceabilityDTO {
         private String description;
         @Schema(description = "Hash criptográfico en el libro mayor")
         private String ledgerHash;
+        @Schema(description = "ID del lote asociado al ingrediente")
+        private Long batchId;
+        @Schema(description = "Codigo del lote asociado al ingrediente")
+        private String batchCode;
+        @Schema(description = "Fecha de caducidad del lote")
+        private LocalDate expirationDate;
     }
 }

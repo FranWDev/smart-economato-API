@@ -42,6 +42,12 @@ public class ProductBatchService {
 
     @Transactional(rollbackFor = Exception.class)
     public ProductBatch createBatch(Product product, BigDecimal quantity, LocalDate expirationDate, StockLedger ledgerTx) {
+        return createBatch(product, quantity, expirationDate, ledgerTx, null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ProductBatch createBatch(Product product, BigDecimal quantity, LocalDate expirationDate, StockLedger ledgerTx,
+            String batchCode) {
         if (expirationDate == null) {
             throw new InvalidOperationException(
                 i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_REQUIRED));
@@ -59,6 +65,7 @@ public class ProductBatchService {
                 .receivedAt(LocalDateTime.now())
                 .ledgerTransaction(ledgerTx)
                 .depleted(false)
+                .batchCode(batchCode)
                 .build();
 
         ProductBatch saved = batchRepository.save(batch);
@@ -179,6 +186,11 @@ public class ProductBatchService {
 
     @Transactional(rollbackFor = Exception.class)
     public ProductBatch updateExpirationDate(Long batchId, LocalDate newExpirationDate, String reason) {
+        return updateExpirationDate(batchId, newExpirationDate, reason, null);
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ProductBatch updateExpirationDate(Long batchId, LocalDate newExpirationDate, String reason, String batchCode) {
         ProductBatch batch = batchRepository.findById(batchId)
                 .orElseThrow(() -> new ResourceNotFoundException("Lote no encontrado: " + batchId));
 
@@ -199,6 +211,9 @@ public class ProductBatchService {
 
         LocalDate previousDate = batch.getExpirationDate();
         batch.setExpirationDate(newExpirationDate);
+        if (batchCode != null) {
+            batch.setBatchCode(batchCode);
+        }
         ProductBatch saved = batchRepository.save(batch);
 
         log.info("Caducidad actualizada: batchId={}, anterior={}, nueva={}, motivo={}",
@@ -222,8 +237,12 @@ public class ProductBatchService {
         Specification<ProductBatch> spec = Specification.where((root, query, cb) -> cb.conjunction());
 
         if (search != null && !search.trim().isEmpty()) {
+            String searchLower = "%" + search.trim().toLowerCase() + "%";
             spec = spec.and((root, query, cb) -> 
-                cb.like(cb.lower(root.join("product").get("name")), "%" + search.trim().toLowerCase() + "%"));
+                cb.or(
+                    cb.like(cb.lower(root.join("product").get("name")), searchLower),
+                    cb.like(cb.lower(root.get("batchCode")), searchLower)
+                ));
         }
 
         if (depleted != null) {
@@ -261,6 +280,11 @@ public class ProductBatchService {
     @Transactional(readOnly = true)
     public Optional<ProductBatch> getBatchById(Long batchId) {
         return batchRepository.findById(batchId);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ProductBatch> findByBatchCode(String batchCode) {
+        return batchRepository.findByBatchCode(batchCode);
     }
 
     @Transactional(rollbackFor = Exception.class)

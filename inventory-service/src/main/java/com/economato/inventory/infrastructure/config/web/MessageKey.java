@@ -184,6 +184,7 @@ public enum MessageKey {
     REPORT_LABEL_REASON("report.label.reason"),
     REPORT_COLUMN_LATEST_HASH("report.column.latest.hash"),
     REPORT_COLUMN_EXPIRATION_DATE("report.column.expiration.date"),
+    REPORT_COLUMN_BATCH_CODE("report.column.batch.code"),
     BATCH_STATUS_ACTIVE("batch.status.active"),
     BATCH_STATUS_EXPIRED("batch.status.expired"),
     BATCH_STATUS_DEPLETED("batch.status.depleted"),
