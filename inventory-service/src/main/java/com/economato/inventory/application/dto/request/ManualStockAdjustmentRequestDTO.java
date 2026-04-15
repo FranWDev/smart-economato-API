@@ -15,6 +15,22 @@ import lombok.NoArgsConstructor;
 @Schema(description = "Solicitud de ajuste manual de stock sobre un producto, con lote destino opcional")
 public class ManualStockAdjustmentRequestDTO {
 
+    public ManualStockAdjustmentRequestDTO(
+            Integer productId,
+            BigDecimal quantityDelta,
+            MovementType movementType,
+            String description,
+            Long batchId,
+            LocalDate expirationDate) {
+        this.productId = productId;
+        this.quantityDelta = quantityDelta;
+        this.movementType = movementType;
+        this.description = description;
+        this.batchId = batchId;
+        this.batchReference = null;
+        this.expirationDate = expirationDate;
+    }
+
     @NotNull(message = "El ID del producto es obligatorio")
     @Schema(description = "ID del producto a ajustar", example = "45", required = true)
     private Integer productId;
@@ -33,6 +49,10 @@ public class ManualStockAdjustmentRequestDTO {
 
     @Schema(description = "ID del lote específico al que aplicar el ajuste. Si se omite, se aplica FIFO automático.", example = "12")
     private Long batchId;
+
+    @Size(max = 100, message = "La referencia de lote no puede superar 100 caracteres")
+    @Schema(description = "Referencia opcional de lote (ID o codigo de lote). Si se envia y batchId es nulo, se intentara resolver automaticamente.", example = "LOT-2026-001")
+    private String batchReference;
 
     @Schema(description = "Fecha de caducidad para el lote. Obligatoria si se añade stock (delta positivo) sin batchId.", example = "2026-12-31")
     private LocalDate expirationDate;

@@ -34,6 +34,9 @@ public class CrisisResponseDTO {
     @Schema(description = "Mapa de productos en cuarentena (Nombre -> Hash de transacción)")
     private Map<String, String> quarantinedProducts;
 
+    @Schema(description = "Mapa detallado de productos en cuarentena (Nombre -> informacion de lote)")
+    private Map<String, QuarantinedProductInfoDTO> quarantinedProductsInfo;
+
     @Schema(description = "Lotes identificados para los productos en crisis")
     private List<CrisisAffectedBatchDTO> affectedBatches;
 

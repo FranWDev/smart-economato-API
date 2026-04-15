@@ -13,6 +13,7 @@ import com.economato.inventory.application.dto.response.CrisisAffectedBatchDTO;
 import com.economato.inventory.application.dto.response.CrisisAffectedCookingDTO;
 import com.economato.inventory.application.dto.response.CrisisAffectedOrderDTO;
 import com.economato.inventory.application.dto.response.CrisisResponseDTO;
+import com.economato.inventory.application.dto.response.QuarantinedProductInfoDTO;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.config.web.I18nService;
@@ -104,25 +105,44 @@ public class CrisisReportPdfService {
 
     private void addProductsSection(Document document, CrisisResponseDTO data, PdfFont bold, PdfFont regular) {
         addSectionTitle(document, i18nService.getMessage(MessageKey.CRISIS_REPORT_SECTION_QUARANTINE_PRODUCTS), bold);
-        
-        float[] widths = {2, 2, 1.5f, 1.5f, 3};
+
+        float[] widths = {2, 1.5f, 1.5f, 1.5f, 1.5f};
         Table table = new Table(widths).setWidth(UnitValue.createPercentValue(100)).setMarginBottom(15);
-        
+
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_NAME), bold);
         addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_BARCODE), bold);
-        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_STOCK_CURRENT), bold);
-        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_UNIT), bold);
-        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_LATEST_HASH), bold);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_BATCH_CODE), bold);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_EXPIRATION_DATE), bold);
+        addHeaderCell(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_QUANTITY), bold);
 
+        Map<String, QuarantinedProductInfoDTO> quarantineInfo = data.getQuarantinedProductsInfo();
         for (Map.Entry<String, String> entry : data.getQuarantinedProducts().entrySet()) {
             Optional<Product> p = productRepository.findByNameContainingIgnoreCase(entry.getKey()).stream()
                     .filter(product -> !product.isHidden())
                     .findFirst();
+
+            QuarantinedProductInfoDTO info = quarantineInfo != null ? quarantineInfo.get(entry.getKey()) : null;
+            String batchLabel = "-";
+            if (info != null) {
+                if (info.getBatchCode() != null && !info.getBatchCode().isBlank()) {
+                    batchLabel = info.getBatchCode();
+                } else if (info.getBatchId() != null) {
+                    batchLabel = "#" + info.getBatchId();
+                }
+            }
+
+            String expiration = (info != null && info.getExpirationDate() != null)
+                    ? info.getExpirationDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+                    : "-";
+            String quantity = (info != null && info.getInitialQuantity() != null)
+                    ? info.getInitialQuantity().toString()
+                    : "-";
+
             addDataCell(table, entry.getKey(), regular);
             addDataCell(table, p.map(Product::getProductCode).orElse("-"), regular);
-            addDataCell(table, p.map(product -> product.getCurrentStock().toString()).orElse("0"), regular);
-            addDataCell(table, p.map(Product::getUnit).orElse("-"), regular);
-            addDataCell(table, entry.getValue().length() > 12 ? entry.getValue().substring(0, 12) + "..." : entry.getValue(), regular);
+            addDataCell(table, batchLabel, regular);
+            addDataCell(table, expiration, regular);
+            addDataCell(table, quantity, regular);
         }
         document.add(table);
     }

@@ -9,6 +9,7 @@ import com.economato.inventory.application.dto.response.CrisisAffectedOrderDTO;
 import com.economato.inventory.application.dto.response.CrisisResponseDTO;
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.response.ForwardTraceabilityDTO;
+import com.economato.inventory.application.dto.response.QuarantinedProductInfoDTO;
 import com.economato.inventory.application.dto.response.ReverseTraceabilityDTO;
 import com.economato.inventory.application.mapper.OrderMapper;
 import com.economato.inventory.application.mapper.ProductBatchMapper;
@@ -23,6 +24,7 @@ import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.domain.model.RecipeCookingAudit;
 import com.economato.inventory.domain.model.Role;
 import com.economato.inventory.domain.model.StockLedger;
+import com.economato.inventory.domain.model.StockLedgerBatchDetail;
 import com.economato.inventory.domain.model.Supplier;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
@@ -32,6 +34,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
@@ -94,6 +97,7 @@ public class TraceabilityService {
         private final StockLedgerMapper ledgerMapper;
         private final ProductBatchMapper productBatchMapper;
         private final ProductBatchRepository productBatchRepository;
+        private final StockLedgerBatchDetailRepository stockLedgerBatchDetailRepository;
         private final MeterRegistry meterRegistry;
         private final FoodCrisisRepository foodCrisisRepository;
         private final CrisisAffectedProductRepository crisisAffectedProductRepository;
@@ -187,16 +191,10 @@ public class TraceabilityService {
                         txs.addAll(ledgerService.recordBatchStockMovements(markerMovements, currentUser, null));
                 }
 
-                Map<String, String> quarantinedProducts = txs.stream()
-                                .collect(Collectors.toMap(
-                                                tx -> tx.getProduct().getName(),
-                                                StockLedger::getCurrentHash,
-                                                (left, right) -> left,
-                                                LinkedHashMap::new));
-
-                if (quarantinedProducts.isEmpty()) {
-                        quarantinedProducts = resolveLatestHashesByProduct(affectedProducts);
-                }
+                Map<String, QuarantinedProductInfoDTO> quarantinedProductsInfo = resolveLatestBatchInfoByProduct(
+                                affectedProducts);
+                Map<String, String> quarantinedProducts = resolveLatestBatchLabelsByProduct(affectedProducts,
+                                quarantinedProductsInfo);
 
                 broadcastCrisisNotification(
                                 i18nService.getMessage(MessageKey.CRISIS_ACTIVATION_TITLE),
@@ -391,10 +389,12 @@ public class TraceabilityService {
                                 .map(StockLedger::getId)
                                 .toList();
                 if (!ledgerTxIds.isEmpty()) {
-                        List<ProductBatch> relatedBatches = productBatchRepository.findByLedgerTransactionIdIn(ledgerTxIds);
-                        for (ProductBatch batch : relatedBatches) {
-                                if (batch.getLedgerTransaction() != null) {
-                                        batchesByLedgerTxId.put(batch.getLedgerTransaction().getId(), batch);
+                        List<StockLedgerBatchDetail> batchDetails = stockLedgerBatchDetailRepository
+                                        .findByLedgerTransactionIdIn(ledgerTxIds);
+                        for (StockLedgerBatchDetail detail : batchDetails) {
+                                if (detail.getLedgerTransaction() != null && detail.getBatch() != null) {
+                                        batchesByLedgerTxId.putIfAbsent(detail.getLedgerTransaction().getId(),
+                                                        detail.getBatch());
                                 }
                         }
                 }
@@ -426,7 +426,12 @@ public class TraceabilityService {
                                 if (relatedBatch != null) {
                                         builder.batchId(relatedBatch.getId())
                                                         .batchCode(relatedBatch.getBatchCode())
-                                                        .expirationDate(relatedBatch.getExpirationDate());
+                                                        .expirationDate(relatedBatch.getExpirationDate())
+                                                        .batchExpirationDate(relatedBatch.getExpirationDate())
+                                                        .batchInitialQuantity(relatedBatch.getInitialQuantity())
+                                                        .batchRemainingQuantity(relatedBatch.getRemainingQuantity())
+                                                        .batchReceivedAt(relatedBatch.getReceivedAt())
+                                                        .batchDepleted(relatedBatch.isDepleted());
                                 }
 
                                 if (le.getOrderId() != null && ordersById.containsKey(le.getOrderId())) {
@@ -546,9 +551,12 @@ public class TraceabilityService {
                         List<RecipeCookingAudit> affectedCookings,
                         Map<Integer, Boolean> preloadedIntegrityResults) {
 
+                Map<String, QuarantinedProductInfoDTO> quarantinedProductsInfo = resolveLatestBatchInfoByProduct(
+                                associations);
+
                 Map<String, String> quarantinedProducts = quarantinedProductsOverride != null
                                 ? quarantinedProductsOverride
-                                : resolveLatestHashesByProduct(associations);
+                                : resolveLatestBatchLabelsByProduct(associations, quarantinedProductsInfo);
 
                 List<Integer> productIds = associations.stream().map(ap -> ap.getProduct().getId()).toList();
                 boolean integrityVerified = productIds.stream()
@@ -561,6 +569,7 @@ public class TraceabilityService {
                                 .reason(crisis.getReason())
                                 .supplierName(crisis.getSupplier().getName())
                                 .quarantinedProducts(quarantinedProducts)
+                                .quarantinedProductsInfo(quarantinedProductsInfo)
                                 .affectedBatches(buildAffectedBatchDetails(crisis, associations))
                                 .affectedOrderIds(affectedOrders.stream().map(Order::getId).toList())
                                 .affectedOrders(affectedOrders.stream().map(o -> CrisisAffectedOrderDTO.builder()
@@ -590,25 +599,64 @@ public class TraceabilityService {
                                 .build();
         }
 
-        private Map<String, String> resolveLatestHashesByProduct(List<CrisisAffectedProduct> associations) {
-                if (associations.isEmpty()) return Collections.emptyMap();
-                
-                List<Integer> productIds = associations.stream()
-                                .map(ap -> ap.getProduct().getId())
-                                .toList();
-                
+        private Map<String, QuarantinedProductInfoDTO> resolveLatestBatchInfoByProduct(
+                        List<CrisisAffectedProduct> associations) {
+                if (associations.isEmpty()) {
+                        return Collections.emptyMap();
+                }
+
+                List<Integer> productIds = associations.stream().map(ap -> ap.getProduct().getId()).toList();
+                List<ProductBatch> batches = productBatchRepository.findByProductIdInOrderByExpirationDateAsc(productIds);
+
+                Map<Integer, ProductBatch> selectedByProduct = new LinkedHashMap<>();
+                for (ProductBatch batch : batches) {
+                        selectedByProduct.computeIfAbsent(batch.getProduct().getId(), ignored -> batch);
+                }
+
                 Map<Integer, String> latestHashes = ledgerRepository.findLatestHashesByProductIds(productIds).stream()
                                 .collect(Collectors.toMap(
                                                 row -> (Integer) row[0],
                                                 row -> (String) row[1]));
-                
-                Map<String, String> map = new LinkedHashMap<>();
+
+                Map<String, QuarantinedProductInfoDTO> infoMap = new LinkedHashMap<>();
                 for (CrisisAffectedProduct association : associations) {
                         Product product = association.getProduct();
-                        String hash = latestHashes.getOrDefault(product.getId(), "-");
-                        map.put(product.getName(), hash);
+                        ProductBatch batch = selectedByProduct.get(product.getId());
+
+                        QuarantinedProductInfoDTO info = QuarantinedProductInfoDTO.builder()
+                                        .batchId(batch != null ? batch.getId() : null)
+                                        .batchCode(batch != null ? batch.getBatchCode() : null)
+                                        .expirationDate(batch != null ? batch.getExpirationDate() : null)
+                                        .initialQuantity(batch != null ? batch.getInitialQuantity() : null)
+                                        .remainingQuantity(batch != null ? batch.getRemainingQuantity() : null)
+                                        .receivedAt(batch != null ? batch.getReceivedAt() : null)
+                                        .depleted(batch != null ? batch.isDepleted() : null)
+                                        .ledgerHash(latestHashes.get(product.getId()))
+                                        .build();
+
+                        infoMap.put(product.getName(), info);
                 }
-                return map;
+                return infoMap;
+        }
+
+        private Map<String, String> resolveLatestBatchLabelsByProduct(
+                        List<CrisisAffectedProduct> associations,
+                        Map<String, QuarantinedProductInfoDTO> infoByProduct) {
+                Map<String, String> labels = new LinkedHashMap<>();
+                for (CrisisAffectedProduct association : associations) {
+                        Product product = association.getProduct();
+                        QuarantinedProductInfoDTO info = infoByProduct.get(product.getName());
+
+                        if (info != null && info.getBatchId() != null) {
+                                String code = info.getBatchCode() != null && !info.getBatchCode().isBlank()
+                                                ? " / " + info.getBatchCode()
+                                                : "";
+                                labels.put(product.getName(), "Lote #" + info.getBatchId() + code);
+                        } else {
+                                labels.put(product.getName(), "Sin lote asociado");
+                        }
+                }
+                return labels;
         }
 
         private List<CrisisAffectedBatchDTO> buildAffectedBatchDetails(FoodCrisis crisis,
