@@ -27,6 +27,9 @@ public class CrisisAffectedBatchDTO {
     @Schema(description = "Fecha de caducidad del lote", example = "2026-06-30")
     private LocalDate expirationDate;
 
+    @Schema(description = "Codigo del lote", example = "LOT-2026-001")
+    private String batchCode;
+
     @Schema(description = "Stock restante en el lote", example = "8.500")
     private BigDecimal remainingQuantity;
 

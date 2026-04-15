@@ -36,6 +36,7 @@ import com.economato.inventory.application.dto.response.AlertResolution;
 import com.economato.inventory.application.dto.response.AlertSeverity;
 import com.economato.inventory.application.dto.response.AlertType;
 import com.economato.inventory.application.dto.response.DailyForecastResponseDTO;
+import com.economato.inventory.application.dto.response.ProductBatchResponseDTO;
 import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.StockPredictionResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyConsumptionResponseDTO;
@@ -214,7 +215,7 @@ public class StockAlertService {
                     List<ProductBatch> activeBatches = productBatchService.getActiveBatches(productId);
                     // Mapear batches a DTOs usando el mapper existente
                     dto.setActiveBatches(activeBatches.stream()
-                            .map(batch -> new com.economato.inventory.application.dto.response.ProductBatchResponseDTO(
+                            .map(batch -> new ProductBatchResponseDTO(
                                 batch.getId(),
                                 batch.getProduct().getId(),
                                 batch.getProduct().getName(),
@@ -222,6 +223,7 @@ public class StockAlertService {
                                 batch.getInitialQuantity(),
                                 batch.getRemainingQuantity(),
                                 batch.getReceivedAt(),
+                                batch.getBatchCode(),
                                 batch.isDepleted(),
                                 batch.getExpirationDate() != null && batch.getExpirationDate().isBefore(LocalDate.now()),
                                 batch.getExpirationDate() != null 

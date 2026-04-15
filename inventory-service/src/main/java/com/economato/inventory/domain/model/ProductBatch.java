@@ -15,6 +15,7 @@ import jakarta.persistence.Version;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -50,6 +51,10 @@ public class ProductBatch {
     @NotNull(message = "La fecha de caducidad es obligatoria")
     @Column(name = "expiration_date", nullable = false)
     private LocalDate expirationDate;
+
+    @Size(max = 100)
+    @Column(name = "batch_code", length = 100)
+    private String batchCode;
 
     @NotNull
     @Digits(integer = 10, fraction = 3)

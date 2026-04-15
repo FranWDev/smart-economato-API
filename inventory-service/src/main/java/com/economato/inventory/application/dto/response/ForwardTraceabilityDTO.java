@@ -36,4 +36,7 @@ public class ForwardTraceabilityDTO {
 
     @Schema(description = "Cocinados (producción) afectados que usaron estos productos")
     private List<RecipeCookingAuditResponseDTO> affectedCookings;
+
+    @Schema(description = "Lotes afectados en el rango de fechas")
+    private List<ProductBatchResponseDTO> affectedBatches;
 }

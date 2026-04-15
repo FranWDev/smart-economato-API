@@ -11,6 +11,7 @@ import com.economato.inventory.application.dto.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.response.ForwardTraceabilityDTO;
 import com.economato.inventory.application.dto.response.ReverseTraceabilityDTO;
 import com.economato.inventory.application.mapper.OrderMapper;
+import com.economato.inventory.application.mapper.ProductBatchMapper;
 import com.economato.inventory.application.mapper.RecipeCookingAuditMapper;
 import com.economato.inventory.application.mapper.StockLedgerMapper;
 import com.economato.inventory.domain.model.CrisisAffectedProduct;
@@ -48,6 +49,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -90,6 +92,7 @@ public class TraceabilityService {
         private final OrderMapper orderMapper;
         private final RecipeCookingAuditMapper cookingAuditMapper;
         private final StockLedgerMapper ledgerMapper;
+        private final ProductBatchMapper productBatchMapper;
         private final ProductBatchRepository productBatchRepository;
         private final MeterRegistry meterRegistry;
         private final FoodCrisisRepository foodCrisisRepository;
@@ -168,7 +171,9 @@ public class TraceabilityService {
                                                 MovementType.CUARENTENA,
                                                 i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_QUARANTINE,
                                                                 new Object[] { crisisCode }) + " [batch #"
-                                                                + batch.getId() + "]",
+                                                                + batch.getId()
+                                                                + (batch.getBatchCode() != null ? " / " + batch.getBatchCode() : "")
+                                                                + "]",
                                                 currentUser,
                                                 batch.getId(),
                                                 batch.getExpirationDate()));
@@ -308,6 +313,12 @@ public class TraceabilityService {
                 List<RecipeCookingAudit> cookings = cookingAuditRepository
                                 .findAffectedCookingsByProductIdsAndDateRange(productIds, from, to);
 
+                List<ProductBatch> affectedBatches = productBatchRepository
+                                .findByProductIdInOrderByExpirationDateAsc(productIds)
+                                .stream()
+                                .filter(batch -> isWithinDateRange(batch.getReceivedAt(), from, to))
+                                .toList();
+
                 return ForwardTraceabilityDTO.builder()
                                 .supplierName(supplier.getName())
                                 .productNames(productRepository.findAllById(productIds).stream().map(Product::getName)
@@ -318,6 +329,9 @@ public class TraceabilityService {
                                                 .collect(Collectors.toList()))
                                 .ledgerEntries(entries.stream().map(ledgerMapper::toDTO).collect(Collectors.toList()))
                                 .affectedCookings(cookings.stream().map(cookingAuditMapper::toResponseDTO)
+                                                .collect(Collectors.toList()))
+                                .affectedBatches(affectedBatches.stream()
+                                                .map(productBatchMapper::toResponseDTO)
                                                 .collect(Collectors.toList()))
                                 .build();
         }
@@ -372,6 +386,19 @@ public class TraceabilityService {
                                 : orderRepository.findAllByIdWithDetails(orderIds).stream()
                                                 .collect(Collectors.toMap(Order::getId, o -> o));
 
+                Map<Long, ProductBatch> batchesByLedgerTxId = new HashMap<>();
+                List<Long> ledgerTxIds = lastEntradas.values().stream()
+                                .map(StockLedger::getId)
+                                .toList();
+                if (!ledgerTxIds.isEmpty()) {
+                        List<ProductBatch> relatedBatches = productBatchRepository.findByLedgerTransactionIdIn(ledgerTxIds);
+                        for (ProductBatch batch : relatedBatches) {
+                                if (batch.getLedgerTransaction() != null) {
+                                        batchesByLedgerTxId.put(batch.getLedgerTransaction().getId(), batch);
+                                }
+                        }
+                }
+
                 List<ReverseTraceabilityDTO.IngredientTraceDTO> ingredientTrace = new ArrayList<>();
 
                 for (Map<String, Object> comp : components) {
@@ -394,6 +421,13 @@ public class TraceabilityService {
                                                                 ? le.getMovementType().name()
                                                                 : null)
                                                 .description(le.getDescription());
+
+                                ProductBatch relatedBatch = batchesByLedgerTxId.get(le.getId());
+                                if (relatedBatch != null) {
+                                        builder.batchId(relatedBatch.getId())
+                                                        .batchCode(relatedBatch.getBatchCode())
+                                                        .expirationDate(relatedBatch.getExpirationDate());
+                                }
 
                                 if (le.getOrderId() != null && ordersById.containsKey(le.getOrderId())) {
                                         Order o = ordersById.get(le.getOrderId());
@@ -606,6 +640,7 @@ public class TraceabilityService {
                                                 .productId(batch.getProduct().getId())
                                                 .productName(batch.getProduct().getName())
                                                 .expirationDate(batch.getExpirationDate())
+                                                .batchCode(batch.getBatchCode())
                                                 .remainingQuantity(batch.getRemainingQuantity())
                                                 .expired(batch.getExpirationDate() != null
                                                                 && batch.getExpirationDate().isBefore(LocalDate.now()))

@@ -1,7 +1,6 @@
 package com.economato.inventory.application.usecase;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Collections;
@@ -16,12 +15,12 @@ import java.util.stream.Collectors;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.core.env.Environment;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.resilience.annotation.Retryable;
-import org.springframework.core.env.Environment;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,7 +44,6 @@ import com.economato.inventory.domain.model.Order;
 import com.economato.inventory.domain.model.OrderDetail;
 import com.economato.inventory.domain.model.OrderStatus;
 import com.economato.inventory.domain.model.Product;
-import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.Supplier;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
@@ -409,7 +407,9 @@ public class OrderService {
                                                                                 new Object[] { order.getId(), product.getName() }),
                                                                 order.getUser(),
                                                                 order.getId(),
-                                                                lot.getExpirationDate());
+                                                                lot.getExpirationDate(),
+                                                                null,
+                                                                lot.getBatchCode());
                                         }
                                 }
                         }
@@ -425,7 +425,7 @@ public class OrderService {
                                 var receptionItem = receptionByProductId.get(detailResp.getProductId());
                                 if (receptionItem != null && receptionItem.getLots() != null) {
                                         List<LotReceptionResponseDTO> lotResponses = receptionItem.getLots().stream()
-                                                        .map(lot -> new LotReceptionResponseDTO(lot.getQuantity(), lot.getExpirationDate()))
+                                                        .map(lot -> new LotReceptionResponseDTO(lot.getQuantity(), lot.getExpirationDate(), lot.getBatchCode()))
                                                         .toList();
                                         detailResp.setLots(lotResponses);
                                 }

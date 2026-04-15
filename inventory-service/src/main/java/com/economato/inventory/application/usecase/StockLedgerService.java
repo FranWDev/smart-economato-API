@@ -1,26 +1,41 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
-import lombok.extern.slf4j.Slf4j;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.sql.Date;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.env.Environment;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
-import java.time.LocalDate;
-import com.economato.inventory.application.dto.request.BatchStockMovementRequestDTO;
-import com.economato.inventory.application.dto.request.ManualStockAdjustmentRequestDTO;
+
+import com.economato.inventory.application.dto.BatchConsumptionDetail;
 import com.economato.inventory.application.dto.request.BatchMovementItem;
-import com.economato.inventory.domain.PredictorTrigger;
+import com.economato.inventory.application.dto.request.BatchStockMovementRequestDTO;
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO.DailyConsumptionDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
-import com.economato.inventory.application.dto.BatchConsumptionDetail;
+import com.economato.inventory.domain.PredictorTrigger;
 import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Order;
 import com.economato.inventory.domain.model.Product;
@@ -29,46 +44,29 @@ import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.StockLedgerBatchDetail;
 import com.economato.inventory.domain.model.StockSnapshot;
 import com.economato.inventory.domain.model.User;
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockSnapshotRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
-import com.economato.inventory.domain.PredictorTrigger;
-import com.economato.inventory.infrastructure.config.cache.event.StockMovementEvent;
 import com.economato.inventory.infrastructure.config.cache.event.NewLedgerTransactionEvent;
-import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.cache.event.StockMovementEvent;
 import com.economato.inventory.infrastructure.config.security.BlockchainProperties;
+import com.economato.inventory.infrastructure.config.security.LedgerProperties;
+import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.nio.charset.StandardCharsets;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import com.economato.inventory.infrastructure.config.security.LedgerProperties;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.sql.Date;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HexFormat;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.stream.Collectors;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
+import lombok.extern.slf4j.Slf4j;
 
 /*
  * SERVICIO DE LEDGER DE STOCK CRIPTOGRÁFICO CON TRAZABILIDAD DE LOTES. NO TOCAR BAJO NINGUN CONCEPTO.
@@ -216,8 +214,24 @@ public class StockLedgerService {
             LocalDate expirationDate,
             String correlationId) {
 
+        return recordStockMovement(productId, quantityDelta, movementType, description, user, orderId, expirationDate,
+                correlationId, null);
+    }
+
+    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
+    public StockLedger recordStockMovement(
+            Integer productId,
+            BigDecimal quantityDelta,
+            MovementType movementType,
+            String description,
+            User user,
+            Integer orderId,
+            LocalDate expirationDate,
+            String correlationId,
+            String batchCode) {
+
         return recordStockMovementInternal(productId, quantityDelta, movementType, description, user, orderId,
-                expirationDate, correlationId, null);
+                expirationDate, correlationId, null, batchCode);
     }
 
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
@@ -231,7 +245,7 @@ public class StockLedgerService {
             LocalDate expirationDate) {
 
         return recordStockMovementInternal(productId, quantityDelta, movementType, description, user, null,
-                expirationDate, null, targetBatchId);
+                expirationDate, null, targetBatchId, null);
     }
 
     @PredictorTrigger(action = "MANUAL_ADJUSTMENT")
@@ -406,7 +420,8 @@ public class StockLedgerService {
                         originalTx.getOrderId(),
                         batch.getExpirationDate(),
                         reversalCorrelationId,
-                        batch.getId());
+                        batch.getId(),
+                        null);
             }
 
             // FASE 3: Eliminación de lotes creados (si aplica)
@@ -434,7 +449,8 @@ public class StockLedgerService {
             Integer orderId,
             LocalDate expirationDate,
             String correlationId,
-            Long targetBatchId) {
+            Long targetBatchId,
+            String batchCode) {
 
         log.info("Registrando movimiento: Producto={}, Delta={}, Tipo={}",
                 productId, quantityDelta, movementType);
@@ -527,7 +543,8 @@ public class StockLedgerService {
                     product,
                     normalizedDelta,
                     expirationDate,
-                    transaction);
+                    transaction,
+                    batchCode);
             batchMovements.add(new BatchConsumptionDetail(newBatch.getId(), normalizedDelta.negate()));
         }
 
@@ -831,6 +848,7 @@ public class StockLedgerService {
                         orderId,
                         item.getExpirationDate(),
                         item.getCorrelationId(),
+                        null,
                         null);
 
                 transactions.add(transaction);

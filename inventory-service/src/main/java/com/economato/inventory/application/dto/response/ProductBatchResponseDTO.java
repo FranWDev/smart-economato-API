@@ -1,9 +1,10 @@
 package com.economato.inventory.application.dto.response;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -34,6 +35,9 @@ public class ProductBatchResponseDTO {
 
     @Schema(description = "Fecha/hora de recepción del lote")
     private LocalDateTime receivedAt;
+
+    @Schema(description = "Código identificativo del lote", example = "LOT-2026-001")
+    private String batchCode;
 
     @Schema(description = "Indica si el lote está agotado", example = "false")
     private boolean depleted;
