@@ -216,6 +216,8 @@ services:
       resources:
         limits:
           memory: 1152M
+    volumes:
+      - turing-backend_uploads-data:/app/uploads
     networks:
       - inventory-network
     restart: unless-stopped
@@ -420,6 +422,8 @@ volumes:
     external: true
   # SQLite outbox — persists forecast_outbox rows when predictor restarts
   turing-backend_predictor-outbox-data:
+    external: true
+  turing-backend_uploads-data:
     external: true
   # Los volúmenes de zookeeper han sido borrados de la lista
 
