@@ -29,6 +29,13 @@ public class IncidentTypeController {
         return ResponseEntity.ok(incidentTypeService.getActiveTypes());
     }
 
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Listar todos los tipos (incluye inactivos)")
+    public ResponseEntity<List<IncidentTypeResponseDTO>> getAll() {
+        return ResponseEntity.ok(incidentTypeService.getAllTypes());
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','CHEF','ELEVATED')")
     @Operation(summary = "Obtener tipo por ID")

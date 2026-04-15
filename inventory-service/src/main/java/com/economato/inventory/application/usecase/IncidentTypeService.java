@@ -37,6 +37,14 @@ public class IncidentTypeService {
     }
 
     @Transactional(readOnly = true)
+    public List<IncidentTypeResponseDTO> getAllTypes() {
+        ensureAdmin();
+        return incidentTypeRepository.findAll().stream()
+                .map(incidentTypeMapper::toResponseDTO)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public IncidentTypeResponseDTO getById(Integer id) {
         IncidentType incidentType = incidentTypeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_INCIDENT_TYPE_NOT_FOUND)));
