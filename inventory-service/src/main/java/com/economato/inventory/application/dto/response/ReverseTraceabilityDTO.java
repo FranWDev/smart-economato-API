@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -42,13 +43,24 @@ public class ReverseTraceabilityDTO {
         private String movementType;
         @Schema(description = "Descripción del movimiento")
         private String description;
-        @Schema(description = "Hash criptográfico en el libro mayor")
+        @Deprecated
+        @Schema(description = "Hash criptográfico en el libro mayor (legado)")
         private String ledgerHash;
         @Schema(description = "ID del lote asociado al ingrediente")
         private Long batchId;
         @Schema(description = "Codigo del lote asociado al ingrediente")
         private String batchCode;
-        @Schema(description = "Fecha de caducidad del lote")
+        @Schema(description = "Fecha de caducidad del lote (legado)")
         private LocalDate expirationDate;
+        @Schema(description = "Fecha de caducidad del lote")
+        private LocalDate batchExpirationDate;
+        @Schema(description = "Cantidad inicial del lote")
+        private BigDecimal batchInitialQuantity;
+        @Schema(description = "Cantidad restante del lote")
+        private BigDecimal batchRemainingQuantity;
+        @Schema(description = "Fecha de recepcion del lote")
+        private LocalDateTime batchReceivedAt;
+        @Schema(description = "Indica si el lote esta agotado")
+        private Boolean batchDepleted;
     }
 }

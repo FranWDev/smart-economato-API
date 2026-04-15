@@ -23,6 +23,7 @@ import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.response.StockLedgerResponseDTO;
 import com.economato.inventory.application.mapper.StockLedgerMapper;
+import com.economato.inventory.application.usecase.ProductBatchService;
 import com.economato.inventory.application.usecase.StockLedgerService;
 import com.economato.inventory.infrastructure.config.security.SecurityConfig;
 import com.economato.inventory.infrastructure.config.security.JwtUtils;
@@ -53,6 +54,9 @@ class StockLedgerControllerIntegrationTest {
 
         @MockitoBean
         private StockLedgerMapper stockLedgerMapper;
+
+        @MockitoBean
+        private ProductBatchService productBatchService;
 
         @MockitoBean
         private JwtUtils jwtUtils;

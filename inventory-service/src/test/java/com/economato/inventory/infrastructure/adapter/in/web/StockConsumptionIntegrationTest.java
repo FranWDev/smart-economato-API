@@ -19,6 +19,7 @@ import java.util.List;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO;
 import com.economato.inventory.application.mapper.StockLedgerMapper;
+import com.economato.inventory.application.usecase.ProductBatchService;
 import com.economato.inventory.application.usecase.StockLedgerService;
 import com.economato.inventory.infrastructure.config.security.SecurityConfig;
 import com.economato.inventory.infrastructure.config.security.JwtUtils;
@@ -48,6 +49,9 @@ class StockConsumptionIntegrationTest {
 
         @MockitoBean
         private StockLedgerMapper stockLedgerMapper;
+
+        @MockitoBean
+        private ProductBatchService productBatchService;
 
         @MockitoBean
         private JwtUtils jwtUtils;

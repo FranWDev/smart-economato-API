@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.economato.inventory.application.dto.request.UpdateBatchExpirationRequestDTO;
+import com.economato.inventory.application.dto.response.BatchTypeaheadDTO;
 import com.economato.inventory.application.dto.response.ProductBatchResponseDTO;
 import com.economato.inventory.application.mapper.ProductBatchMapper;
 import com.economato.inventory.application.usecase.ProductBatchService;
@@ -129,5 +130,15 @@ public class ProductBatchController {
                 .map(productBatchMapper::toResponseDTO);
                 
         return ResponseEntity.ok(response);
+    }
+
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
+    @Operation(summary = "Sugerencias incrementales de lotes por ID o codigo")
+    @GetMapping("/typeahead")
+    public ResponseEntity<List<BatchTypeaheadDTO>> getBatchTypeahead(
+            @RequestParam String query,
+            @RequestParam(required = false) Integer productId,
+            @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(productBatchService.getBatchTypeahead(query, productId, limit));
     }
 }

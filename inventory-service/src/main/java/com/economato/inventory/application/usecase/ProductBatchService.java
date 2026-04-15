@@ -4,8 +4,10 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.BatchConsumptionDetail;
+import com.economato.inventory.application.dto.response.BatchTypeaheadDTO;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.domain.model.StockLedger;
@@ -285,6 +288,87 @@ public class ProductBatchService {
     @Transactional(readOnly = true)
     public Optional<ProductBatch> findByBatchCode(String batchCode) {
         return batchRepository.findByBatchCode(batchCode);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ProductBatch> resolveByIdOrBatchCode(Integer productId, String reference) {
+        if (reference == null || reference.trim().isEmpty()) {
+            return Optional.empty();
+        }
+
+        String normalized = reference.trim();
+        if (normalized.chars().allMatch(Character::isDigit)) {
+            try {
+                Long batchId = Long.parseLong(normalized);
+                return batchRepository.findById(batchId)
+                        .filter(batch -> productId == null || batch.getProduct().getId().equals(productId));
+            } catch (NumberFormatException ignored) {
+                // If parse fails for any reason, fallback to batch code lookup below.
+            }
+        }
+
+        return batchRepository.findByBatchCode(normalized)
+                .filter(batch -> productId == null || batch.getProduct().getId().equals(productId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<BatchTypeaheadDTO> getBatchTypeahead(String query, Integer productId, int limit) {
+        if (query == null || query.trim().isEmpty()) {
+            return List.of();
+        }
+
+        int safeLimit = Math.max(1, Math.min(limit, 30));
+        String normalized = query.trim().toLowerCase();
+        boolean numericQuery = normalized.chars().allMatch(Character::isDigit);
+
+        Stream<ProductBatch> stream = (productId != null
+                ? batchRepository.findByProductIdOrderByExpirationDateAsc(productId)
+                : batchRepository.findAllActiveBatchesOrderByExpiration())
+                .stream();
+
+        return stream
+                .filter(batch -> matchesTypeahead(batch, normalized, numericQuery))
+                .sorted(Comparator
+                        .comparingInt((ProductBatch batch) -> rankTypeahead(batch, normalized, numericQuery))
+                        .thenComparing(ProductBatch::getReceivedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .limit(safeLimit)
+                .map(batch -> BatchTypeaheadDTO.builder()
+                        .id(batch.getId())
+                        .batchCode(batch.getBatchCode())
+                        .productId(batch.getProduct().getId())
+                        .productName(batch.getProduct().getName())
+                        .expirationDate(batch.getExpirationDate())
+                        .remainingQuantity(batch.getRemainingQuantity())
+                        .build())
+                .toList();
+    }
+
+    private boolean matchesTypeahead(ProductBatch batch, String normalized, boolean numericQuery) {
+        String code = batch.getBatchCode() == null ? "" : batch.getBatchCode().toLowerCase();
+        boolean codeMatch = !code.isEmpty() && code.contains(normalized);
+        if (numericQuery) {
+            return String.valueOf(batch.getId()).startsWith(normalized) || codeMatch;
+        }
+        return codeMatch;
+    }
+
+    private int rankTypeahead(ProductBatch batch, String normalized, boolean numericQuery) {
+        String code = batch.getBatchCode() == null ? "" : batch.getBatchCode().toLowerCase();
+        String idAsString = String.valueOf(batch.getId());
+
+        if (!code.isEmpty() && code.equals(normalized)) {
+            return 0;
+        }
+        if (numericQuery && idAsString.equals(normalized)) {
+            return 1;
+        }
+        if (!code.isEmpty() && code.startsWith(normalized)) {
+            return 2;
+        }
+        if (numericQuery && idAsString.startsWith(normalized)) {
+            return 3;
+        }
+        return 4;
     }
 
     @Transactional(rollbackFor = Exception.class)
