@@ -11,9 +11,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import static org.mockito.Mockito.mock;
@@ -28,6 +27,7 @@ import org.springframework.data.domain.Pageable;
 import com.economato.inventory.application.dto.projection.PendingProductQuantity;
 import com.economato.inventory.application.dto.response.AlertResolution;
 import com.economato.inventory.application.dto.response.AlertSeverity;
+import com.economato.inventory.application.dto.response.AlertType;
 import com.economato.inventory.application.dto.response.DailyForecastResponseDTO;
 import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.StockPredictionResponseDTO;
@@ -145,6 +145,7 @@ class StockAlertServiceTest {
         StockAlertDTO alert = alerts.get(0);
         assertEquals("Tomate", alert.getProductName());
         assertEquals(AlertSeverity.CRITICAL, alert.getSeverity());
+        assertEquals(AlertType.PREDICTION, alert.getAlertType());
         assertEquals(AlertResolution.UNCOVERED, alert.getResolution());
         assertTrue(alert.getMessage().contains("Déficit estimado"));
         assertEquals(BigDecimal.valueOf(15.0).setScale(3), alert.getEffectiveGap());
@@ -226,6 +227,7 @@ class StockAlertServiceTest {
         assertFalse(alerts.isEmpty());
         assertEquals(AlertResolution.PARTIALLY_COVERED, alerts.get(0).getResolution());
         assertEquals(AlertSeverity.HIGH, alerts.get(0).getSeverity());
+        assertEquals(AlertType.PREDICTION, alerts.get(0).getAlertType());
     }
 
     @Test
@@ -347,9 +349,72 @@ class StockAlertServiceTest {
 
         assertEquals(1, alerts.size());
         assertEquals(AlertSeverity.CRITICAL, alerts.get(0).getSeverity());
+        assertEquals(AlertType.EXPIRATION, alerts.get(0).getAlertType());
+        assertEquals(AlertResolution.EXPIRING, alerts.get(0).getResolution());
         assertEquals(batch.getExpirationDate(), alerts.get(0).getNearestExpirationDate());
         assertEquals(BigDecimal.valueOf(4), alerts.get(0).getExpiringQuantity());
     }
+
+        @Test
+        void getActiveAlerts_mergesPredictionAndExpirationAlerts_whenBothApplyToSameProduct() {
+        Integer productId = 404;
+        Product product = new Product();
+        product.setId(productId);
+        product.setName("Queso");
+        product.setUnit("kg");
+        product.setCurrentStock(BigDecimal.valueOf(1.0));
+        product.setHidden(false);
+
+        StockPrediction prediction = StockPrediction.builder()
+            .id(productId)
+            .product(product)
+            .projectedConsumption(BigDecimal.valueOf(18.0))
+            .build();
+
+        ProductBatch batch = ProductBatch.builder()
+            .id(2L)
+            .product(product)
+            .expirationDate(java.time.LocalDate.now().plusDays(3))
+            .remainingQuantity(BigDecimal.valueOf(7))
+            .depleted(false)
+            .build();
+
+        when(predictionRepository.findAll()).thenReturn(List.of(prediction));
+        when(productRepository.findAllActive()).thenReturn(List.of(product));
+        when(productBatchService.getAllActiveBatches()).thenReturn(List.of(batch));
+        when(productBatchService.getExpiringBatches(7)).thenReturn(List.of(batch));
+        List<Object[]> topRecipes = new java.util.ArrayList<>();
+        topRecipes.add(new Object[] { productId, "Pasta" });
+        when(cookingAuditRepository.findTopConsumingRecipesByProducts(anyList(), any()))
+            .thenReturn(topRecipes);
+
+        List<StockAlertDTO> alerts = stockAlertService.getActiveAlerts();
+
+        assertEquals(1, alerts.size());
+        assertEquals(AlertType.COMBINED, alerts.get(0).getAlertType());
+        assertEquals(batch.getExpirationDate(), alerts.get(0).getNearestExpirationDate());
+        assertTrue(alerts.get(0).getMessage().contains("Caducidad próxima"));
+        assertEquals(AlertResolution.UNCOVERED, alerts.get(0).getResolution());
+        }
+
+        @Test
+        void getActiveAlerts_doesNotGenerateExpirationAlert_forAlreadyExpiredBatch() {
+        Integer productId = 505;
+        Product product = new Product();
+        product.setId(productId);
+        product.setName("Yogur");
+        product.setUnit("u");
+        product.setCurrentStock(BigDecimal.valueOf(10));
+        product.setHidden(false);
+
+        when(predictionRepository.findAll()).thenReturn(List.of());
+        when(productRepository.findAllActive()).thenReturn(List.of(product));
+        when(productBatchService.getExpiringBatches(7)).thenReturn(List.of());
+
+        List<StockAlertDTO> alerts = stockAlertService.getActiveAlerts();
+
+        assertTrue(alerts.isEmpty());
+        }
 
     @Test
     void getWeeklyConsumptionHistoryAll_returnsMappedWeeklySeriesForAllProducts() {

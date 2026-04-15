@@ -1,24 +1,23 @@
 package com.economato.inventory.infrastructure.adapter.out.persistence.repository;
 
-import com.economato.inventory.domain.model.ProductBatch;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
-import org.springframework.data.jpa.repository.Modifying;
-import org.springframework.transaction.annotation.Transactional;
-
-import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
-import java.util.Optional;
+import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.economato.inventory.domain.model.ProductBatch;
 
 public interface ProductBatchRepository extends JpaRepository<ProductBatch, Long>, JpaSpecificationExecutor<ProductBatch> {
 
@@ -51,7 +50,9 @@ public interface ProductBatchRepository extends JpaRepository<ProductBatch, Long
     List<ProductBatch> findAllActiveBatchesOrderByExpiration();
 
     @Query("SELECT b FROM ProductBatch b JOIN FETCH b.product " +
-            "WHERE b.depleted = false AND b.expirationDate IS NOT NULL AND b.expirationDate <= :date " +
+            "WHERE b.depleted = false AND b.expirationDate IS NOT NULL " +
+            "AND b.expirationDate >= CURRENT_DATE " +
+            "AND b.expirationDate <= :date " +
             "ORDER BY b.expirationDate ASC")
     List<ProductBatch> findExpiringBefore(@Param("date") LocalDate date);
 
