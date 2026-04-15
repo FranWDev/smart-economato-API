@@ -1,5 +1,6 @@
 package com.economato.inventory.application.dto.response;
 
+import com.economato.inventory.application.dto.response.AlertType;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -46,6 +47,9 @@ public class StockAlertDTO {
 
     /** Nivel de urgencia basado en {@code estimatedDaysRemaining}. */
     private AlertSeverity severity;
+
+    /** Tipo de alerta: PREDICTION, EXPIRATION o COMBINED. */
+    private AlertType alertType;
 
     /**
      * Indica si el déficit es cubierto, parcialmente cubierto o

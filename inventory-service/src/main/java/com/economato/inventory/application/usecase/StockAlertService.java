@@ -18,11 +18,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.springframework.context.MessageSource;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
@@ -34,6 +34,7 @@ import com.economato.inventory.application.dto.projection.PendingProductQuantity
 import com.economato.inventory.application.dto.projection.WeeklyIngredientConsumption;
 import com.economato.inventory.application.dto.response.AlertResolution;
 import com.economato.inventory.application.dto.response.AlertSeverity;
+import com.economato.inventory.application.dto.response.AlertType;
 import com.economato.inventory.application.dto.response.DailyForecastResponseDTO;
 import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.StockPredictionResponseDTO;
@@ -366,9 +367,10 @@ public class StockAlertService {
                     .pendingOrderQuantity(BigDecimal.ZERO)
                     .projectedConsumption(BigDecimal.ZERO)
                     .effectiveGap(BigDecimal.ZERO)
-                    .estimatedDaysRemaining((int) daysToExpire)
+                    .estimatedDaysRemaining(Math.max((int) daysToExpire, 0))
                     .severity(expirationSeverity)
-                    .resolution(AlertResolution.UNCOVERED)
+                    .resolution(AlertResolution.EXPIRING)
+                    .alertType(AlertType.EXPIRATION)
                     .message(expiringMessage)
                     .nearestExpirationDate(nearestExpiration)
                     .expiringQuantity(expiringQuantity)
@@ -393,6 +395,7 @@ public class StockAlertService {
                     .estimatedDaysRemaining(existing.getEstimatedDaysRemaining())
                     .severity(mergedSeverity)
                     .resolution(existing.getResolution())
+                    .alertType(AlertType.COMBINED)
                     .message(existing.getMessage() + " " + expiringMessage)
                     .nearestExpirationDate(nearestExpiration)
                     .expiringQuantity(expiringQuantity)
@@ -615,6 +618,7 @@ public class StockAlertService {
                 .effectiveGap(gap)
                 .estimatedDaysRemaining(Math.min(daysRemaining, 999))
                 .severity(severity)
+                .alertType(AlertType.PREDICTION)
                 .resolution(resolution)
                 .message(message)
                 .nearestExpirationDate(null)

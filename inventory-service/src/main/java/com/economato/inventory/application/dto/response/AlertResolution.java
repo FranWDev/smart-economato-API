@@ -13,5 +13,7 @@ public enum AlertResolution {
     /** Los pedidos activos reducen el déficit pero no lo eliminan. */
     PARTIALLY_COVERED,
     /** Déficit sin ningún pedido activo que lo cubra. */
-    UNCOVERED
+    UNCOVERED,
+    /** Lote próximo a caducar — no hay déficit de consumo, solo caducidad. */
+    EXPIRING
 }
