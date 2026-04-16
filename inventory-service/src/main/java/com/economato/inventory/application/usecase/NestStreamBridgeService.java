@@ -47,7 +47,7 @@ public class NestStreamBridgeService {
     private static final String EVENT_THINKING = "thinking";
     private static final String EVENT_THINKING_DELTA = "thinking_delta";
     private static final String EVENT_TOOL_RESULT = "tool_result";
-    private static final long MOCK_DELAY_MS = 700L;
+    private static final long MOCK_DELAY_MS = 300L;
     private static final String MOCK_MESSAGE = "Hola, no soy una IA, soy un mock porque javi no trabaja, pero no te preocupes! le di un latigazo a javi para que trabaje!";
 
     @Qualifier("nestRestClient")
@@ -320,13 +320,12 @@ public class NestStreamBridgeService {
         for (int i = 0; i < message.length(); i++) {
             char current = message.charAt(i);
             
-            // Handle spaces - emit them as tokens
+            // Handle spaces - append to current word or create a space token
             if (Character.isWhitespace(current)) {
                 if (!currentWord.isEmpty()) {
                     tokens.add(currentWord.toString());
                     currentWord.setLength(0);
                 }
-                tokens.add(" "); // Add space as a token
                 continue;
             }
             
@@ -347,7 +346,18 @@ public class NestStreamBridgeService {
             tokens.add(currentWord.toString());
         }
         
-        return tokens;
+        // Add spaces between tokens for proper display
+        List<String> spacedTokens = new ArrayList<>();
+        for (int i = 0; i < tokens.size(); i++) {
+            String token = tokens.get(i);
+            if (i > 0 && !isPunctuation(token.charAt(0))) {
+                spacedTokens.add(" " + token);
+            } else {
+                spacedTokens.add(token);
+            }
+        }
+        
+        return spacedTokens;
     }
 
     private boolean isPunctuation(char value) {

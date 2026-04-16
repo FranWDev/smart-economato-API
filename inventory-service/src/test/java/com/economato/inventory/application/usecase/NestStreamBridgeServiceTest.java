@@ -170,15 +170,15 @@ class NestStreamBridgeServiceTest {
                 mockService.streamCompletion(request(), emitter, "jwt-token");
         long elapsedMs = System.currentTimeMillis() - startMs;
 
-        assertEquals("Hola, soy una IA que no funciona aun", result.fullResponse());
+        assertEquals("Hola, no soy una IA, soy un mock porque javi no trabaja, pero no te preocupes! le di un latigazo a javi para que trabaje!", result.fullResponse());
 
-        // New mock emits: 1 thinking + 6 thinking_delta + 1 tool_called + 1 tool_result + tokens with spaces + 1 done
-        // Approximately 25-30 events depending on tokenization
+        // Mock emits: 1 thinking + 6 thinking_delta + 1 tool_called + 1 tool_result + tokens with spaces + 1 done
+        // Should have at least 20 events
         verify(emitter, Mockito.atLeast(20)).send(any(SseEmitter.SseEventBuilder.class));
 
         assertTrue(elapsedMs >= 900,
-                "El streaming mock debería tardar al menos 900ms (8 gaps × 150ms), " +
-                        "pero tardó solo " + elapsedMs + "ms. El delay entre eventos no está funcionando.");
+                "El streaming mock debería tardar al menos 900ms, " +
+                        "pero tardó solo " + elapsedMs + "ms.");
 
         verify(emitter).complete();
     }
