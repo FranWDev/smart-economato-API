@@ -1,6 +1,7 @@
 package com.economato.inventory.application.usecase;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -29,6 +30,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
 import com.economato.inventory.application.dto.mcp.McpSystemContextDto;
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
+import com.economato.inventory.application.dto.mcp.ToolCallInfo;
 import com.economato.inventory.application.usecase.mcp.McpUtilityService;
 import com.economato.inventory.application.usecase.smg.DecayFunction;
 import com.economato.inventory.application.usecase.smg.EntityEnricher;
@@ -248,7 +250,7 @@ class AiMetricsPlanTest {
         when(requestBodySpec.accept(any(MediaType.class))).thenReturn(requestBodySpec);
         when(requestBodySpec.headers(any())).thenReturn(requestBodySpec);
         when(requestBodySpec.body(any(NestCompletionRequest.class))).thenReturn(requestBodySpec);
-        when(requestBodySpec.exchange(any())).thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 3, 7));
+        when(requestBodySpec.exchange(any())).thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 3, 7, null, new ArrayList<ToolCallInfo>()));
 
         NestStreamBridgeService bridge = new NestStreamBridgeService(
                 nestRestClient,
@@ -295,7 +297,7 @@ class AiMetricsPlanTest {
     private NestStreamBridgeService nestBridgeSuccess() {
         NestStreamBridgeService bridge = org.mockito.Mockito.mock(NestStreamBridgeService.class);
         when(bridge.streamCompletion(any(NestCompletionRequest.class), any(SseEmitter.class), any(String.class)))
-                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 2, 8));
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 2, 8, null, new ArrayList<ToolCallInfo>()));
         return bridge;
     }
 

@@ -20,6 +20,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.economato.inventory.application.dto.event.AiAuditEvent;
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
 import com.economato.inventory.application.dto.mcp.NestStreamEvent;
+import com.economato.inventory.application.dto.mcp.ToolCallInfo;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiStreamException;
 import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
@@ -43,6 +44,9 @@ public class NestStreamBridgeService {
     private static final String EVENT_ERROR = "error";
     private static final String EVENT_TOOL = "tool";
     private static final String EVENT_TOOL_CALLED = "tool_called";
+    private static final String EVENT_THINKING = "thinking";
+    private static final String EVENT_THINKING_DELTA = "thinking_delta";
+    private static final String EVENT_TOOL_RESULT = "tool_result";
     private static final long MOCK_DELAY_MS = 150L;
     private static final String MOCK_MESSAGE = "Hola, soy una IA que no funciona aun";
 
@@ -117,6 +121,8 @@ public class NestStreamBridgeService {
             String fullResponse = null;
             Integer inputTokens = null;
             Integer outputTokens = null;
+            StringBuilder thinkingBuffer = new StringBuilder();
+            List<ToolCallInfo> toolCalls = new ArrayList<>();
 
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(response.getBody(), StandardCharsets.UTF_8))) {
@@ -152,6 +158,25 @@ public class NestStreamBridgeService {
                                         .eventTimestamp(LocalDateTime.now())
                                         .build());
                                 log.debug("Nest tool call received: tool={}, provider={}", toolName, request.provider());
+                                // Forward tool_called event to frontend
+                                emitter.send(SseEmitter.event().name("tool_called")
+                                        .data(objectMapper.writeValueAsString(java.util.Map.of("toolName", toolName))));
+                                toolCalls.add(new ToolCallInfo(toolName, null, null));
+                            } else if (EVENT_THINKING.equals(event.type()) || EVENT_THINKING_DELTA.equals(event.type())) {
+                                String thinkingChunk = event.data() != null ? event.data() : "";
+                                thinkingBuffer.append(thinkingChunk);
+                                emitter.send(SseEmitter.event().name("thinking").data(thinkingChunk));
+                                log.debug("Nest thinking received: provider={}", request.provider());
+                                counter("ai.nest.stream.thinking.events").increment();
+                            } else if (EVENT_TOOL_RESULT.equals(event.type())) {
+                                String resultData = event.data() != null ? event.data() : "";
+                                emitter.send(SseEmitter.event().name("tool_result").data(resultData));
+                                // Update the last tool call with the result
+                                if (!toolCalls.isEmpty()) {
+                                    int lastIndex = toolCalls.size() - 1;
+                                    ToolCallInfo lastTool = toolCalls.get(lastIndex);
+                                    toolCalls.set(lastIndex, new ToolCallInfo(lastTool.toolName(), lastTool.toolCallId(), resultData));
+                                }
                             } else if (EVENT_ERROR.equals(event.type())) {
                                 String message = event.data() != null ? event.data() : "Unknown stream error";
                                 emitter.send(SseEmitter.event().name(EVENT_ERROR).data(message));
@@ -165,7 +190,7 @@ public class NestStreamBridgeService {
                 }
             }
 
-            return new StreamCompletionResult(fullResponse, inputTokens, outputTokens);
+            return new StreamCompletionResult(fullResponse, inputTokens, outputTokens, thinkingBuffer.toString(), toolCalls);
         } catch (AiStreamException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -180,12 +205,12 @@ public class NestStreamBridgeService {
                 if (parsed.type() != null) {
                     return parsed;
                 }
-                return new NestStreamEvent(eventType, parsed.data(), parsed.fullResponse(), parsed.inputTokens(), parsed.outputTokens());
+                return new NestStreamEvent(eventType, parsed.data(), parsed.fullResponse(), parsed.thinkingContent(), parsed.inputTokens(), parsed.outputTokens());
             }
         } catch (Exception ex) {
             log.debug("Unable to parse Nest SSE JSON payload, using raw fallback: {}", ex.getMessage());
         }
-        return new NestStreamEvent(eventType, rawData, null, null, null);
+        return new NestStreamEvent(eventType, rawData, null, null, null, null);
     }
 
     private void applyHeaders(HttpHeaders headers, String userJwt) {
@@ -231,10 +256,41 @@ public class NestStreamBridgeService {
     }
 
     private StreamCompletionResult handleMockStream(SseEmitter emitter) {
+        StringBuilder thinkingContent = new StringBuilder();
+        List<ToolCallInfo> toolCalls = new ArrayList<>();
         List<String> tokens = tokenizeMockMessage(MOCK_MESSAGE);
         StringBuilder accumulated = new StringBuilder();
 
         try {
+            // Emit thinking event
+            String thinkingText = "Analizando la solicitud... Parece ser una pregunta sobre inventario.";
+            emitter.send(SseEmitter.event().name(EVENT_THINKING).data(thinkingText));
+            thinkingContent.append(thinkingText);
+            Thread.sleep(MOCK_DELAY_MS);
+
+            // Emit thinking_delta events
+            String[] thinkingDeltas = {"", " Voy a", " buscar", " los", " datos", " relevantes."};
+            for (String delta : thinkingDeltas) {
+                emitter.send(SseEmitter.event().name(EVENT_THINKING_DELTA).data(delta));
+                thinkingContent.append(delta);
+                Thread.sleep(MOCK_DELAY_MS);
+            }
+
+            // Emit tool_called event for searching database
+            emitter.send(SseEmitter.event().name(EVENT_TOOL_CALLED).data("{\"toolName\":\"search_inventory\",\"toolCallId\":\"call_001\"}"));
+            toolCalls.add(new ToolCallInfo("search_inventory", "call_001", null));
+            Thread.sleep(MOCK_DELAY_MS);
+
+            // Emit tool_result event
+            String toolResult = "{\"status\":\"success\",\"results\":5,\"items\":[{\"name\":\"Item1\",\"qty\":10}]}";
+            emitter.send(SseEmitter.event().name(EVENT_TOOL_RESULT).data(toolResult));
+            if (!toolCalls.isEmpty()) {
+                ToolCallInfo lastTool = toolCalls.get(toolCalls.size() - 1);
+                toolCalls.set(toolCalls.size() - 1, new ToolCallInfo(lastTool.toolName(), lastTool.toolCallId(), toolResult));
+            }
+            Thread.sleep(MOCK_DELAY_MS);
+
+            // Emit token events with delay
             for (int i = 0; i < tokens.size(); i++) {
                 String token = tokens.get(i);
                 String chunk = token;
@@ -257,7 +313,7 @@ public class NestStreamBridgeService {
             throw new AiStreamException("Mock stream failed", ex);
         }
 
-        return new StreamCompletionResult(accumulated.toString(), 0, accumulated.length());
+        return new StreamCompletionResult(accumulated.toString(), 5, accumulated.length(), thinkingContent.toString(), toolCalls);
     }
 
     private List<String> tokenizeMockMessage(String message) {
@@ -299,7 +355,9 @@ public class NestStreamBridgeService {
     public record StreamCompletionResult(
             String fullResponse,
             Integer inputTokens,
-            Integer outputTokens
+            Integer outputTokens,
+            String thinkingContent,
+            List<ToolCallInfo> toolCalls
     ) {
     }
 }

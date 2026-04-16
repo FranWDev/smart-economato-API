@@ -1,6 +1,7 @@
 package com.economato.inventory.application.usecase;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -29,6 +30,7 @@ import com.economato.inventory.application.dto.mcp.McpChangeProviderRequest;
 import com.economato.inventory.application.dto.mcp.McpChatCreateRequest;
 import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
+import com.economato.inventory.application.dto.mcp.ToolCallInfo;
 import com.economato.inventory.application.usecase.smg.SemanticMemoryGraphService;
 import com.economato.inventory.application.usecase.smg.model.CompressedContext;
 import com.economato.inventory.domain.model.AiChat;
@@ -154,7 +156,7 @@ class AiAuditEventTest {
                 .toolName("reorder-suggestions")
                 .eventTimestamp(LocalDateTime.now())
                 .build());
-            return new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20);
+            return new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20, null, new ArrayList<ToolCallInfo>());
         });
 
         nestStreamBridgeService = new NestStreamBridgeService(
@@ -263,7 +265,7 @@ class AiAuditEventTest {
         when(semanticMemoryGraphService.compress(any(), eq("es"))).thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
         NestStreamBridgeService mockBridge = org.mockito.Mockito.mock(NestStreamBridgeService.class);
         when(mockBridge.streamCompletion(any(), any(), org.mockito.ArgumentMatchers.anyString()))
-            .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20));
+            .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20, null, new ArrayList<ToolCallInfo>()));
 
         aiChatService = new AiChatService(
                 aiChatRepository,

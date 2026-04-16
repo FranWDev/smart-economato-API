@@ -25,6 +25,7 @@ import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
 import com.economato.inventory.application.dto.mcp.McpChatMessageResponseDto;
 import com.economato.inventory.application.dto.mcp.McpChatResponseDto;
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
+import com.economato.inventory.application.dto.mcp.ToolCallInfo;
 import com.economato.inventory.application.usecase.smg.SemanticMemoryGraphService;
 import com.economato.inventory.application.usecase.smg.model.CompressedContext;
 import com.economato.inventory.domain.model.AiChat;
@@ -287,8 +288,10 @@ public class AiChatService {
                 int inputTokens = safeInt(result.inputTokens());
                 int outputTokens = safeInt(result.outputTokens());
                 String assistantContent = result.fullResponse() == null ? "" : result.fullResponse();
+                String thinkingContent = result.thinkingContent();
+                var toolCalls = result.toolCalls();
 
-                executeAssistantCompletion(chat, currentUser, language, assistantContent, inputTokens, outputTokens, compressedContext, streamStart);
+                executeAssistantCompletion(chat, currentUser, language, assistantContent, thinkingContent, toolCalls, inputTokens, outputTokens, compressedContext, streamStart);
             } catch (RuntimeException ex) {
                 log.error("AI stream error for chat {}: {}", chatId, ex.getMessage());
                 meterRegistry.counter("ai.chat.errors.total", "type", resolveErrorType(ex)).increment();
@@ -321,6 +324,8 @@ public class AiChatService {
                             User currentUser,
                                             String language,
                                             String assistantContent,
+                                            String thinkingContent,
+                                            java.util.List<ToolCallInfo> toolCalls,
                                             int inputTokens,
                                             int outputTokens,
                                             CompressedContext compressedContext,
@@ -333,15 +338,31 @@ public class AiChatService {
                             .chat(managedChat)
                             .role(MessageRole.ASSISTANT)
                             .content(assistantContent)
+                            .thinkingContent(thinkingContent)
                             .inputTokens(inputTokens)
                             .outputTokens(outputTokens)
                             .build();
                     aiChatMessageRepository.save(assistantMessage);
+                    
+                    // Persist tool calls as separate TOOL messages
+                    if (toolCalls != null) {
+                        for (ToolCallInfo tc : toolCalls) {
+                            AiChatMessage toolMessage = AiChatMessage.builder()
+                                    .chat(managedChat)
+                                    .role(MessageRole.TOOL)
+                                    .toolName(tc.toolName())
+                                    .toolCallId(tc.toolCallId())
+                                    .toolResult(tc.toolResult())
+                                    .build();
+                            aiChatMessageRepository.save(toolMessage);
+                        }
+                    }
+                    
                     countMessage(MessageRole.ASSISTANT, managedChat.getActiveProvider());
                     countTokens(managedChat.getActiveProvider(), inputTokens, outputTokens);
 
                     managedChat.setLastMessageAt(LocalDateTime.now());
-                    managedChat.setMessageCount(managedChat.getMessageCount() + 2);
+                    managedChat.setMessageCount(managedChat.getMessageCount() + 2 + (toolCalls != null ? toolCalls.size() : 0));
                     managedChat.setTotalTokensConsumed(managedChat.getTotalTokensConsumed() + inputTokens + outputTokens);
                     aiChatRepository.save(managedChat);
 
@@ -596,7 +617,9 @@ public class AiChatService {
                 message.getRole().name(),
                 message.getContent(),
                 message.getToolName(),
+                message.getToolCallId(),
                 message.getToolResult(),
+                message.getThinkingContent(),
                 message.getInputTokens(),
                 message.getOutputTokens(),
                 message.getCreatedAt()

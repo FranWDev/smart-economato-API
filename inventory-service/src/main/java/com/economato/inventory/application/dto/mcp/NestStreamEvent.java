@@ -4,6 +4,7 @@ public record NestStreamEvent(
         String type,
         String data,
         String fullResponse,
+        String thinkingContent,
         Integer inputTokens,
         Integer outputTokens
 ) {

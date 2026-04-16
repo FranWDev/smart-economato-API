@@ -1,5 +1,6 @@
 package com.economato.inventory.application.usecase;
 
+import java.util.ArrayList;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,6 +22,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
+import com.economato.inventory.application.dto.mcp.ToolCallInfo;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiStreamException;
 import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -80,7 +82,7 @@ class NestStreamBridgeServiceTest {
                 mockCircuitBreakerClosed();
         mockRequestChain();
         when(requestBodySpec.exchange(any()))
-                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("hola mundo", 11, 7));
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("hola mundo", 11, 7, null, new ArrayList<ToolCallInfo>()));
 
         NestStreamBridgeService.StreamCompletionResult result =
                 service.streamCompletion(request(), new SseEmitter(5000L), "jwt-token");
@@ -170,11 +172,12 @@ class NestStreamBridgeServiceTest {
 
         assertEquals("Hola, soy una IA que no funciona aun", result.fullResponse());
 
-        verify(emitter, Mockito.times(10)).send(any(SseEmitter.SseEventBuilder.class));
+        // New mock sends: 1 thinking + 6 thinking_delta + 1 tool_called + 1 tool_result + ~8 token + 1 done = 19 total
+        verify(emitter, Mockito.times(19)).send(any(SseEmitter.SseEventBuilder.class));
 
         assertTrue(elapsedMs >= 900,
                 "El streaming mock debería tardar al menos 900ms (8 gaps × 150ms), " +
-                        "pero tardó solo " + elapsedMs + "ms. El delay entre palabras no está funcionando.");
+                        "pero tardó solo " + elapsedMs + "ms. El delay entre eventos no está funcionando.");
 
         verify(emitter).complete();
     }

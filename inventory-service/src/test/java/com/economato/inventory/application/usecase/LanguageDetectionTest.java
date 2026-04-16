@@ -1,6 +1,7 @@
 package com.economato.inventory.application.usecase;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -22,6 +23,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import com.economato.inventory.application.dto.mcp.McpChatCreateRequest;
 import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
+import com.economato.inventory.application.dto.mcp.ToolCallInfo;
 import com.economato.inventory.application.usecase.smg.SemanticMemoryGraphService;
 import com.economato.inventory.application.usecase.smg.model.CompressedContext;
 import com.economato.inventory.domain.model.AiChat;
@@ -124,7 +126,7 @@ class LanguageDetectionTest {
         when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(message(MessageRole.USER, "hola")));
         when(semanticMemoryGraphService.compress(any(), eq("en"))).thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "en"));
         when(nestStreamBridgeService.streamCompletion(any(), any(), eq("jwt")))
-                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20));
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20, null, new ArrayList<ToolCallInfo>()));
         when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         SseEmitter emitter = service.sendMessage(100L, new McpChatMessageRequest("hola", "en"), "jwt");
@@ -146,7 +148,7 @@ class LanguageDetectionTest {
         when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(message(MessageRole.USER, "hola")));
         when(semanticMemoryGraphService.compress(any(), eq("es"))).thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
         when(nestStreamBridgeService.streamCompletion(any(), any(), eq("jwt")))
-                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20));
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20, null, new ArrayList<ToolCallInfo>())); 
 
         service.sendMessage(100L, new McpChatMessageRequest("hola", "xx"), "jwt");
 

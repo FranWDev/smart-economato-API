@@ -1,6 +1,7 @@
 package com.economato.inventory.application.usecase;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -132,7 +133,7 @@ class StockAlertServiceTest {
         when(productBatchService.getAllActiveBatches()).thenReturn(List.of(
             ProductBatch.builder().product(product).remainingQuantity(BigDecimal.valueOf(1.0)).build()
         ));
-        List<Object[]> topRecipes = new java.util.ArrayList<>();
+        List<Object[]> topRecipes = new ArrayList<>();
         topRecipes.add(new Object[]{productId, "Gazpacho"});
         when(cookingAuditRepository.findTopConsumingRecipesByProducts(anyList(), any()))
                 .thenReturn(topRecipes);
@@ -383,7 +384,7 @@ class StockAlertServiceTest {
         when(productRepository.findAllActive()).thenReturn(List.of(product));
         when(productBatchService.getAllActiveBatches()).thenReturn(List.of(batch));
         when(productBatchService.getExpiringBatches(7)).thenReturn(List.of(batch));
-        List<Object[]> topRecipes = new java.util.ArrayList<>();
+        List<Object[]> topRecipes = new ArrayList<>();
         topRecipes.add(new Object[] { productId, "Pasta" });
         when(cookingAuditRepository.findTopConsumingRecipesByProducts(anyList(), any()))
             .thenReturn(topRecipes);

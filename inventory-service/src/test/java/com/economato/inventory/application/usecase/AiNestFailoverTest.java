@@ -1,5 +1,6 @@
 package com.economato.inventory.application.usecase;
 
+import java.util.ArrayList;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -21,6 +22,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
+import com.economato.inventory.application.dto.mcp.ToolCallInfo;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiStreamException;
 import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -77,7 +79,7 @@ class AiNestFailoverTest {
         when(requestBodySpec.accept(any())).thenReturn(requestBodySpec);
         when(requestBodySpec.headers(any())).thenReturn(requestBodySpec);
         when(requestBodySpec.body(any(NestCompletionRequest.class))).thenReturn(requestBodySpec);
-        when(requestBodySpec.exchange(any())).thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1));
+        when(requestBodySpec.exchange(any())).thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1, null, new ArrayList<ToolCallInfo>()));
 
         service.streamCompletion(
                 new NestCompletionRequest("ctx", "key", "OPENAI", "Admin", "es", "gpt-4o"),
@@ -97,7 +99,7 @@ class AiNestFailoverTest {
         when(requestBodySpec.accept(any())).thenReturn(requestBodySpec);
         when(requestBodySpec.headers(any())).thenReturn(requestBodySpec);
         when(requestBodySpec.body(any(NestCompletionRequest.class))).thenReturn(requestBodySpec);
-        when(requestBodySpec.exchange(any())).thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 2, 3));
+        when(requestBodySpec.exchange(any())).thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 2, 3, null, new ArrayList<ToolCallInfo>()));
 
         service.streamCompletion(
                 new NestCompletionRequest("ctx", "key", "OPENAI", "Admin", "es", "gpt-4o"),
