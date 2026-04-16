@@ -1,27 +1,5 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.application.dto.event.AiAuditEvent;
-import com.economato.inventory.domain.model.AiProvider;
-import com.economato.inventory.domain.model.User;
-import com.economato.inventory.domain.model.UserApiKey;
-import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
-import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserApiKeyRepository;
-import com.economato.inventory.infrastructure.config.ai.AiProviderProperties;
-import com.economato.inventory.infrastructure.config.ai.AiRateLimitProperties;
-import com.economato.inventory.infrastructure.config.ai.AiVaultProperties;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import javax.crypto.Cipher;
-import javax.crypto.spec.GCMParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
@@ -29,6 +7,33 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.economato.inventory.application.dto.event.AiAuditEvent;
+import com.economato.inventory.domain.model.AiProvider;
+import com.economato.inventory.domain.model.GlobalApiKey;
+import com.economato.inventory.domain.model.User;
+import com.economato.inventory.domain.model.UserApiKey;
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.GlobalApiKeyRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserApiKeyRepository;
+import com.economato.inventory.infrastructure.config.ai.AiProviderProperties;
+import com.economato.inventory.infrastructure.config.ai.AiRateLimitProperties;
+import com.economato.inventory.infrastructure.config.ai.AiVaultProperties;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -44,6 +49,7 @@ public class AiKeyVaultService {
     private final AiVaultProperties aiVaultProperties;
     private final AiProviderProperties aiProviderProperties;
     private final UserApiKeyRepository userApiKeyRepository;
+    private final GlobalApiKeyRepository globalApiKeyRepository;
     private final AiRateLimitProperties aiRateLimitProperties;
     private final MeterRegistry meterRegistry;
     private final Optional<AuditEventProducer> auditEventProducer;
@@ -105,15 +111,120 @@ public class AiKeyVaultService {
 
     @Transactional(readOnly = true)
     public String getDecryptedKey(Integer userId, AiProvider provider) {
-        if (userId == null || provider == null) {
-            throw new InvalidOperationException("User and provider are required");
+        if (provider == null) {
+            throw new InvalidOperationException("Provider is required");
         }
 
-        UserApiKey key = userApiKeyRepository
-                .findByUserIdAndProviderAndActiveTrue(userId, provider)
-                .orElseThrow(() -> new ResourceNotFoundException("Active API key not found for provider: " + provider));
+        try {
+            return getDecryptedKey(provider);
+        } catch (ResourceNotFoundException ex) {
+            if (userId == null) {
+                throw ex;
+            }
+
+            UserApiKey key = userApiKeyRepository
+                    .findByUserIdAndProviderAndActiveTrue(userId, provider)
+                    .orElseThrow(() -> new ResourceNotFoundException("Active API key not found for provider: " + provider));
+
+            return decrypt(key.getEncryptedKey());
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public String getDecryptedKey(AiProvider provider) {
+        if (provider == null) {
+            throw new InvalidOperationException("Provider is required");
+        }
+
+        GlobalApiKey key = globalApiKeyRepository
+                .findByProviderAndActiveTrue(provider)
+                .orElseThrow(() -> new ResourceNotFoundException("Active global API key not found for provider: " + provider));
 
         return decrypt(key.getEncryptedKey());
+    }
+
+    public void saveGlobalKey(AiProvider provider, String plainApiKey, Integer adminUserId) {
+        validateInputs(adminUserId, provider, plainApiKey);
+        validateProvider(provider, plainApiKey);
+
+        GlobalApiKey existing = globalApiKeyRepository.findByProvider(provider).orElse(null);
+        if (existing == null) {
+            GlobalApiKey created = GlobalApiKey.builder().build();
+            applyEncryptedKey(created, plainApiKey);
+            created.setProvider(provider);
+            created.setActive(true);
+            created.setUpdatedBy(buildUserRef(adminUserId));
+            GlobalApiKey saved = globalApiKeyRepository.save(created);
+            log.info("Global API key saved: adminUserId={}, provider={}, version={}", adminUserId, provider, saved.getEncryptionKeyVersion());
+            publishAudit(AiAuditEvent.builder()
+                    .eventType("AI_KEY_ADDED")
+                    .userId(adminUserId)
+                    .provider(provider.name())
+                    .eventTimestamp(LocalDateTime.now())
+                    .build());
+            return;
+        }
+
+        applyEncryptedKey(existing, plainApiKey);
+        existing.setActive(true);
+        existing.setUpdatedBy(buildUserRef(adminUserId));
+        GlobalApiKey saved = globalApiKeyRepository.save(existing);
+        log.info("Global API key saved: adminUserId={}, provider={}, version={}", adminUserId, provider, saved.getEncryptionKeyVersion());
+        publishAudit(AiAuditEvent.builder()
+                .eventType("AI_KEY_UPDATED")
+                .userId(adminUserId)
+                .provider(provider.name())
+                .eventTimestamp(LocalDateTime.now())
+                .build());
+    }
+
+    public void updateGlobalKey(AiProvider provider, String plainApiKey, Integer adminUserId) {
+        validateInputs(adminUserId, provider, plainApiKey);
+        validateProvider(provider, plainApiKey);
+
+        GlobalApiKey existing = globalApiKeyRepository
+                .findByProviderAndActiveTrue(provider)
+                .orElseThrow(() -> new ResourceNotFoundException("Active global API key not found for provider: " + provider));
+
+        applyEncryptedKey(existing, plainApiKey);
+        existing.setUpdatedBy(buildUserRef(adminUserId));
+        GlobalApiKey saved = globalApiKeyRepository.save(existing);
+        log.info("Global API key updated: adminUserId={}, provider={}, version={}", adminUserId, provider, saved.getEncryptionKeyVersion());
+        publishAudit(AiAuditEvent.builder()
+                .eventType("AI_KEY_UPDATED")
+                .userId(adminUserId)
+                .provider(provider.name())
+                .eventTimestamp(LocalDateTime.now())
+                .build());
+    }
+
+    public void deleteGlobalKey(AiProvider provider, Integer adminUserId) {
+        if (provider == null || adminUserId == null) {
+            throw new InvalidOperationException("Admin and provider are required");
+        }
+
+        GlobalApiKey key = globalApiKeyRepository.findByProvider(provider)
+                .orElseThrow(() -> new ResourceNotFoundException("Global API key not found"));
+        globalApiKeyRepository.delete(key);
+        publishAudit(AiAuditEvent.builder()
+                .eventType("AI_KEY_REMOVED")
+                .userId(adminUserId)
+                .provider(provider.name())
+                .eventTimestamp(LocalDateTime.now())
+                .build());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ApiKeyMetadata> listGlobalKeys() {
+        return globalApiKeyRepository.findAllByActiveTrue().stream()
+                .map(key -> new ApiKeyMetadata(
+                        key.getId(),
+                        key.getProvider(),
+                        key.getKeyHint(),
+                        key.isActive(),
+                        key.getCreatedAt()
+                ))
+                .toList();
     }
 
     public void deleteKey(Integer userId, Long keyId) {
@@ -171,7 +282,17 @@ public class AiKeyVaultService {
             key.setEncryptionKeyVersion(toVersion);
         }
         userApiKeyRepository.saveAll(keys);
-        log.info("API key re-encryption: fromVersion={}, toVersion={}, count={}", fromVersion, toVersion, keys.size());
+
+        List<GlobalApiKey> globalKeys = globalApiKeyRepository.findByEncryptionKeyVersion(fromVersion);
+        for (GlobalApiKey key : globalKeys) {
+            String plain = decrypt(key.getEncryptedKey());
+            key.setEncryptedKey(encrypt(plain, toVersion));
+            key.setEncryptionKeyVersion(toVersion);
+        }
+        globalApiKeyRepository.saveAll(globalKeys);
+
+        log.info("API key re-encryption: fromVersion={}, toVersion={}, userCount={}, globalCount={}",
+                fromVersion, toVersion, keys.size(), globalKeys.size());
     }
 
     private void enforceUserApiKeyLimit(Integer userId) {
@@ -211,6 +332,13 @@ public class AiKeyVaultService {
         userApiKey.setEncryptedKey(encrypt(plainApiKey, keyVersion));
         userApiKey.setEncryptionKeyVersion(keyVersion);
         userApiKey.setKeyHint(extractKeyHint(plainApiKey));
+    }
+
+    private void applyEncryptedKey(GlobalApiKey globalApiKey, String plainApiKey) {
+        int keyVersion = aiVaultProperties.getCurrentKeyVersion();
+        globalApiKey.setEncryptedKey(encrypt(plainApiKey, keyVersion));
+        globalApiKey.setEncryptionKeyVersion(keyVersion);
+        globalApiKey.setKeyHint(extractKeyHint(plainApiKey));
     }
 
     private String encrypt(String plainText, int keyVersion) {

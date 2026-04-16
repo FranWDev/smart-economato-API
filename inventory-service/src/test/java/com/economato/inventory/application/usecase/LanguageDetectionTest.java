@@ -119,7 +119,7 @@ class LanguageDetectionTest {
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
         when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
-        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultService.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(message(MessageRole.USER, "hola")));
         when(semanticMemoryGraphService.compress(any(), eq("en"))).thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "en"));
@@ -141,7 +141,7 @@ class LanguageDetectionTest {
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
         when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
-        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultService.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(message(MessageRole.USER, "hola")));
         when(semanticMemoryGraphService.compress(any(), eq("es"))).thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));

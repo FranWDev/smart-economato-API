@@ -57,6 +57,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 class AiMetricsTest {
 
     @Mock private UserApiKeyRepository userApiKeyRepository;
+    @Mock private com.economato.inventory.infrastructure.adapter.out.persistence.repository.GlobalApiKeyRepository globalApiKeyRepository;
     @Mock private AiChatRepository aiChatRepository;
     @Mock private AiChatMessageRepository aiChatMessageRepository;
     @Mock private SecurityContextHelper securityContextHelper;
@@ -102,6 +103,7 @@ class AiMetricsTest {
                 vaultProperties,
                 providerProperties,
                 userApiKeyRepository,
+            globalApiKeyRepository,
                 rateLimitProperties,
                 meterRegistry,
                 Optional.of(auditEventProducer)
@@ -157,7 +159,7 @@ class AiMetricsTest {
             return msg;
         });
         when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(message(MessageRole.USER, "hola")));
-        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultService.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(semanticMemoryGraphService.compress(any(), eq("es"))).thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
         when(nestRestClient.post()).thenReturn(requestBodyUriSpec);
         when(requestBodyUriSpec.uri(org.mockito.ArgumentMatchers.<java.net.URI>any())).thenReturn(requestBodySpec);
@@ -196,7 +198,7 @@ class AiMetricsTest {
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
         when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
-        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenThrow(new com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException("missing"));
+        when(aiKeyVaultService.getDecryptedKey(AiProvider.OPENAI)).thenThrow(new com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException("missing"));
 
         AiChatService service = new AiChatService(
                 aiChatRepository,

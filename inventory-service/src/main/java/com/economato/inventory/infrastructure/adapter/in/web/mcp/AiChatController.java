@@ -1,17 +1,8 @@
 package com.economato.inventory.infrastructure.adapter.in.web.mcp;
 
-import com.economato.inventory.application.dto.mcp.McpApiKeyRequest;
-import com.economato.inventory.application.dto.mcp.McpApiKeyResponseDto;
-import com.economato.inventory.application.dto.mcp.McpChangeProviderRequest;
-import com.economato.inventory.application.dto.mcp.McpChatCreateRequest;
-import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
-import com.economato.inventory.application.dto.mcp.McpChatMessageResponseDto;
-import com.economato.inventory.application.dto.mcp.McpChatResponseDto;
-import com.economato.inventory.application.usecase.AiChatService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,18 +10,26 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.util.List;
-import java.util.Map;
+import com.economato.inventory.application.dto.mcp.McpChangeProviderRequest;
+import com.economato.inventory.application.dto.mcp.McpChatCreateRequest;
+import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
+import com.economato.inventory.application.dto.mcp.McpChatMessageResponseDto;
+import com.economato.inventory.application.dto.mcp.McpChatResponseDto;
+import com.economato.inventory.application.usecase.AiChatService;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/mcp/chat")
+@RequestMapping("/api/chat")
 @RequiredArgsConstructor
 @PreAuthorize("isAuthenticated()")
 @Tag(name = "MCP Chat", description = "Endpoints de chat AI para clientes MCP")
@@ -76,30 +75,6 @@ public class AiChatController {
     @DeleteMapping("/chats/{chatId}")
     public void archiveChat(@PathVariable Long chatId) {
         aiChatService.archiveChat(chatId);
-    }
-
-    @Operation(summary = "Listar API keys", description = "Devuelve las API keys del usuario para proveedores AI")
-    @GetMapping("/keys")
-    public List<McpApiKeyResponseDto> listApiKeys() {
-        return aiChatService.listApiKeys();
-    }
-
-    @Operation(summary = "Crear API key", description = "Guarda una nueva API key para un proveedor")
-    @PostMapping("/keys")
-    public McpApiKeyResponseDto createApiKey(@Valid @RequestBody McpApiKeyRequest request) {
-        return aiChatService.saveApiKey(request);
-    }
-
-    @Operation(summary = "Actualizar API key", description = "Actualiza la API key de un proveedor")
-    @PutMapping("/keys")
-    public McpApiKeyResponseDto updateApiKey(@Valid @RequestBody McpApiKeyRequest request) {
-        return aiChatService.updateApiKey(request);
-    }
-
-    @Operation(summary = "Eliminar API key", description = "Elimina una API key por identificador")
-    @DeleteMapping("/keys/{keyId}")
-    public void deleteApiKey(@PathVariable Long keyId) {
-        aiChatService.deleteApiKey(keyId);
     }
 
     @Operation(summary = "Listar proveedores habilitados", description = "Devuelve proveedores AI activos y su modelo por defecto")

@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -41,6 +43,8 @@ public class NestStreamBridgeService {
     private static final String EVENT_ERROR = "error";
     private static final String EVENT_TOOL = "tool";
     private static final String EVENT_TOOL_CALLED = "tool_called";
+    private static final long MOCK_DELAY_MS = 150L;
+    private static final String MOCK_MESSAGE = "Hola, soy una IA que no funciona aun";
 
     @Qualifier("nestRestClient")
     private final RestClient nestRestClient;
@@ -53,6 +57,11 @@ public class NestStreamBridgeService {
     public StreamCompletionResult streamCompletion(NestCompletionRequest request,
                                                    SseEmitter emitter,
                                                    String userJwt) {
+        if (Boolean.TRUE.equals(aiNestProperties.getMockEnabled())) {
+            log.info("AI mock stream activated for user={}", request.userName());
+            return handleMockStream(emitter);
+        }
+
         Timer.Sample timerSample = Timer.start(meterRegistry);
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("nest");
         log.info("AI stream started: provider={}, user={}", request.provider(), request.userName());
@@ -219,6 +228,72 @@ public class NestStreamBridgeService {
 
     private void publishAudit(AiAuditEvent event) {
         auditEventProducer.ifPresent(producer -> producer.publishAiAudit(event));
+    }
+
+    private StreamCompletionResult handleMockStream(SseEmitter emitter) {
+        List<String> tokens = tokenizeMockMessage(MOCK_MESSAGE);
+        StringBuilder accumulated = new StringBuilder();
+
+        try {
+            for (int i = 0; i < tokens.size(); i++) {
+                String token = tokens.get(i);
+                String chunk = token;
+                if (needsLeadingSpace(accumulated, token)) {
+                    chunk = " " + token;
+                }
+                accumulated.append(chunk);
+                emitter.send(SseEmitter.event().name(EVENT_TOKEN).data(chunk));
+                if (i < tokens.size() - 1) {
+                    Thread.sleep(MOCK_DELAY_MS);
+                }
+            }
+            emitter.send(SseEmitter.event().name(EVENT_DONE).data(""));
+            emitter.complete();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new AiStreamException("Mock stream interrupted", ex);
+        } catch (Exception ex) {
+            log.error("Mock stream error: {}", ex.getMessage());
+            throw new AiStreamException("Mock stream failed", ex);
+        }
+
+        return new StreamCompletionResult(accumulated.toString(), 0, accumulated.length());
+    }
+
+    private List<String> tokenizeMockMessage(String message) {
+        List<String> tokens = new ArrayList<>();
+        StringBuilder currentWord = new StringBuilder();
+        for (int i = 0; i < message.length(); i++) {
+            char current = message.charAt(i);
+            if (Character.isWhitespace(current)) {
+                if (!currentWord.isEmpty()) {
+                    tokens.add(currentWord.toString());
+                    currentWord.setLength(0);
+                }
+                continue;
+            }
+            if (isPunctuation(current)) {
+                if (!currentWord.isEmpty()) {
+                    tokens.add(currentWord.toString());
+                    currentWord.setLength(0);
+                }
+                tokens.add(String.valueOf(current));
+                continue;
+            }
+            currentWord.append(current);
+        }
+        if (!currentWord.isEmpty()) {
+            tokens.add(currentWord.toString());
+        }
+        return tokens;
+    }
+
+    private boolean needsLeadingSpace(StringBuilder accumulated, String token) {
+        return !accumulated.isEmpty() && !isPunctuation(token.charAt(0));
+    }
+
+    private boolean isPunctuation(char value) {
+        return !Character.isLetterOrDigit(value);
     }
 
     public record StreamCompletionResult(
