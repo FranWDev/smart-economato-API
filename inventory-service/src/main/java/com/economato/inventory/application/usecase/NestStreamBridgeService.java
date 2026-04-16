@@ -47,8 +47,8 @@ public class NestStreamBridgeService {
     private static final String EVENT_THINKING = "thinking";
     private static final String EVENT_THINKING_DELTA = "thinking_delta";
     private static final String EVENT_TOOL_RESULT = "tool_result";
-    private static final long MOCK_DELAY_MS = 150L;
-    private static final String MOCK_MESSAGE = "Hola, soy una IA que no funciona aun";
+    private static final long MOCK_DELAY_MS = 700L;
+    private static final String MOCK_MESSAGE = "Hola, no soy una IA, soy un mock porque javi no trabaja, pero no te preocupes! le di un latigazo a javi para que trabaje!";
 
     @Qualifier("nestRestClient")
     private final RestClient nestRestClient;
@@ -263,13 +263,14 @@ public class NestStreamBridgeService {
 
         try {
             // Emit thinking event
-            String thinkingText = "Analizando la solicitud... Parece ser una pregunta sobre inventario.";
+            String thinkingText = "Analizando la solicitud... Parece ser una pregunta sobre inventario. Pero como soy un mock," +
+            " y javi no trabaja, no puedo responderla correctamente... Ya lo se! Voy a usar la tool latigazo_a_javi para que trabaje de una vez!";
             emitter.send(SseEmitter.event().name(EVENT_THINKING).data(thinkingText));
             thinkingContent.append(thinkingText);
             Thread.sleep(MOCK_DELAY_MS);
 
             // Emit thinking_delta events
-            String[] thinkingDeltas = {"", " Voy a", " buscar", " los", " datos", " relevantes."};
+            String[] thinkingDeltas = {"", " Voy a", " buscar", " el", " latigo", " mas fuerte."};
             for (String delta : thinkingDeltas) {
                 emitter.send(SseEmitter.event().name(EVENT_THINKING_DELTA).data(delta));
                 thinkingContent.append(delta);
@@ -277,8 +278,8 @@ public class NestStreamBridgeService {
             }
 
             // Emit tool_called event for searching database
-            emitter.send(SseEmitter.event().name(EVENT_TOOL_CALLED).data("{\"toolName\":\"search_inventory\",\"toolCallId\":\"call_001\"}"));
-            toolCalls.add(new ToolCallInfo("search_inventory", "call_001", null));
+            emitter.send(SseEmitter.event().name(EVENT_TOOL_CALLED).data("{\"toolName\":\"search_latigo\",\"toolCallId\":\"call_001\"}"));
+            toolCalls.add(new ToolCallInfo("search_latigo", "call_001", null));
             Thread.sleep(MOCK_DELAY_MS);
 
             // Emit tool_result event
@@ -293,12 +294,8 @@ public class NestStreamBridgeService {
             // Emit token events with delay
             for (int i = 0; i < tokens.size(); i++) {
                 String token = tokens.get(i);
-                String chunk = token;
-                if (needsLeadingSpace(accumulated, token)) {
-                    chunk = " " + token;
-                }
-                accumulated.append(chunk);
-                emitter.send(SseEmitter.event().name(EVENT_TOKEN).data(chunk));
+                accumulated.append(token);
+                emitter.send(SseEmitter.event().name(EVENT_TOKEN).data(token));
                 if (i < tokens.size() - 1) {
                     Thread.sleep(MOCK_DELAY_MS);
                 }
@@ -319,15 +316,21 @@ public class NestStreamBridgeService {
     private List<String> tokenizeMockMessage(String message) {
         List<String> tokens = new ArrayList<>();
         StringBuilder currentWord = new StringBuilder();
+        
         for (int i = 0; i < message.length(); i++) {
             char current = message.charAt(i);
+            
+            // Handle spaces - emit them as tokens
             if (Character.isWhitespace(current)) {
                 if (!currentWord.isEmpty()) {
                     tokens.add(currentWord.toString());
                     currentWord.setLength(0);
                 }
+                tokens.add(" "); // Add space as a token
                 continue;
             }
+            
+            // Handle punctuation
             if (isPunctuation(current)) {
                 if (!currentWord.isEmpty()) {
                     tokens.add(currentWord.toString());
@@ -336,20 +339,19 @@ public class NestStreamBridgeService {
                 tokens.add(String.valueOf(current));
                 continue;
             }
+            
             currentWord.append(current);
         }
+        
         if (!currentWord.isEmpty()) {
             tokens.add(currentWord.toString());
         }
+        
         return tokens;
     }
 
-    private boolean needsLeadingSpace(StringBuilder accumulated, String token) {
-        return !accumulated.isEmpty() && !isPunctuation(token.charAt(0));
-    }
-
     private boolean isPunctuation(char value) {
-        return !Character.isLetterOrDigit(value);
+        return !Character.isLetterOrDigit(value) && !Character.isWhitespace(value);
     }
 
     public record StreamCompletionResult(
