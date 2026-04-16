@@ -47,7 +47,7 @@ public class NestStreamBridgeService {
     private static final String EVENT_THINKING = "thinking";
     private static final String EVENT_THINKING_DELTA = "thinking_delta";
     private static final String EVENT_TOOL_RESULT = "tool_result";
-    private static final long MOCK_DELAY_MS = 300L;
+    private static final long MOCK_DELAY_MS = 200L;
     private static final String MOCK_MESSAGE = "Hola, no soy una IA, soy un mock porque javi no trabaja, pero no te preocupes! le di un latigazo a javi para que trabaje!";
 
     @Qualifier("nestRestClient")
@@ -270,7 +270,7 @@ public class NestStreamBridgeService {
             Thread.sleep(MOCK_DELAY_MS);
 
             // Emit thinking_delta events
-            String[] thinkingDeltas = {"", " Voy a", " buscar", " el", " latigo", " mas fuerte."};
+            String[] thinkingDeltas = {"", " Voy a ", " buscar ", " el ", " latigo ", " mas fuerte."};
             for (String delta : thinkingDeltas) {
                 emitter.send(SseEmitter.event().name(EVENT_THINKING_DELTA).data(delta));
                 thinkingContent.append(delta);
@@ -283,7 +283,7 @@ public class NestStreamBridgeService {
             Thread.sleep(MOCK_DELAY_MS);
 
             // Emit tool_result event
-            String toolResult = "{\"status\":\"success\",\"results\":5,\"items\":[{\"name\":\"Item1\",\"qty\":10}]}";
+            String toolResult = "{\"status\":\"success\",\"results\":1,\"items\":[{\"name\":\"Latigo Tocho del bueno\",\"qty\":10}]}";
             emitter.send(SseEmitter.event().name(EVENT_TOOL_RESULT).data(toolResult));
             if (!toolCalls.isEmpty()) {
                 ToolCallInfo lastTool = toolCalls.get(toolCalls.size() - 1);

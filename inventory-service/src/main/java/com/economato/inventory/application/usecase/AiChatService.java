@@ -10,12 +10,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.economato.inventory.application.dto.RestPage;
 import com.economato.inventory.application.dto.event.AiAuditEvent;
 import com.economato.inventory.application.dto.mcp.McpApiKeyRequest;
 import com.economato.inventory.application.dto.mcp.McpApiKeyResponseDto;
@@ -24,6 +29,7 @@ import com.economato.inventory.application.dto.mcp.McpChatCreateRequest;
 import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
 import com.economato.inventory.application.dto.mcp.McpChatMessageResponseDto;
 import com.economato.inventory.application.dto.mcp.McpChatResponseDto;
+import com.economato.inventory.application.dto.mcp.McpChatUpdateRequest;
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
 import com.economato.inventory.application.dto.mcp.ToolCallInfo;
 import com.economato.inventory.application.usecase.smg.SemanticMemoryGraphService;
@@ -106,6 +112,50 @@ public class AiChatService {
                 .stream()
                 .map(this::toMessageResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<McpChatMessageResponseDto> getChatHistory(Long chatId, Pageable pageable) {
+        User currentUser = requireCurrentUser();
+        AiChat chat = getOwnedChat(chatId, currentUser.getId());
+
+        Pageable normalized = pageable == null || pageable.isUnpaged()
+                ? PageRequest.of(0, 30, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")))
+                : PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id"))
+                );
+
+        Page<McpChatMessageResponseDto> page = aiChatMessageRepository.findByChatId(chat.getId(), normalized)
+                .map(this::toMessageResponse);
+
+        return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
+    }
+
+    public McpChatResponseDto updateChat(Long chatId, McpChatUpdateRequest request) {
+        User currentUser = requireCurrentUser();
+        AiChat chat = getOwnedChat(chatId, currentUser.getId());
+
+        String normalizedTitle = normalizeTitle(request != null ? request.title() : null);
+        if (normalizedTitle == null) {
+            throw new InvalidOperationException("Chat title is required");
+        }
+
+        chat.setTitle(normalizedTitle);
+        AiChat saved = aiChatRepository.save(chat);
+
+        publishAudit(AiAuditEvent.builder()
+                .eventType("AI_CHAT_UPDATED")
+                .userId(currentUser.getId())
+                .userName(currentUser.getName())
+                .chatId(saved.getId())
+                .provider(saved.getActiveProvider().name())
+                .userLanguage(saved.getUserLanguage())
+                .eventTimestamp(LocalDateTime.now())
+                .build());
+
+        return toChatResponse(saved);
     }
 
     public McpChatResponseDto createChat(McpChatCreateRequest request) {
