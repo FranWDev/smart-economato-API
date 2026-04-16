@@ -18,6 +18,7 @@ import com.economato.inventory.application.dto.response.AllergenResponseDTO;
 import com.economato.inventory.application.usecase.AllergenService;
 
 import java.net.URI;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/allergens")
@@ -131,18 +132,18 @@ public class AllergenController {
     }
 
     @Operation(
-        summary = "Buscar alérgeno por nombre",
-        description = "Devuelve un alérgeno que coincida exactamente con el nombre proporcionado. Si no existe, responde 200 sin contenido. [Rol requerido: USER]",
+        summary = "Buscar alérgenos por nombre",
+        description = "Busca alérgenos cuyo nombre contenga el texto proporcionado (no sensible a mayúsculas). [Rol requerido: USER]",
         responses = {
-            @ApiResponse(responseCode = "200", description = "Alérgeno encontrado",
+            @ApiResponse(responseCode = "200", description = "Lista de alérgenos encontrados",
                 content = @Content(mediaType = "application/json",
                     schema = @Schema(implementation = AllergenResponseDTO.class)))
         }
     )
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/search")
-    public ResponseEntity<AllergenResponseDTO> searchByName(@RequestParam String name) {
-        return ResponseEntity.ok(allergenService.findByName(name).orElse(null));
+    public ResponseEntity<List<AllergenResponseDTO>> searchByName(@RequestParam String name) {
+        return ResponseEntity.ok(allergenService.findByNameContaining(name));
     }
 
 }
