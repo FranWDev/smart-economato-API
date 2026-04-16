@@ -5,6 +5,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,6 +13,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -53,8 +55,6 @@ class NestStreamBridgeServiceTest {
         props.setCompletionEndpoint("/api/completion");
 
         meterRegistry = new SimpleMeterRegistry();
-        when(circuitBreakerRegistry.circuitBreaker("nest")).thenReturn(circuitBreaker);
-        when(circuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
 
         service = new NestStreamBridgeService(
                 nestRestClient,
@@ -68,6 +68,7 @@ class NestStreamBridgeServiceTest {
 
     @Test
     void streamCompletion_circuitBreakerOpen_throwsImmediately() {
+                when(circuitBreakerRegistry.circuitBreaker("nest")).thenReturn(circuitBreaker);
         when(circuitBreaker.getState()).thenReturn(CircuitBreaker.State.OPEN);
 
         assertThrows(AiStreamException.class,
@@ -76,6 +77,7 @@ class NestStreamBridgeServiceTest {
 
     @Test
     void streamCompletion_successfulStream_returnsTokensAndText() throws Exception {
+                mockCircuitBreakerClosed();
         mockRequestChain();
         when(requestBodySpec.exchange(any()))
                 .thenReturn(new NestStreamBridgeService.StreamCompletionResult("hola mundo", 11, 7));
@@ -92,6 +94,7 @@ class NestStreamBridgeServiceTest {
 
     @Test
     void streamCompletion_streamException_countsErrorMetric() {
+                mockCircuitBreakerClosed();
         mockRequestChain();
         when(requestBodySpec.exchange(any()))
             .thenThrow(new AiStreamException("stream failed"));
@@ -104,6 +107,7 @@ class NestStreamBridgeServiceTest {
 
     @Test
     void streamCompletion_connectionError_countsConnectionMetric() {
+                mockCircuitBreakerClosed();
         mockRequestChain();
         when(requestBodySpec.exchange(any()))
                 .thenThrow(new RuntimeException("connection refused"));
@@ -132,5 +136,46 @@ class NestStreamBridgeServiceTest {
         when(requestBodySpec.accept(any())).thenReturn(requestBodySpec);
         when(requestBodySpec.headers(any())).thenReturn(requestBodySpec);
         when(requestBodySpec.body(any(NestCompletionRequest.class))).thenReturn(requestBodySpec);
+    }
+
+        private void mockCircuitBreakerClosed() {
+                when(circuitBreakerRegistry.circuitBreaker("nest")).thenReturn(circuitBreaker);
+                when(circuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
+        }
+
+    @Test
+    void streamCompletion_mockEnabled_streamsWordsWithDelay() throws Exception {
+        AiNestProperties mockProps = new AiNestProperties();
+        mockProps.setBaseUrl("http://localhost:9999");
+        mockProps.setServiceKey("test-service-key");
+        mockProps.setAllowedOrigin("http://localhost:9999");
+        mockProps.setCompletionEndpoint("/api/completion");
+        mockProps.setMockEnabled(true);
+
+        NestStreamBridgeService mockService = new NestStreamBridgeService(
+                nestRestClient,
+                mockProps,
+                circuitBreakerRegistry,
+                new SimpleMeterRegistry(),
+                new ObjectMapper(),
+                Optional.empty()
+        );
+
+        SseEmitter emitter = Mockito.spy(new SseEmitter(30000L));
+
+        long startMs = System.currentTimeMillis();
+        NestStreamBridgeService.StreamCompletionResult result =
+                mockService.streamCompletion(request(), emitter, "jwt-token");
+        long elapsedMs = System.currentTimeMillis() - startMs;
+
+        assertEquals("Hola, soy una IA que no funciona aun", result.fullResponse());
+
+        verify(emitter, Mockito.times(10)).send(any(SseEmitter.SseEventBuilder.class));
+
+        assertTrue(elapsedMs >= 900,
+                "El streaming mock debería tardar al menos 900ms (8 gaps × 150ms), " +
+                        "pero tardó solo " + elapsedMs + "ms. El delay entre palabras no está funcionando.");
+
+        verify(emitter).complete();
     }
 }

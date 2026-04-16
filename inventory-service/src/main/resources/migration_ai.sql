@@ -57,3 +57,15 @@ CREATE TABLE IF NOT EXISTS user_api_key (
 
 CREATE INDEX IF NOT EXISTS idx_api_key_user_provider
     ON user_api_key(user_id, provider, active);
+
+CREATE TABLE IF NOT EXISTS global_api_key (
+    global_api_key_id BIGSERIAL PRIMARY KEY,
+    provider VARCHAR(20) NOT NULL UNIQUE,
+    encrypted_key VARCHAR(512) NOT NULL,
+    key_hint VARCHAR(8) NOT NULL,
+    encryption_key_version INTEGER NOT NULL DEFAULT 1,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_by INTEGER,
+    CONSTRAINT fk_global_key_admin FOREIGN KEY (updated_by) REFERENCES users(user_id)
+);

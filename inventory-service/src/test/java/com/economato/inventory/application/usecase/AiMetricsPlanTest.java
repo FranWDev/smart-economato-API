@@ -43,6 +43,7 @@ import com.economato.inventory.domain.model.AiChat;
 import com.economato.inventory.domain.model.AiChatMessage;
 import com.economato.inventory.domain.model.AiChatStatus;
 import com.economato.inventory.domain.model.AiProvider;
+import com.economato.inventory.domain.model.GlobalApiKey;
 import com.economato.inventory.domain.model.MessageRole;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.domain.model.UserApiKey;
@@ -70,6 +71,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 class AiMetricsPlanTest {
 
     @Mock private UserApiKeyRepository userApiKeyRepository;
+    @Mock private com.economato.inventory.infrastructure.adapter.out.persistence.repository.GlobalApiKeyRepository globalApiKeyRepository;
     @Mock private AiChatRepository aiChatRepository;
     @Mock private AiChatMessageRepository aiChatMessageRepository;
     @Mock private SecurityContextHelper securityContextHelper;
@@ -134,19 +136,18 @@ class AiMetricsPlanTest {
     @Test
     void vaultDecryption_incrementsCounter() {
         AiKeyVaultService vaultService = vaultService();
-        java.util.concurrent.atomic.AtomicReference<UserApiKey> saved = new java.util.concurrent.atomic.AtomicReference<>();
-        when(userApiKeyRepository.findByUserIdAndProvider(10, AiProvider.OPENAI)).thenReturn(Optional.empty());
-        when(userApiKeyRepository.findByUserIdAndActiveTrue(10)).thenReturn(List.of());
-        when(userApiKeyRepository.save(any(UserApiKey.class))).thenAnswer(i -> {
-            UserApiKey value = i.getArgument(0);
+        java.util.concurrent.atomic.AtomicReference<GlobalApiKey> saved = new java.util.concurrent.atomic.AtomicReference<>();
+        when(globalApiKeyRepository.findByProvider(AiProvider.OPENAI)).thenReturn(Optional.empty());
+        when(globalApiKeyRepository.save(any(GlobalApiKey.class))).thenAnswer(i -> {
+            GlobalApiKey value = i.getArgument(0);
             saved.set(value);
             return value;
         });
 
-        vaultService.saveKey(10, AiProvider.OPENAI, "sk-test");
-        when(userApiKeyRepository.findByUserIdAndProviderAndActiveTrue(10, AiProvider.OPENAI))
+        vaultService.saveGlobalKey(AiProvider.OPENAI, "sk-test", 10);
+        when(globalApiKeyRepository.findByProviderAndActiveTrue(AiProvider.OPENAI))
                 .thenReturn(Optional.of(saved.get()));
-        vaultService.getDecryptedKey(10, AiProvider.OPENAI);
+        vaultService.getDecryptedKey(AiProvider.OPENAI);
 
         assertEquals(1.0, meterRegistry.counter("ai.vault.decryptions.total").count());
     }
@@ -272,6 +273,7 @@ class AiMetricsPlanTest {
                 vaultProperties,
                 providerProperties,
                 userApiKeyRepository,
+            globalApiKeyRepository,
                 rateLimitProperties,
                 meterRegistry,
                 Optional.of(auditEventProducer)
@@ -280,13 +282,13 @@ class AiMetricsPlanTest {
 
     private AiKeyVaultService vaultServiceWithDecryptedKey() {
         AiKeyVaultService vaultService = org.mockito.Mockito.mock(AiKeyVaultService.class);
-        when(vaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(vaultService.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         return vaultService;
     }
 
     private AiKeyVaultService vaultServiceMissingKey() {
         AiKeyVaultService vaultService = org.mockito.Mockito.mock(AiKeyVaultService.class);
-        when(vaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenThrow(new ResourceNotFoundException("missing"));
+        when(vaultService.getDecryptedKey(AiProvider.OPENAI)).thenThrow(new ResourceNotFoundException("missing"));
         return vaultService;
     }
 

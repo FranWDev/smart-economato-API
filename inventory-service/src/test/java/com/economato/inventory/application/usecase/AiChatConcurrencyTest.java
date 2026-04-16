@@ -151,7 +151,7 @@ class AiChatConcurrencyTest {
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
         when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
-        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultService.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> {
             AiChatMessage message = invocation.getArgument(0);
             message.setId(message.getRole() == MessageRole.USER ? 1L : 2L);
@@ -212,7 +212,7 @@ class AiChatConcurrencyTest {
         when(aiChatRepository.findByIdAndUserId(105L, 10)).thenReturn(Optional.of(chat5));
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
         when(aiRateLimitService.canSendMessage(any())).thenReturn(true);
-        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultService.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> {
             AiChatMessage message = invocation.getArgument(0);
             message.setId(message.getRole() == MessageRole.USER ? 1L : 2L);
@@ -275,7 +275,7 @@ class AiChatConcurrencyTest {
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
         when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
-        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultService.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> {
             AiChatMessage message = invocation.getArgument(0);
             message.setId(message.getRole() == MessageRole.USER ? 1L : 2L);

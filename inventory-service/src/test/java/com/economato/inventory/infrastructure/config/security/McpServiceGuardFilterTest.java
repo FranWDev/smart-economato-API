@@ -80,12 +80,12 @@ class McpServiceGuardFilterTest {
     }
 
     @Test
-    void mcpNestedPath_alwaysFilters() {
-        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/mcp/chat/chats/1/messages/stream");
+    void chatPath_doesNotFilter() {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/chat/chats/1/messages/stream");
 
         boolean result = filter.shouldNotFilter(request);
 
-        assertFalse(result);
+        assertTrue(result);
     }
 
     @Test

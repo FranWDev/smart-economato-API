@@ -29,6 +29,7 @@ import com.economato.inventory.domain.model.AiProvider;
 import com.economato.inventory.domain.model.UserApiKey;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.GlobalApiKeyRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserApiKeyRepository;
 import com.economato.inventory.infrastructure.config.ai.AiProviderProperties;
 import com.economato.inventory.infrastructure.config.ai.AiRateLimitProperties;
@@ -41,6 +42,9 @@ class AiKeyVaultServiceTest {
 
     @Mock
     private UserApiKeyRepository userApiKeyRepository;
+
+    @Mock
+    private GlobalApiKeyRepository globalApiKeyRepository;
 
     private AiKeyVaultService service;
     private AiVaultProperties aiVaultProperties;
@@ -81,6 +85,7 @@ class AiKeyVaultServiceTest {
                 aiVaultProperties,
                 aiProviderProperties,
                 userApiKeyRepository,
+            globalApiKeyRepository,
                 aiRateLimitProperties,
                 meterRegistry,
                 Optional.empty()

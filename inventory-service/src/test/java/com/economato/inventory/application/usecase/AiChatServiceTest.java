@@ -169,7 +169,7 @@ class AiChatServiceTest {
     void changeProvider_noKeyForNewProvider_throwsException() {
         AiChat chat = chat(100L);
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
-        when(aiKeyVaultService.listKeys(10)).thenReturn(List.of());
+        when(aiKeyVaultService.listGlobalKeys()).thenReturn(List.of());
 
         assertThrows(AiKeyNotFoundException.class,
                 () -> service.changeProvider(100L, new McpChangeProviderRequest("OPENAI")));
@@ -220,7 +220,7 @@ class AiChatServiceTest {
             return msg;
         });
 
-        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultService.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(userMessage));
         when(semanticMemoryGraphService.compress(any(), eq("es")))
                 .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
@@ -243,7 +243,7 @@ class AiChatServiceTest {
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
         when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
         when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenThrow(new ResourceNotFoundException("missing"));
+        when(aiKeyVaultService.getDecryptedKey(AiProvider.OPENAI)).thenThrow(new ResourceNotFoundException("missing"));
 
         assertThrows(AiKeyNotFoundException.class,
                 () -> service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt"));
@@ -262,7 +262,7 @@ class AiChatServiceTest {
             }
             return msg;
         });
-        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultService.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of());
         when(semanticMemoryGraphService.compress(any(), eq("es")))
                 .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
@@ -284,7 +284,7 @@ class AiChatServiceTest {
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
         when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
         when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultService.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(new AiChatMessage()));
         when(semanticMemoryGraphService.compress(any(), eq("en")))
                 .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "en"));
@@ -312,7 +312,7 @@ class AiChatServiceTest {
             }
             return msg;
         });
-        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultService.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(new AiChatMessage()));
         when(semanticMemoryGraphService.compress(any(), eq("es")))
                 .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
@@ -336,7 +336,7 @@ class AiChatServiceTest {
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
         when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
         when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultService.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(new AiChatMessage()));
         when(semanticMemoryGraphService.compress(any(), eq("es")))
                 .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
@@ -367,7 +367,7 @@ class AiChatServiceTest {
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
         when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
         when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultService.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(new AiChatMessage()));
         when(semanticMemoryGraphService.compress(any(), eq("en")))
                 .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "en"));
@@ -387,7 +387,7 @@ class AiChatServiceTest {
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
         when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
         when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(aiKeyVaultService.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultService.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(new AiChatMessage()));
         when(semanticMemoryGraphService.compress(any(), eq("es")))
                 .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
@@ -409,7 +409,7 @@ class AiChatServiceTest {
     void changeProvider_updatesActiveProvider() {
         AiChat chat = chat(100L);
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
-        when(aiKeyVaultService.listKeys(10)).thenReturn(List.of(new AiKeyVaultService.ApiKeyMetadata(1L, AiProvider.OPENAI, "****1234", true, LocalDateTime.now())));
+        when(aiKeyVaultService.listGlobalKeys()).thenReturn(List.of(new AiKeyVaultService.ApiKeyMetadata(1L, AiProvider.OPENAI, "****1234", true, LocalDateTime.now())));
         when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var response = service.changeProvider(100L, new McpChangeProviderRequest("OPENAI"));

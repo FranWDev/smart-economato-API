@@ -152,10 +152,10 @@ public class AiChatService {
         AiChat chat = getOwnedChat(chatId, currentUser.getId());
 
         AiProvider provider = resolveProvider(request != null ? request.provider() : null, true);
-        boolean hasKey = aiKeyVaultService.listKeys(currentUser.getId()).stream()
+        boolean hasKey = aiKeyVaultService.listGlobalKeys().stream()
                 .anyMatch(key -> key.provider() == provider && key.active());
         if (!hasKey) {
-            throw new AiKeyNotFoundException("No API key configured for provider " + provider);
+            throw new AiKeyNotFoundException("No global API key configured for provider " + provider);
         }
 
         chat.setActiveProvider(provider);
@@ -255,10 +255,10 @@ public class AiChatService {
 
         String apiKey;
         try {
-            apiKey = aiKeyVaultService.getDecryptedKey(currentUser.getId(), chat.getActiveProvider());
+            apiKey = aiKeyVaultService.getDecryptedKey(chat.getActiveProvider());
         } catch (ResourceNotFoundException ex) {
             meterRegistry.counter("ai.chat.errors.total", "type", "no_key").increment();
-            throw new AiKeyNotFoundException("No API key configured for provider " + chat.getActiveProvider());
+            throw new AiKeyNotFoundException("No global API key configured for provider " + chat.getActiveProvider());
         }
 
         List<AiChatMessage> history = aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(chat.getId());

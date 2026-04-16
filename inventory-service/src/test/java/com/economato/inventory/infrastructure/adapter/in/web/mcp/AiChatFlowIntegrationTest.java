@@ -20,13 +20,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import com.economato.inventory.application.dto.mcp.McpApiKeyRequest;
-import com.economato.inventory.application.dto.mcp.McpApiKeyResponseDto;
 import com.economato.inventory.application.dto.mcp.McpChangeProviderRequest;
 import com.economato.inventory.application.dto.mcp.McpChatCreateRequest;
 import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
@@ -38,8 +35,6 @@ import com.economato.inventory.infrastructure.adapter.in.web.BaseIntegrationTest
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 
 class AiChatFlowIntegrationTest extends BaseIntegrationTest {
-
-    private static final String SERVICE_KEY = "test-service-key-for-integration-tests";
 
     @Autowired
     private UserRepository userRepository;
@@ -63,29 +58,25 @@ class AiChatFlowIntegrationTest extends BaseIntegrationTest {
                 new McpChatMessageResponseDto(2L, "ASSISTANT", "respuesta", null, null, 10, 20, LocalDateTime.now())
         ));
 
-        mockMvc.perform(post("/api/mcp/chat/chats")
-                        .header("X-Service-Key", SERVICE_KEY)
+        mockMvc.perform(post("/api/chat/chats")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJsonString(new McpChatCreateRequest("Ops", "OPENAI"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id", is(100)));
 
-        mockMvc.perform(post("/api/mcp/chat/chats/100/messages/stream")
-                        .header("X-Service-Key", SERVICE_KEY)
+        mockMvc.perform(post("/api/chat/chats/100/messages/stream")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJsonString(new McpChatMessageRequest("hola", "es"))))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(get("/api/mcp/chat/chats/100/messages")
-                        .header("X-Service-Key", SERVICE_KEY)
+        mockMvc.perform(get("/api/chat/chats/100/messages")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)));
 
-        mockMvc.perform(delete("/api/mcp/chat/chats/100")
-                        .header("X-Service-Key", SERVICE_KEY)
+        mockMvc.perform(delete("/api/chat/chats/100")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
 
@@ -102,23 +93,20 @@ class AiChatFlowIntegrationTest extends BaseIntegrationTest {
         when(aiChatService.changeProvider(eq(100L), any(McpChangeProviderRequest.class)))
                 .thenReturn(new McpChatResponseDto(100L, "Ops", "ACTIVE", "ANTHROPIC", "es", LocalDateTime.now(), LocalDateTime.now(), 2));
 
-        mockMvc.perform(post("/api/mcp/chat/chats/100/messages/stream")
-                        .header("X-Service-Key", SERVICE_KEY)
+        mockMvc.perform(post("/api/chat/chats/100/messages/stream")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJsonString(new McpChatMessageRequest("primero", "es"))))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(patch("/api/mcp/chat/chats/100/provider")
-                        .header("X-Service-Key", SERVICE_KEY)
+        mockMvc.perform(patch("/api/chat/chats/100/provider")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJsonString(new McpChangeProviderRequest("ANTHROPIC"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.activeProvider", is("ANTHROPIC")));
 
-        mockMvc.perform(post("/api/mcp/chat/chats/100/messages/stream")
-                        .header("X-Service-Key", SERVICE_KEY)
+        mockMvc.perform(post("/api/chat/chats/100/messages/stream")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJsonString(new McpChatMessageRequest("segundo", "es"))))
@@ -133,15 +121,13 @@ class AiChatFlowIntegrationTest extends BaseIntegrationTest {
         String token = loginAsAdmin();
         when(aiChatService.sendMessage(eq(100L), any(McpChatMessageRequest.class), any())).thenReturn(new SseEmitter(5000L));
 
-        mockMvc.perform(post("/api/mcp/chat/chats/100/messages/stream")
-                        .header("X-Service-Key", SERVICE_KEY)
+        mockMvc.perform(post("/api/chat/chats/100/messages/stream")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJsonString(new McpChatMessageRequest("hello", "en"))))
                 .andExpect(status().isOk());
 
-        mockMvc.perform(post("/api/mcp/chat/chats/100/messages/stream")
-                        .header("X-Service-Key", SERVICE_KEY)
+        mockMvc.perform(post("/api/chat/chats/100/messages/stream")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJsonString(new McpChatMessageRequest("bonjour", "fr"))))
@@ -153,43 +139,4 @@ class AiChatFlowIntegrationTest extends BaseIntegrationTest {
         org.junit.jupiter.api.Assertions.assertEquals(List.of("en", "fr"), languages);
     }
 
-    @Test
-    void apiKeyFlow_save_update_delete() throws Exception {
-        String token = loginAsAdmin();
-        when(aiChatService.saveApiKey(any(McpApiKeyRequest.class))).thenReturn(new McpApiKeyResponseDto(1L, "OPENAI", "****test", true, LocalDateTime.now()));
-        when(aiChatService.listApiKeys()).thenReturn(List.of(new McpApiKeyResponseDto(1L, "OPENAI", "****test", true, LocalDateTime.now())));
-        when(aiChatService.updateApiKey(any(McpApiKeyRequest.class))).thenReturn(new McpApiKeyResponseDto(1L, "OPENAI", "****new", true, LocalDateTime.now()));
-
-        mockMvc.perform(post("/api/mcp/chat/keys")
-                        .header("X-Service-Key", SERVICE_KEY)
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(new McpApiKeyRequest("OPENAI", "sk-test"))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.keyHint", is("****test")));
-
-        mockMvc.perform(get("/api/mcp/chat/keys")
-                        .header("X-Service-Key", SERVICE_KEY)
-                        .header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)));
-
-        mockMvc.perform(put("/api/mcp/chat/keys")
-                        .header("X-Service-Key", SERVICE_KEY)
-                        .header("Authorization", "Bearer " + token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(new McpApiKeyRequest("OPENAI", "sk-new"))))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.keyHint", is("****new")));
-
-        mockMvc.perform(delete("/api/mcp/chat/keys/1")
-                        .header("X-Service-Key", SERVICE_KEY)
-                        .header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk());
-
-        verify(aiChatService).saveApiKey(any(McpApiKeyRequest.class));
-        verify(aiChatService).listApiKeys();
-        verify(aiChatService).updateApiKey(any(McpApiKeyRequest.class));
-        verify(aiChatService).deleteApiKey(1L);
-    }
 }

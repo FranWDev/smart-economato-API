@@ -26,8 +26,6 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 
 class AiResilienceEndToEndTest extends BaseIntegrationTest {
 
-    private static final String SERVICE_KEY = "test-service-key-for-integration-tests";
-
     @Autowired
     private UserRepository userRepository;
 
@@ -47,8 +45,7 @@ class AiResilienceEndToEndTest extends BaseIntegrationTest {
         when(aiChatService.sendMessage(eq(100L), any(McpChatMessageRequest.class), any()))
                 .thenThrow(new AiStreamException("Nest service unavailable"));
 
-        mockMvc.perform(post("/api/mcp/chat/chats/100/messages/stream")
-                        .header("X-Service-Key", SERVICE_KEY)
+        mockMvc.perform(post("/api/chat/chats/100/messages/stream")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJsonString(new McpChatMessageRequest("hola", "es"))))
@@ -63,8 +60,7 @@ class AiResilienceEndToEndTest extends BaseIntegrationTest {
         when(aiChatService.sendMessage(eq(100L), any(McpChatMessageRequest.class), any()))
                 .thenReturn(new SseEmitter(5000L));
 
-        mockMvc.perform(post("/api/mcp/chat/chats/100/messages/stream")
-                        .header("X-Service-Key", SERVICE_KEY)
+        mockMvc.perform(post("/api/chat/chats/100/messages/stream")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJsonString(new McpChatMessageRequest("hola", "es"))))
@@ -78,15 +74,13 @@ class AiResilienceEndToEndTest extends BaseIntegrationTest {
                 .thenThrow(new AiStreamException("Nest down"))
                 .thenReturn(new SseEmitter(5000L));
 
-        mockMvc.perform(post("/api/mcp/chat/chats/100/messages/stream")
-                        .header("X-Service-Key", SERVICE_KEY)
+        mockMvc.perform(post("/api/chat/chats/100/messages/stream")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJsonString(new McpChatMessageRequest("hola", "es"))))
                 .andExpect(status().isInternalServerError());
 
-        mockMvc.perform(post("/api/mcp/chat/chats/100/messages/stream")
-                        .header("X-Service-Key", SERVICE_KEY)
+        mockMvc.perform(post("/api/chat/chats/100/messages/stream")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJsonString(new McpChatMessageRequest("hola otra vez", "es"))))
@@ -101,8 +95,7 @@ class AiResilienceEndToEndTest extends BaseIntegrationTest {
                 when(aiChatService.sendMessage(eq(100L), any(McpChatMessageRequest.class), any()))
                                 .thenThrow(new AiStreamException("Nest stream timeout"));
 
-                mockMvc.perform(post("/api/mcp/chat/chats/100/messages/stream")
-                                                .header("X-Service-Key", SERVICE_KEY)
+                mockMvc.perform(post("/api/chat/chats/100/messages/stream")
                                                 .header("Authorization", "Bearer " + token)
                                                 .contentType(MediaType.APPLICATION_JSON)
                                                 .content(asJsonString(new McpChatMessageRequest("hola lenta", "es"))))

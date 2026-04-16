@@ -73,6 +73,8 @@ class AiAuditEventTest {
     @Mock
     private UserApiKeyRepository userApiKeyRepository;
     @Mock
+    private com.economato.inventory.infrastructure.adapter.out.persistence.repository.GlobalApiKeyRepository globalApiKeyRepository;
+    @Mock
     private RestClient nestRestClient;
     @Mock
     private RestClient.RequestBodyUriSpec requestBodyUriSpec;
@@ -127,6 +129,7 @@ class AiAuditEventTest {
                 vaultProperties,
                 providerProperties,
                 userApiKeyRepository,
+            globalApiKeyRepository,
                 rateLimitProperties,
                 new SimpleMeterRegistry(),
                 Optional.of(auditEventProducer)
@@ -218,7 +221,7 @@ class AiAuditEventTest {
     void changeProvider_publishesAiProviderChangedEvent() {
         AiChat chat = chat(100L, AiProvider.OPENAI, "es");
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
-        when(aiKeyVaultServiceMock.listKeys(10)).thenReturn(List.of(new AiKeyVaultService.ApiKeyMetadata(1L, AiProvider.OPENAI, "****test", true, LocalDateTime.now())));
+        when(aiKeyVaultServiceMock.listGlobalKeys()).thenReturn(List.of(new AiKeyVaultService.ApiKeyMetadata(1L, AiProvider.OPENAI, "****test", true, LocalDateTime.now())));
         when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         aiChatService.changeProvider(100L, new McpChangeProviderRequest("OPENAI"));
@@ -250,7 +253,7 @@ class AiAuditEventTest {
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
         when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
-        when(aiKeyVaultServiceMock.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultServiceMock.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> {
             AiChatMessage msg = invocation.getArgument(0);
             msg.setId(msg.getRole() == MessageRole.USER ? 1L : 2L);
@@ -302,7 +305,7 @@ class AiAuditEventTest {
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
         when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
-        when(aiKeyVaultServiceMock.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultServiceMock.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(message(MessageRole.USER, "hola")));
         when(semanticMemoryGraphService.compress(any(), eq("es"))).thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
@@ -350,7 +353,7 @@ class AiAuditEventTest {
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
         when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
-        when(aiKeyVaultServiceMock.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultServiceMock.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> {
             AiChatMessage msg = invocation.getArgument(0);
             msg.setId(msg.getRole() == MessageRole.USER ? 1L : 2L);
@@ -373,7 +376,7 @@ class AiAuditEventTest {
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);
         when(aiRateLimitService.canSendMessage(100L)).thenReturn(true);
-        when(aiKeyVaultServiceMock.getDecryptedKey(10, AiProvider.OPENAI)).thenReturn("sk-test");
+        when(aiKeyVaultServiceMock.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> {
             AiChatMessage msg = invocation.getArgument(0);
             msg.setId(msg.getRole() == MessageRole.USER ? 1L : 2L);

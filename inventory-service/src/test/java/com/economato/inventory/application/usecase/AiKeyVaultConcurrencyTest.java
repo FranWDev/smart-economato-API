@@ -9,8 +9,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -27,6 +27,7 @@ import org.mockito.quality.Strictness;
 
 import com.economato.inventory.domain.model.AiProvider;
 import com.economato.inventory.domain.model.UserApiKey;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.GlobalApiKeyRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserApiKeyRepository;
 import com.economato.inventory.infrastructure.config.ai.AiProviderProperties;
 import com.economato.inventory.infrastructure.config.ai.AiRateLimitProperties;
@@ -40,6 +41,9 @@ class AiKeyVaultConcurrencyTest {
 
     @Mock
     private UserApiKeyRepository userApiKeyRepository;
+
+    @Mock
+    private GlobalApiKeyRepository globalApiKeyRepository;
 
     private AiKeyVaultService service;
     private AiVaultProperties aiVaultProperties;
@@ -68,6 +72,7 @@ class AiKeyVaultConcurrencyTest {
                 aiVaultProperties,
                 aiProviderProperties,
                 userApiKeyRepository,
+            globalApiKeyRepository,
                 aiRateLimitProperties,
                 new SimpleMeterRegistry(),
                 Optional.empty()
