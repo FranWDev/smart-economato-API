@@ -10,12 +10,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.economato.inventory.application.dto.RestPage;
 import com.economato.inventory.application.dto.event.AiAuditEvent;
 import com.economato.inventory.application.dto.mcp.McpApiKeyRequest;
 import com.economato.inventory.application.dto.mcp.McpApiKeyResponseDto;
@@ -24,7 +29,9 @@ import com.economato.inventory.application.dto.mcp.McpChatCreateRequest;
 import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
 import com.economato.inventory.application.dto.mcp.McpChatMessageResponseDto;
 import com.economato.inventory.application.dto.mcp.McpChatResponseDto;
+import com.economato.inventory.application.dto.mcp.McpChatUpdateRequest;
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
+import com.economato.inventory.application.dto.mcp.ToolCallInfo;
 import com.economato.inventory.application.usecase.smg.SemanticMemoryGraphService;
 import com.economato.inventory.application.usecase.smg.model.CompressedContext;
 import com.economato.inventory.domain.model.AiChat;
@@ -105,6 +112,50 @@ public class AiChatService {
                 .stream()
                 .map(this::toMessageResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<McpChatMessageResponseDto> getChatHistory(Long chatId, Pageable pageable) {
+        User currentUser = requireCurrentUser();
+        AiChat chat = getOwnedChat(chatId, currentUser.getId());
+
+        Pageable normalized = pageable == null || pageable.isUnpaged()
+                ? PageRequest.of(0, 30, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")))
+                : PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize(),
+                    Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id"))
+                );
+
+        Page<McpChatMessageResponseDto> page = aiChatMessageRepository.findByChatId(chat.getId(), normalized)
+                .map(this::toMessageResponse);
+
+        return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
+    }
+
+    public McpChatResponseDto updateChat(Long chatId, McpChatUpdateRequest request) {
+        User currentUser = requireCurrentUser();
+        AiChat chat = getOwnedChat(chatId, currentUser.getId());
+
+        String normalizedTitle = normalizeTitle(request != null ? request.title() : null);
+        if (normalizedTitle == null) {
+            throw new InvalidOperationException("Chat title is required");
+        }
+
+        chat.setTitle(normalizedTitle);
+        AiChat saved = aiChatRepository.save(chat);
+
+        publishAudit(AiAuditEvent.builder()
+                .eventType("AI_CHAT_UPDATED")
+                .userId(currentUser.getId())
+                .userName(currentUser.getName())
+                .chatId(saved.getId())
+                .provider(saved.getActiveProvider().name())
+                .userLanguage(saved.getUserLanguage())
+                .eventTimestamp(LocalDateTime.now())
+                .build());
+
+        return toChatResponse(saved);
     }
 
     public McpChatResponseDto createChat(McpChatCreateRequest request) {
@@ -287,8 +338,10 @@ public class AiChatService {
                 int inputTokens = safeInt(result.inputTokens());
                 int outputTokens = safeInt(result.outputTokens());
                 String assistantContent = result.fullResponse() == null ? "" : result.fullResponse();
+                String thinkingContent = result.thinkingContent();
+                var toolCalls = result.toolCalls();
 
-                executeAssistantCompletion(chat, currentUser, language, assistantContent, inputTokens, outputTokens, compressedContext, streamStart);
+                executeAssistantCompletion(chat, currentUser, language, assistantContent, thinkingContent, toolCalls, inputTokens, outputTokens, compressedContext, streamStart);
             } catch (RuntimeException ex) {
                 log.error("AI stream error for chat {}: {}", chatId, ex.getMessage());
                 meterRegistry.counter("ai.chat.errors.total", "type", resolveErrorType(ex)).increment();
@@ -321,6 +374,8 @@ public class AiChatService {
                             User currentUser,
                                             String language,
                                             String assistantContent,
+                                            String thinkingContent,
+                                            java.util.List<ToolCallInfo> toolCalls,
                                             int inputTokens,
                                             int outputTokens,
                                             CompressedContext compressedContext,
@@ -333,15 +388,31 @@ public class AiChatService {
                             .chat(managedChat)
                             .role(MessageRole.ASSISTANT)
                             .content(assistantContent)
+                            .thinkingContent(thinkingContent)
                             .inputTokens(inputTokens)
                             .outputTokens(outputTokens)
                             .build();
                     aiChatMessageRepository.save(assistantMessage);
+                    
+                    // Persist tool calls as separate TOOL messages
+                    if (toolCalls != null) {
+                        for (ToolCallInfo tc : toolCalls) {
+                            AiChatMessage toolMessage = AiChatMessage.builder()
+                                    .chat(managedChat)
+                                    .role(MessageRole.TOOL)
+                                    .toolName(tc.toolName())
+                                    .toolCallId(tc.toolCallId())
+                                    .toolResult(tc.toolResult())
+                                    .build();
+                            aiChatMessageRepository.save(toolMessage);
+                        }
+                    }
+                    
                     countMessage(MessageRole.ASSISTANT, managedChat.getActiveProvider());
                     countTokens(managedChat.getActiveProvider(), inputTokens, outputTokens);
 
                     managedChat.setLastMessageAt(LocalDateTime.now());
-                    managedChat.setMessageCount(managedChat.getMessageCount() + 2);
+                    managedChat.setMessageCount(managedChat.getMessageCount() + 2 + (toolCalls != null ? toolCalls.size() : 0));
                     managedChat.setTotalTokensConsumed(managedChat.getTotalTokensConsumed() + inputTokens + outputTokens);
                     aiChatRepository.save(managedChat);
 
@@ -596,7 +667,9 @@ public class AiChatService {
                 message.getRole().name(),
                 message.getContent(),
                 message.getToolName(),
+                message.getToolCallId(),
                 message.getToolResult(),
+                message.getThinkingContent(),
                 message.getInputTokens(),
                 message.getOutputTokens(),
                 message.getCreatedAt()

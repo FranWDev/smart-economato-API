@@ -7,7 +7,9 @@ public record McpChatMessageResponseDto(
         String role,
         String content,
         String toolName,
+        String toolCallId,
         String toolResult,
+        String thinkingContent,
         int inputTokens,
         int outputTokens,
         LocalDateTime createdAt

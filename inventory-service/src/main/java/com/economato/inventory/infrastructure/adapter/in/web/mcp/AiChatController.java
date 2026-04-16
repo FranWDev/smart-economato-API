@@ -3,6 +3,8 @@ package com.economato.inventory.infrastructure.adapter.in.web.mcp;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,6 +23,7 @@ import com.economato.inventory.application.dto.mcp.McpChatCreateRequest;
 import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
 import com.economato.inventory.application.dto.mcp.McpChatMessageResponseDto;
 import com.economato.inventory.application.dto.mcp.McpChatResponseDto;
+import com.economato.inventory.application.dto.mcp.McpChatUpdateRequest;
 import com.economato.inventory.application.usecase.AiChatService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,6 +56,19 @@ public class AiChatController {
     @GetMapping("/chats/{chatId}/messages")
     public List<McpChatMessageResponseDto> getChatHistory(@PathVariable Long chatId) {
         return aiChatService.getChatHistory(chatId);
+    }
+
+    @Operation(summary = "Listar historial paginado", description = "Obtiene mensajes de un chat usando paginacion")
+    @GetMapping("/chats/{chatId}/messages/page")
+    public Page<McpChatMessageResponseDto> getChatHistoryPage(@PathVariable Long chatId, Pageable pageable) {
+        return aiChatService.getChatHistory(chatId, pageable);
+    }
+
+    @Operation(summary = "Actualizar chat", description = "Permite actualizar el titulo de un chat")
+    @PatchMapping("/chats/{chatId}")
+    public McpChatResponseDto updateChat(@PathVariable Long chatId,
+                                         @Valid @RequestBody McpChatUpdateRequest request) {
+        return aiChatService.updateChat(chatId, request);
     }
 
     @Operation(summary = "Enviar mensaje en streaming", description = "Envía un mensaje y devuelve la respuesta AI como SSE")

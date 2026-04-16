@@ -1,6 +1,7 @@
 package com.economato.inventory.application.usecase;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,6 +25,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
+import com.economato.inventory.application.dto.mcp.ToolCallInfo;
 import com.economato.inventory.application.usecase.smg.EntityEnricher;
 import com.economato.inventory.application.usecase.smg.EntityExtractor;
 import com.economato.inventory.application.usecase.smg.SemanticMemoryGraphService;
@@ -167,7 +169,7 @@ class AiMetricsTest {
         when(requestBodySpec.accept(any())).thenReturn(requestBodySpec);
         when(requestBodySpec.headers(any())).thenReturn(requestBodySpec);
         when(requestBodySpec.body(any(NestCompletionRequest.class))).thenReturn(requestBodySpec);
-        when(requestBodySpec.exchange(any())).thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 11, 7));
+        when(requestBodySpec.exchange(any())).thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 11, 7, null, new ArrayList<ToolCallInfo>()));
 
         AiChatService service = new AiChatService(
                 aiChatRepository,
@@ -262,7 +264,7 @@ class AiMetricsTest {
         when(requestBodySpec.accept(any())).thenReturn(requestBodySpec);
         when(requestBodySpec.headers(any())).thenReturn(requestBodySpec);
         when(requestBodySpec.body(any(NestCompletionRequest.class))).thenReturn(requestBodySpec);
-        when(requestBodySpec.exchange(any())).thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 3, 4));
+        when(requestBodySpec.exchange(any())).thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 3, 4, null, new ArrayList<ToolCallInfo>()));
 
         NestStreamBridgeService service = nestBridgeFromRestClient();
         service.streamCompletion(new NestCompletionRequest("ctx", "sk", "OPENAI", "Admin", "es", "gpt-4o"), new SseEmitter(1000L), "jwt");

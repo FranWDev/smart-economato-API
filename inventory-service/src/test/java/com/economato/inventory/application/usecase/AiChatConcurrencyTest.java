@@ -1,5 +1,6 @@
 package com.economato.inventory.application.usecase;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,6 +28,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.economato.inventory.application.dto.mcp.McpChatCreateRequest;
 import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
+import com.economato.inventory.application.dto.mcp.ToolCallInfo;
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
 import com.economato.inventory.application.usecase.smg.SemanticMemoryGraphService;
 import com.economato.inventory.application.usecase.smg.model.CompressedContext;
@@ -167,7 +169,7 @@ class AiChatConcurrencyTest {
         when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
                 .thenAnswer(invocation -> {
                 completions.incrementAndGet();
-                    NestStreamBridgeService.StreamCompletionResult result = new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1);
+                    NestStreamBridgeService.StreamCompletionResult result = new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1, null, new ArrayList<ToolCallInfo>());
                     resultRef.set(result);
                     return result;
                 });
@@ -226,7 +228,7 @@ class AiChatConcurrencyTest {
         when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
             .thenAnswer(invocation -> {
                 completions.incrementAndGet();
-                return new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1);
+                return new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1, null, new ArrayList<ToolCallInfo>());
             });
 
         CountDownLatch latch = new CountDownLatch(5);
@@ -291,7 +293,7 @@ class AiChatConcurrencyTest {
                 .thenAnswer(invocation -> {
                     streamStarted.countDown();
                     releaseStream.await(5, TimeUnit.SECONDS);
-                    return new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1);
+                    return new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1, null, new ArrayList<ToolCallInfo>());
                 });
 
 

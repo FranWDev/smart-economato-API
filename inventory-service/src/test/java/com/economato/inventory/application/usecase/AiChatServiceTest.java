@@ -1,6 +1,7 @@
 package com.economato.inventory.application.usecase;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,6 +29,7 @@ import com.economato.inventory.application.dto.mcp.McpChangeProviderRequest;
 import com.economato.inventory.application.dto.mcp.McpChatCreateRequest;
 import com.economato.inventory.application.dto.mcp.McpChatMessageRequest;
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
+import com.economato.inventory.application.dto.mcp.ToolCallInfo;
 import com.economato.inventory.application.usecase.smg.SemanticMemoryGraphService;
 import com.economato.inventory.application.usecase.smg.model.CompressedContext;
 import com.economato.inventory.domain.model.AiChat;
@@ -225,7 +227,7 @@ class AiChatServiceTest {
         when(semanticMemoryGraphService.compress(any(), eq("es")))
                 .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
         when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
-                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20));
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20, null, new ArrayList<ToolCallInfo>()));
         when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var emitter = service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt");
@@ -267,7 +269,7 @@ class AiChatServiceTest {
         when(semanticMemoryGraphService.compress(any(), eq("es")))
                 .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
         when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
-                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1));
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1, null, new ArrayList<ToolCallInfo>()));
         when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt");
@@ -289,7 +291,7 @@ class AiChatServiceTest {
         when(semanticMemoryGraphService.compress(any(), eq("en")))
                 .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "en"));
         when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
-                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1));
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1, null, new ArrayList<ToolCallInfo>()));
         when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         service.sendMessage(100L, new McpChatMessageRequest("hello", "en"), "jwt");
@@ -317,7 +319,7 @@ class AiChatServiceTest {
         when(semanticMemoryGraphService.compress(any(), eq("es")))
                 .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
         when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
-                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20));
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20, null, new ArrayList<ToolCallInfo>()));
         when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt");
@@ -341,7 +343,7 @@ class AiChatServiceTest {
         when(semanticMemoryGraphService.compress(any(), eq("es")))
                 .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
         when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
-                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20));
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20, null, new ArrayList<ToolCallInfo>()));
         when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt");
@@ -372,7 +374,7 @@ class AiChatServiceTest {
         when(semanticMemoryGraphService.compress(any(), eq("en")))
                 .thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "en"));
         when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
-                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1));
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1, null, new ArrayList<ToolCallInfo>()));
         when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         service.sendMessage(100L, new McpChatMessageRequest("hello", "en"), "jwt");
@@ -394,7 +396,7 @@ class AiChatServiceTest {
         when(nestStreamBridgeService.streamCompletion(any(NestCompletionRequest.class), any(), eq("jwt")))
                 .thenAnswer(invocation -> {
                     Thread.sleep(200);
-                    return new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1);
+                    return new NestStreamBridgeService.StreamCompletionResult("ok", 1, 1, null, new ArrayList<ToolCallInfo>());
                 });
         when(aiChatRepository.save(any(AiChat.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

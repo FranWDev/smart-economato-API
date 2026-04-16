@@ -69,3 +69,6 @@ CREATE TABLE IF NOT EXISTS global_api_key (
     updated_by INTEGER,
     CONSTRAINT fk_global_key_admin FOREIGN KEY (updated_by) REFERENCES users(user_id)
 );
+
+-- Migration: add thinking_content column to ai_chat_message
+ALTER TABLE ai_chat_message ADD COLUMN IF NOT EXISTS thinking_content TEXT;

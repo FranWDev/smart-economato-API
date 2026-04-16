@@ -1,41 +1,51 @@
 package com.economato.inventory.application.usecase;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.Mock;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.core.env.Environment;
 
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
 import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockSnapshotRepository;
-import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
-import com.economato.inventory.infrastructure.config.security.LedgerProperties;
 import com.economato.inventory.infrastructure.config.security.BlockchainProperties;
+import com.economato.inventory.infrastructure.config.security.LedgerProperties;
+import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
+
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.core.env.Environment;
 
 @ExtendWith(MockitoExtension.class)
 class StockLedgerServiceLedgerMethodsTest {
@@ -211,7 +221,7 @@ class StockLedgerServiceLedgerMethodsTest {
         @Test
         void verifyProductsWithLedger_VerifiesAllProductsWithLedger() {
                 when(ledgerRepository.findDistinctProductIds()).thenReturn(Arrays.asList(1, 2));
-                List<StockLedger> allEntries = new java.util.ArrayList<>();
+                List<StockLedger> allEntries = new ArrayList<>();
                 allEntries.addAll(ledgerEntries1);
                 allEntries.addAll(ledgerEntries2);
                 when(ledgerRepository.findByProductIdInOrderBySequenceNumber(anyList())).thenReturn(allEntries);

@@ -54,8 +54,8 @@ class AiChatFlowIntegrationTest extends BaseIntegrationTest {
         when(aiChatService.createChat(any())).thenReturn(new McpChatResponseDto(100L, "Ops", "ACTIVE", "OPENAI", "es", LocalDateTime.now(), LocalDateTime.now(), 0));
         when(aiChatService.sendMessage(eq(100L), any(McpChatMessageRequest.class), any())).thenReturn(new SseEmitter(5000L));
         when(aiChatService.getChatHistory(100L)).thenReturn(List.of(
-                new McpChatMessageResponseDto(1L, "USER", "hola", null, null, 0, 0, LocalDateTime.now()),
-                new McpChatMessageResponseDto(2L, "ASSISTANT", "respuesta", null, null, 10, 20, LocalDateTime.now())
+                new McpChatMessageResponseDto(1L, "USER", "hola", null, null, null, null, 0, 0, LocalDateTime.now()),
+                new McpChatMessageResponseDto(2L, "ASSISTANT", "respuesta", null, null, null, null, 10, 20, LocalDateTime.now())
         ));
 
         mockMvc.perform(post("/api/chat/chats")

@@ -49,6 +49,9 @@ public class AiChatMessage {
     @Column(name = "tool_result", columnDefinition = "TEXT")
     private String toolResult;
 
+    @Column(name = "thinking_content", columnDefinition = "TEXT")
+    private String thinkingContent;
+
     @Column(name = "input_tokens", nullable = false)
     @Builder.Default
     private int inputTokens = 0;

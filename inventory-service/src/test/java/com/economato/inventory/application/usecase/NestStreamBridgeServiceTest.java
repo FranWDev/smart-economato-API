@@ -1,5 +1,6 @@
 package com.economato.inventory.application.usecase;
 
+import java.util.ArrayList;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,6 +22,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
+import com.economato.inventory.application.dto.mcp.ToolCallInfo;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiStreamException;
 import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -80,7 +82,7 @@ class NestStreamBridgeServiceTest {
                 mockCircuitBreakerClosed();
         mockRequestChain();
         when(requestBodySpec.exchange(any()))
-                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("hola mundo", 11, 7));
+                .thenReturn(new NestStreamBridgeService.StreamCompletionResult("hola mundo", 11, 7, null, new ArrayList<ToolCallInfo>()));
 
         NestStreamBridgeService.StreamCompletionResult result =
                 service.streamCompletion(request(), new SseEmitter(5000L), "jwt-token");
@@ -168,13 +170,15 @@ class NestStreamBridgeServiceTest {
                 mockService.streamCompletion(request(), emitter, "jwt-token");
         long elapsedMs = System.currentTimeMillis() - startMs;
 
-        assertEquals("Hola, soy una IA que no funciona aun", result.fullResponse());
+        assertEquals("Hola, no soy una IA, soy un mock porque javi no trabaja, pero no te preocupes! le di un latigazo a javi para que trabaje!", result.fullResponse());
 
-        verify(emitter, Mockito.times(10)).send(any(SseEmitter.SseEventBuilder.class));
+        // Mock emits: 1 thinking + 6 thinking_delta + 1 tool_called + 1 tool_result + tokens with spaces + 1 done
+        // Should have at least 20 events
+        verify(emitter, Mockito.atLeast(20)).send(any(SseEmitter.SseEventBuilder.class));
 
         assertTrue(elapsedMs >= 900,
-                "El streaming mock debería tardar al menos 900ms (8 gaps × 150ms), " +
-                        "pero tardó solo " + elapsedMs + "ms. El delay entre palabras no está funcionando.");
+                "El streaming mock debería tardar al menos 900ms, " +
+                        "pero tardó solo " + elapsedMs + "ms.");
 
         verify(emitter).complete();
     }
