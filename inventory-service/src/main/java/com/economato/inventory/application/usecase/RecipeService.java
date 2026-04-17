@@ -19,6 +19,7 @@ import com.economato.inventory.application.dto.RestPage;
 import com.economato.inventory.application.dto.request.RecipeComponentRequestDTO;
 import com.economato.inventory.application.dto.request.RecipeCookingRequestDTO;
 import com.economato.inventory.application.dto.request.RecipeRequestDTO;
+import com.economato.inventory.application.dto.response.CookableRecipeResponseDTO;
 import com.economato.inventory.application.dto.response.RecipeAverageCostResponseDTO;
 import com.economato.inventory.application.dto.response.RecipeCountResponseDTO;
 import com.economato.inventory.application.dto.response.RecipeResponseDTO;
@@ -27,6 +28,7 @@ import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationExc
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.application.mapper.RecipeMapper;
 import com.economato.inventory.application.mapper.StatsMapper;
+import com.economato.inventory.application.mapper.CookableRecipeMapper;
 import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.Recipe;
@@ -57,6 +59,7 @@ public class RecipeService {
     private final ProductRepository productRepository;
     private final AllergenRepository allergenRepository;
     private final RecipeMapper recipeMapper;
+    private final CookableRecipeMapper cookableRecipeMapper;
     private final StatsMapper statsMapper;
     private final StockLedgerService stockLedgerService;
     private final SecurityContextHelper securityContextHelper;
@@ -66,6 +69,7 @@ public class RecipeService {
             ProductRepository productRepository,
             AllergenRepository allergenRepository,
             RecipeMapper recipeMapper,
+            CookableRecipeMapper cookableRecipeMapper,
             StatsMapper statsMapper,
             StockLedgerService stockLedgerService,
             SecurityContextHelper securityContextHelper,
@@ -75,6 +79,7 @@ public class RecipeService {
         this.productRepository = productRepository;
         this.allergenRepository = allergenRepository;
         this.recipeMapper = recipeMapper;
+        this.cookableRecipeMapper = cookableRecipeMapper;
         this.statsMapper = statsMapper;
         this.stockLedgerService = stockLedgerService;
         this.securityContextHelper = securityContextHelper;
@@ -99,7 +104,8 @@ public class RecipeService {
         @Caching(evict = {
             @CacheEvict(value = "recipes_page", allEntries = true),
             @CacheEvict(value = "recipe_stats", allEntries = true),
-            @CacheEvict(value = "weekly_plan_requirements", allEntries = true)
+            @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
+            @CacheEvict(value = "cookable_recipes", allEntries = true)
         })
     @RecipeAuditable(action = "CREATE_RECIPE")
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
@@ -117,7 +123,8 @@ public class RecipeService {
             @CacheEvict(value = "recipe", key = "#id"),
             @CacheEvict(value = "recipes_page", allEntries = true),
             @CacheEvict(value = "recipe_stats", allEntries = true),
-            @CacheEvict(value = "weekly_plan_requirements", allEntries = true)
+            @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
+            @CacheEvict(value = "cookable_recipes", allEntries = true)
         })
     @RecipeAuditable(action = "UPDATE_RECIPE")
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
@@ -136,7 +143,8 @@ public class RecipeService {
             @CacheEvict(value = "recipe", key = "#id"),
             @CacheEvict(value = "recipes_page", allEntries = true),
             @CacheEvict(value = "recipe_stats", allEntries = true),
-            @CacheEvict(value = "weekly_plan_requirements", allEntries = true)
+            @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
+            @CacheEvict(value = "cookable_recipes", allEntries = true)
         })
     @Deprecated(since = "2026-03", forRemoval = false)
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
@@ -159,6 +167,20 @@ public class RecipeService {
                 .toList();
     }
 
+    @Cacheable(value = "cookable_recipes", key = "'all'", unless = "#result == null")
+    @Transactional(readOnly = true)
+    public List<CookableRecipeResponseDTO> findCookableRecipes() {
+        return repository.findAllVisibleWithDetails().stream()
+                .map(recipe -> {
+                    CookableRecipeResponseDTO dto = cookableRecipeMapper.toResponseDTO(recipe);
+                    BigDecimal cookableQuantity = calculateCookableQuantity(recipe);
+                    dto.setCookableQuantity(cookableQuantity);
+                    dto.setCookable(cookableQuantity.compareTo(BigDecimal.ONE) >= 0);
+                    return dto;
+                })
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public Page<RecipeResponseDTO> findHiddenRecipes(Pageable pageable) {
         Page<RecipeResponseDTO> page = repository.findByIsHiddenTrue(pageable)
@@ -170,7 +192,8 @@ public class RecipeService {
         @Caching(evict = {
             @CacheEvict(value = "recipe", key = "#id"),
             @CacheEvict(value = "recipes_page", allEntries = true),
-            @CacheEvict(value = "weekly_plan_requirements", allEntries = true)
+            @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
+            @CacheEvict(value = "cookable_recipes", allEntries = true)
         })
     @RecipeAuditable(action = "TOGGLE_HIDDEN")
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
@@ -299,6 +322,33 @@ public class RecipeService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, java.math.RoundingMode.HALF_UP);
         recipe.setTotalCost(totalCost);
+    }
+
+    private BigDecimal calculateCookableQuantity(Recipe recipe) {
+        if (recipe.getComponents() == null || recipe.getComponents().isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        BigDecimal minCookable = null;
+        for (RecipeComponent component : recipe.getComponents()) {
+            if (component.getProduct() == null || component.getQuantity() == null
+                    || component.getQuantity().compareTo(BigDecimal.ZERO) <= 0) {
+                return BigDecimal.ZERO;
+            }
+
+            BigDecimal available = component.getProduct().getCurrentStock() != null
+                    ? component.getProduct().getCurrentStock()
+                    : BigDecimal.ZERO;
+
+            BigDecimal cookableByComponent = available
+                    .divide(component.getQuantity(), 3, java.math.RoundingMode.DOWN);
+
+            minCookable = minCookable == null
+                    ? cookableByComponent
+                    : minCookable.min(cookableByComponent);
+        }
+
+        return (minCookable == null ? BigDecimal.ZERO : minCookable).setScale(3, java.math.RoundingMode.DOWN);
     }
 
     @PredictorTrigger(action = "COOK_RECIPE")

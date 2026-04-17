@@ -20,6 +20,10 @@ public interface RecipeRepository extends JpaRepository<Recipe, Integer> {
         @EntityGraph(attributePaths = { "components", "components.product", "allergens" })
         Optional<Recipe> findByName(String name);
 
+        @EntityGraph(attributePaths = { "components", "components.product", "allergens" })
+        @Query("SELECT DISTINCT r FROM Recipe r WHERE r.isHidden = false")
+        List<Recipe> findAllVisibleWithDetails();
+
         List<Recipe> findByNameContainingIgnoreCase(String namePart);
 
         List<Recipe> findByTotalCostLessThan(BigDecimal maxCost);
