@@ -62,8 +62,8 @@ public class UserController {
         }
 
         @GetMapping
-        @PreAuthorize("hasRole('ADMIN')")
-        @Operation(summary = "Obtener todos los usuarios", description = "Devuelve una lista paginada de todos los usuarios. Solo accesible para administradores. [Rol requerido: ADMIN]")
+        @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+        @Operation(summary = "Obtener todos los usuarios", description = "Devuelve una lista paginada de todos los usuarios. Accesible para administradores y chefs. [Rol requerido: ADMIN, CHEF]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Lista de usuarios", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
                         @ApiResponse(responseCode = "403", description = "Acceso denegado")
@@ -74,8 +74,8 @@ public class UserController {
         }
 
         @GetMapping("/search")
-        @PreAuthorize("hasRole('ADMIN')")
-        @Operation(summary = "Buscar usuarios", description = "Busca usuarios visibles por nombre o usuario con paginación. Solo accesible para administradores. [Rol requerido: ADMIN]")
+        @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+        @Operation(summary = "Buscar usuarios", description = "Busca usuarios visibles por nombre o usuario con paginación. Accesible para administradores y chefs. [Rol requerido: ADMIN, CHEF]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Resultados de búsqueda", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
                         @ApiResponse(responseCode = "403", description = "Acceso denegado")
@@ -88,7 +88,7 @@ public class UserController {
         }
 
         @GetMapping("/{id}")
-        @PreAuthorize("hasRole('ADMIN') or #id == @userService.findByUsername(authentication.name).id")
+        @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED') or #id == @userService.findByUsername(authentication.name).id")
         @Operation(summary = "Obtener usuario por ID", description = "Devuelve los datos de un usuario específico. Accesible para administradores o para el propio usuario. [Rol requerido: USER]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Usuario encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
@@ -146,8 +146,8 @@ public class UserController {
         }
 
         @GetMapping("/by-role/{role}")
-        @PreAuthorize("hasRole('ADMIN')")
-        @Operation(summary = "Obtener usuarios por rol", description = "Devuelve una lista de usuarios filtrados por rol. Solo accesible para administradores. [Rol requerido: ADMIN]")
+        @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+        @Operation(summary = "Obtener usuarios por rol", description = "Devuelve una lista de usuarios filtrados por rol. Accesible para administradores y chefs. [Rol requerido: ADMIN, CHEF]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Lista de usuarios con el rol especificado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
                         @ApiResponse(responseCode = "403", description = "Acceso denegado")

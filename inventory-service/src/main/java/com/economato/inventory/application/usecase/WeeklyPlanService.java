@@ -263,10 +263,6 @@ public class WeeklyPlanService {
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public WeeklyPlanSlotResponseDTO unconfirmSlot(Long planId, Long slotId) {
-        User currentUser = securityContextHelper.getCurrentUser();
-        if (currentUser.getRole() != Role.ADMIN) {
-            throw new AccessDeniedException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NO_PERMISSION));
-        }
 
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -292,7 +288,7 @@ public class WeeklyPlanService {
 
         String correlationId = slot.getCorrelationId();
         if (correlationId != null && !correlationId.isBlank()) {
-            stockLedgerService.revertMovement(correlationId, "ADMIN weekly-plan unconfirm slot=" + slot.getId());
+            stockLedgerService.revertMovement(correlationId, "Reverting confirmation for slot " + slot.getId());
             cookingAuditRepository.findByCorrelationId(correlationId).ifPresent(cookingAuditRepository::delete);
         }
 
@@ -316,6 +312,64 @@ public class WeeklyPlanService {
 
         weeklyPlanRepository.saveAndFlush(plan);
         return wrapperMapper.toSlotResponseDTO(slotRepository.saveAndFlush(slot));
+    }
+
+    @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
+    public ConfirmDayResponseDTO unconfirmDay(Long planId, Integer dayOfWeek) {
+        WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
+                () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
+        checkPermissions(plan);
+
+        if (plan.getStatus() != WeeklyPlanStatus.ACTIVE
+                && plan.getStatus() != WeeklyPlanStatus.IN_PROGRESS
+                && plan.getStatus() != WeeklyPlanStatus.COMPLETED) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_ACTIVE));
+        }
+
+        List<WeeklyPlanSlot> daySlots = plan.getSlots().stream()
+                .filter(s -> s.getDayOfWeek().equals(dayOfWeek) && s.getStatus() == WeeklyPlanSlotStatus.CONFIRMED)
+                .collect(Collectors.toList());
+
+        if (daySlots.isEmpty()) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_DAY_NOT_CONFIRMED));
+        }
+
+        for (WeeklyPlanSlot slot : daySlots) {
+            String correlationId = slot.getCorrelationId();
+            if (correlationId != null && !correlationId.isBlank()) {
+                stockLedgerService.revertMovement(correlationId, "Reversion for full day " + dayOfWeek + " [Plan " + planId + "]");
+                cookingAuditRepository.findByCorrelationId(correlationId).ifPresent(cookingAuditRepository::delete);
+            }
+
+            slot.setStatus(WeeklyPlanSlotStatus.PENDING);
+            slot.setConfirmedAt(null);
+            slot.setConfirmedBy(null);
+            slot.setCorrelationId(null);
+
+            slot.getStudents().forEach(studentSlot -> {
+                if (studentSlot.getStatus() == StudentSlotStatus.CONFIRMED) {
+                    studentSlot.setStatus(StudentSlotStatus.ASSIGNED);
+                }
+            });
+            slotRepository.save(slot);
+        }
+
+        boolean hasConfirmed = plan.getSlots().stream().anyMatch(s -> s.getStatus() == WeeklyPlanSlotStatus.CONFIRMED);
+        if (hasConfirmed) {
+            plan.setStatus(WeeklyPlanStatus.IN_PROGRESS);
+        } else {
+            plan.setStatus(WeeklyPlanStatus.ACTIVE);
+        }
+
+        weeklyPlanRepository.saveAndFlush(plan);
+
+        return ConfirmDayResponseDTO.builder()
+                .planId(planId)
+                .dayOfWeek(dayOfWeek)
+                .planStatus(plan.getStatus())
+                .totalSlotsConfirmed(0)
+                .build();
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
@@ -550,7 +604,10 @@ public class WeeklyPlanService {
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @Transactional(rollbackFor = Exception.class)
     public void cancelStudentFromDay(Long planId, Integer dayOfWeek, Integer studentId) {
+        log.info("Cancelling student {} from plan {} for day {}", studentId, planId, dayOfWeek);
+        
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
         checkPermissions(plan);
@@ -561,22 +618,30 @@ public class WeeklyPlanService {
 
         boolean changed = false;
         User currentUser = securityContextHelper.getCurrentUser();
+        LocalDateTime now = LocalDateTime.now();
 
         for (WeeklyPlanSlot slot : plan.getSlots()) {
             if (slot.getDayOfWeek().equals(dayOfWeek) && slot.getStatus() != WeeklyPlanSlotStatus.CANCELLED) {
                 for (WeeklyPlanSlotStudent studentSlot : slot.getStudents()) {
                     if (studentSlot.getStudent().getId().equals(studentId)
                             && studentSlot.getStatus() != StudentSlotStatus.CANCELLED) {
+                        
                         studentSlot.setStatus(StudentSlotStatus.CANCELLED);
-                        studentSlot.setCancelledAt(java.time.LocalDateTime.now());
+                        studentSlot.setCancelledAt(now);
                         studentSlot.setCancelledBy(currentUser);
                         changed = true;
+                        
+                        log.debug("Student {} cancelled from slot {}", studentId, slot.getId());
                     }
                 }
             }
         }
+        
         if (changed) {
             weeklyPlanRepository.saveAndFlush(plan);
+            log.info("Student {} attendance updated and plan {} saved/flushed", studentId, planId);
+        } else {
+            log.info("No modifications needed for student {} in plan {} for day {}", studentId, planId, dayOfWeek);
         }
     }
 
