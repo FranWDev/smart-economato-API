@@ -22,8 +22,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.economato.inventory.application.dto.request.OrderReceptionRequestDTO;
+import com.economato.inventory.application.dto.request.OrdersByProductsRequestDTO;
 import com.economato.inventory.application.dto.request.OrderRequestDTO;
 import com.economato.inventory.application.dto.response.OrderFilterResponseDTO;
+import com.economato.inventory.application.dto.response.OrdersByProductsResponseDTO;
 import com.economato.inventory.application.dto.response.OrderResponseDTO;
 import com.economato.inventory.application.dto.response.OrderTotalCostResponseDTO;
 import com.economato.inventory.domain.model.OrderStatus;
@@ -206,6 +208,17 @@ public class OrderController {
                         @Parameter(description = "ID de la orden")
                         @RequestParam(required = false) Integer orderId) {
                 return ResponseEntity.ok(orderService.findFiltered(startDate, endDate, userId, supplierId, orderId));
+        }
+
+        @Operation(summary = "Buscar pedidos por productos y estados", description = "Devuelve los pedidos que contienen alguno de los productos indicados en los estados solicitados. Usa estrategia batch para evitar N+1. [Rol requerido: CHEF]", responses = {
+                        @ApiResponse(responseCode = "200", description = "Pedidos encontrados correctamente"),
+                        @ApiResponse(responseCode = "400", description = "Petición inválida")
+        })
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @PostMapping("/search-by-products")
+        public ResponseEntity<OrdersByProductsResponseDTO> searchByProducts(
+                        @Valid @org.springframework.web.bind.annotation.RequestBody OrdersByProductsRequestDTO requestDTO) {
+                return ResponseEntity.ok(orderService.findByProducts(requestDTO));
         }
 
         @Operation(summary = "Obtener costo total de todas las ordenes", description = "Devuelve el costo total global acumulado de todas las ordenes del sistema, sin aplicar filtros. [Rol requerido: CHEF]", responses = {
