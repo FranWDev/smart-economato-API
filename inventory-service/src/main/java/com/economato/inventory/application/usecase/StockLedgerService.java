@@ -1138,4 +1138,96 @@ public class StockLedgerService {
         log.info("Sincronización exhaustiva completada. Se han corregido {} productos, {} snapshots y {} lotes.", 
                 productsToSave.size(), snapshotsToSave.size(), batchesToSave.size());
     }
+
+    /**
+     * RECONSTRUCCIÓN TOTAL DE LA BLOCKCHAIN (SALVACIÓN PROFUNDA)
+     * Este método recalcula TODA la cadena de transacciones para cada producto, 
+     * empezando desde stock 0 en la transacción #1.
+     * 
+     * Corrige el error de "herencia de stock sucio" que ocurre al resetear el ledger 
+     * sin resetear las tablas de Producto.
+     */
+    @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = { "products_page", "product", "product_stats", "products_search", "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    public void rebuildAllChains() {
+        log.warn("INICIANDO RECONSTRUCCIÓN TOTAL DE BLOQUES Y HASHES DEL LEDGER...");
+        
+        List<Product> products = productRepository.findAll();
+        List<StockSnapshot> snapshotsToUpdate = new ArrayList<>();
+        List<Product> productsToUpdate = new ArrayList<>();
+
+        for (Product product : products) {
+            List<StockLedger> transactions = ledgerRepository.findByProductIdOrderBySequenceNumber(product.getId());
+            if (transactions.isEmpty()) continue;
+
+            log.info("Recalculando cadena para Producto {}: {} transacciones", product.getId(), transactions.size());
+
+            BigDecimal currentStock = BigDecimal.ZERO;
+            String previousHash = GENESIS_HASH;
+
+            for (StockLedger tx : transactions) {
+                BigDecimal delta = tx.getQuantityDelta();
+                BigDecimal newResultingStock = currentStock.add(delta).setScale(3, RoundingMode.HALF_UP);
+
+                // Recalculamos el hash con los nuevos datos "limpios"
+                String newHash = calculateTransactionHash(
+                    product.getId(),
+                    delta,
+                    newResultingStock,
+                    tx.getMovementType(),
+                    tx.getDescription(),
+                    tx.getUser() != null ? tx.getUser().getId() : null,
+                    tx.getOrderId(),
+                    tx.getExpirationDate(),
+                    tx.getCorrelationId(),
+                    tx.getTransactionTimestamp(),
+                    previousHash,
+                    tx.getSequenceNumber()
+                );
+
+                // Actualizamos la transacción
+                tx.setResultingStock(newResultingStock);
+                tx.setPreviousHash(previousHash);
+                tx.setCurrentHash(newHash);
+                tx.setVerified(true);
+
+                currentStock = newResultingStock;
+                previousHash = newHash;
+            }
+
+            // Guardamos la cadena corregida para este producto
+            ledgerRepository.saveAll(transactions);
+            ledgerRepository.flush();
+
+            // Actualizamos la tabla de Producto con el final de la cadena limpia
+            product.setCurrentStock(currentStock);
+            productsToUpdate.add(product);
+
+            // Actualizamos o creamos el Snapshot
+            StockSnapshot snapshot = snapshotRepository.findById(product.getId())
+                    .orElseGet(() -> createInitialSnapshot(product));
+            
+            snapshot.setCurrentStock(currentStock);
+            snapshot.setLastTransactionHash(previousHash);
+            snapshot.setLastSequenceNumber((long) transactions.size());
+            snapshot.setLastUpdated(LocalDateTime.now());
+            snapshot.setIntegrityStatus("VALID");
+            snapshotsToUpdate.add(snapshot);
+            
+            // Limpiar lotes si el stock final es 0
+            if (currentStock.compareTo(BigDecimal.ZERO) == 0) {
+                List<ProductBatch> activeBatches = batchRepository.findActiveByProductIdOrderByExpiration(product.getId());
+                for (ProductBatch b : activeBatches) {
+                    b.setRemainingQuantity(BigDecimal.ZERO);
+                    b.setDepleted(true);
+                }
+                batchRepository.saveAll(activeBatches);
+            }
+        }
+
+        productRepository.saveAll(productsToUpdate);
+        snapshotRepository.saveAll(snapshotsToUpdate);
+
+        log.info("RECONSTRUCCIÓN COMPLETADA: {} productos procesados.", productsToUpdate.size());
+    }
 }

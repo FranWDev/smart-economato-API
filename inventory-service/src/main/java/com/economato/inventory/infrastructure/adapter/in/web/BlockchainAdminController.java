@@ -146,4 +146,14 @@ public class BlockchainAdminController {
         stockLedgerService.synchronizeStockWithLedger();
         return ResponseEntity.ok("Stock y lotes sincronizados correctamente con el Ledger");
     }
+
+    @PostMapping("/rebuild-all")
+    @Operation(summary = "RECONSTRUCCIÓN TOTAL: Recalcula todos los hashes y stocks del ledger desde cero")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Blockchain reconstruida y sincronizada desde cero", content = @Content(mediaType = "text/plain", schema = @Schema(type = "string")))
+    })
+    public ResponseEntity<String> rebuildAllChains() {
+        stockLedgerService.rebuildAllChains();
+        return ResponseEntity.ok("Blockchain y stocks reconstruidos totalmente desde el historial de deltas.");
+    }
 }

@@ -22,12 +22,12 @@ fi
 
 echo "Login successful!"
 
-# 1. Sync Stock (Fix Dead Stock)
-echo "Synchronizing stock ledger chains..."
-SYNC_RESPONSE=$(curl -s -X POST "$BASE_URL/api/admin/blockchain/sync-stock" \
+# 1. Rebuild Ledger & Sync Stock (The "Salvation" command)
+echo "RECONSTRUYENDO blockchain y sincronizando stocks desde cero..."
+SYNC_RESPONSE=$(curl -s -X POST "$BASE_URL/api/admin/blockchain/rebuild-all" \
   -H "Authorization: Bearer $TOKEN")
 
-echo "Sync response: $SYNC_RESPONSE"
+echo "Rebuild response: $SYNC_RESPONSE"
 
 # 2. Delete All Weekly Plans
 echo "Deleting all weekly plans and notifications..."
