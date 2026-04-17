@@ -21,11 +21,13 @@ public class CacheInvalidationEventListener {
 
     @EventListener
     public void onStockMovement(StockMovementEvent event) {
-        evict("product", event.productId());
+        clear("product");
         clear("products_page");
         clear("stock_alerts");
         clear("product_stats");
         clear("orders_pending");
+        clear("weekly_plan_requirements");
+        clear("weekly_plan");
     }
 
     @EventListener
@@ -39,6 +41,8 @@ public class CacheInvalidationEventListener {
     public void onWeeklyPlanSlotConfirmed(WeeklyPlanSlotConfirmedEvent event) {
         clear("stock_alerts");
         clear("products_page");
+        clear("weekly_plan_requirements");
+        clear("weekly_plan");
 
         Set<Integer> productIds = event.affectedProductIds() == null ? Set.of() : event.affectedProductIds();
         for (Integer productId : productIds) {

@@ -111,7 +111,9 @@ public class OrderService {
         @Caching(evict = {
                         @CacheEvict(value = "orders_page", allEntries = true),
                         @CacheEvict(value = "order_stats", allEntries = true),
-                        @CacheEvict(value = "orders_pending", allEntries = true)
+                        @CacheEvict(value = "orders_pending", allEntries = true),
+                        @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
+                        @CacheEvict(value = "weekly_plan", allEntries = true)
         })
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
