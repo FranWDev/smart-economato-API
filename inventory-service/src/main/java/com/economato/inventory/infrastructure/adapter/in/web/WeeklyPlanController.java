@@ -44,6 +44,12 @@ public class WeeklyPlanController {
         return ResponseEntity.ok(weeklyPlanService.activatePlan(planId));
     }
 
+    @PatchMapping("/{planId}/deactivate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF')")
+    public ResponseEntity<WeeklyPlanResponseDTO> deactivatePlan(@PathVariable Long planId) {
+        return ResponseEntity.ok(weeklyPlanService.deactivatePlan(planId));
+    }
+
     @PatchMapping("/{planId}/slots/{slotId}/confirm")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
     public ResponseEntity<WeeklyPlanSlotResponseDTO> confirmSlot(@PathVariable Long planId, @PathVariable Long slotId) {
