@@ -6,6 +6,7 @@ import com.economato.inventory.application.dto.response.LedgerBlockResponseDTO;
 import com.economato.inventory.application.dto.response.StockLedgerResponseDTO;
 import com.economato.inventory.application.mapper.StockLedgerMapper;
 import com.economato.inventory.application.usecase.BlockchainService;
+import com.economato.inventory.application.usecase.StockLedgerService;
 import com.economato.inventory.domain.model.LedgerBlock;
 import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.LedgerBlockRepository;
@@ -39,7 +40,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -53,6 +56,9 @@ class BlockchainAdminControllerIntegrationTest {
 
     @MockitoBean
     private BlockchainService blockchainService;
+
+    @MockitoBean
+    private StockLedgerService stockLedgerService;
 
     @MockitoBean
     private LedgerBlockRepository ledgerBlockRepository;
@@ -213,5 +219,14 @@ class BlockchainAdminControllerIntegrationTest {
                         .with(user("user").roles("USER"))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void syncStockWithLedger_withAdminRole_returnsSuccess() throws Exception {
+        mockMvc.perform(post("/api/admin/blockchain/sync-stock")
+                        .with(user("admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Stock y lotes sincronizados correctamente con el Ledger"));
     }
 }

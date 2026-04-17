@@ -1064,4 +1064,52 @@ public class StockLedgerService {
 
         log.info("Lote caducado retirado: batchId={}, productId={}, qty={}", batchId, productId, quantity);
     }
+
+    @Transactional(rollbackFor = Exception.class)
+    public void synchronizeStockWithLedger() {
+        log.info("Iniciando sincronización de stock con el ledger...");
+        List<Product> products = productRepository.findAll();
+        List<Product> productsToSave = new ArrayList<>();
+        List<StockSnapshot> snapshotsToSave = new ArrayList<>();
+        List<ProductBatch> batchesToSave = new ArrayList<>();
+
+        for (Product product : products) {
+            Optional<StockLedger> lastTx = ledgerRepository.findLastTransactionByProductId(product.getId());
+            BigDecimal realStock = lastTx.map(StockLedger::getResultingStock).orElse(BigDecimal.ZERO);
+
+            if (product.getCurrentStock().compareTo(realStock) != 0) {
+                log.info("Corrigiendo stock de producto {}: {} -> {}", product.getId(), product.getCurrentStock(), realStock);
+                product.setCurrentStock(realStock);
+                productsToSave.add(product);
+
+                StockSnapshot snapshot = snapshotRepository.findById(product.getId())
+                        .orElseGet(() -> createInitialSnapshot(product));
+                
+                snapshot.setCurrentStock(realStock);
+                snapshotsToSave.add(snapshot);
+            }
+
+            if (realStock.compareTo(BigDecimal.ZERO) == 0) {
+                List<ProductBatch> activeBatches = batchRepository.findActiveByProductIdOrderByExpiration(product.getId());
+                for (ProductBatch b : activeBatches) {
+                    log.info("Limpiando lote huérfano {}: remaining {} -> 0", b.getId(), b.getRemainingQuantity());
+                    b.setRemainingQuantity(BigDecimal.ZERO);
+                    b.setDepleted(true);
+                    batchesToSave.add(b);
+                }
+            }
+        }
+
+        if (!productsToSave.isEmpty()) {
+            productRepository.saveAll(productsToSave);
+        }
+        if (!snapshotsToSave.isEmpty()) {
+            snapshotRepository.saveAll(snapshotsToSave);
+        }
+        if (!batchesToSave.isEmpty()) {
+            batchRepository.saveAll(batchesToSave);
+        }
+
+        log.info("Sincronización de stock completada.");
+    }
 }

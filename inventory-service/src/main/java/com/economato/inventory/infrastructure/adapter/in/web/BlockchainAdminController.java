@@ -6,6 +6,7 @@ import com.economato.inventory.application.dto.response.LedgerBlockResponseDTO;
 import com.economato.inventory.application.dto.response.StockLedgerResponseDTO;
 import com.economato.inventory.application.mapper.StockLedgerMapper;
 import com.economato.inventory.application.usecase.BlockchainService;
+import com.economato.inventory.application.usecase.StockLedgerService;
 import com.economato.inventory.domain.model.LedgerBlock;
 import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.LedgerBlockRepository;
@@ -25,6 +26,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -39,6 +41,7 @@ import java.util.List;
 public class BlockchainAdminController {
 
     private final BlockchainService blockchainService;
+    private final StockLedgerService stockLedgerService;
     private final LedgerBlockRepository ledgerBlockRepository;
     private final StockLedgerRepository stockLedgerRepository;
     private final StockLedgerMapper stockLedgerMapper;
@@ -132,5 +135,15 @@ public class BlockchainAdminController {
                 .transactionCount(block.getTransactionCount())
                 .hmacKeyVersion(block.getHmacKeyVersion())
                 .build();
+    }
+
+    @PostMapping("/sync-stock")
+    @Operation(summary = "Sincronizar stock huérfano con el ledger")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Stock sincronizado exhaustivamente", content = @Content(mediaType = "text/plain", schema = @Schema(type = "string")))
+    })
+    public ResponseEntity<String> syncStockWithLedger() {
+        stockLedgerService.synchronizeStockWithLedger();
+        return ResponseEntity.ok("Stock y lotes sincronizados correctamente con el Ledger");
     }
 }
