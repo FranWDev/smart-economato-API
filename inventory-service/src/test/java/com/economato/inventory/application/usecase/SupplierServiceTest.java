@@ -248,4 +248,21 @@ class SupplierServiceTest {
         assertTrue(result.isEmpty());
         verify(repository).findProjectedByNameContainingIgnoreCase("NonExistent");
     }
+
+    @Test
+    void findByNameOrEmailOrPhoneContaining_ShouldReturnPaginatedResults() {
+        Pageable pageable = PageRequest.of(0, 10);
+        Page<SupplierProjection> page = new PageImpl<>(Arrays.asList(testProjection), pageable, 1);
+
+        when(repository.findProjectedByNameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrPhoneContainingIgnoreCase(
+                "dist", "dist", "dist", pageable)).thenReturn(page);
+        when(supplierMapper.toResponseDTO(any(SupplierProjection.class))).thenReturn(testSupplierResponseDTO);
+
+        Page<SupplierResponseDTO> result = supplierService.findByNameOrEmailOrPhoneContaining("dist", pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(repository).findProjectedByNameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrPhoneContainingIgnoreCase(
+                "dist", "dist", "dist", pageable);
+    }
 }

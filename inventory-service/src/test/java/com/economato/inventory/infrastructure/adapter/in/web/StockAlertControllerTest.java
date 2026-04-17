@@ -135,6 +135,7 @@ class StockAlertControllerTest {
                 .productId(1)
                 .productName("Harina")
                 .projectedConsumption(BigDecimal.valueOf(10.0))
+                .alertType(com.economato.inventory.application.dto.response.AlertType.PREDICTION)
                 .build();
         Page<StockPredictionResponseDTO> page = new PageImpl<>(List.of(dto));
         Pageable pageable = PageRequest.of(0, 10);
@@ -161,7 +162,8 @@ class StockAlertControllerTest {
         Page<WeeklyConsumptionResponseDTO> page = new PageImpl<>(List.of(dto), pageable, 1);
         when(stockAlertService.getWeeklyConsumptionHistoryAll(pageable)).thenReturn(page);
 
-        ResponseEntity<Page<WeeklyConsumptionResponseDTO>> response = controller.getWeeklyConsumptionHistoryAll(pageable);
+        ResponseEntity<Page<WeeklyConsumptionResponseDTO>> response = controller
+                .getWeeklyConsumptionHistoryAll(pageable);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());

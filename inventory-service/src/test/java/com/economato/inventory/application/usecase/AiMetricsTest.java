@@ -49,6 +49,8 @@ import com.economato.inventory.infrastructure.config.ai.AiSmgProperties;
 import com.economato.inventory.infrastructure.config.ai.AiVaultProperties;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 
+import com.economato.inventory.infrastructure.config.web.I18nService;
+
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -71,6 +73,7 @@ class AiMetricsTest {
     @Mock private RestClient nestRestClient;
     @Mock private RestClient.RequestBodyUriSpec requestBodyUriSpec;
     @Mock private RestClient.RequestBodySpec requestBodySpec;
+    @Mock private I18nService i18nService;
 
     private SimpleMeterRegistry meterRegistry;
     private AiKeyVaultService aiKeyVaultService;
@@ -108,7 +111,8 @@ class AiMetricsTest {
             globalApiKeyRepository,
                 rateLimitProperties,
                 meterRegistry,
-                Optional.of(auditEventProducer)
+                Optional.of(auditEventProducer),
+                i18nService
         );
 
         aiRateLimitService = new AiRateLimitService(
@@ -183,7 +187,8 @@ class AiMetricsTest {
                 defaultProviderProperties(),
                 defaultNestProperties(),
                 meterRegistry,
-                Optional.empty()
+                Optional.empty(),
+                i18nService
         );
 
         service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt");
@@ -214,7 +219,8 @@ class AiMetricsTest {
                 defaultProviderProperties(),
                 defaultNestProperties(),
                 meterRegistry,
-                Optional.empty()
+                Optional.empty(),
+                i18nService
         );
 
         service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt");
@@ -356,7 +362,8 @@ class AiMetricsTest {
                 circuitBreakerRegistry,
                 meterRegistry,
                 new com.fasterxml.jackson.databind.ObjectMapper(),
-                Optional.of(auditEventProducer)
+                Optional.of(auditEventProducer),
+                i18nService
         );
     }
 

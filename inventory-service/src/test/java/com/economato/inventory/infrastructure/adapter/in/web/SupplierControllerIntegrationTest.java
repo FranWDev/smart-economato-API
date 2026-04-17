@@ -195,7 +195,7 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .param("term", "Distribuidora"))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$", hasSize(2)));
+                                .andExpect(jsonPath("$.content", hasSize(2)));
         }
 
         @Test
@@ -215,8 +215,8 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .param("term", "emailmatch.com"))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$", hasSize(1)))
-                                .andExpect(jsonPath("$[0].email", is("contacto@emailmatch.com")));
+                                .andExpect(jsonPath("$.content", hasSize(1)))
+                                .andExpect(jsonPath("$.content[0].email", is("contacto@emailmatch.com")));
         }
 
         @Test
@@ -236,8 +236,8 @@ class SupplierControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken)
                                 .param("term", "987654"))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$", hasSize(1)))
-                                .andExpect(jsonPath("$[0].phone", is("987654321")));
+                                .andExpect(jsonPath("$.content", hasSize(1)))
+                                .andExpect(jsonPath("$.content[0].phone", is("987654321")));
         }
 
         @Test

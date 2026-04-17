@@ -27,6 +27,8 @@ import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +50,7 @@ public class McpToolWriteService {
     private final WeeklyPlanService weeklyPlanService;
     private final IncidentService incidentService;
     private final SecurityContextHelper securityContextHelper;
+    private final I18nService i18nService;
 
     public McpOrderDto createOrder(McpCreateOrderRequest request) {
         User currentUser = requireCurrentUser();
@@ -106,7 +109,7 @@ public class McpToolWriteService {
     }
 
     public McpSlotDto planSlot(McpPlanSlotRequest request) {
-        throw new InvalidOperationException("MCP plan-slot endpoint requires existing WeeklyPlan create/update flow");
+        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_MCP_PLAN_SLOT_REQUIRES_FLOW));
     }
 
     public McpSlotDto confirmSlot(Long planId, Long slotId) {
@@ -164,7 +167,7 @@ public class McpToolWriteService {
     private User requireCurrentUser() {
         User currentUser = securityContextHelper.getCurrentUser();
         if (currentUser == null) {
-            throw new InvalidOperationException("Authenticated user is required");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AUTH_USER_REQUIRED));
         }
         return currentUser;
     }

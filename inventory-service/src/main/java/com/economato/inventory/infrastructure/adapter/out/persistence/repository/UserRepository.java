@@ -54,6 +54,10 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     @Query("SELECT u FROM User u WHERE u.isHidden = false AND (LOWER(u.name) LIKE LOWER(CONCAT('%', :term, '%')) OR LOWER(u.user) LIKE LOWER(CONCAT('%', :term, '%')))")
     Page<UserProjection> searchVisibleByNameOrUser(@Param("term") String term, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"teacher"})
+    @Query("SELECT u FROM User u WHERE u.role = :role AND u.isHidden = false AND (:term = '' OR LOWER(u.name) LIKE LOWER(CONCAT('%', :term, '%')) OR LOWER(u.user) LIKE LOWER(CONCAT('%', :term, '%')))")
+    Page<UserProjection> searchVisibleByRoleAndNameOrUser(@Param("role") Role role, @Param("term") String term, Pageable pageable);
+
     Page<UserProjection> findByIsHiddenTrue(Pageable pageable);
 
     Optional<UserProjection> findProjectedById(Integer id);

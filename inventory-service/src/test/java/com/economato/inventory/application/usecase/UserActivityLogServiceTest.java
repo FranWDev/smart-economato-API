@@ -30,6 +30,8 @@ import com.economato.inventory.domain.model.User;
 import com.economato.inventory.domain.model.UserActivityLog;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserActivityLogRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 @ExtendWith(MockitoExtension.class)
 class UserActivityLogServiceTest {
@@ -42,6 +44,8 @@ class UserActivityLogServiceTest {
 
     @Mock
     private UserActivityLogMapper userActivityLogMapper;
+    @Mock
+    private I18nService i18nService;
 
     @InjectMocks
     private UserActivityLogService userActivityLogService;
@@ -113,7 +117,8 @@ class UserActivityLogServiceTest {
         when(userActivityLogRepository.findByUserIdOrderByTimestampDesc(any(), any()))
                 .thenReturn(new PageImpl<>(List.of(log)));
 
-        Page<UserActivityLogResponseDTO> result = userActivityLogService.getActivityByUserId(3, "admin", PageRequest.of(0, 20));
+        Page<UserActivityLogResponseDTO> result = userActivityLogService.getActivityByUserId(3, "admin",
+                PageRequest.of(0, 20));
 
         assertEquals(1, result.getContent().size());
     }
@@ -125,7 +130,8 @@ class UserActivityLogServiceTest {
         when(userActivityLogRepository.findByUserIdOrderByTimestampDesc(any(), any()))
                 .thenReturn(new PageImpl<>(List.of(log)));
 
-        Page<UserActivityLogResponseDTO> result = userActivityLogService.getActivityByUserId(3, "chef", PageRequest.of(0, 20));
+        Page<UserActivityLogResponseDTO> result = userActivityLogService.getActivityByUserId(3, "chef",
+                PageRequest.of(0, 20));
 
         assertEquals(1, result.getContent().size());
     }
@@ -134,9 +140,10 @@ class UserActivityLogServiceTest {
     void getActivityByUserId_asChef_notOwnStudent_throwsException() {
         when(userRepository.findByName("chef")).thenReturn(Optional.of(chef));
         when(userRepository.findById(4)).thenReturn(Optional.of(anotherStudent));
+        when(i18nService.getMessage(MessageKey.ERROR_AUTH_FORBIDDEN)).thenReturn("Forbidden");
 
         AccessDeniedException exception = assertThrows(AccessDeniedException.class,
-            () -> userActivityLogService.getActivityByUserId(4, "chef", PageRequest.of(0, 20)));
+                () -> userActivityLogService.getActivityByUserId(4, "chef", PageRequest.of(0, 20)));
         assertEquals("Forbidden", exception.getMessage());
 
         verify(userActivityLogRepository, never()).findByUserIdOrderByTimestampDesc(any(), any());
@@ -149,7 +156,8 @@ class UserActivityLogServiceTest {
         when(userActivityLogRepository.findByUserIdInOrderByTimestampDesc(any(), any()))
                 .thenReturn(new PageImpl<>(List.of(log)));
 
-        Page<UserActivityLogResponseDTO> result = userActivityLogService.getMyStudentsActivity("chef", PageRequest.of(0, 20));
+        Page<UserActivityLogResponseDTO> result = userActivityLogService.getMyStudentsActivity("chef",
+                PageRequest.of(0, 20));
 
         assertEquals(1, result.getContent().size());
     }
@@ -159,7 +167,8 @@ class UserActivityLogServiceTest {
         when(userRepository.findByName("chef")).thenReturn(Optional.of(chef));
         when(userRepository.findByTeacherId(2)).thenReturn(List.of());
 
-        Page<UserActivityLogResponseDTO> result = userActivityLogService.getMyStudentsActivity("chef", PageRequest.of(0, 20));
+        Page<UserActivityLogResponseDTO> result = userActivityLogService.getMyStudentsActivity("chef",
+                PageRequest.of(0, 20));
 
         assertEquals(0, result.getContent().size());
         verify(userActivityLogRepository, never()).findByUserIdInOrderByTimestampDesc(any(), any());

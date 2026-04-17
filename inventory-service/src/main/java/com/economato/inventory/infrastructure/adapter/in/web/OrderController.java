@@ -22,8 +22,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.economato.inventory.application.dto.request.OrderReceptionRequestDTO;
-import com.economato.inventory.application.dto.request.OrdersByProductsRequestDTO;
 import com.economato.inventory.application.dto.request.OrderRequestDTO;
+import com.economato.inventory.application.dto.request.OrdersByProductsRequestDTO;
+import com.economato.inventory.application.dto.response.OrderDetailResponseDTO;
 import com.economato.inventory.application.dto.response.OrderFilterResponseDTO;
 import com.economato.inventory.application.dto.response.OrdersByProductsResponseDTO;
 import com.economato.inventory.application.dto.response.OrderResponseDTO;
@@ -301,7 +302,7 @@ public class OrderController {
         })
         @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/{id}/missing-items")
-        public ResponseEntity<List<com.economato.inventory.application.dto.response.OrderDetailResponseDTO>> getMissingItems(
+        public ResponseEntity<List<OrderDetailResponseDTO>> getMissingItems(
                         @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id) {
                 return ResponseEntity.ok(orderService.getMissingItems(id));
         }

@@ -18,7 +18,6 @@ import com.economato.inventory.application.dto.response.SupplierResponseDTO;
 import com.economato.inventory.application.usecase.SupplierService;
 
 import java.net.URI;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/suppliers")
@@ -143,7 +142,9 @@ public class SupplierController {
     )
     @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/search")
-    public ResponseEntity<List<SupplierResponseDTO>> searchByNameEmailOrPhone(@RequestParam String term) {
-        return ResponseEntity.ok(supplierService.findByNameOrEmailOrPhoneContaining(term));
+    public ResponseEntity<Page<SupplierResponseDTO>> searchByNameEmailOrPhone(
+            @RequestParam(defaultValue = "") String term,
+            Pageable pageable) {
+        return ResponseEntity.ok(supplierService.findByNameOrEmailOrPhoneContaining(term, pageable));
     }
 }

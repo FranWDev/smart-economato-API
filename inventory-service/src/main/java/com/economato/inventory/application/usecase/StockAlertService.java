@@ -21,9 +21,10 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.MessageSource;
+import com.economato.inventory.infrastructure.config.web.I18nService;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,7 @@ import com.economato.inventory.domain.model.Recipe;
 import com.economato.inventory.domain.model.StockDailyForecast;
 import com.economato.inventory.domain.model.StockPrediction;
 import com.economato.inventory.domain.model.StockWeeklyConsumptionHistory;
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.out.external.prediction.HoltWintersForecaster;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
@@ -88,7 +90,7 @@ public class StockAlertService {
     private final StockDailyForecastMapper stockDailyForecastMapper;
     private final StockWeeklyConsumptionHistoryMapper stockWeeklyConsumptionHistoryMapper;
     private final HoltWintersForecaster forecaster;
-    private final MessageSource messageSource;
+    private final I18nService i18nService;
     private final ProductBatchService productBatchService;
     @Autowired(required = false)
     private SystemConfigService systemConfigService;
@@ -150,15 +152,34 @@ public class StockAlertService {
     @Cacheable(value = "stock_predictions", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
     @Transactional(readOnly = true)
     public Page<StockPredictionResponseDTO> getAllPredictions(Pageable pageable) {
-        return predictionRepository.findAll(pageable)
+        // Filtrar productos con lotes próximos a caducar para excluir del tipo COMBINED
+        Set<Integer> expiringProductIds = productBatchService.getExpiringBatches(7).stream()
+                .map(batch -> batch.getProduct().getId())
+                .collect(Collectors.toSet());
+
+        // Obtener predicciones para productos no ocultos y filtrar las que no tienen caducidad (tipo PREDICTION puro)
+        List<StockPredictionResponseDTO> allValidPredictions = predictionRepository.findAllActive().stream()
+                .filter(p -> !expiringProductIds.contains(p.getId()))
                 .map(prediction -> StockPredictionResponseDTO.builder()
                         .productId(prediction.getId())
                         .productName(prediction.getProduct().getName())
                         .projectedConsumption(prediction.getProjectedConsumption())
                         .projectedConsumptionUnit(prediction.getProduct().getUnit())
                         .currentStock(prediction.getProduct().getCurrentStock())
+                        .alertType(AlertType.PREDICTION)
                         .updatedAt(prediction.getUpdatedAt())
-                        .build());
+                        .build())
+                .collect(Collectors.toList());
+
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), allValidPredictions.size());
+
+        List<StockPredictionResponseDTO> pageContent = new ArrayList<>();
+        if (start < allValidPredictions.size()) {
+            pageContent = allValidPredictions.subList(start, end);
+        }
+
+        return new PageImpl<>(pageContent, pageable, allValidPredictions.size());
     }
 
     /**
@@ -349,10 +370,9 @@ public class StockAlertService {
                 long daysToExpire = ChronoUnit.DAYS.between(LocalDate.now(), nearestExpiration);
                 AlertSeverity expirationSeverity = classifyExpirationSeverity(daysToExpire);
 
-                String expiringMessage = messageSource.getMessage(
-                    MessageKey.STOCK_ALERT_MESSAGE_EXPIRING.getKey(),
-                    new Object[] { nearestExpiration, expiringQuantity.setScale(3, RoundingMode.HALF_UP) },
-                    LocaleContextHolder.getLocale());
+                String expiringMessage = i18nService.getMessage(
+                    MessageKey.STOCK_ALERT_MESSAGE_EXPIRING,
+                    new Object[] { nearestExpiration, expiringQuantity.setScale(3, RoundingMode.HALF_UP) });
 
                 StockAlertDTO existing = alertsByProduct.get(productId);
                 if (existing == null) {
@@ -433,7 +453,7 @@ public class StockAlertService {
             productId, projectedConsumption);
         
         Product product = productRepository.findById(productId)
-            .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado: " + productId));
+            .orElseThrow(() -> new IllegalArgumentException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND)));
 
         StockPrediction prediction = predictionRepository.findById(productId)
             .orElseGet(() -> StockPrediction.builder()
@@ -455,11 +475,11 @@ public class StockAlertService {
     @Transactional(readOnly = true)
     public ForecastResultType classifyForecastResult(Integer productId, BigDecimal projectedConsumption) {
         if (productId == null || projectedConsumption == null || projectedConsumption.signum() < 0) {
-            throw new IllegalArgumentException("Datos inválidos para clasificar forecast");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_INVALID_OPERATION));
         }
 
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException("Producto no encontrado: " + productId));
+                .orElseThrow(() -> new IllegalArgumentException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND)));
 
         BigDecimal currentStock = product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO;
         if (projectedConsumption.signum() == 0) {
@@ -528,8 +548,7 @@ public class StockAlertService {
 
             Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException(
-                    messageSource.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND.getKey(), null,
-                        LocaleContextHolder.getLocale()) + ": " + productId));
+                    i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND) + ": " + productId));
 
             List<BigDecimal> weeklySeries = consumption.stream()
                 .map(value -> BigDecimal.valueOf(value).setScale(3, RoundingMode.HALF_UP))
@@ -681,36 +700,34 @@ public class StockAlertService {
             BigDecimal projected, BigDecimal gap,
             AlertResolution resolution, String unit) {
 
-        Locale locale = LocaleContextHolder.getLocale();
-
         String gapStr = gap.setScale(2, RoundingMode.HALF_UP).toPlainString();
         String projStr = projected.setScale(2, RoundingMode.HALF_UP).toPlainString();
         String stockStr = stock.setScale(2, RoundingMode.HALF_UP).toPlainString();
         String pendStr = pending.setScale(2, RoundingMode.HALF_UP).toPlainString();
 
         Object[] args;
-        String key;
+        MessageKey key;
 
         switch (resolution) {
             case COVERED_BY_ORDER -> {
-                key = "stock.alert.message.covered";
+                key = MessageKey.STOCK_ALERT_MESSAGE_COVERED;
                 args = new Object[] { name, stockStr, unit, getForecastHorizonDays(), projStr, unit, pendStr, unit };
             }
             case PARTIALLY_COVERED -> {
-                key = "stock.alert.message.partially.covered";
+                key = MessageKey.STOCK_ALERT_MESSAGE_PARTIALLY_COVERED;
                 args = new Object[] { name, stockStr, unit, getForecastHorizonDays(), projStr, unit, pendStr, unit, gapStr, unit };
             }
             case UNCOVERED -> {
-                key = "stock.alert.message.uncovered";
+                key = MessageKey.STOCK_ALERT_MESSAGE_UNCOVERED;
                 args = new Object[] { name, stockStr, unit, getForecastHorizonDays(), projStr, unit, gapStr, unit };
             }
             default -> {
-                key = "stock.alert.message.default";
+                key = MessageKey.STOCK_ALERT_MESSAGE_DEFAULT;
                 args = new Object[] { name, gapStr, unit };
             }
         }
 
-        return messageSource.getMessage(key, args, locale);
+        return i18nService.getMessage(key, args);
     }
 
     // -------------------------------------------------------------------------

@@ -30,6 +30,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import com.economato.inventory.infrastructure.config.web.I18nService;
 
 @ExtendWith(MockitoExtension.class)
 class AiNestFailoverTest {
@@ -46,6 +47,8 @@ class AiNestFailoverTest {
     private RestClient.RequestBodyUriSpec requestBodyUriSpec;
     @Mock
     private RestClient.RequestBodySpec requestBodySpec;
+    @Mock
+    private I18nService i18nService;
 
     private NestStreamBridgeService service;
 
@@ -66,7 +69,8 @@ class AiNestFailoverTest {
                 circuitBreakerRegistry,
                 new SimpleMeterRegistry(),
                 new ObjectMapper(),
-                Optional.empty()
+                Optional.empty(),
+                i18nService
         );
     }
 

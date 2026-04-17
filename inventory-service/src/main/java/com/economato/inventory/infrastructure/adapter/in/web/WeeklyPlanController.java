@@ -34,7 +34,8 @@ public class WeeklyPlanController {
 
     @PutMapping("/{planId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
-    public ResponseEntity<WeeklyPlanResponseDTO> updatePlan(@PathVariable Long planId, @Valid @RequestBody WeeklyPlanRequestDTO request) {
+    public ResponseEntity<WeeklyPlanResponseDTO> updatePlan(@PathVariable Long planId,
+            @Valid @RequestBody WeeklyPlanRequestDTO request) {
         return ResponseEntity.ok(weeklyPlanService.updatePlan(planId, request));
     }
 
@@ -58,7 +59,8 @@ public class WeeklyPlanController {
 
     @PatchMapping("/{planId}/slots/{slotId}/unconfirm")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
-    public ResponseEntity<WeeklyPlanSlotResponseDTO> unconfirmSlot(@PathVariable Long planId, @PathVariable Long slotId) {
+    public ResponseEntity<WeeklyPlanSlotResponseDTO> unconfirmSlot(@PathVariable Long planId,
+            @PathVariable Long slotId) {
         return ResponseEntity.ok(weeklyPlanService.unconfirmSlot(planId, slotId));
     }
 
@@ -111,8 +113,8 @@ public class WeeklyPlanController {
     @PatchMapping("/{planId}/slots/{slotId}/students/{studentId}/cancel")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
     public ResponseEntity<WeeklyPlanSlotStudentResponseDTO> cancelStudentFromSlot(
-            @PathVariable Long planId, 
-            @PathVariable Long slotId, 
+            @PathVariable Long planId,
+            @PathVariable Long slotId,
             @PathVariable Integer studentId) {
         return ResponseEntity.ok(weeklyPlanService.cancelStudentFromSlot(planId, slotId, studentId));
     }
@@ -120,8 +122,8 @@ public class WeeklyPlanController {
     @PatchMapping("/{planId}/days/{dayOfWeek}/students/{studentId}/cancel")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
     public ResponseEntity<Void> cancelStudentFromDay(
-            @PathVariable Long planId, 
-            @PathVariable Integer dayOfWeek, 
+            @PathVariable Long planId,
+            @PathVariable Integer dayOfWeek,
             @PathVariable Integer studentId) {
         weeklyPlanService.cancelStudentFromDay(planId, dayOfWeek, studentId);
         return ResponseEntity.noContent().build();

@@ -11,6 +11,7 @@ import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.produc
 import com.economato.inventory.infrastructure.config.cache.event.NewLedgerTransactionEvent;
 import com.economato.inventory.infrastructure.config.security.BlockchainProperties;
 import com.economato.inventory.infrastructure.config.security.LedgerProperties;
+import com.economato.inventory.infrastructure.config.web.I18nService;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +43,7 @@ class BlockchainServiceTest {
     @Mock private BlockSealingService blockSealingService;
     @Mock private MerkleTreeService merkleTreeService;
     @Mock private BlockchainMerkleVerificationService merkleVerificationService;
+    @Mock private I18nService i18nService;
     private final LedgerProperties ledgerProperties = new LedgerProperties();
     private final BlockchainProperties blockchainProperties = new BlockchainProperties();
     private final Optional<AuditEventProducer> auditEventProducer = Optional.empty();
@@ -62,7 +64,7 @@ class BlockchainServiceTest {
         service = new BlockchainService(
             blockRepository, ledgerRepository, snapshotRepository,
             blockSealingService, merkleTreeService, merkleVerificationService, ledgerProperties,
-            blockchainProperties, auditEventProducer, txManager, meterRegistry
+            blockchainProperties, txManager, meterRegistry, i18nService, auditEventProducer
         );
     }
 

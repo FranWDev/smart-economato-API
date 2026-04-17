@@ -379,8 +379,8 @@ public class StockLedgerService {
                             .collect(Collectors.joining(", "));
 
                     throw new InvalidOperationException(
-                            "No se puede revertir la entrada: el lote #" + createdBatch.getId() +
-                                    " ya ha sido utilizado en: " + otherActions);
+                            i18nService.getMessage(MessageKey.ERROR_REVERSION_BATCH_USED,
+                                    new Object[] { createdBatch.getId(), otherActions }));
                 }
             }
         }
@@ -403,13 +403,13 @@ public class StockLedgerService {
                         BigDecimal resultingStock = snapshot.getCurrentStock().add(quantityToRestore);
                         if (resultingStock.compareTo(BigDecimal.ZERO) < 0) {
                             throw new InvalidOperationException(
-                                    "No se puede deshacer la entrada: resultaría en stock negativo (" + resultingStock
-                                            + ").");
+                                    i18nService.getMessage(MessageKey.ERROR_REVERSION_NEGATIVE_STOCK,
+                                            new Object[] { resultingStock }));
                         }
                     }
                 }
 
-                String description = "REVERSIÓN: " + reason + " [lote original: " + batch.getId() + "]";
+                String description = i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_REVERSAL, new Object[] { reason, batch.getId() });
 
                 // Registrar contra-asiento para el lote específico
                 recordStockMovementInternal(
@@ -461,10 +461,10 @@ public class StockLedgerService {
         Product product;
         if (isTestProfile) {
             product = productRepository.findById(productId)
-                    .orElseThrow(() -> new InvalidOperationException("Producto no encontrado: " + productId));
+                    .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
         } else {
             product = productRepository.findByIdForUpdate(productId)
-                    .orElseThrow(() -> new InvalidOperationException("Producto no encontrado: " + productId));
+                    .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
         }
 
         StockSnapshot snapshot = snapshotRepository.findById(productId)
@@ -560,7 +560,7 @@ public class StockLedgerService {
             for (BatchConsumptionDetail detail : batchMovements) {
                 ProductBatch affectedBatch = batchesById.get(detail.getBatchId());
                 if (affectedBatch == null) {
-                    throw new ResourceNotFoundException("Lote no encontrado durante el registro de trazabilidad");
+                    throw new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND));
                 }
 
                 StockLedgerBatchDetail batchDetail = StockLedgerBatchDetail.builder()
@@ -881,7 +881,7 @@ public class StockLedgerService {
             }
 
             Order order = orderRepository.findByIdWithDetails(request.getOrderId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Orden no encontrada: " + request.getOrderId()));
+                    .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_ORDER_NOT_FOUND)));
 
             order.setStatus(com.economato.inventory.domain.model.OrderStatus.CREATED);
             for (var detail : order.getDetails()) {
@@ -900,7 +900,7 @@ public class StockLedgerService {
             com.economato.inventory.domain.model.RecipeCookingAudit audit = recipeCookingAuditRepository
                     .findById(request.getRecipeCookingAuditId())
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "Auditoría de cocinado no encontrada: " + request.getRecipeCookingAuditId()));
+                            i18nService.getMessage(MessageKey.ERROR_CULINARY_AUDIT_NOT_FOUND, new Object[] { request.getRecipeCookingAuditId() })));
 
             if (audit.getCorrelationId() != null) {
                 List<StockLedger> transactions = ledgerRepository.findByCorrelationId(audit.getCorrelationId());
@@ -1043,10 +1043,10 @@ public class StockLedgerService {
     public void withdrawExpiredBatch(Long batchId) {
         User user = securityContextHelper.getCurrentUser();
         ProductBatch batch = productBatchService.getBatchById(batchId)
-                .orElseThrow(() -> new ResourceNotFoundException("Lote no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
         if (batch.isDepleted() || batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) == 0) {
-            throw new InvalidOperationException("El lote ya no tiene stock para retirar");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_BATCH_DEPLETED_WITHDRAWAL));
         }
 
         BigDecimal quantity = batch.getRemainingQuantity();
@@ -1058,7 +1058,7 @@ public class StockLedgerService {
                 productId,
                 quantity.negate(),
                 MovementType.MERMA,
-                "Retirada de lote caducado #" + batchId,
+                i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_EXPIRED_BATCH_WITHDRAWAL, new Object[] { batchId }),
                 user,
                 batchId,
                 null);

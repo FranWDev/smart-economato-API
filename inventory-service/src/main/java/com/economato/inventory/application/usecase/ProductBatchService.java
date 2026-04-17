@@ -1,6 +1,7 @@
 package com.economato.inventory.application.usecase;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -59,7 +60,7 @@ public class ProductBatchService {
             throw new InvalidOperationException(
                 i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_PAST, new Object[]{expirationDate}));
         }
-        BigDecimal normalizedQuantity = quantity.setScale(3, java.math.RoundingMode.HALF_UP);
+        BigDecimal normalizedQuantity = quantity.setScale(3, RoundingMode.HALF_UP);
         ProductBatch batch = ProductBatch.builder()
                 .product(product)
                 .expirationDate(expirationDate)
@@ -104,7 +105,7 @@ public class ProductBatchService {
 
             BigDecimal newRemaining = batch.getRemainingQuantity()
                     .subtract(toConsume)
-                    .setScale(3, java.math.RoundingMode.HALF_UP);
+                    .setScale(3, RoundingMode.HALF_UP);
             batch.setRemainingQuantity(newRemaining);
             if (batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) == 0) {
                 batch.setDepleted(true);
@@ -129,7 +130,7 @@ public class ProductBatchService {
         }
 
         ProductBatch batch = batchRepository.findById(batchId)
-                .orElseThrow(() -> new ResourceNotFoundException("Lote no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
         if (batch.getExpirationDate() != null && batch.getExpirationDate().isBefore(LocalDate.now())) {
             throw new InvalidOperationException(
@@ -138,13 +139,13 @@ public class ProductBatchService {
         }
 
         if (batch.isDepleted() || batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) == 0) {
-            throw new InvalidOperationException("El lote específico está agotado.");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_BATCH_DEPLETED));
         }
 
         BigDecimal toConsume = quantity.min(batch.getRemainingQuantity());
         BigDecimal newRemaining = batch.getRemainingQuantity()
                 .subtract(toConsume)
-                .setScale(3, java.math.RoundingMode.HALF_UP);
+                .setScale(3, RoundingMode.HALF_UP);
 
         batch.setRemainingQuantity(newRemaining);
         if (batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) == 0) {
@@ -153,7 +154,7 @@ public class ProductBatchService {
         batchRepository.save(batch);
 
         if (quantity.compareTo(toConsume) > 0) {
-            throw new InvalidOperationException("El lote específico no tiene suficiente stock para cubrir todo el ajuste.");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_BATCH_INSUFFICIENT_STOCK_ADJUSTMENT));
         }
 
         return List.of(new BatchConsumptionDetail(batch.getId(), toConsume));
@@ -165,7 +166,7 @@ public class ProductBatchService {
             return;
         }
         ProductBatch batch = batchRepository.findById(batchId)
-                .orElseThrow(() -> new ResourceNotFoundException("Lote no encontrado"));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
         if (batch.getExpirationDate() != null && batch.getExpirationDate().isBefore(LocalDate.now())) {
             throw new InvalidOperationException(
@@ -174,7 +175,7 @@ public class ProductBatchService {
 
         BigDecimal newRemaining = batch.getRemainingQuantity()
                 .add(quantity)
-                .setScale(3, java.math.RoundingMode.HALF_UP);
+                .setScale(3, RoundingMode.HALF_UP);
 
         log.info("Añadiendo stock al lote {}: anterior={}, añadir={}, nuevo={}, antes_depleted={}", 
                 batchId, batch.getRemainingQuantity(), quantity, newRemaining, batch.isDepleted());
@@ -195,7 +196,7 @@ public class ProductBatchService {
     @Transactional(rollbackFor = Exception.class)
     public ProductBatch updateExpirationDate(Long batchId, LocalDate newExpirationDate, String reason, String batchCode) {
         ProductBatch batch = batchRepository.findById(batchId)
-                .orElseThrow(() -> new ResourceNotFoundException("Lote no encontrado: " + batchId));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
         if (batch.isDepleted()) {
             throw new InvalidOperationException(

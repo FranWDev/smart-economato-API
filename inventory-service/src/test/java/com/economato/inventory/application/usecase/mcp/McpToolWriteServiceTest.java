@@ -22,6 +22,7 @@ import com.economato.inventory.domain.model.User;
 import com.economato.inventory.domain.model.WeeklyPlanSlotStatus;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.web.I18nService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -56,6 +57,8 @@ class McpToolWriteServiceTest {
     private IncidentService incidentService;
     @Mock
     private SecurityContextHelper securityContextHelper;
+    @Mock
+    private I18nService i18nService;
 
     @InjectMocks
     private McpToolWriteService service;
@@ -66,6 +69,7 @@ class McpToolWriteServiceTest {
 
         McpCreateOrderRequest request = new McpCreateOrderRequest(10, List.of());
 
+        when(i18nService.getMessage(any())).thenReturn("Error message");
         assertThrows(InvalidOperationException.class, () -> service.createOrder(request));
     }
 
@@ -86,8 +90,7 @@ class McpToolWriteServiceTest {
 
         McpCreateOrderRequest request = new McpCreateOrderRequest(
                 10,
-                List.of(new McpOrderItemRequest(3, new BigDecimal("2.000")))
-        );
+                List.of(new McpOrderItemRequest(3, new BigDecimal("2.000"))));
 
         McpOrderDto result = service.createOrder(request);
 
@@ -97,8 +100,8 @@ class McpToolWriteServiceTest {
         assertEquals(1, result.getItemCount());
         assertEquals("Supplier A", result.getSupplierName());
 
-        ArgumentCaptor<com.economato.inventory.application.dto.request.OrderRequestDTO> captor =
-                ArgumentCaptor.forClass(com.economato.inventory.application.dto.request.OrderRequestDTO.class);
+        ArgumentCaptor<com.economato.inventory.application.dto.request.OrderRequestDTO> captor = ArgumentCaptor
+                .forClass(com.economato.inventory.application.dto.request.OrderRequestDTO.class);
         verify(orderService).save(captor.capture());
         assertEquals(7, captor.getValue().getUserId());
         assertEquals(10, captor.getValue().getSupplierId());
@@ -116,8 +119,7 @@ class McpToolWriteServiceTest {
         when(stockLedgerService.processManualAdjustment(any())).thenReturn(movement);
 
         Map<String, Object> result = service.adjustStock(
-                new McpAdjustStockRequest(4, new BigDecimal("-3.000"), "regularization")
-        );
+                new McpAdjustStockRequest(4, new BigDecimal("-3.000"), "regularization"));
 
         assertEquals(4, result.get("productId"));
         assertEquals(new BigDecimal("17.000"), result.get("newStock"));
@@ -158,24 +160,24 @@ class McpToolWriteServiceTest {
         assertEquals(50L, result.get("incidentId"));
         assertEquals("ABIERTO", result.get("status"));
 
-        ArgumentCaptor<com.economato.inventory.application.dto.request.CreateIncidentRequestDTO> captor =
-            ArgumentCaptor.forClass(com.economato.inventory.application.dto.request.CreateIncidentRequestDTO.class);
+        ArgumentCaptor<com.economato.inventory.application.dto.request.CreateIncidentRequestDTO> captor = ArgumentCaptor
+                .forClass(com.economato.inventory.application.dto.request.CreateIncidentRequestDTO.class);
         verify(incidentService).createIncident(captor.capture());
         assertEquals(3, captor.getValue().getIncidentTypeId());
-        }
+    }
 
-        @Test
-        void reportIncident_ShouldMapSpanishSeverityValues() {
+    @Test
+    void reportIncident_ShouldMapSpanishSeverityValues() {
         IncidentResponseDTO response = IncidentResponseDTO.builder()
-            .id(51L)
-            .status(IncidentStatus.ABIERTO)
-            .build();
+                .id(51L)
+                .status(IncidentStatus.ABIERTO)
+                .build();
         when(incidentService.createIncident(any())).thenReturn(response);
 
         service.reportIncident(new McpIncidentRequest("Title", "Desc", "MEDIA"));
 
-        ArgumentCaptor<com.economato.inventory.application.dto.request.CreateIncidentRequestDTO> captor =
-            ArgumentCaptor.forClass(com.economato.inventory.application.dto.request.CreateIncidentRequestDTO.class);
+        ArgumentCaptor<com.economato.inventory.application.dto.request.CreateIncidentRequestDTO> captor = ArgumentCaptor
+                .forClass(com.economato.inventory.application.dto.request.CreateIncidentRequestDTO.class);
         verify(incidentService).createIncident(captor.capture());
         assertEquals(2, captor.getValue().getIncidentTypeId());
     }

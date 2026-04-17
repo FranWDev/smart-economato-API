@@ -1,6 +1,8 @@
 package com.economato.inventory.application.usecase;
 
 import com.economato.inventory.infrastructure.config.security.LedgerProperties;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Service;
@@ -16,9 +18,11 @@ public class MerkleTreeService {
 
     private final LedgerProperties ledgerProperties;
     private final Timer merkleRootTimer;
+    private final I18nService i18nService;
 
-    public MerkleTreeService(LedgerProperties ledgerProperties, MeterRegistry meterRegistry) {
+    public MerkleTreeService(LedgerProperties ledgerProperties, MeterRegistry meterRegistry, I18nService i18nService) {
         this.ledgerProperties = ledgerProperties;
+        this.i18nService = i18nService;
         this.merkleRootTimer = Timer.builder("blockchain.merkle.root.duration")
                 .description("Merkle root computation latency")
                 .register(meterRegistry);
@@ -30,10 +34,10 @@ public class MerkleTreeService {
 
     public List<String> computeProof(List<String> txHashes, int index) {
         if (txHashes == null || txHashes.isEmpty()) {
-            throw new IllegalArgumentException("Cannot compute proof for empty transaction list");
+            throw new IllegalArgumentException(i18nService.getMessage(MessageKey.ERROR_MERKLE_EMPTY_TX_LIST));
         }
         if (index < 0 || index >= txHashes.size()) {
-            throw new IllegalArgumentException("Invalid index for Merkle proof: " + index);
+            throw new IllegalArgumentException(i18nService.getMessage(MessageKey.ERROR_MERKLE_INVALID_INDEX, new Object[] { index }));
         }
 
         List<String> proof = new ArrayList<>();
@@ -114,10 +118,10 @@ public class MerkleTreeService {
 
     public List<String> generateProofPath(List<String> leaves, int leafIndex) {
         if (leaves == null || leaves.isEmpty()) {
-            throw new IllegalArgumentException("Cannot generate proof path for empty leaf list");
+            throw new IllegalArgumentException(i18nService.getMessage(MessageKey.ERROR_MERKLE_EMPTY_LEAF_LIST));
         }
         if (leafIndex < 0 || leafIndex >= leaves.size()) {
-            throw new IllegalArgumentException("Invalid leaf index for proof path: " + leafIndex);
+            throw new IllegalArgumentException(i18nService.getMessage(MessageKey.ERROR_MERKLE_INVALID_LEAF_INDEX, new Object[] { leafIndex }));
         }
 
         return computeProof(leaves, leafIndex);
@@ -125,14 +129,14 @@ public class MerkleTreeService {
 
     public String rebuildFromProofPath(String leafHash, List<String> proofPath) {
         if (leafHash == null || leafHash.isEmpty()) {
-            throw new IllegalArgumentException("Leaf hash cannot be null or empty");
+            throw new IllegalArgumentException(i18nService.getMessage(MessageKey.ERROR_MERKLE_NULL_LEAF_HASH));
         }
         
         String current = leafHash;
         if (proofPath != null) {
             for (String step : proofPath) {
                 if (step == null || step.length() < 3) {
-                    throw new IllegalArgumentException("Invalid proof path step format: " + step);
+                    throw new IllegalArgumentException(i18nService.getMessage(MessageKey.ERROR_MERKLE_INVALID_PATH_FORMAT, new Object[] { step }));
                 }
                 String side = step.substring(0, 2);
                 String siblingHash = step.substring(2);
@@ -142,7 +146,7 @@ public class MerkleTreeService {
                 } else if ("R:".equals(side)) {
                     current = hmacSha256(current + siblingHash);
                 } else {
-                    throw new IllegalArgumentException("Invalid proof path side: " + side);
+                    throw new IllegalArgumentException(i18nService.getMessage(MessageKey.ERROR_MERKLE_INVALID_PATH_SIDE, new Object[] { side }));
                 }
             }
         }
@@ -164,7 +168,7 @@ public class MerkleTreeService {
             }
             return hex.toString();
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to compute HMAC-SHA256", e);
+            throw new IllegalStateException(i18nService.getMessage(MessageKey.ERROR_HMAC_CALCULATION_FAILED), e);
         }
     }
 }

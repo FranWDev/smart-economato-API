@@ -18,6 +18,8 @@ import com.economato.inventory.domain.model.Role;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserActivityLogRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class UserActivityLogService {
 
+    private final I18nService i18nService;
     private final UserActivityLogRepository userActivityLogRepository;
     private final UserRepository userRepository;
     private final UserActivityLogMapper userActivityLogMapper;
@@ -32,7 +35,7 @@ public class UserActivityLogService {
     @Transactional(readOnly = true)
     public Page<UserActivityLogResponseDTO> getActivityByUserId(Integer userId, String requesterUsername, Pageable pageable) {
         User requester = userRepository.findByName(requesterUsername)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + requesterUsername));
+                .orElseThrow(() -> new UsernameNotFoundException(i18nService.getMessage(MessageKey.ERROR_AUTH_USER_NOT_FOUND, new Object[] { requesterUsername })));
 
         Pageable normalizedPageable = ensureTimestampDesc(pageable);
 
@@ -41,14 +44,14 @@ public class UserActivityLogService {
         }
 
         if (!Role.CHEF.equals(requester.getRole())) {
-            throw new AccessDeniedException("Forbidden");
+            throw new AccessDeniedException(i18nService.getMessage(MessageKey.ERROR_AUTH_FORBIDDEN));
         }
 
         User target = userRepository.findById(userId)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + userId));
+                .orElseThrow(() -> new UsernameNotFoundException(i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { userId })));
 
         if (target.getTeacher() == null || !requester.getId().equals(target.getTeacher().getId())) {
-            throw new AccessDeniedException("Forbidden");
+            throw new AccessDeniedException(i18nService.getMessage(MessageKey.ERROR_AUTH_FORBIDDEN));
         }
 
         return mapPage(userActivityLogRepository.findByUserIdOrderByTimestampDesc(userId, normalizedPageable));
@@ -63,10 +66,10 @@ public class UserActivityLogService {
     @Transactional(readOnly = true)
     public Page<UserActivityLogResponseDTO> getMyStudentsActivity(String chefUsername, Pageable pageable) {
         User chef = userRepository.findByName(chefUsername)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + chefUsername));
+                .orElseThrow(() -> new UsernameNotFoundException(i18nService.getMessage(MessageKey.ERROR_AUTH_USER_NOT_FOUND, new Object[] { chefUsername })));
 
         if (!Role.CHEF.equals(chef.getRole())) {
-            throw new AccessDeniedException("Forbidden");
+            throw new AccessDeniedException(i18nService.getMessage(MessageKey.ERROR_AUTH_FORBIDDEN));
         }
 
         Pageable normalizedPageable = ensureTimestampDesc(pageable);

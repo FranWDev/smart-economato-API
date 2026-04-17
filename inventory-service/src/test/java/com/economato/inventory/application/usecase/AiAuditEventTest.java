@@ -52,6 +52,8 @@ import com.economato.inventory.infrastructure.config.ai.AiRateLimitProperties;
 import com.economato.inventory.infrastructure.config.ai.AiVaultProperties;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 
+import com.economato.inventory.infrastructure.config.web.I18nService;
+
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -86,6 +88,7 @@ class AiAuditEventTest {
     private CircuitBreakerRegistry circuitBreakerRegistry;
     @Mock
     private CircuitBreaker circuitBreaker;
+    private I18nService i18nService;
 
     private AiChatService aiChatService;
     private AiKeyVaultService aiKeyVaultService;
@@ -127,14 +130,24 @@ class AiAuditEventTest {
         AiRateLimitProperties rateLimitProperties = new AiRateLimitProperties();
         rateLimitProperties.setMaxApiKeysPerUser(5);
 
+        i18nService = new I18nService(null) {
+            @Override public String getMessage(com.economato.inventory.infrastructure.config.web.MessageKey key) {
+                if (key == com.economato.inventory.infrastructure.config.web.MessageKey.ERROR_AI_RATE_LIMIT_EXCEEDED) return "AI message rate limit exceeded";
+                return key.name();
+            }
+            @Override public String getMessage(com.economato.inventory.infrastructure.config.web.MessageKey key, Object... args) { return key.name(); }
+            @Override public String getMessage(com.economato.inventory.infrastructure.config.web.MessageKey key, java.util.Locale locale) { return key.name(); }
+        };
+
         aiKeyVaultService = new AiKeyVaultService(
                 vaultProperties,
                 providerProperties,
                 userApiKeyRepository,
-            globalApiKeyRepository,
+                globalApiKeyRepository,
                 rateLimitProperties,
                 new SimpleMeterRegistry(),
-                Optional.of(auditEventProducer)
+                Optional.of(auditEventProducer),
+                i18nService
         );
 
         aiKeyVaultServiceMock = org.mockito.Mockito.mock(AiKeyVaultService.class);
@@ -165,7 +178,8 @@ class AiAuditEventTest {
             circuitBreakerRegistry,
             new SimpleMeterRegistry(),
             new com.fasterxml.jackson.databind.ObjectMapper(),
-            Optional.of(auditEventProducer)
+            Optional.of(auditEventProducer),
+            i18nService
         );
 
         aiChatService = new AiChatService(
@@ -180,7 +194,8 @@ class AiAuditEventTest {
                 providerProperties,
                 nestProperties,
                 new SimpleMeterRegistry(),
-                Optional.of(auditEventProducer)
+                Optional.of(auditEventProducer),
+                i18nService
         );
 
         currentUser = new User();
@@ -290,7 +305,8 @@ class AiAuditEventTest {
                 }},
                 new AiNestProperties() {{ setStreamTimeoutMs(120000L); }},
                 new SimpleMeterRegistry(),
-                Optional.of(auditEventProducer)
+                Optional.of(auditEventProducer),
+                i18nService
         );
 
         aiChatService.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt");
@@ -337,7 +353,8 @@ class AiAuditEventTest {
                 }},
                 new AiNestProperties() {{ setStreamTimeoutMs(120000L); }},
                 new SimpleMeterRegistry(),
-                Optional.of(auditEventProducer)
+                Optional.of(auditEventProducer),
+                i18nService
         );
 
         aiChatService.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt");
@@ -510,7 +527,8 @@ class AiAuditEventTest {
                 providerProperties,
                 nestProperties,
                 new SimpleMeterRegistry(),
-                Optional.of(auditEventProducer)
+                Optional.of(auditEventProducer),
+                i18nService
         );
     }
 }

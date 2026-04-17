@@ -21,6 +21,8 @@ import com.economato.inventory.application.dto.response.ProductResponseDTO;
 import com.economato.inventory.application.usecase.ProductService;
 import com.economato.inventory.infrastructure.adapter.out.external.reports.ProductExcelService;
 import com.economato.inventory.infrastructure.adapter.out.external.reports.StockLedgerPdfService;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 import com.economato.inventory.application.usecase.StockLedgerService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -40,13 +42,16 @@ public class ProductController {
         private final ProductExcelService productExcelService;
         private final StockLedgerPdfService stockLedgerPdfService;
         private final StockLedgerService stockLedgerService;
+        private final I18nService i18nService;
 
         public ProductController(ProductService productService, ProductExcelService productExcelService,
-                StockLedgerPdfService stockLedgerPdfService, StockLedgerService stockLedgerService) {
+                StockLedgerPdfService stockLedgerPdfService, StockLedgerService stockLedgerService,
+                I18nService i18nService) {
                 this.productService = productService;
                 this.productExcelService = productExcelService;
                 this.stockLedgerPdfService = stockLedgerPdfService;
                 this.stockLedgerService = stockLedgerService;
+                this.i18nService = i18nService;
         }
 
         @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
@@ -231,8 +236,8 @@ public class ProductController {
                 @ApiResponse(responseCode = "200", description = "Verificación completada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = IntegrityCheckResult.class)))
         })
         @GetMapping("/ledger-integrity")
-        public ResponseEntity<java.util.List<IntegrityCheckResult>> verifyLedgerIntegrity() {
-                java.util.List<IntegrityCheckResult> results = stockLedgerService.verifyProductsWithLedger();
+        public ResponseEntity<List<IntegrityCheckResult>> verifyLedgerIntegrity() {
+                List<IntegrityCheckResult> results = stockLedgerService.verifyProductsWithLedger();
                 return ResponseEntity.ok(results);
         }
 
@@ -266,7 +271,7 @@ public class ProductController {
                         if (!pdfResponse.isIntegrityValid() && pdfResponse.getIntegrityErrors() != null) {
                             // Añadir primer error como referencia
                             headers.add("X-Ledger-Integrity-Error", 
-                                       pdfResponse.getIntegrityErrors().isEmpty() ? "Error desconocido" 
+                                       pdfResponse.getIntegrityErrors().isEmpty() ? i18nService.getMessage(MessageKey.ERROR_INTERNAL_SERVER_ERROR) 
                                                                                    : pdfResponse.getIntegrityErrors().get(0));
                         }
                         

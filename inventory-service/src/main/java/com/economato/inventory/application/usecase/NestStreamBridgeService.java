@@ -24,6 +24,8 @@ import com.economato.inventory.application.dto.mcp.ToolCallInfo;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiStreamException;
 import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -57,6 +59,7 @@ public class NestStreamBridgeService {
     private final MeterRegistry meterRegistry;
     private final ObjectMapper objectMapper;
     private final Optional<AuditEventProducer> auditEventProducer;
+    private final I18nService i18nService;
 
     public StreamCompletionResult streamCompletion(NestCompletionRequest request,
                                                    SseEmitter emitter,
@@ -73,7 +76,7 @@ public class NestStreamBridgeService {
         if (circuitBreaker.getState() == CircuitBreaker.State.OPEN) {
             log.warn("Nest circuit breaker OPEN: provider={}, user={}", request.provider(), request.userName());
             counter("ai.nest.stream.errors.total", "type", "circuit_open").increment();
-            throw new AiStreamException("Nest stream is unavailable: circuit breaker is OPEN");
+            throw new AiStreamException(i18nService.getMessage(MessageKey.ERROR_AI_STREAM_UNAVAILABLE));
         }
 
         long startNanos = System.nanoTime();
@@ -104,7 +107,7 @@ public class NestStreamBridgeService {
             circuitBreaker.onError(durationMs, TimeUnit.MILLISECONDS, resolveRootCause(ex));
             counter("ai.nest.stream.errors.total", "type", "connection").increment();
             timerSample.stop(timer("ai.nest.stream.duration"));
-            throw new AiStreamException("Failed to stream completion from Nest service", ex);
+            throw new AiStreamException(i18nService.getMessage(MessageKey.ERROR_AI_STREAM_FAILED), ex);
         }
     }
 
@@ -113,7 +116,7 @@ public class NestStreamBridgeService {
                                                   NestCompletionRequest request) {
         try {
             if (response.getStatusCode().isError()) {
-                throw new AiStreamException("Nest stream responded with HTTP " + response.getStatusCode().value());
+                throw new AiStreamException(i18nService.getMessage(MessageKey.ERROR_AI_STREAM_HTTP_ERROR, response.getStatusCode().value()));
             }
 
             String currentEvent = null;
@@ -178,7 +181,7 @@ public class NestStreamBridgeService {
                                     toolCalls.set(lastIndex, new ToolCallInfo(lastTool.toolName(), lastTool.toolCallId(), resultData));
                                 }
                             } else if (EVENT_ERROR.equals(event.type())) {
-                                String message = event.data() != null ? event.data() : "Unknown stream error";
+                                String message = event.data() != null ? event.data() : i18nService.getMessage(MessageKey.ERROR_AI_STREAM_UNKNOWN);
                                 emitter.send(SseEmitter.event().name(EVENT_ERROR).data(message));
                                 emitter.completeWithError(new AiStreamException(message));
                                 throw new AiStreamException(message);
@@ -194,7 +197,7 @@ public class NestStreamBridgeService {
         } catch (AiStreamException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new AiStreamException("Error while processing Nest SSE stream", ex);
+            throw new AiStreamException(i18nService.getMessage(MessageKey.ERROR_AI_STREAM_PROCESSING_ERROR), ex);
         }
     }
 
@@ -304,10 +307,10 @@ public class NestStreamBridgeService {
             emitter.complete();
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            throw new AiStreamException("Mock stream interrupted", ex);
+            throw new AiStreamException(i18nService.getMessage(MessageKey.ERROR_AI_STREAM_MOCK_INTERRUPTED), ex);
         } catch (Exception ex) {
             log.error("Mock stream error: {}", ex.getMessage());
-            throw new AiStreamException("Mock stream failed", ex);
+            throw new AiStreamException(i18nService.getMessage(MessageKey.ERROR_AI_STREAM_MOCK_FAILED), ex);
         }
 
         return new StreamCompletionResult(accumulated.toString(), 5, accumulated.length(), thinkingContent.toString(), toolCalls);

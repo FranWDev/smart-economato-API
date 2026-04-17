@@ -2,6 +2,7 @@ package com.economato.inventory.application.usecase;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -130,7 +131,7 @@ public class OrderService {
                 if (requestDTO.getSupplierId() != null) {
                         Supplier supplier = supplierRepository.findById(requestDTO.getSupplierId())
                                         .orElseThrow(() -> new ResourceNotFoundException(
-                                                        "El proveedor especificado no existe."));
+                                                        i18nService.getMessage(MessageKey.ERROR_SUPPLIER_NOT_FOUND)));
                         order.setSupplier(supplier);
                 }
 
@@ -186,7 +187,7 @@ public class OrderService {
                                                 Supplier supplier = supplierRepository
                                                                 .findById(requestDTO.getSupplierId())
                                                                 .orElseThrow(() -> new ResourceNotFoundException(
-                                                                                "El proveedor especificado no existe."));
+                                                                                i18nService.getMessage(MessageKey.ERROR_SUPPLIER_NOT_FOUND)));
                                                 existing.setSupplier(supplier);
                                         } else {
                                                 existing.setSupplier(null);
@@ -265,7 +266,7 @@ public class OrderService {
                         Integer orderId) {
                 if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
                         throw new InvalidOperationException(
-                                        "La fecha de inicio no puede ser mayor que la fecha de fin.");
+                                        i18nService.getMessage(MessageKey.ERROR_CONSUMPTION_INVALID_DATE_RANGE));
                 }
 
                 Specification<Order> spec = (root, query, cb) -> cb.conjunction();
@@ -317,7 +318,7 @@ public class OrderService {
         @Transactional(readOnly = true)
         public OrdersByProductsResponseDTO findByProducts(OrdersByProductsRequestDTO requestDTO) {
                 if (requestDTO == null || requestDTO.getProductIds() == null || requestDTO.getProductIds().isEmpty()) {
-                        throw new InvalidOperationException("Debes enviar al menos un producto para buscar pedidos.");
+                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_ORDER_SEARCH_MISSING_PRODUCTS));
                 }
 
                 final List<Integer> productIds = requestDTO.getProductIds().stream()
@@ -325,7 +326,7 @@ public class OrderService {
                                 .distinct()
                                 .toList();
                 if (productIds.isEmpty()) {
-                        throw new InvalidOperationException("Debes enviar IDs de producto validos.");
+                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_ORDER_SEARCH_INVALID_IDS));
                 }
 
                 final List<OrderStatus> statuses = (requestDTO.getStatuses() == null || requestDTO.getStatuses().isEmpty())
@@ -366,7 +367,7 @@ public class OrderService {
                                                 detail.getQuantity(),
                                                 order.getSupplier() != null ? order.getSupplier().getName() : null,
                                                 order.getOrderDate());
-                                breakdownByProduct.computeIfAbsent(productId, k -> new java.util.ArrayList<>())
+                                breakdownByProduct.computeIfAbsent(productId, k -> new ArrayList<>())
                                                 .add(perOrder);
                         }
                 }
@@ -566,7 +567,7 @@ public class OrderService {
                                                 i18nService.getMessage(MessageKey.ERROR_ORDER_NOT_FOUND)));
 
                 if (!OrderStatus.INCOMPLETE.equals(order.getStatus())) {
-                        throw new InvalidOperationException("Solo las ordenes incompletas tienen items faltantes.");
+                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_ORDER_INCOMPLETE_ONLY_MISSING_ITEMS));
                 }
 
                 return order.getDetails().stream()

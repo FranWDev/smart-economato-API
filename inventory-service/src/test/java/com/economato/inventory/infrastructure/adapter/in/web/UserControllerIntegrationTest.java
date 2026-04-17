@@ -687,6 +687,48 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         }
 
         @Test
+        void whenSearchTeachersByContaining_thenReturnsOnlyMatchingChefUsers() throws Exception {
+                User chefA = TestDataUtil.createChefUser();
+                chefA.setName("Franchesco Alvarez");
+                chefA.setUser("chef.franchesco");
+
+                User chefB = TestDataUtil.createChefUser();
+                chefB.setName("Francisco Gomez");
+                chefB.setUser("chef.francisco");
+
+                User chefC = TestDataUtil.createChefUser();
+                chefC.setName("Miguel Torres");
+                chefC.setUser("chef.miguel");
+
+                userRepository.saveAndFlush(chefA);
+                userRepository.saveAndFlush(chefB);
+                userRepository.saveAndFlush(chefC);
+
+                UserRequestDTO nonChef = new UserRequestDTO();
+                nonChef.setName("Franco Usuario");
+                nonChef.setUser("franco.user");
+                nonChef.setPassword("password123");
+                nonChef.setRole(Role.USER);
+
+                mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(nonChef)))
+                                .andExpect(status().isCreated());
+
+                mockMvc.perform(get(BASE_URL + "/teachers/search")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .param("term", "fran")
+                                .param("page", "0")
+                                .param("size", "20"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.content", hasSize(2)))
+                                .andExpect(jsonPath("$.content[*].name", hasItem("Franchesco Alvarez")))
+                                .andExpect(jsonPath("$.content[*].name", hasItem("Francisco Gomez")))
+                                .andExpect(jsonPath("$.content[*].role", everyItem(is("CHEF"))));
+        }
+
+        @Test
         void whenAssignTeacher_thenSuccess() throws Exception {
                 // Crear estudiante normal
                 UserRequestDTO studentRequest = TestDataUtil.createUserRequestDTO();

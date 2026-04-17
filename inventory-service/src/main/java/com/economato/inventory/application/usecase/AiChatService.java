@@ -57,6 +57,8 @@ import com.economato.inventory.infrastructure.config.ai.AiChatProperties;
 import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
 import com.economato.inventory.infrastructure.config.ai.AiProviderProperties;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -85,6 +87,7 @@ public class AiChatService {
     private final AiNestProperties aiNestProperties;
     private final MeterRegistry meterRegistry;
     private final Optional<AuditEventProducer> auditEventProducer;
+    private final I18nService i18nService;
 
     private final ConcurrentHashMap<Integer, AtomicInteger> activeStreamsByUser = new ConcurrentHashMap<>();
     private final AtomicInteger activeStreamsGlobal = new AtomicInteger(0);
@@ -120,12 +123,12 @@ public class AiChatService {
         AiChat chat = getOwnedChat(chatId, currentUser.getId());
 
         Pageable normalized = pageable == null || pageable.isUnpaged()
-                ? PageRequest.of(0, 30, Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")))
+                ? PageRequest.of(0, 30,
+                        Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")))
                 : PageRequest.of(
-                    pageable.getPageNumber(),
-                    pageable.getPageSize(),
-                    Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id"))
-                );
+                        pageable.getPageNumber(),
+                        pageable.getPageSize(),
+                        Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
 
         Page<McpChatMessageResponseDto> page = aiChatMessageRepository.findByChatId(chat.getId(), normalized)
                 .map(this::toMessageResponse);
@@ -139,7 +142,7 @@ public class AiChatService {
 
         String normalizedTitle = normalizeTitle(request != null ? request.title() : null);
         if (normalizedTitle == null) {
-            throw new InvalidOperationException("Chat title is required");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_CHAT_TITLE_REQUIRED));
         }
 
         chat.setTitle(normalizedTitle);
@@ -169,7 +172,7 @@ public class AiChatService {
                     .errorType("max_chats")
                     .eventTimestamp(LocalDateTime.now())
                     .build());
-            throw new AiChatLimitReachedException("Maximum active chats reached for this user");
+            throw new AiChatLimitReachedException(i18nService.getMessage(MessageKey.ERROR_AI_CHAT_MAX_ACTIVE_REACHED));
         }
 
         AiProvider provider = resolveProvider(request != null ? request.provider() : null, true);
@@ -187,14 +190,14 @@ public class AiChatService {
         AiChat created = aiChatRepository.save(chat);
         log.info("AI chat created: chatId={}, userId={}, provider={}", created.getId(), currentUser.getId(), provider);
         publishAudit(AiAuditEvent.builder()
-            .eventType("AI_CHAT_CREATED")
-            .userId(currentUser.getId())
-            .userName(currentUser.getName())
-            .chatId(created.getId())
-            .provider(created.getActiveProvider().name())
-            .userLanguage(created.getUserLanguage())
-            .eventTimestamp(LocalDateTime.now())
-            .build());
+                .eventType("AI_CHAT_CREATED")
+                .userId(currentUser.getId())
+                .userName(currentUser.getName())
+                .chatId(created.getId())
+                .provider(created.getActiveProvider().name())
+                .userLanguage(created.getUserLanguage())
+                .eventTimestamp(LocalDateTime.now())
+                .build());
         return toChatResponse(created);
     }
 
@@ -206,20 +209,20 @@ public class AiChatService {
         boolean hasKey = aiKeyVaultService.listGlobalKeys().stream()
                 .anyMatch(key -> key.provider() == provider && key.active());
         if (!hasKey) {
-            throw new AiKeyNotFoundException("No global API key configured for provider " + provider);
+            throw new AiKeyNotFoundException(i18nService.getMessage(MessageKey.ERROR_AI_NO_GLOBAL_KEY, provider));
         }
 
         chat.setActiveProvider(provider);
         AiChat saved = aiChatRepository.save(chat);
         publishAudit(AiAuditEvent.builder()
-            .eventType("AI_PROVIDER_CHANGED")
-            .userId(currentUser.getId())
-            .userName(currentUser.getName())
-            .chatId(saved.getId())
-            .provider(saved.getActiveProvider().name())
-            .userLanguage(saved.getUserLanguage())
-            .eventTimestamp(LocalDateTime.now())
-            .build());
+                .eventType("AI_PROVIDER_CHANGED")
+                .userId(currentUser.getId())
+                .userName(currentUser.getName())
+                .chatId(saved.getId())
+                .provider(saved.getActiveProvider().name())
+                .userLanguage(saved.getUserLanguage())
+                .eventTimestamp(LocalDateTime.now())
+                .build());
         return toChatResponse(saved);
     }
 
@@ -229,14 +232,14 @@ public class AiChatService {
         chat.setStatus(AiChatStatus.ARCHIVED);
         aiChatRepository.save(chat);
         publishAudit(AiAuditEvent.builder()
-            .eventType("AI_CHAT_ARCHIVED")
-            .userId(currentUser.getId())
-            .userName(currentUser.getName())
-            .chatId(chat.getId())
-            .provider(chat.getActiveProvider().name())
-            .userLanguage(chat.getUserLanguage())
-            .eventTimestamp(LocalDateTime.now())
-            .build());
+                .eventType("AI_CHAT_ARCHIVED")
+                .userId(currentUser.getId())
+                .userName(currentUser.getName())
+                .chatId(chat.getId())
+                .provider(chat.getActiveProvider().name())
+                .userLanguage(chat.getUserLanguage())
+                .eventTimestamp(LocalDateTime.now())
+                .build());
     }
 
     public SseEmitter sendMessage(Long chatId, McpChatMessageRequest request, String userJwt) {
@@ -255,7 +258,7 @@ public class AiChatService {
                     .errorType("per_minute")
                     .eventTimestamp(LocalDateTime.now())
                     .build());
-            throw new AiRateLimitExceededException("AI message rate limit exceeded");
+            throw new AiRateLimitExceededException(i18nService.getMessage(MessageKey.ERROR_AI_RATE_LIMIT_EXCEEDED));
         }
 
         if (!aiRateLimitService.canSendMessage(chatId)) {
@@ -274,12 +277,12 @@ public class AiChatService {
                 chat.setStatus(AiChatStatus.ARCHIVED);
                 aiChatRepository.save(chat);
             }
-            throw new AiMaxMessagesReachedException("Maximum messages reached for this chat");
+            throw new AiMaxMessagesReachedException(i18nService.getMessage(MessageKey.ERROR_AI_MAX_MESSAGES_REACHED));
         }
 
         String content = request != null ? request.content() : null;
         if (content == null || content.isBlank()) {
-            throw new InvalidOperationException("Message content is required");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_CHAT_MESSAGE_REQUIRED));
         }
 
         String language = resolveLanguage(request != null ? request.language() : null, chat.getUserLanguage());
@@ -293,15 +296,15 @@ public class AiChatService {
         aiChatMessageRepository.save(userMessage);
         countMessage(MessageRole.USER, chat.getActiveProvider());
         publishAudit(AiAuditEvent.builder()
-            .eventType("AI_MESSAGE_SENT")
-            .userId(currentUser.getId())
-            .userName(currentUser.getName())
-            .chatId(chat.getId())
-            .messageId(userMessage.getId())
-            .provider(chat.getActiveProvider().name())
-            .userLanguage(language)
-            .eventTimestamp(LocalDateTime.now())
-            .build());
+                .eventType("AI_MESSAGE_SENT")
+                .userId(currentUser.getId())
+                .userName(currentUser.getName())
+                .chatId(chat.getId())
+                .messageId(userMessage.getId())
+                .provider(chat.getActiveProvider().name())
+                .userLanguage(language)
+                .eventTimestamp(LocalDateTime.now())
+                .build());
         log.info("AI message sent: chatId={}, userId={}, language={}", chat.getId(), currentUser.getId(), language);
 
         String apiKey;
@@ -309,7 +312,8 @@ public class AiChatService {
             apiKey = aiKeyVaultService.getDecryptedKey(chat.getActiveProvider());
         } catch (ResourceNotFoundException ex) {
             meterRegistry.counter("ai.chat.errors.total", "type", "no_key").increment();
-            throw new AiKeyNotFoundException("No global API key configured for provider " + chat.getActiveProvider());
+            throw new AiKeyNotFoundException(
+                    i18nService.getMessage(MessageKey.ERROR_AI_NO_GLOBAL_KEY, chat.getActiveProvider()));
         }
 
         List<AiChatMessage> history = aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(chat.getId());
@@ -322,8 +326,7 @@ public class AiChatService {
                 chat.getActiveProvider().name(),
                 currentUser.getName(),
                 language,
-                model
-        );
+                model);
 
         SseEmitter emitter = new SseEmitter(aiNestProperties.getStreamTimeoutMs());
         StreamLease lease = acquireStreamLease(currentUser.getId());
@@ -341,20 +344,21 @@ public class AiChatService {
                 String thinkingContent = result.thinkingContent();
                 var toolCalls = result.toolCalls();
 
-                executeAssistantCompletion(chat, currentUser, language, assistantContent, thinkingContent, toolCalls, inputTokens, outputTokens, compressedContext, streamStart);
+                executeAssistantCompletion(chat, currentUser, language, assistantContent, thinkingContent, toolCalls,
+                        inputTokens, outputTokens, compressedContext, streamStart);
             } catch (RuntimeException ex) {
                 log.error("AI stream error for chat {}: {}", chatId, ex.getMessage());
                 meterRegistry.counter("ai.chat.errors.total", "type", resolveErrorType(ex)).increment();
                 publishAudit(AiAuditEvent.builder()
-                    .eventType("AI_STREAM_ERROR")
-                    .userId(currentUser.getId())
-                    .userName(currentUser.getName())
-                    .chatId(chat.getId())
-                    .provider(chat.getActiveProvider().name())
-                    .userLanguage(language)
-                    .errorType(resolveErrorType(ex))
-                    .eventTimestamp(LocalDateTime.now())
-                    .build());
+                        .eventType("AI_STREAM_ERROR")
+                        .userId(currentUser.getId())
+                        .userName(currentUser.getName())
+                        .chatId(chat.getId())
+                        .provider(chat.getActiveProvider().name())
+                        .userLanguage(language)
+                        .errorType(resolveErrorType(ex))
+                        .eventTimestamp(LocalDateTime.now())
+                        .build());
                 persistSystemError(chat, currentUser, ex);
                 try {
                     emitter.completeWithError(ex);
@@ -363,7 +367,8 @@ public class AiChatService {
                 }
             } finally {
                 releaseStreamLease(currentUser.getId(), lease);
-                sample.stop(meterRegistry.timer("ai.chat.stream.duration", "provider", chat.getActiveProvider().name()));
+                sample.stop(
+                        meterRegistry.timer("ai.chat.stream.duration", "provider", chat.getActiveProvider().name()));
             }
         });
 
@@ -371,71 +376,72 @@ public class AiChatService {
     }
 
     private void executeAssistantCompletion(AiChat chat,
-                            User currentUser,
-                                            String language,
-                                            String assistantContent,
-                                            String thinkingContent,
-                                            java.util.List<ToolCallInfo> toolCalls,
-                                            int inputTokens,
-                                            int outputTokens,
-                                            CompressedContext compressedContext,
-                                            long streamStart) {
+            User currentUser,
+            String language,
+            String assistantContent,
+            String thinkingContent,
+            java.util.List<ToolCallInfo> toolCalls,
+            int inputTokens,
+            int outputTokens,
+            CompressedContext compressedContext,
+            long streamStart) {
         Runnable completionWork = () -> {
-                AiChat managedChat = aiChatRepository.findByIdAndUserId(chat.getId(), currentUser.getId())
-                            .orElseThrow(() -> new AiChatNotFoundException("AI chat not found"));
+            AiChat managedChat = aiChatRepository.findByIdAndUserId(chat.getId(), currentUser.getId())
+                    .orElseThrow(() -> new AiChatNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
-                    AiChatMessage assistantMessage = AiChatMessage.builder()
+            AiChatMessage assistantMessage = AiChatMessage.builder()
+                    .chat(managedChat)
+                    .role(MessageRole.ASSISTANT)
+                    .content(assistantContent)
+                    .thinkingContent(thinkingContent)
+                    .inputTokens(inputTokens)
+                    .outputTokens(outputTokens)
+                    .build();
+            aiChatMessageRepository.save(assistantMessage);
+
+            // Persist tool calls as separate TOOL messages
+            if (toolCalls != null) {
+                for (ToolCallInfo tc : toolCalls) {
+                    AiChatMessage toolMessage = AiChatMessage.builder()
                             .chat(managedChat)
-                            .role(MessageRole.ASSISTANT)
-                            .content(assistantContent)
-                            .thinkingContent(thinkingContent)
-                            .inputTokens(inputTokens)
-                            .outputTokens(outputTokens)
+                            .role(MessageRole.TOOL)
+                            .toolName(tc.toolName())
+                            .toolCallId(tc.toolCallId())
+                            .toolResult(tc.toolResult())
                             .build();
-                    aiChatMessageRepository.save(assistantMessage);
-                    
-                    // Persist tool calls as separate TOOL messages
-                    if (toolCalls != null) {
-                        for (ToolCallInfo tc : toolCalls) {
-                            AiChatMessage toolMessage = AiChatMessage.builder()
-                                    .chat(managedChat)
-                                    .role(MessageRole.TOOL)
-                                    .toolName(tc.toolName())
-                                    .toolCallId(tc.toolCallId())
-                                    .toolResult(tc.toolResult())
-                                    .build();
-                            aiChatMessageRepository.save(toolMessage);
-                        }
-                    }
-                    
-                    countMessage(MessageRole.ASSISTANT, managedChat.getActiveProvider());
-                    countTokens(managedChat.getActiveProvider(), inputTokens, outputTokens);
+                    aiChatMessageRepository.save(toolMessage);
+                }
+            }
 
-                    managedChat.setLastMessageAt(LocalDateTime.now());
-                    managedChat.setMessageCount(managedChat.getMessageCount() + 2 + (toolCalls != null ? toolCalls.size() : 0));
-                    managedChat.setTotalTokensConsumed(managedChat.getTotalTokensConsumed() + inputTokens + outputTokens);
-                    aiChatRepository.save(managedChat);
+            countMessage(MessageRole.ASSISTANT, managedChat.getActiveProvider());
+            countTokens(managedChat.getActiveProvider(), inputTokens, outputTokens);
 
-                    long streamDurationMs = nanosToMillis(streamStart);
-                    log.info("AI stream completed: chatId={}, tokens={}/{}, duration={}ms, compression={}",
-                        managedChat.getId(), inputTokens, outputTokens, streamDurationMs, compressedContext.compressionRatio());
-                    publishAudit(AiAuditEvent.builder()
-                        .eventType("AI_MESSAGE_RECEIVED")
-                        .userId(currentUser.getId())
-                        .userName(currentUser.getName())
-                        .chatId(managedChat.getId())
-                        .messageId(assistantMessage.getId())
-                        .provider(managedChat.getActiveProvider().name())
-                        .userLanguage(language)
-                        .inputTokens(inputTokens)
-                        .outputTokens(outputTokens)
-                        .streamDurationMs(streamDurationMs)
-                        .compressionRatio(compressedContext.compressionRatio())
-                        .eventTimestamp(LocalDateTime.now())
-                        .build());
+            managedChat.setLastMessageAt(LocalDateTime.now());
+            managedChat.setMessageCount(managedChat.getMessageCount() + 2 + (toolCalls != null ? toolCalls.size() : 0));
+            managedChat.setTotalTokensConsumed(managedChat.getTotalTokensConsumed() + inputTokens + outputTokens);
+            aiChatRepository.save(managedChat);
 
-                    aiRateLimitService.recordRequest(currentUser.getId());
-                };
+            long streamDurationMs = nanosToMillis(streamStart);
+            log.info("AI stream completed: chatId={}, tokens={}/{}, duration={}ms, compression={}",
+                    managedChat.getId(), inputTokens, outputTokens, streamDurationMs,
+                    compressedContext.compressionRatio());
+            publishAudit(AiAuditEvent.builder()
+                    .eventType("AI_MESSAGE_RECEIVED")
+                    .userId(currentUser.getId())
+                    .userName(currentUser.getName())
+                    .chatId(managedChat.getId())
+                    .messageId(assistantMessage.getId())
+                    .provider(managedChat.getActiveProvider().name())
+                    .userLanguage(language)
+                    .inputTokens(inputTokens)
+                    .outputTokens(outputTokens)
+                    .streamDurationMs(streamDurationMs)
+                    .compressionRatio(compressedContext.compressionRatio())
+                    .eventTimestamp(LocalDateTime.now())
+                    .build());
+
+            aiRateLimitService.recordRequest(currentUser.getId());
+        };
 
         if (transactionManager == null) {
             completionWork.run();
@@ -457,7 +463,7 @@ public class AiChatService {
                 .filter(key -> key.provider() == provider)
                 .findFirst()
                 .map(this::toApiKeyResponse)
-                .orElseThrow(() -> new AiKeyNotFoundException("API key could not be saved"));
+                .orElseThrow(() -> new AiKeyNotFoundException(i18nService.getMessage(MessageKey.ERROR_AI_KEY_NOT_FOUND)));
     }
 
     public McpApiKeyResponseDto updateApiKey(McpApiKeyRequest request) {
@@ -469,7 +475,7 @@ public class AiChatService {
                 .filter(key -> key.provider() == provider)
                 .findFirst()
                 .map(this::toApiKeyResponse)
-                .orElseThrow(() -> new AiKeyNotFoundException("API key could not be updated"));
+                .orElseThrow(() -> new AiKeyNotFoundException(i18nService.getMessage(MessageKey.ERROR_AI_KEY_NOT_FOUND)));
     }
 
     public List<McpApiKeyResponseDto> listApiKeys() {
@@ -491,8 +497,7 @@ public class AiChatService {
                 .map(entry -> Map.of(
                         "name", entry.getKey(),
                         "displayName", defaultText(entry.getValue().getDisplayName()),
-                        "modelDefault", defaultText(entry.getValue().getModelDefault())
-                ))
+                        "modelDefault", defaultText(entry.getValue().getModelDefault())))
                 .toList();
     }
 
@@ -502,19 +507,19 @@ public class AiChatService {
             raw = aiChatProperties.getDefaultProvider();
         }
         if (raw == null || raw.isBlank()) {
-            throw new InvalidOperationException("Provider is required");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_PROVIDER_REQUIRED));
         }
 
         final AiProvider provider;
         try {
             provider = AiProvider.valueOf(raw.trim().toUpperCase(Locale.ROOT));
         } catch (Exception ex) {
-            throw new AiProviderDisabledException("Unsupported provider: " + raw);
+            throw new AiProviderDisabledException(i18nService.getMessage(MessageKey.ERROR_AI_PROVIDER_DISABLED, raw));
         }
 
         AiProviderProperties.ProviderConfig providerConfig = aiProviderProperties.getConfigs().get(provider.name());
         if (providerConfig == null || Boolean.FALSE.equals(providerConfig.getEnabled())) {
-            throw new AiProviderDisabledException("Provider disabled: " + provider.name());
+            throw new AiProviderDisabledException(i18nService.getMessage(MessageKey.ERROR_AI_PROVIDER_DISABLED, provider.name()));
         }
 
         return provider;
@@ -522,7 +527,8 @@ public class AiChatService {
 
     private String resolveModel(AiProvider provider) {
         AiProviderProperties.ProviderConfig providerConfig = aiProviderProperties.getConfigs().get(provider.name());
-        if (providerConfig == null || providerConfig.getModelDefault() == null || providerConfig.getModelDefault().isBlank()) {
+        if (providerConfig == null || providerConfig.getModelDefault() == null
+                || providerConfig.getModelDefault().isBlank()) {
             return "";
         }
         return providerConfig.getModelDefault();
@@ -559,13 +565,13 @@ public class AiChatService {
 
     private AiChat getOwnedChat(Long chatId, Integer userId) {
         return aiChatRepository.findByIdAndUserId(chatId, userId)
-                .orElseThrow(() -> new AiChatNotFoundException("AI chat not found"));
+                .orElseThrow(() -> new AiChatNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
     }
 
     private User requireCurrentUser() {
         User currentUser = securityContextHelper.getCurrentUser();
         if (currentUser == null) {
-            throw new InvalidOperationException("Authenticated user is required");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AUTH_USER_REQUIRED));
         }
         return currentUser;
     }
@@ -582,12 +588,12 @@ public class AiChatService {
     private void persistSystemError(AiChat chat, User currentUser, Exception ex) {
         Runnable errorWork = () -> {
             AiChat managedChat = aiChatRepository.findByIdAndUserId(chat.getId(), currentUser.getId())
-                    .orElseThrow(() -> new AiChatNotFoundException("AI chat not found"));
+                    .orElseThrow(() -> new AiChatNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
             AiChatMessage systemMessage = AiChatMessage.builder()
                     .chat(managedChat)
                     .role(MessageRole.SYSTEM)
-                    .content("Stream error: " + ex.getMessage())
+                    .content(i18nService.getMessage(MessageKey.ERROR_AI_STREAM_PREFIX) + ex.getMessage())
                     .build();
             aiChatMessageRepository.save(systemMessage);
             managedChat.setLastMessageAt(LocalDateTime.now());
@@ -657,8 +663,7 @@ public class AiChatService {
                 chat.getUserLanguage(),
                 chat.getCreatedAt(),
                 chat.getLastMessageAt(),
-                chat.getMessageCount()
-        );
+                chat.getMessageCount());
     }
 
     private McpChatMessageResponseDto toMessageResponse(AiChatMessage message) {
@@ -672,8 +677,7 @@ public class AiChatService {
                 message.getThinkingContent(),
                 message.getInputTokens(),
                 message.getOutputTokens(),
-                message.getCreatedAt()
-        );
+                message.getCreatedAt());
     }
 
     private McpApiKeyResponseDto toApiKeyResponse(AiKeyVaultService.ApiKeyMetadata metadata) {
@@ -682,8 +686,7 @@ public class AiChatService {
                 metadata.provider().name(),
                 metadata.keyHint(),
                 metadata.active(),
-                metadata.createdAt()
-        );
+                metadata.createdAt());
     }
 
     private StreamLease acquireStreamLease(Integer userId) {
@@ -691,7 +694,7 @@ public class AiChatService {
         int userCount = byUser.incrementAndGet();
         if (userCount > aiChatProperties.getMaxConcurrentStreamsPerUser()) {
             byUser.decrementAndGet();
-            throw new AiConcurrentStreamException("Maximum concurrent AI streams reached for this user");
+            throw new AiConcurrentStreamException(i18nService.getMessage(MessageKey.ERROR_AI_CONCURRENT_STREAMS_REACHED));
         }
 
         activeStreamsGlobal.incrementAndGet();

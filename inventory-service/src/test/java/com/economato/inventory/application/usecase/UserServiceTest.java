@@ -365,6 +365,22 @@ class UserServiceTest {
     }
 
     @Test
+    void searchVisibleTeachers_ShouldUseContainingAndReturnPagedResults() {
+        Pageable pageable = PageRequest.of(0, 8);
+        List<UserProjection> teachers = Arrays.asList(testProjection);
+        Page<UserProjection> page = new PageImpl<>(teachers, pageable, teachers.size());
+
+        when(repository.searchVisibleByRoleAndNameOrUser(Role.CHEF, "fran", pageable)).thenReturn(page);
+        when(userMapper.toResponseDTO(any(UserProjection.class))).thenReturn(testUserResponseDTO);
+
+        Page<UserResponseDTO> result = userService.searchVisibleTeachers("fran", pageable);
+
+        assertNotNull(result);
+        assertEquals(1, result.getTotalElements());
+        verify(repository).searchVisibleByRoleAndNameOrUser(Role.CHEF, "fran", pageable);
+    }
+
+    @Test
     void save_WhenDuplicateName_ShouldThrowException() {
         when(repository.existsByUser(testUserRequestDTO.getUser())).thenReturn(false);
         when(repository.findByName(testUserRequestDTO.getName())).thenReturn(Optional.of(testUser));

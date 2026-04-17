@@ -5,6 +5,7 @@ import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 import com.economato.inventory.infrastructure.config.security.LedgerProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -68,19 +69,13 @@ public class LedgerMerkleVerificationService {
                 StockLedger tx = chain.get(i);
 
                 if (!tx.getPreviousHash().equals(expectedPreviousHash)) {
-                    String error = String.format(
-                            "Previous hash mismatch at sequence %d: expected %s, got %s",
-                            tx.getSequenceNumber(),
-                            expectedPreviousHash.substring(0, Math.min(8, expectedPreviousHash.length())),
-                            tx.getPreviousHash().substring(0, Math.min(8, tx.getPreviousHash().length())));
-                    errors.add(error);
+                    errors.add(i18nService.getMessage(MessageKey.LEDGER_VERIFICATION_PREVIOUS_HASH_MISMATCH,
+                            new Object[]{tx.getSequenceNumber(), expectedPreviousHash, tx.getPreviousHash()}));
                 }
 
                 if (tx.getSequenceNumber() != (i + 1L)) {
-                    String error = String.format(
-                            "Sequence number broken at index %d: expected %d, got %d",
-                            i, (i + 1L), tx.getSequenceNumber());
-                    errors.add(error);
+                    errors.add(i18nService.getMessage(MessageKey.LEDGER_VERIFICATION_SEQUENCE_BROKEN,
+                            new Object[]{i, (i + 1L), tx.getSequenceNumber()}));
                 }
 
                 BigDecimal normalizedDelta = tx.getQuantityDelta().setScale(3, RoundingMode.HALF_UP);
@@ -101,12 +96,8 @@ public class LedgerMerkleVerificationService {
                         tx.getSequenceNumber());
 
                 if (!recalculatedHash.equals(tx.getCurrentHash())) {
-                    String error = String.format(
-                            "Hash corruption at sequence %d: expected %s, got %s",
-                            tx.getSequenceNumber(),
-                            recalculatedHash.substring(0, Math.min(8, recalculatedHash.length())),
-                            tx.getCurrentHash().substring(0, Math.min(8, tx.getCurrentHash().length())));
-                    errors.add(error);
+                    errors.add(i18nService.getMessage(MessageKey.LEDGER_VERIFICATION_HASH_CORRUPTION,
+                            new Object[]{tx.getSequenceNumber(), recalculatedHash, tx.getCurrentHash()}));
                 }
                 
                 expectedPreviousHash = tx.getCurrentHash();
@@ -142,23 +133,21 @@ public class LedgerMerkleVerificationService {
             }
 
             if (targetTx == null) {
-                errors.add(String.format("Transaction with sequence %d not found in product %d", 
-                        sequenceNumber, productId));
+                errors.add(i18nService.getMessage(MessageKey.LEDGER_VERIFICATION_TRANSACTION_NOT_FOUND, 
+                        new Object[]{sequenceNumber, productId}));
                 return errors;
             }
 
             if (targetIndex > 0) {
                 StockLedger previousTx = chain.get(targetIndex - 1);
                 if (!targetTx.getPreviousHash().equals(previousTx.getCurrentHash())) {
-                    errors.add(String.format(
-                            "Hash link broken: transaction %d's previousHash doesn't match transaction %d's currentHash",
-                            sequenceNumber, targetIndex));
+                    errors.add(i18nService.getMessage(MessageKey.LEDGER_VERIFICATION_LINK_BROKEN,
+                            new Object[]{sequenceNumber, targetIndex}));
                 }
             } else {
                 if (!targetTx.getPreviousHash().equals(GENESIS_HASH)) {
-                    errors.add(String.format(
-                            "First transaction's previousHash should be GENESIS, got %s",
-                            targetTx.getPreviousHash()));
+                    errors.add(i18nService.getMessage(MessageKey.LEDGER_VERIFICATION_FIRST_TRANSACTION_GENESIS,
+                            new Object[]{targetTx.getPreviousHash()}));
                 }
             }
 
@@ -173,7 +162,8 @@ public class LedgerMerkleVerificationService {
             List<String> errors = new ArrayList<>();
 
             if (fromSequence > toSequence) {
-                errors.add(String.format("Invalid range: from %d > to %d", fromSequence, toSequence));
+                errors.add(i18nService.getMessage(MessageKey.LEDGER_VERIFICATION_RANGE_INVALID, 
+                        new Object[]{fromSequence, toSequence}));
                 return errors;
             }
 
@@ -186,10 +176,12 @@ public class LedgerMerkleVerificationService {
             }
 
             if (startIdx == -1) {
-                errors.add(String.format("Start sequence %d not found in product %d", fromSequence, productId));
+                errors.add(i18nService.getMessage(MessageKey.LEDGER_VERIFICATION_START_SEQUENCE_NOT_FOUND, 
+                        new Object[]{fromSequence, productId}));
             }
             if (endIdx == -1) {
-                errors.add(String.format("End sequence %d not found in product %d", toSequence, productId));
+                errors.add(i18nService.getMessage(MessageKey.LEDGER_VERIFICATION_END_SEQUENCE_NOT_FOUND, 
+                        new Object[]{toSequence, productId}));
             }
 
             if (!errors.isEmpty()) return errors;
@@ -205,9 +197,8 @@ public class LedgerMerkleVerificationService {
                 StockLedger tx = chain.get(i);
 
                 if (!tx.getPreviousHash().equals(expectedPreviousHash)) {
-                    errors.add(String.format(
-                            "Chain link broken at sequence %d in range [%d, %d]",
-                            tx.getSequenceNumber(), fromSequence, toSequence));
+                    errors.add(i18nService.getMessage(MessageKey.ERROR_LEDGER_RANGE_BROKEN,
+                            new Object[] { tx.getSequenceNumber(), fromSequence, toSequence }));
                 }
 
                 expectedPreviousHash = tx.getCurrentHash();
@@ -234,14 +225,16 @@ public class LedgerMerkleVerificationService {
 
             StockLedger first = chain.get(0);
             if (!first.getPreviousHash().equals(GENESIS_HASH)) {
-                errors.add(String.format("First transaction in product %d doesn't link to GENESIS", productId));
+                errors.add(i18nService.getMessage(MessageKey.LEDGER_VERIFICATION_SPOT_CHECK_FIRST_NOT_GENESIS, 
+                        new Object[]{productId}));
             }
 
             if (chain.size() > 1) {
                 StockLedger last = chain.get(chain.size() - 1);
                 StockLedger secondLast = chain.get(chain.size() - 2);
                 if (!last.getPreviousHash().equals(secondLast.getCurrentHash())) {
-                    errors.add(String.format("Last transaction in product %d chain link is broken", productId));
+                    errors.add(i18nService.getMessage(MessageKey.LEDGER_VERIFICATION_SPOT_CHECK_LAST_LINK_BROKEN, 
+                            new Object[]{productId}));
                 }
             }
 
@@ -256,9 +249,8 @@ public class LedgerMerkleVerificationService {
                         StockLedger previous = chain.get(idx - 1);
 
                         if (!sampled.getPreviousHash().equals(previous.getCurrentHash())) {
-                            errors.add(String.format(
-                                    "Chain link broken at sampled sequence %d in product %d",
-                                    sampled.getSequenceNumber(), productId));
+                            errors.add(i18nService.getMessage(MessageKey.LEDGER_VERIFICATION_LINK_BROKEN,
+                                    new Object[]{sampled.getSequenceNumber(), productId}));
                         }
                     }
                 }
@@ -327,7 +319,7 @@ public class LedgerMerkleVerificationService {
                 byte[] hashBytes = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
                 return HexFormat.of().formatHex(hashBytes);
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to compute Merkle verification hash", e);
+            throw new IllegalStateException(i18nService.getMessage(MessageKey.ERROR_HMAC_CALCULATION_FAILED), e);
         }
     }
 
