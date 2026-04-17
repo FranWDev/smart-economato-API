@@ -17,6 +17,12 @@ public class RoleNotificationMessage {
 
     @JsonProperty("code")
     private AlertCode code;
+
+    @JsonProperty("newRole")
+    private String newRole;
+
+    @JsonProperty("reason")
+    private String reason;
     
     @JsonProperty("timestamp")
     private LocalDateTime timestamp;

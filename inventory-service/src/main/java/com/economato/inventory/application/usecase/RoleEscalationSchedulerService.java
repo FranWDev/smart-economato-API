@@ -28,7 +28,7 @@ public class RoleEscalationSchedulerService {
         List<TemporaryRoleEscalation> expired = escalationRepository.findExpiredWithUser(now);
 
         for (TemporaryRoleEscalation escalation : expired) {
-            userService.deescalateRole(escalation.getUser().getId());
+            userService.deescalateRole(escalation.getUser().getId(), "AUTO_EXPIRED");
         }
     }
 }

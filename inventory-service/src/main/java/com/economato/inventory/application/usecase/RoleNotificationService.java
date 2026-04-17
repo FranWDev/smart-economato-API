@@ -44,4 +44,18 @@ public class RoleNotificationService {
             log.error("Failed to send WebSocket notification to user: {}", username, e);
         }
     }
+
+    public void sendNotificationToUser(String username, RoleNotificationMessage notification) {
+        try {
+            log.info("Sending notification to user {}: title={}, code={}, timestamp={}",
+                    username,
+                    notification.getTitle(),
+                    notification.getCode(),
+                    notification.getTimestamp());
+
+            messagingTemplate.convertAndSendToUser(username, "/queue/notifications", notification);
+        } catch (Exception e) {
+            log.error("Failed to send WebSocket notification to user: {}", username, e);
+        }
+    }
 }

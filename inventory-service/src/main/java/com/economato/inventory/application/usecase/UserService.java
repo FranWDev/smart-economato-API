@@ -3,6 +3,7 @@ package com.economato.inventory.application.usecase;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -50,6 +51,7 @@ public class UserService {
     private final TemporaryRoleEscalationMapper escalationMapper;
     private final CustomUserDetailsService customUserDetailsService;
     private final TemporaryRoleEscalationRepository escalationRepository;
+    private final RoleNotificationService roleNotificationService;
     @Autowired(required = false)
     private SystemConfigService systemConfigService;
 
@@ -58,7 +60,8 @@ public class UserService {
             TemporaryRoleEscalationMapper escalationMapper,
             StatsMapper statsMapper,
             CustomUserDetailsService customUserDetailsService,
-            TemporaryRoleEscalationRepository escalationRepository) {
+            TemporaryRoleEscalationRepository escalationRepository,
+            RoleNotificationService roleNotificationService) {
         this.i18nService = i18nService;
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
@@ -67,6 +70,7 @@ public class UserService {
         this.statsMapper = statsMapper;
         this.customUserDetailsService = customUserDetailsService;
         this.escalationRepository = escalationRepository;
+        this.roleNotificationService = roleNotificationService;
     }
 
         @Cacheable(value = "users_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
@@ -481,6 +485,8 @@ public class UserService {
 
         customUserDetailsService.evictUser(user.getName());
         customUserDetailsService.evictUser(user.getUser());
+
+        notifyRoleEscalationChange(user, Role.ELEVATED, "MANUAL_GRANTED");
     }
 
         @Caching(evict = {
@@ -492,6 +498,18 @@ public class UserService {
         })
     @Transactional(rollbackFor = { ResourceNotFoundException.class })
     public void deescalateRole(Integer userId) {
+        deescalateRole(userId, "MANUAL_REVOKED");
+        }
+
+        @Caching(evict = {
+            @CacheEvict(value = "user", key = "#userId"),
+            @CacheEvict(value = "userByEmail", allEntries = true),
+            @CacheEvict(value = "users_by_role", allEntries = true),
+            @CacheEvict(value = "users_page", allEntries = true),
+            @CacheEvict(value = "user_stats", allEntries = true)
+        })
+        @Transactional(rollbackFor = { ResourceNotFoundException.class })
+        public void deescalateRole(Integer userId, String reason) {
         User user = repository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { userId })));
@@ -508,6 +526,21 @@ public class UserService {
 
         customUserDetailsService.evictUser(user.getName());
         customUserDetailsService.evictUser(user.getUser());
+
+        notifyRoleEscalationChange(user, Role.USER, reason);
+    }
+
+    private void notifyRoleEscalationChange(User user, Role newRole, String reason) {
+        RoleNotificationMessage message = RoleNotificationMessage.builder()
+                .title("Cambio de permisos")
+                .message("Tus permisos han sido actualizados a " + newRole.name() + ".")
+                .code(AlertCode.ROLE_ESCALATION_CHANGED)
+                .newRole(newRole.name())
+                .reason(reason)
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        roleNotificationService.sendNotificationToUser(user.getName(), message);
     }
 
     @Cacheable(value = "users_no_teacher", key = "'all'")
