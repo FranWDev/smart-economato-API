@@ -41,6 +41,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +63,7 @@ public class RecipeService {
     private final CookableRecipeMapper cookableRecipeMapper;
     private final StatsMapper statsMapper;
     private final StockLedgerService stockLedgerService;
+    private final WeeklyPlanStockReservationService weeklyPlanStockReservationService;
     private final SecurityContextHelper securityContextHelper;
     private final RecipeCookingAuditRepository recipeCookingAuditRepository;
 
@@ -72,6 +74,7 @@ public class RecipeService {
             CookableRecipeMapper cookableRecipeMapper,
             StatsMapper statsMapper,
             StockLedgerService stockLedgerService,
+            WeeklyPlanStockReservationService weeklyPlanStockReservationService,
             SecurityContextHelper securityContextHelper,
             RecipeCookingAuditRepository recipeCookingAuditRepository) {
         this.i18nService = i18nService;
@@ -82,6 +85,7 @@ public class RecipeService {
         this.cookableRecipeMapper = cookableRecipeMapper;
         this.statsMapper = statsMapper;
         this.stockLedgerService = stockLedgerService;
+        this.weeklyPlanStockReservationService = weeklyPlanStockReservationService;
         this.securityContextHelper = securityContextHelper;
         this.recipeCookingAuditRepository = recipeCookingAuditRepository;
     }
@@ -170,15 +174,48 @@ public class RecipeService {
     @Cacheable(value = "cookable_recipes", key = "'all'", unless = "#result == null")
     @Transactional(readOnly = true)
     public List<CookableRecipeResponseDTO> findCookableRecipes() {
-        return repository.findAllVisibleWithDetails().stream()
-                .map(recipe -> {
-                    CookableRecipeResponseDTO dto = cookableRecipeMapper.toResponseDTO(recipe);
-                    BigDecimal cookableQuantity = calculateCookableQuantity(recipe);
-                    dto.setCookableQuantity(cookableQuantity);
-                    dto.setCookable(cookableQuantity.compareTo(BigDecimal.ONE) >= 0);
-                    return dto;
-                })
-                .toList();
+        final List<Recipe> recipes = repository.findAllVisibleWithDetails();
+        final Set<Integer> productIds = recipes.stream()
+            .flatMap(recipe -> recipe.getComponents().stream())
+            .map(component -> component.getProduct().getId())
+            .collect(Collectors.toSet());
+        final Map<Integer, BigDecimal> reservedByProduct = productIds.isEmpty()
+            ? Map.of()
+            : weeklyPlanStockReservationService.calculateReservedStock(null);
+
+        return recipes.stream()
+            .map(recipe -> {
+                CookableRecipeResponseDTO dto = cookableRecipeMapper.toResponseDTO(recipe);
+
+                if (dto.getComponents() != null) {
+                for (CookableRecipeResponseDTO.CookableRecipeComponentResponseDTO componentDTO : dto.getComponents()) {
+                    BigDecimal currentStock = componentDTO.getAvailableStock() != null ? componentDTO.getAvailableStock() : BigDecimal.ZERO;
+                    BigDecimal reserved = reservedByProduct.getOrDefault(componentDTO.getProductId(), BigDecimal.ZERO);
+
+                    RecipeComponent sourceComponent = recipe.getComponents().stream()
+                        .filter(component -> component.getProduct().getId().equals(componentDTO.getProductId()))
+                        .findFirst()
+                        .orElse(null);
+
+                    BigDecimal availabilityPct = sourceComponent != null
+                        && sourceComponent.getProduct().getAvailabilityPercentage() != null
+                            ? sourceComponent.getProduct().getAvailabilityPercentage()
+                            : new BigDecimal("100.00");
+
+                    BigDecimal maxAvailable = currentStock.multiply(availabilityPct)
+                        .divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
+
+                    componentDTO.setAvailableStock(maxAvailable);
+                    componentDTO.setReservedByOtherPlans(reserved);
+                }
+                }
+
+                BigDecimal cookableQuantity = calculateCookableQuantity(recipe, reservedByProduct);
+                dto.setCookableQuantity(cookableQuantity);
+                dto.setCookable(cookableQuantity.compareTo(BigDecimal.ONE) >= 0);
+                return dto;
+            })
+            .toList();
     }
 
     @Transactional(readOnly = true)
@@ -324,7 +361,7 @@ public class RecipeService {
         recipe.setTotalCost(totalCost);
     }
 
-    private BigDecimal calculateCookableQuantity(Recipe recipe) {
+    private BigDecimal calculateCookableQuantity(Recipe recipe, Map<Integer, BigDecimal> reservedByProduct) {
         if (recipe.getComponents() == null || recipe.getComponents().isEmpty()) {
             return BigDecimal.ZERO;
         }
@@ -336,9 +373,20 @@ public class RecipeService {
                 return BigDecimal.ZERO;
             }
 
-            BigDecimal available = component.getProduct().getCurrentStock() != null
+                BigDecimal currentStock = component.getProduct().getCurrentStock() != null
                     ? component.getProduct().getCurrentStock()
                     : BigDecimal.ZERO;
+
+                BigDecimal availabilityPct = component.getProduct().getAvailabilityPercentage() != null
+                    ? component.getProduct().getAvailabilityPercentage()
+                    : BigDecimal.valueOf(100.00);
+
+                BigDecimal maxAvailable = currentStock
+                    .multiply(availabilityPct)
+                    .divide(BigDecimal.valueOf(100), 3, java.math.RoundingMode.DOWN);
+
+                BigDecimal reserved = reservedByProduct.getOrDefault(component.getProduct().getId(), BigDecimal.ZERO);
+                BigDecimal available = maxAvailable.subtract(reserved).max(BigDecimal.ZERO);
 
             BigDecimal cookableByComponent = available
                     .divide(component.getQuantity(), 3, java.math.RoundingMode.DOWN);
