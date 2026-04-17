@@ -1066,50 +1066,75 @@ public class StockLedgerService {
     }
 
     @Transactional(rollbackFor = Exception.class)
+    @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     public void synchronizeStockWithLedger() {
-        log.info("Iniciando sincronización de stock con el ledger...");
+        log.info("Iniciando sincronización exhaustiva de stock con el ledger...");
         List<Product> products = productRepository.findAll();
         List<Product> productsToSave = new ArrayList<>();
         List<StockSnapshot> snapshotsToSave = new ArrayList<>();
         List<ProductBatch> batchesToSave = new ArrayList<>();
 
         for (Product product : products) {
+            // Buscamos la última realidad en el ledger
             Optional<StockLedger> lastTx = ledgerRepository.findLastTransactionByProductId(product.getId());
             BigDecimal realStock = lastTx.map(StockLedger::getResultingStock).orElse(BigDecimal.ZERO);
+            String lastHash = lastTx.map(StockLedger::getCurrentHash).orElse(GENESIS_HASH);
+            Long lastSeq = lastTx.map(StockLedger::getSequenceNumber).orElse(0L);
 
+            // 1. Sincronizar Producto
             if (product.getCurrentStock().compareTo(realStock) != 0) {
                 log.info("Corrigiendo stock de producto {}: {} -> {}", product.getId(), product.getCurrentStock(), realStock);
                 product.setCurrentStock(realStock);
                 productsToSave.add(product);
+            }
 
-                StockSnapshot snapshot = snapshotRepository.findById(product.getId())
-                        .orElseGet(() -> createInitialSnapshot(product));
-                
+            // 2. Sincronizar Snapshot (Stock + Hash + Secuencia)
+            // Es vital actualizar el hash/secuencia para no romper la cadena en el siguiente movimiento
+            StockSnapshot snapshot = snapshotRepository.findById(product.getId())
+                    .orElseGet(() -> createInitialSnapshot(product));
+            
+            boolean snapshotChanged = false;
+            if (snapshot.getCurrentStock().compareTo(realStock) != 0) {
                 snapshot.setCurrentStock(realStock);
+                snapshotChanged = true;
+            }
+            if (!lastHash.equals(snapshot.getLastTransactionHash())) {
+                snapshot.setLastTransactionHash(lastHash);
+                snapshotChanged = true;
+            }
+            if (!lastSeq.equals(snapshot.getLastSequenceNumber())) {
+                snapshot.setLastSequenceNumber(lastSeq);
+                snapshotChanged = true;
+            }
+
+            if (snapshotChanged) {
+                log.info("Actualizando snapshot de producto {}: stock={}, sequence={}, hash={}", 
+                        product.getId(), realStock, lastSeq, lastHash);
+                snapshot.setLastUpdated(LocalDateTime.now());
+                snapshot.setIntegrityStatus("VERIFIED");
                 snapshotsToSave.add(snapshot);
             }
 
+            // 3. Limpiar Lotes Huérfanos
+            // Si el ledger dice que hay 0, no puede haber lotes con stock positivo
             if (realStock.compareTo(BigDecimal.ZERO) == 0) {
                 List<ProductBatch> activeBatches = batchRepository.findActiveByProductIdOrderByExpiration(product.getId());
                 for (ProductBatch b : activeBatches) {
-                    log.info("Limpiando lote huérfano {}: remaining {} -> 0", b.getId(), b.getRemainingQuantity());
-                    b.setRemainingQuantity(BigDecimal.ZERO);
-                    b.setDepleted(true);
-                    batchesToSave.add(b);
+                    if (b.getRemainingQuantity().compareTo(BigDecimal.ZERO) > 0 || !b.isDepleted()) {
+                        log.info("Limpiando lote huérfano {}: remaining {} -> 0", b.getId(), b.getRemainingQuantity());
+                        b.setRemainingQuantity(BigDecimal.ZERO);
+                        b.setDepleted(true);
+                        batchesToSave.add(b);
+                    }
                 }
             }
         }
 
-        if (!productsToSave.isEmpty()) {
-            productRepository.saveAll(productsToSave);
-        }
-        if (!snapshotsToSave.isEmpty()) {
-            snapshotRepository.saveAll(snapshotsToSave);
-        }
-        if (!batchesToSave.isEmpty()) {
-            batchRepository.saveAll(batchesToSave);
-        }
+        if (!productsToSave.isEmpty()) productRepository.saveAll(productsToSave);
+        if (!snapshotsToSave.isEmpty()) snapshotRepository.saveAll(snapshotsToSave);
+        if (!batchesToSave.isEmpty()) batchRepository.saveAll(batchesToSave);
 
-        log.info("Sincronización de stock completada.");
+        log.info("Sincronización exhaustiva completada. Se han corregido {} productos, {} snapshots y {} lotes.", 
+                productsToSave.size(), snapshotsToSave.size(), batchesToSave.size());
     }
 }
