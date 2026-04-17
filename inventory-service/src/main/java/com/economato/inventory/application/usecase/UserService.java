@@ -531,9 +531,13 @@ public class UserService {
     }
 
     private void notifyRoleEscalationChange(User user, Role newRole, String reason) {
+        String notificationMessageText = Role.ELEVATED.equals(newRole)
+            ? i18nService.getMessage(MessageKey.NOTIFICATION_ROLE_ESCALATED)
+            : i18nService.getMessage(MessageKey.NOTIFICATION_ROLE_REVOKED);
+
         RoleNotificationMessage message = RoleNotificationMessage.builder()
-                .title("Cambio de permisos")
-                .message("Tus permisos han sido actualizados a " + newRole.name() + ".")
+            .title(i18nService.getMessage(MessageKey.NOTIFICATION_ROLE_CHANGE_TITLE))
+            .message(notificationMessageText)
                 .code(AlertCode.ROLE_ESCALATION_CHANGED)
                 .newRole(newRole.name())
                 .reason(reason)
