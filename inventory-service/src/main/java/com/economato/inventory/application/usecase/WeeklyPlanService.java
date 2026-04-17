@@ -1,5 +1,6 @@
 package com.economato.inventory.application.usecase;
 
+import java.time.LocalDateTime;
 import com.economato.inventory.application.dto.request.WeeklyPlanRequestDTO;
 import com.economato.inventory.application.dto.request.WeeklyPlanSlotRequestDTO;
 import com.economato.inventory.application.dto.request.BatchMovementItem;
