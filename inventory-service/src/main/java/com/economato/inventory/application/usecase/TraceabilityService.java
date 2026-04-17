@@ -463,6 +463,13 @@ public class TraceabilityService {
                                 .build();
         }
 
+        @Transactional(readOnly = true)
+        public List<com.economato.inventory.application.dto.response.RecipeCookingAuditResponseDTO> getCookingAuditsByBatchId(Long batchId) {
+                return cookingAuditRepository.findByBatchId(batchId).stream()
+                                .map(cookingAuditMapper::toResponseDTO)
+                                .collect(Collectors.toList());
+        }
+
         private List<CrisisResponseDTO> buildCrisisResponsesBatch(List<FoodCrisis> crises) {
                 if (crises.isEmpty())
                         return Collections.emptyList();

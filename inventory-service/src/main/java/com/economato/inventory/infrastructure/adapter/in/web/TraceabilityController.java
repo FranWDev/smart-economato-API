@@ -112,4 +112,12 @@ public class TraceabilityController {
 
         return ResponseEntity.ok().headers(headers).body(pdf);
     }
+
+    @GetMapping("/batch/{batchId}/cookings")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+    @Operation(summary = "Obtener los cocinados asociados a un lote específico")
+    public ResponseEntity<List<com.economato.inventory.application.dto.response.RecipeCookingAuditResponseDTO>> getCookingAuditsByBatchId(
+            @Parameter(description = "ID del lote") @PathVariable Long batchId) {
+        return ResponseEntity.ok(traceabilityService.getCookingAuditsByBatchId(batchId));
+    }
 }

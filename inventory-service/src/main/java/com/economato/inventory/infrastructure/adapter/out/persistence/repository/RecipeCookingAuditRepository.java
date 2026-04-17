@@ -113,4 +113,7 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
       @Param("productIds") List<Integer> productIds,
       @Param("startDate") LocalDateTime startDate,
       @Param("endDate") LocalDateTime endDate);
+
+  @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.correlationId IN (SELECT sl.correlationId FROM StockLedgerBatchDetail d JOIN d.ledgerTransaction sl WHERE d.batch.id = :batchId AND sl.correlationId IS NOT NULL) ORDER BY rca.cookingDate DESC")
+  List<RecipeCookingAudit> findByBatchId(@Param("batchId") Long batchId);
 }

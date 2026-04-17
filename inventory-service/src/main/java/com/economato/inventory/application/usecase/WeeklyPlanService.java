@@ -149,6 +149,27 @@ public class WeeklyPlanService {
         return wrapperMapper.toResponseDTO(savedPlan);
     }
 
+    @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    public WeeklyPlanResponseDTO deactivatePlan(Long planId) {
+        WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
+                () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
+        checkPermissions(plan);
+
+        if (plan.getStatus() != WeeklyPlanStatus.ACTIVE) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_ACTIVE));
+        }
+
+        boolean hasConfirmedSlots = plan.getSlots().stream()
+                .anyMatch(slot -> slot.getStatus() == WeeklyPlanSlotStatus.CONFIRMED);
+        if (hasConfirmedSlots) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_HAS_CONFIRMED_SLOTS));
+        }
+
+        plan.setStatus(WeeklyPlanStatus.DRAFT);
+        WeeklyPlan savedPlan = weeklyPlanRepository.save(plan);
+        return wrapperMapper.toResponseDTO(savedPlan);
+    }
+
     @PredictorTrigger(action = "WEEKLY_PLAN_CONFIRM")
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
