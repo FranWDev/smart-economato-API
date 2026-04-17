@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.economato.inventory.application.dto.request.RecipeCookingRequestDTO;
 import com.economato.inventory.application.dto.request.RecipeRequestDTO;
+import com.economato.inventory.application.dto.response.CookableRecipeResponseDTO;
 import com.economato.inventory.application.dto.response.RecipeResponseDTO;
 import com.economato.inventory.infrastructure.adapter.out.external.reports.RecipePdfService;
 import com.economato.inventory.application.usecase.RecipeService;
@@ -148,6 +149,13 @@ public class RecipeController {
         public List<RecipeResponseDTO> findByCostLessThan(
                         @Parameter(description = "Costo máximo", required = true) @RequestParam BigDecimal maxCost) {
                 return recipeService.findByCostLessThan(maxCost);
+        }
+
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @GetMapping("/cookable")
+        @Operation(summary = "Obtener recetas cocinables", description = "Devuelve las recetas visibles con su cantidad cocinable en función del stock actual. [Rol requerido: CHEF]")
+        public ResponseEntity<List<CookableRecipeResponseDTO>> getCookableRecipes() {
+                return ResponseEntity.ok(recipeService.findCookableRecipes());
         }
 
         @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
