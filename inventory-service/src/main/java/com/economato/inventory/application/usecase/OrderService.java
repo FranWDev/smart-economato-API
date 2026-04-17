@@ -26,13 +26,16 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.request.LotReceptionRequestDTO;
+import com.economato.inventory.application.dto.request.OrdersByProductsRequestDTO;
 import com.economato.inventory.application.dto.request.OrderDetailRequestDTO;
 import com.economato.inventory.application.dto.request.OrderReceptionDetailRequestDTO;
 import com.economato.inventory.application.dto.request.OrderReceptionRequestDTO;
 import com.economato.inventory.application.dto.request.OrderRequestDTO;
 import com.economato.inventory.application.dto.response.LotReceptionResponseDTO;
+import com.economato.inventory.application.dto.response.OrdersByProductsResponseDTO;
 import com.economato.inventory.application.dto.response.OrderDetailResponseDTO;
 import com.economato.inventory.application.dto.response.OrderFilterResponseDTO;
+import com.economato.inventory.application.dto.response.ProductOrderQuantityResponseDTO;
 import com.economato.inventory.application.dto.response.OrderResponseDTO;
 import com.economato.inventory.application.dto.response.OrderTotalCostResponseDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
@@ -306,6 +309,78 @@ public class OrderService {
                 return OrderTotalCostResponseDTO.builder()
                                 .totalCost(totalCost)
                                 .totalOrders(totalOrders)
+                                .build();
+        }
+
+        @Transactional(readOnly = true)
+        public OrdersByProductsResponseDTO findByProducts(OrdersByProductsRequestDTO requestDTO) {
+                if (requestDTO == null || requestDTO.getProductIds() == null || requestDTO.getProductIds().isEmpty()) {
+                        throw new InvalidOperationException("Debes enviar al menos un producto para buscar pedidos.");
+                }
+
+                final List<Integer> productIds = requestDTO.getProductIds().stream()
+                                .filter(Objects::nonNull)
+                                .distinct()
+                                .toList();
+                if (productIds.isEmpty()) {
+                        throw new InvalidOperationException("Debes enviar IDs de producto validos.");
+                }
+
+                final List<OrderStatus> statuses = (requestDTO.getStatuses() == null || requestDTO.getStatuses().isEmpty())
+                                ? List.of(OrderStatus.CREATED, OrderStatus.PENDING, OrderStatus.REVIEW)
+                                : requestDTO.getStatuses();
+
+                // Anti N+1 by design: fixed amount of queries independent of number of products.
+                final List<Integer> orderIds = repository.findIdsByStatusInAndDetailProductIdIn(statuses, productIds);
+                if (orderIds.isEmpty()) {
+                        return OrdersByProductsResponseDTO.builder()
+                                        .orders(Collections.emptyList())
+                                        .totalQuantityPerProduct(Collections.emptyMap())
+                                        .orderCountPerProduct(Collections.emptyMap())
+                                        .ordersByProduct(Collections.emptyMap())
+                                        .build();
+                }
+
+                final List<Order> orders = repository.findAllByIdWithDetails(orderIds);
+                final HashSet<Integer> productSet = new HashSet<>(productIds);
+
+                final Map<Integer, BigDecimal> totalsByProduct = new HashMap<>();
+                final Map<Integer, HashSet<Integer>> orderIdSetByProduct = new HashMap<>();
+                final Map<Integer, List<ProductOrderQuantityResponseDTO>> breakdownByProduct = new HashMap<>();
+
+                for (Order order : orders) {
+                        for (OrderDetail detail : order.getDetails()) {
+                                final Integer productId = detail.getProduct().getId();
+                                if (!productSet.contains(productId)) {
+                                        continue;
+                                }
+
+                                totalsByProduct.merge(productId, detail.getQuantity(), BigDecimal::add);
+                                orderIdSetByProduct.computeIfAbsent(productId, k -> new HashSet<>()).add(order.getId());
+
+                                final ProductOrderQuantityResponseDTO perOrder = new ProductOrderQuantityResponseDTO(
+                                                order.getId(),
+                                                order.getStatus(),
+                                                detail.getQuantity(),
+                                                order.getSupplier() != null ? order.getSupplier().getName() : null,
+                                                order.getOrderDate());
+                                breakdownByProduct.computeIfAbsent(productId, k -> new java.util.ArrayList<>())
+                                                .add(perOrder);
+                        }
+                }
+
+                final Map<Integer, Integer> orderCountByProduct = orderIdSetByProduct.entrySet().stream()
+                                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().size()));
+
+                final List<OrderResponseDTO> orderDTOs = orders.stream()
+                                .map(orderMapper::toResponseDTO)
+                                .toList();
+
+                return OrdersByProductsResponseDTO.builder()
+                                .orders(orderDTOs)
+                                .totalQuantityPerProduct(totalsByProduct)
+                                .orderCountPerProduct(orderCountByProduct)
+                                .ordersByProduct(breakdownByProduct)
                                 .build();
         }
 

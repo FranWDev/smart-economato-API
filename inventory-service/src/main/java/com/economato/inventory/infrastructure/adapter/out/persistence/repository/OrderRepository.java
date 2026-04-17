@@ -163,4 +163,12 @@ public interface OrderRepository extends JpaRepository<Order, Integer>, JpaSpeci
                   "LEFT JOIN FETCH o.supplier " +
                   "WHERE o.status IN :statuses")
        List<Order> findByStatusInWithDetails(@Param("statuses") Collection<OrderStatus> statuses);
+
+       @Query("SELECT DISTINCT o.id FROM Order o " +
+                     "JOIN o.details d " +
+                     "WHERE o.status IN :statuses " +
+                     "AND d.product.id IN :productIds")
+       List<Integer> findIdsByStatusInAndDetailProductIdIn(
+                     @Param("statuses") Collection<OrderStatus> statuses,
+                     @Param("productIds") Collection<Integer> productIds);
 }
