@@ -27,7 +27,7 @@ public class WeeklyPlanController {
     private final WeeklyPlanService weeklyPlanService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
     public ResponseEntity<WeeklyPlanResponseDTO> createPlan(@Valid @RequestBody WeeklyPlanRequestDTO request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(weeklyPlanService.createPlan(request));
     }
@@ -39,13 +39,13 @@ public class WeeklyPlanController {
     }
 
     @PatchMapping("/{planId}/activate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
     public ResponseEntity<WeeklyPlanResponseDTO> activatePlan(@PathVariable Long planId) {
         return ResponseEntity.ok(weeklyPlanService.activatePlan(planId));
     }
 
     @PatchMapping("/{planId}/deactivate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
     public ResponseEntity<WeeklyPlanResponseDTO> deactivatePlan(@PathVariable Long planId) {
         return ResponseEntity.ok(weeklyPlanService.deactivatePlan(planId));
     }
@@ -97,7 +97,7 @@ public class WeeklyPlanController {
     }
 
     @GetMapping("/{planId}/stock-requirements")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
     public ResponseEntity<List<WeeklyPlanStockRequirementDTO>> getStockRequirements(@PathVariable Long planId) {
         return ResponseEntity.ok(weeklyPlanService.getStockRequirements(planId));
     }
@@ -128,7 +128,7 @@ public class WeeklyPlanController {
     }
 
     @GetMapping("/metrics/students")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
     public ResponseEntity<Page<StudentMetricsResponseDTO>> getStudentMetrics(
             @RequestParam(required = false) Integer chefId,
             Pageable pageable) {
