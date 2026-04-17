@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.Optional;
 
 public interface NotificationRepository extends JpaRepository<Notification, Long>, JpaSpecificationExecutor<Notification> {
@@ -47,4 +48,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     @Modifying(clearAutomatically = true)
     @Query("DELETE FROM Notification n WHERE n.createdAt < :threshold AND n.isRead = true AND n.isDeletedByRecipient = true")
     int deleteOldReadAndDeletedBefore(@Param("threshold") LocalDateTime threshold);
+
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM Notification n WHERE n.type IN :types")
+    void deleteByTypes(@Param("types") Collection<com.economato.inventory.domain.model.NotificationType> types);
 }

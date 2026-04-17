@@ -126,4 +126,11 @@ public class WeeklyPlanController {
             Pageable pageable) {
         return ResponseEntity.ok(weeklyPlanService.getStudentMetrics(chefId, pageable));
     }
+
+    @DeleteMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteAllPlans() {
+        weeklyPlanService.deleteAllPlans();
+        return ResponseEntity.noContent().build();
+    }
 }

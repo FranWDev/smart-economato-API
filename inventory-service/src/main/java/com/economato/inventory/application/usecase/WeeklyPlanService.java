@@ -57,6 +57,7 @@ public class WeeklyPlanService {
     private final WeeklyPlanRepository weeklyPlanRepository;
     private final WeeklyPlanSlotRepository slotRepository;
     private final WeeklyPlanSlotStudentRepository slotStudentRepository;
+    private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final RecipeRepository recipeRepository;
     private final RecipeCookingAuditRepository cookingAuditRepository;
@@ -791,5 +792,27 @@ public class WeeklyPlanService {
             newSlots.add(slot);
         }
         return newSlots;
+    }
+
+    @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteAllPlans() {
+        log.warn("ADMIN action: Deleting all weekly plans and related notifications");
+        
+        // Clean up notifications related to weekly plans
+        List<NotificationType> wpTypes = List.of(
+            NotificationType.WEEKLY_PLAN_CREATED,
+            NotificationType.WEEKLY_PLAN_ACTIVATED,
+            NotificationType.WEEKLY_PLAN_SLOT_CONFIRMED,
+            NotificationType.WEEKLY_PLAN_DAY_CONFIRMED,
+            NotificationType.WEEKLY_PLAN_COMPLETED,
+            NotificationType.WEEKLY_PLAN_CANCELLED
+        );
+        notificationRepository.deleteByTypes(wpTypes);
+        
+        // Delete all weekly plans (cascades to slots and students)
+        weeklyPlanRepository.deleteAll();
+        
+        log.info("All weekly plans and related notifications deleted successfully");
     }
 }
