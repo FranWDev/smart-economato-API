@@ -396,7 +396,17 @@ public class OrderService {
                         @CacheEvict(value = "order", key = "#receptionData.orderId"),
                         @CacheEvict(value = "orders_page", allEntries = true),
                         @CacheEvict(value = "orders_pending", allEntries = true),
-                        @CacheEvict(value = "order_stats", allEntries = true)
+                        @CacheEvict(value = "order_stats", allEntries = true),
+                        @CacheEvict(value = "products_page", allEntries = true),
+                        @CacheEvict(value = "product", allEntries = true),
+                        @CacheEvict(value = "products_search", allEntries = true),
+                        @CacheEvict(value = "product_stats", allEntries = true),
+                        @CacheEvict(value = "cookable_recipes", allEntries = true),
+                        @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
+                        @CacheEvict(value = "stock_alerts", allEntries = true),
+                        @CacheEvict(value = "stock_predictions", allEntries = true),
+                        @CacheEvict(value = "weekly_consumption", allEntries = true),
+                        @CacheEvict(value = "daily_forecast", allEntries = true)
         })
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class,
@@ -522,7 +532,17 @@ public class OrderService {
                         @CacheEvict(value = "order", key = "#orderId"),
                         @CacheEvict(value = "orders_page", allEntries = true),
                         @CacheEvict(value = "orders_pending", allEntries = true),
-                        @CacheEvict(value = "order_stats", allEntries = true)
+                        @CacheEvict(value = "order_stats", allEntries = true),
+                        @CacheEvict(value = "products_page", allEntries = true),
+                        @CacheEvict(value = "product", allEntries = true),
+                        @CacheEvict(value = "products_search", allEntries = true),
+                        @CacheEvict(value = "product_stats", allEntries = true),
+                        @CacheEvict(value = "cookable_recipes", allEntries = true),
+                        @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
+                        @CacheEvict(value = "stock_alerts", allEntries = true),
+                        @CacheEvict(value = "stock_predictions", allEntries = true),
+                        @CacheEvict(value = "weekly_consumption", allEntries = true),
+                        @CacheEvict(value = "daily_forecast", allEntries = true)
         })
         @Retryable(includes = {
                         ObjectOptimisticLockingFailureException.class }, maxRetries = 3, delay = 100, multiplier = 2)
