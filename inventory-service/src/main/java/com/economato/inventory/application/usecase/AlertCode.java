@@ -23,7 +23,10 @@ public enum AlertCode {
     FOOD_CRISIS_LIFTED("FOOD_CRISIS_LIFTED", "Food safety crisis lifted"),
 
     // Códigos de predicción
-    STOCK_PREDICTION_TRIGGERED("STOCK_PREDICTION_TRIGGERED", "Stock prediction has been triggered");
+    STOCK_PREDICTION_TRIGGERED("STOCK_PREDICTION_TRIGGERED", "Stock prediction has been triggered"),
+
+    // Cambio de rol temporal
+    ROLE_ESCALATION_CHANGED("ROLE_ESCALATION_CHANGED", "Temporary role escalation state changed");
 
     private final String code;
     private final String description;

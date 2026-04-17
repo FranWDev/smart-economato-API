@@ -46,6 +46,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
+import org.mockito.ArgumentCaptor;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -75,6 +76,9 @@ class UserServiceTest {
     private TaskScheduler taskScheduler;
     @Mock
     private I18nService i18nService;
+
+    @Mock
+    private RoleNotificationService roleNotificationService;
 
     @InjectMocks
     private UserService userService;
@@ -827,6 +831,15 @@ class UserServiceTest {
         verify(repository).save(testUser);
         verify(customUserDetailsService).evictUser("testUser");
         verify(escalationRepository).save(any(TemporaryRoleEscalation.class));
+
+        ArgumentCaptor<RoleNotificationMessage> notificationCaptor = ArgumentCaptor.forClass(RoleNotificationMessage.class);
+        verify(roleNotificationService).sendNotificationToUser(eq("Test User"), notificationCaptor.capture());
+
+        RoleNotificationMessage sentNotification = notificationCaptor.getValue();
+        assertEquals(AlertCode.ROLE_ESCALATION_CHANGED, sentNotification.getCode());
+        assertEquals("ELEVATED", sentNotification.getNewRole());
+        assertEquals("MANUAL_GRANTED", sentNotification.getReason());
+        assertNotNull(sentNotification.getTimestamp());
     }
 
     @Test
@@ -851,6 +864,15 @@ class UserServiceTest {
         verify(repository).save(testUser);
         verify(escalationRepository).deleteByUserId(1);
         verify(customUserDetailsService).evictUser("testUser");
+
+        ArgumentCaptor<RoleNotificationMessage> notificationCaptor = ArgumentCaptor.forClass(RoleNotificationMessage.class);
+        verify(roleNotificationService).sendNotificationToUser(eq("Test User"), notificationCaptor.capture());
+
+        RoleNotificationMessage sentNotification = notificationCaptor.getValue();
+        assertEquals(AlertCode.ROLE_ESCALATION_CHANGED, sentNotification.getCode());
+        assertEquals("USER", sentNotification.getNewRole());
+        assertEquals("MANUAL_REVOKED", sentNotification.getReason());
+        assertNotNull(sentNotification.getTimestamp());
     }
 
     @Test

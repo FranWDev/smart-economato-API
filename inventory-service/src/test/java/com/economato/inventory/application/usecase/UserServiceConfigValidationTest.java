@@ -40,6 +40,7 @@ class UserServiceConfigValidationTest {
     @Mock private StatsMapper statsMapper;
     @Mock private I18nService i18nService;
     @Mock private SystemConfigService systemConfigService;
+    @Mock private RoleNotificationService roleNotificationService;
 
     private UserService service;
 
@@ -59,7 +60,8 @@ class UserServiceConfigValidationTest {
                 escalationMapper,
                 statsMapper,
                 customUserDetailsService,
-                escalationRepository
+                escalationRepository,
+                roleNotificationService
         );
         setField(service, "systemConfigService", systemConfigService);
     }
