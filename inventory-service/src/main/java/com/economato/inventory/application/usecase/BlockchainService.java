@@ -20,6 +20,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -84,9 +85,11 @@ public class BlockchainService {
 
         this.readTx = new TransactionTemplate(txManager);
         this.readTx.setReadOnly(true);
+        this.readTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
         this.writeTx = new TransactionTemplate(txManager);
         this.writeTx.setIsolationLevel(TransactionDefinition.ISOLATION_SERIALIZABLE);
+        this.writeTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
         this.verificationTimer = Timer.builder("blockchain.verification.duration")
                 .description("Blockchain full verification duration")
@@ -106,6 +109,7 @@ public class BlockchainService {
         }
     }
 
+    @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onNewLedgerTransaction(NewLedgerTransactionEvent ignored) {
         notifyNewTransaction();

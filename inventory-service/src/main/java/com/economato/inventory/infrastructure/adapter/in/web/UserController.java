@@ -288,7 +288,7 @@ public class UserController {
         }
 
         @PostMapping("/{id}/escalate")
-        @PreAuthorize("hasRole('ADMIN')")
+        @PreAuthorize("hasAnyRole('ADMIN', 'CHEF')")
         @Operation(summary = "Escalar permisos temporalmente", description = "Eleva a un usuario al rol ELEVATED temporalmente. [Rol requerido: ADMIN]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Permisos escalados correctamente"),
@@ -304,7 +304,7 @@ public class UserController {
         }
 
         @PostMapping("/{id}/de-escalate")
-        @PreAuthorize("hasRole('ADMIN')")
+        @PreAuthorize("hasAnyRole('ADMIN', 'CHEF')")
         @Operation(summary = "Revocar escalado de permisos temporal", description = "Elimina el rol ELEVATED temporal y devuelve al usuario a su rol base. [Rol requerido: ADMIN]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Permisos revocados"),
