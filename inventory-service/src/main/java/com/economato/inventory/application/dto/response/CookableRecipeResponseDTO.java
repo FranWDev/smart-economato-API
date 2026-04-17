@@ -54,5 +54,8 @@ public class CookableRecipeResponseDTO {
 
         @Schema(description = "Stock actual del producto", example = "12.0")
         private BigDecimal availableStock;
+
+        @Schema(description = "Stock reservado por otros planes activos", example = "3.5")
+        private BigDecimal reservedByOtherPlans;
     }
 }
