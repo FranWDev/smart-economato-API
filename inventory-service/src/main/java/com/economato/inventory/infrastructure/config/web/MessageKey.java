@@ -404,7 +404,21 @@ public enum MessageKey {
     ERROR_FILE_STORAGE_LOAD("error.file.storage.load"),
     ERROR_LEDGER_RANGE_BROKEN("error.ledger.range.broken"),
     ERROR_AI_STREAM_PREFIX("error.ai.stream.prefix"),
-    ERROR_AI_STREAM_UNKNOWN("error.ai.stream.unknown");
+    ERROR_AI_STREAM_UNKNOWN("error.ai.stream.unknown"),
+    
+    // PDF Plan Semanal
+    REPORT_WEEKLY_PLAN_TITLE("report.weekly.plan.title"),
+    REPORT_WEEKLY_PLAN_CHEF("report.weekly.plan.chef"),
+    REPORT_WEEKLY_PLAN_DATE_RANGE("report.weekly.plan.date.range"),
+    REPORT_DAY_1("report.day.1"),
+    REPORT_DAY_2("report.day.2"),
+    REPORT_DAY_3("report.day.3"),
+    REPORT_DAY_4("report.day.4"),
+    REPORT_DAY_5("report.day.5"),
+    REPORT_DAY_6("report.day.6"),
+    REPORT_DAY_7("report.day.7"),
+    REPORT_LABEL_STUDENTS("report.label.students"),
+    ERROR_REPORT_WEEKLY_PLAN_PDF_GENERATION("error.report.weekly.plan.pdf.generation");
 
     private final String key;
 

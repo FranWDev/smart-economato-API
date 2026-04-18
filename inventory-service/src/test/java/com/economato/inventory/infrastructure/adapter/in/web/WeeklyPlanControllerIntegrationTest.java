@@ -650,7 +650,7 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
             }
 
             @Test
-            void whenUnconfirmSlot_asChef_thenForbidden() throws Exception {
+            void whenUnconfirmSlot_asChef_thenOk() throws Exception {
             WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student1.getId()));
             WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, getNextMonday(), Arrays.asList(slot1));
 
@@ -664,7 +664,8 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
             mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/confirm", planId, slotId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
 
             mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/unconfirm", planId, slotId).header("Authorization", "Bearer " + chef1Token))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("PENDING")));
             }
 
     // -------------------------------------------------------------------------------------------------------------------------
@@ -1141,6 +1142,19 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
 
         mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + studentToken))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void whenGetPlanPdf_asChef_thenPdfReturned() throws Exception {
+        WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student1.getId()));
+        WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, getNextMonday(), Arrays.asList(slot1));
+
+        String rb = mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+        Long planId = objectMapper.readTree(rb).get("id").asLong();
+
+        mockMvc.perform(get(BASE_URL + "/{id}/pdf", planId).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().contentType(org.springframework.http.MediaType.APPLICATION_PDF));
     }
 
 }
