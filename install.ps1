@@ -75,14 +75,12 @@ function Pause-Execution {
 function Get-FreePort {
     param([int]$port)
     try {
-        $properties = [System.Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties()
-        $listeners = $properties.GetActiveTcpListeners()
-        foreach ($listener in $listeners) {
-            if ($listener.Port -eq $port) { return 0 }
-        }
+        $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any, $port)
+        $listener.Start()
+        $listener.Stop()
         return $port
     } catch {
-        return 0
+        return 0 # Puerto ocupado o protegido por SO
     }
 }
 
@@ -113,7 +111,37 @@ function Get-LocalIP {
         if ($ip) { return $ip }
         return "TU_IP_LOCAL"
     } catch {
-        return "TU_IP_LOCAL"
+        return "IP_DEL_SERVIDOR"
+    }
+}
+
+function Ensure-Certificates {
+    $certDir = Join-Path $PWD "nginx\certs"
+    if (-not (Test-Path $certDir)) { New-Item -Path $certDir -ItemType Directory | Out-Null }
+    
+    $crtPath = Join-Path $certDir "local.crt"
+    $keyPath = Join-Path $certDir "local.key"
+    
+    if (-not (Test-Path $crtPath) -or -not (Test-Path $keyPath)) {
+        Write-Info "Generando certificados de seguridad (SSL)..."
+        if ($IsWindows) {
+            # Generar certificado auto-firmado nativamente en Windows
+            $name = "SmartEconomatoLocal"
+            $cert = New-SelfSignedCertificate -DnsName "localhost", "smart-economato" -CertStoreLocation "Cert:\LocalMachine\My" -NotAfter (Get-Date).AddYears(10) -FriendlyName "Smart Economato SSL"
+            
+            # Exportar Public Key (CRT)
+            $crtBase64 = "-----BEGIN CERTIFICATE-----`n" + [Convert]::ToBase64String($cert.RawData, "InsertLineBreaks") + "`n-----END CERTIFICATE-----"
+            Set-Content -Path $crtPath -Value $crtBase64
+            
+            # Exportar Private Key (KEY) - Usando un hack de .NET para extraerla sin contraseña en formato PEM
+            $rsa = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($cert)
+            $keyBase64 = "-----BEGIN PRIVATE KEY-----`n" + [Convert]::ToBase64String($rsa.ExportPkcs8PrivateKey(), "InsertLineBreaks") + "`n-----END PRIVATE KEY-----"
+            Set-Content -Path $keyPath -Value $keyBase64
+            
+            Write-Success "Certificados generados correctamente."
+        } else {
+            Write-Warn "Certificados no encontrados. Por favor, genéralos manualmente con OpenSSL en Linux."
+        }
     }
 }
 
@@ -332,8 +360,13 @@ function Action-RepairBlockchain {
     $password = Read-Host -AsSecureString "Contraseña"
     $passwordStr = [System.Net.NetworkCredential]::new("", $password).Password
 
-    $baseUrl = "http://localhost:3000"
+    # Usar la URL detectada por el sistema
+    $protocol = "https"
+    $hostName = "localhost"
+    $port = if ($env:PROXY_HTTPS_PORT) { $env:PROXY_HTTPS_PORT } else { 443 }
+    $baseUrl = if ($port -eq 443) { "${protocol}://${hostName}" } else { "${protocol}://${hostName}:$port" }
 
+    Write-Info "Conectando a $baseUrl..."
     Write-Info "Iniciando sesión..."
     $body = @{
         name = $username
@@ -388,6 +421,7 @@ function Should-Run-Config {
 
 $envCheckPath = Join-Path $PWD ".env"
 if (Should-Run-Config) {
+    Ensure-Certificates
     Configure-System
     Pause-Execution
 }
