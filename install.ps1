@@ -6,6 +6,16 @@ Smart Economato - Panel de Control & Instalador para Windows Server
 $ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
+# Elevación automática en Windows
+if ($IsWindows) {
+    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $isAdmin) {
+        Write-Host "Solicitando permisos de Administrador..." -ForegroundColor Yellow
+        Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+        exit
+    }
+}
+
 # =============================================================================
 # FUNCIONES DE UI Y UTILIDADES
 # =============================================================================
@@ -107,6 +117,28 @@ function Get-LocalIP {
     }
 }
 
+function Create-DesktopShortcut {
+    if ($IsWindows) {
+        $desktopPath = [Environment]::GetFolderPath('Desktop')
+        $shortcutPath = Join-Path $desktopPath "Smart Economato.lnk"
+        
+        if (-not (Test-Path $shortcutPath)) {
+            try {
+                $WshShell = New-Object -ComObject WScript.Shell
+                $Shortcut = $WshShell.CreateShortcut($shortcutPath)
+                $Shortcut.TargetPath = "powershell.exe"
+                $Shortcut.Arguments = "-ExecutionPolicy Bypass -WindowStyle Normal -File `"$PWD\install.ps1`""
+                $Shortcut.WorkingDirectory = $PWD
+                $Shortcut.Description = "Panel de Control de Smart Economato"
+                $Shortcut.Save()
+                Write-Success "Acceso directo creado en el Escritorio."
+            } catch {
+                Write-Warn "No se pudo crear el acceso directo en el escritorio."
+            }
+        }
+    }
+}
+
 function Ensure-DockerService {
     if ($IsWindows) {
         try {
@@ -140,6 +172,7 @@ function Configure-System {
     }
 
     Ensure-DockerService
+    Create-DesktopShortcut
 
     # 2. Archivo .env
     $envPath = Join-Path $PWD ".env"
