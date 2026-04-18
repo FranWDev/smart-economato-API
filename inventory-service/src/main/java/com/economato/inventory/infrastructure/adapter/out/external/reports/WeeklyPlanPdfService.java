@@ -150,6 +150,7 @@ public class WeeklyPlanPdfService {
 
 		Table table = new Table(UnitValue.createPercentArray(columnWidths))
 				.setWidth(UnitValue.createPercentValue(100))
+				.setFixedLayout()
 				.setMarginTop(8)
 				.setMarginBottom(8);
 
