@@ -65,6 +65,21 @@ public class WeeklyPlanStockReservationService {
         return actualAvailable.compareTo(requiredAmount) >= 0;
     }
 
+    public void validateDecrementAgainstActiveReservations(Integer productId, BigDecimal decrementAmount, BigDecimal currentStock) {
+        if (decrementAmount == null || decrementAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return;
+        }
+
+        BigDecimal reservedStock = getReservedStockForProduct(productId);
+        BigDecimal resultingStock = (currentStock != null ? currentStock : BigDecimal.ZERO).subtract(decrementAmount);
+
+        if (resultingStock.compareTo(reservedStock) < 0) {
+            throw new InvalidOperationException(i18nService.getMessage(
+                    MessageKey.ERROR_WEEKLY_PLAN_AVAILABILITY_VIOLATION,
+                    new Object[] { decrementAmount, reservedStock, resultingStock }));
+        }
+    }
+
     public void validateStockForPlanActivation(Long planId) {
         List<Object[]> requiredResults = weeklyPlanRepository.calculateRequiredStockForPlan(planId);
         

@@ -32,6 +32,10 @@ import java.util.Optional;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest(properties = "blockchain.ledger-merkle-verification-enabled=false")
 @ActiveProfiles("test")
@@ -40,6 +44,9 @@ class StockLedgerServiceIntegrationTest {
 
         @MockitoBean
         private AuditEventProducer auditEventProducer;
+
+        @MockitoBean
+        private WeeklyPlanStockReservationService weeklyPlanStockReservationService;
 
         @Autowired
         private StockLedgerService stockLedgerService;
@@ -95,6 +102,9 @@ class StockLedgerServiceIntegrationTest {
                 productBatchRepository.saveAndFlush(batch);
 
                 testUser = null;
+
+                when(weeklyPlanStockReservationService.getReservedStockForProduct(anyInt())).thenReturn(BigDecimal.ZERO);
+                when(weeklyPlanStockReservationService.calculateReservedStock(any())).thenReturn(java.util.Collections.emptyMap());
         }
 
         @Test
@@ -251,6 +261,41 @@ class StockLedgerServiceIntegrationTest {
                                         "Intento de salida excesiva",
                                         testUser, null, java.time.LocalDate.now().plusDays(30));
                 });
+        }
+
+        @Test
+        @Transactional
+        @DisplayName("Debe permitir salida cuando el stock resultante iguala la reserva activa")
+        void testRecordStockMovement_AllowsWhenResultEqualsReserved() {
+                StockLedger tx = stockLedgerService.recordStockMovement(
+                                testProduct.getId(),
+                                new BigDecimal("-5.0"),
+                                MovementType.SALIDA,
+                                "Salida permitida por igualdad con reserva",
+                                testUser,
+                                null,
+                                LocalDate.now().plusDays(30));
+
+                assertNotNull(tx);
+                assertEquals(0, new BigDecimal("95.0").compareTo(tx.getResultingStock()));
+        }
+
+        @Test
+        @Transactional
+        @DisplayName("Debe bloquear salida cuando deja stock por debajo de la reserva activa")
+        void testRecordStockMovement_BlocksWhenResultBelowReserved() {
+                doThrow(new InvalidOperationException("Violación de la política de disponibilidad."))
+                                .when(weeklyPlanStockReservationService)
+                                .validateDecrementAgainstActiveReservations(anyInt(), any(BigDecimal.class), any(BigDecimal.class));
+
+                assertThrows(InvalidOperationException.class, () -> stockLedgerService.recordStockMovement(
+                                testProduct.getId(),
+                                new BigDecimal("-6.0"),
+                                MovementType.SALIDA,
+                                "Salida no permitida por reserva",
+                                testUser,
+                                null,
+                                LocalDate.now().plusDays(30)));
         }
 
         @Test

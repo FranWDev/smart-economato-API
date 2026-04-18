@@ -294,9 +294,11 @@ services:
       grafana:
         condition: service_started
     ports:
-      - "127.0.0.1:3000:80" # Debido al proxy del servidor de prod usando 80, se cambia a 3000 y se redirige el trafico desde el proxy padre
+      - "${PROXY_HTTP_PORT:-80}:80"
+      - "${PROXY_HTTPS_PORT:-443}:443"
     volumes:
       - ./nginx/reverse-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

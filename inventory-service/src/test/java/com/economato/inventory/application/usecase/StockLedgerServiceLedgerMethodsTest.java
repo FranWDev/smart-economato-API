@@ -95,6 +95,9 @@ class StockLedgerServiceLedgerMethodsTest {
         @Mock
         private ApplicationEventPublisher applicationEventPublisher;
 
+        @Mock
+        private WeeklyPlanStockReservationService weeklyPlanStockReservationService;
+
         private StockLedgerService stockLedgerService;
 
         private MeterRegistry meterRegistry;
@@ -125,6 +128,7 @@ class StockLedgerServiceLedgerMethodsTest {
                         blockchainProperties,
                         ledgerMerkleVerificationService,
                         applicationEventPublisher,
+                        weeklyPlanStockReservationService,
                         meterRegistry
                 );
 

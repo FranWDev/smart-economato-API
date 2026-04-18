@@ -803,6 +803,103 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.slots[*].students[*].status", containsInAnyOrder("CANCELLED", "ASSIGNED")));
     }
+
+            @Test
+            void whenRestoreSlot_thenStatusReturnsToPending() throws Exception {
+            WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("2.0"), 1, LocalTime.of(10, 0), LocalTime.of(11, 0), 1, Arrays.asList(student1.getId()));
+            WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, getNextMonday(), Arrays.asList(slot1));
+
+            String rb = mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+            Long planId = objectMapper.readTree(rb).get("id").asLong();
+
+            mockMvc.perform(patch(BASE_URL + "/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+
+            String getRb = mockMvc.perform(get(BASE_URL + "/{id}", planId).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+            Long slotId = objectMapper.readTree(getRb).get("slots").get(0).get("id").asLong();
+
+            mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/cancel", planId, slotId).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("CANCELLED")));
+
+            mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/restore", planId, slotId).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("PENDING")));
+            }
+
+            @Test
+            void whenRestoreStudentFromSlot_thenStudentReturnsAssigned() throws Exception {
+            WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("2.0"), 1, LocalTime.of(10, 0), LocalTime.of(11, 0), 1, Arrays.asList(student1.getId()));
+            WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, getNextMonday(), Arrays.asList(slot1));
+
+            String rb = mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+            Long planId = objectMapper.readTree(rb).get("id").asLong();
+
+            mockMvc.perform(patch(BASE_URL + "/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+
+            String getRb = mockMvc.perform(get(BASE_URL + "/{id}", planId).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+            Long slotId = objectMapper.readTree(getRb).get("slots").get(0).get("id").asLong();
+
+            mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/students/{studentId}/cancel", planId, slotId, student1.getId())
+                    .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("CANCELLED")));
+
+            mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/students/{studentId}/restore", planId, slotId, student1.getId())
+                    .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("ASSIGNED")));
+            }
+
+            @Test
+            void whenRestoreStudentAndDay_thenCancelledEntriesAreRecovered() throws Exception {
+            WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1.0"), 3, LocalTime.of(10, 0), LocalTime.of(11, 0), 1, Arrays.asList(student1.getId()));
+            WeeklyPlanSlotRequestDTO slot2 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1.0"), 3, LocalTime.of(12, 0), LocalTime.of(13, 0), 2, Arrays.asList(student1.getId()));
+            WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, getNextMonday(), Arrays.asList(slot1, slot2));
+
+            String rb = mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+            Long planId = objectMapper.readTree(rb).get("id").asLong();
+
+            mockMvc.perform(patch(BASE_URL + "/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+
+            mockMvc.perform(patch(BASE_URL + "/{planId}/days/{dayOfWeek}/students/{studentId}/cancel", planId, 3, student1.getId())
+                    .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isNoContent());
+
+            mockMvc.perform(patch(BASE_URL + "/{planId}/days/{dayOfWeek}/students/{studentId}/restore", planId, 3, student1.getId())
+                    .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isNoContent());
+
+            mockMvc.perform(get(BASE_URL + "/{id}", planId).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slots[?(@.dayOfWeek == 3)].students[0].status", everyItem(is("ASSIGNED"))));
+
+            String getRb = mockMvc.perform(get(BASE_URL + "/{id}", planId).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+            Long slotId = objectMapper.readTree(getRb).get("slots").get(0).get("id").asLong();
+
+            mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/cancel", planId, slotId)
+                    .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk());
+
+            mockMvc.perform(patch(BASE_URL + "/{planId}/days/{dayOfWeek}/restore", planId, 3)
+                    .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isNoContent());
+
+            mockMvc.perform(get(BASE_URL + "/{id}", planId).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slots[0].status", is("PENDING")));
+            }
     // -------------------------------------------------------------------------------------------------------------------------
     // F. Bloqueo externo (4 tests)
     // -------------------------------------------------------------------------------------------------------------------------

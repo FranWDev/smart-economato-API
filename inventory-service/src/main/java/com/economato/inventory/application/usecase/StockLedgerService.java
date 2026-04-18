@@ -114,6 +114,7 @@ public class StockLedgerService {
         private final BlockchainProperties blockchainProperties;
     private final LedgerMerkleVerificationService ledgerMerkleVerificationService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final WeeklyPlanStockReservationService weeklyPlanStockReservationService;
 
     // Métricas declaradas como final para thread-safety
     private final Counter stockMovementsCounter;
@@ -140,6 +141,7 @@ public class StockLedgerService {
             BlockchainProperties blockchainProperties,
             LedgerMerkleVerificationService ledgerMerkleVerificationService,
             ApplicationEventPublisher applicationEventPublisher,
+            WeeklyPlanStockReservationService weeklyPlanStockReservationService,
             MeterRegistry meterRegistry) {
         this.i18nService = i18nService;
         this.ledgerRepository = ledgerRepository;
@@ -156,6 +158,7 @@ public class StockLedgerService {
         this.blockchainProperties = blockchainProperties;
         this.ledgerMerkleVerificationService = ledgerMerkleVerificationService;
         this.applicationEventPublisher = applicationEventPublisher;
+        this.weeklyPlanStockReservationService = weeklyPlanStockReservationService;
 
         // Inicializar métricas
         this.stockMovementsCounter = Counter.builder("stock.ledger.movements.total")
@@ -234,6 +237,23 @@ public class StockLedgerService {
         return recordStockMovementInternal(productId, quantityDelta, movementType, description, user, orderId,
                 expirationDate, correlationId, null, batchCode);
     }
+
+            @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
+            public StockLedger recordStockMovement(
+                Integer productId,
+                BigDecimal quantityDelta,
+                MovementType movementType,
+                String description,
+                User user,
+                Integer orderId,
+                LocalDate expirationDate,
+                String correlationId,
+                String batchCode,
+                boolean enforceReservationGuard) {
+
+            return recordStockMovementInternal(productId, quantityDelta, movementType, description, user, orderId,
+                expirationDate, correlationId, null, batchCode, enforceReservationGuard);
+            }
 
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public StockLedger recordManualAdjustment(
@@ -453,6 +473,33 @@ public class StockLedgerService {
             Long targetBatchId,
             String batchCode) {
 
+        return recordStockMovementInternal(
+            productId,
+            quantityDelta,
+            movementType,
+            description,
+            user,
+            orderId,
+            expirationDate,
+            correlationId,
+            targetBatchId,
+            batchCode,
+            true);
+        }
+
+        private StockLedger recordStockMovementInternal(
+            Integer productId,
+            BigDecimal quantityDelta,
+            MovementType movementType,
+            String description,
+            User user,
+            Integer orderId,
+            LocalDate expirationDate,
+            String correlationId,
+            Long targetBatchId,
+            String batchCode,
+            boolean enforceReservationGuard) {
+
         log.info("Registrando movimiento: Producto={}, Delta={}, Tipo={}",
                 productId, quantityDelta, movementType);
 
@@ -476,6 +523,13 @@ public class StockLedgerService {
             throw new InvalidOperationException(
                     i18nService.getMessage(MessageKey.ERROR_RECIPE_STOCK_INSUFFICIENT,
                             new Object[] { product.getName(), quantityDelta.abs(), snapshot.getCurrentStock() }));
+        }
+
+        if (enforceReservationGuard && quantityDelta.compareTo(BigDecimal.ZERO) < 0) {
+            weeklyPlanStockReservationService.validateDecrementAgainstActiveReservations(
+                productId,
+                quantityDelta.abs(),
+                snapshot.getCurrentStock());
         }
 
         List<BatchConsumptionDetail> batchMovements = new ArrayList<>();
@@ -834,6 +888,17 @@ public class StockLedgerService {
             User user,
             Integer orderId) {
 
+        return recordBatchStockMovements(movements, user, orderId, true);
+        }
+
+        @PredictorTrigger(action = "BATCH_MOVEMENT")
+        @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
+        public List<StockLedger> recordBatchStockMovements(
+            List<BatchMovementItem> movements,
+            User user,
+            Integer orderId,
+            boolean enforceReservationGuard) {
+
         log.info("Iniciando operación batch: {} movimientos", movements.size());
 
         List<StockLedger> transactions = new ArrayList<>();
@@ -850,7 +915,8 @@ public class StockLedgerService {
                         item.getExpirationDate(),
                         item.getCorrelationId(),
                         null,
-                        null);
+                        null,
+                        enforceReservationGuard);
 
                 transactions.add(transaction);
             }
