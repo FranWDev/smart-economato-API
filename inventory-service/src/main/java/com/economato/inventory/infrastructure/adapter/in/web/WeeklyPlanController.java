@@ -6,6 +6,7 @@ import com.economato.inventory.application.dto.response.WeeklyPlanResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyPlanSlotResponseDTO;
 import com.economato.inventory.application.dto.response.ConfirmDayResponseDTO;
 import com.economato.inventory.application.usecase.WeeklyPlanService;
+import com.economato.inventory.infrastructure.adapter.out.external.reports.WeeklyPlanPdfService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,6 +26,7 @@ import com.economato.inventory.application.dto.response.WeeklyPlanSlotStudentRes
 public class WeeklyPlanController {
 
     private final WeeklyPlanService weeklyPlanService;
+    private final WeeklyPlanPdfService weeklyPlanPdfService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
@@ -58,14 +60,14 @@ public class WeeklyPlanController {
     }
 
     @PatchMapping("/{planId}/slots/{slotId}/unconfirm")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
     public ResponseEntity<WeeklyPlanSlotResponseDTO> unconfirmSlot(@PathVariable Long planId,
             @PathVariable Long slotId) {
         return ResponseEntity.ok(weeklyPlanService.unconfirmSlot(planId, slotId));
     }
 
     @PatchMapping("/{planId}/days/{dayOfWeek}/unconfirm")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
     public ResponseEntity<ConfirmDayResponseDTO> unconfirmDay(
             @PathVariable Long planId,
             @PathVariable Integer dayOfWeek) {
@@ -84,6 +86,20 @@ public class WeeklyPlanController {
     @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
     public ResponseEntity<WeeklyPlanResponseDTO> getPlanById(@PathVariable Long planId) {
         return ResponseEntity.ok(weeklyPlanService.getPlanById(planId));
+    }
+
+    @GetMapping("/{planId}/pdf")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+    public ResponseEntity<byte[]> downloadPlanPdf(@PathVariable Long planId) {
+        WeeklyPlanResponseDTO plan = weeklyPlanService.getPlanById(planId);
+        byte[] pdfBytes = weeklyPlanPdfService.generateWeeklyPlanPdf(plan);
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(org.springframework.http.ContentDisposition.attachment()
+                .filename("plan_semanal_" + plan.getId() + ".pdf")
+                .build());
+        headers.setContentLength(pdfBytes.length);
+        return ResponseEntity.ok().headers(headers).body(pdfBytes);
     }
 
     @GetMapping
