@@ -143,13 +143,9 @@ public class WeeklyPlanPdfService {
 			}
 		}
 
-		float[] columnWidths = new float[maxDay];
-		for (int i = 0; i < maxDay; i++) {
-			columnWidths[i] = 1f;
-		}
-
-		Table table = new Table(UnitValue.createPercentArray(columnWidths))
+		Table table = new Table(UnitValue.createPercentArray(maxDay))
 				.setWidth(UnitValue.createPercentValue(100))
+				.setFixedLayout()
 				.setMarginTop(8)
 				.setMarginBottom(8);
 
@@ -159,41 +155,46 @@ public class WeeklyPlanPdfService {
 			table.addHeaderCell(createTableHeaderCell(dayName.toUpperCase(), boldFont, isVertical));
 		}
 
-		// Add 1 single row, and inside each cell stack the slots
+		// Group and sort slots
 		Map<Integer, List<WeeklyPlanSlotResponseDTO>> slotsByDay = java.util.Collections.emptyMap();
+		int maxRows = 0;
 		if (plan.getSlots() != null) {
 			slotsByDay = plan.getSlots().stream()
 				.collect(Collectors.groupingBy(slot -> slot.getDayOfWeek() == null ? 1 : slot.getDayOfWeek()));
-		}
-
-		for (int i = 1; i <= maxDay; i++) {
-			Cell cell = new Cell()
-				.setBorder(new SolidBorder(BORDER_COLOR, 1f))
-				.setPadding(0);
 				
-			List<WeeklyPlanSlotResponseDTO> daySlots = slotsByDay.get(i);
-			if (daySlots != null && !daySlots.isEmpty()) {
+			for (List<WeeklyPlanSlotResponseDTO> daySlots : slotsByDay.values()) {
 				daySlots.sort(Comparator.comparing(WeeklyPlanSlotResponseDTO::getStartTime, Comparator.nullsLast(Comparator.naturalOrder()))
 										.thenComparing(WeeklyPlanSlotResponseDTO::getSortOrder, Comparator.nullsLast(Comparator.naturalOrder())));
-				
-				for (int s = 0; s < daySlots.size(); s++) {
-					WeeklyPlanSlotResponseDTO slot = daySlots.get(s);
-					Div slotDiv = new Div().setKeepTogether(true);
-					addSlotToDiv(slotDiv, slot, boldFont, regularFont, isVertical);
-					
-					if (s < daySlots.size() - 1) {
-						// Horizontal separator dashed
-						Paragraph divider = new Paragraph()
-							.setBorderBottom(new DashedBorder(BORDER_COLOR, 1f))
-							.setMarginTop(0)
-							.setMarginBottom(0)
-							.setHeight(1);
-						slotDiv.add(divider);
-					}
-					cell.add(slotDiv);
+				if (daySlots.size() > maxRows) {
+					maxRows = daySlots.size();
 				}
 			}
-			table.addCell(cell);
+		}
+
+		// Add cells row by row
+		for (int r = 0; r < maxRows; r++) {
+			for (int c = 1; c <= maxDay; c++) {
+				Cell cell = new Cell()
+					.setBorder(Border.NO_BORDER)
+					.setBorderLeft(new SolidBorder(BORDER_COLOR, 1f))
+					.setBorderRight(new SolidBorder(BORDER_COLOR, 1f))
+					.setPadding(0);
+					
+				if (r < maxRows - 1) {
+					cell.setBorderBottom(new DashedBorder(BORDER_COLOR, 1f));
+				} else {
+					cell.setBorderBottom(new SolidBorder(BORDER_COLOR, 1f));
+				}
+					
+				List<WeeklyPlanSlotResponseDTO> daySlots = slotsByDay.get(c);
+				if (daySlots != null && daySlots.size() > r) {
+					WeeklyPlanSlotResponseDTO slot = daySlots.get(r);
+					Div slotDiv = new Div().setKeepTogether(true);
+					addSlotToDiv(slotDiv, slot, boldFont, regularFont, isVertical);
+					cell.add(slotDiv);
+				}
+				table.addCell(cell);
+			}
 		}
 
 		document.add(table);
