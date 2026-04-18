@@ -58,14 +58,14 @@ public class WeeklyPlanController {
     }
 
     @PatchMapping("/{planId}/slots/{slotId}/unconfirm")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<WeeklyPlanSlotResponseDTO> unconfirmSlot(@PathVariable Long planId,
             @PathVariable Long slotId) {
         return ResponseEntity.ok(weeklyPlanService.unconfirmSlot(planId, slotId));
     }
 
     @PatchMapping("/{planId}/days/{dayOfWeek}/unconfirm")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ConfirmDayResponseDTO> unconfirmDay(
             @PathVariable Long planId,
             @PathVariable Integer dayOfWeek) {

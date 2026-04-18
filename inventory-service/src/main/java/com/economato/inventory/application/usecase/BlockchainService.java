@@ -29,6 +29,7 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;

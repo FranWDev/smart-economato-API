@@ -78,7 +78,7 @@ public class SecurityConfig {
                                                 .permitAll()
 
                                                 // Documentación Swagger
-                                                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**",
+                                                .requestMatchers("/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
                                                                 "/swagger-ui.html", "/webjars/**",
                                                                 "/swagger-resources/**", "/configuration/**",
                                                                 "/scalar-ui.html", "/scalar", "/scalar/**")
@@ -116,12 +116,12 @@ public class SecurityConfig {
                                                 // Content Security Policy (relajado para Swagger UI)
                                                 .contentSecurityPolicy(csp -> csp
                                                                 .policyDirectives("default-src 'self'; " +
-                                                                                "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+                                                                                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; "
                                                                                 +
-                                                                                "style-src 'self' 'unsafe-inline'; " +
+                                                                                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
                                                                                 "img-src 'self' data: https:; " +
-                                                                                "font-src 'self' data:; " +
-                                                                                "connect-src 'self'; " +
+                                                                                "font-src 'self' data: https://fonts.scalar.com; " +
+                                                                                "connect-src 'self' https://cdn.jsdelivr.net; " +
                                                                                 "frame-ancestors 'none'; " +
                                                                                 "base-uri 'self'; " +
                                                                                 "form-action 'self'; " +
