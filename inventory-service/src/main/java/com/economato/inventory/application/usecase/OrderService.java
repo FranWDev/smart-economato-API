@@ -59,6 +59,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.specification.OrderSpecifications;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -116,6 +117,8 @@ public class OrderService {
                         @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
                         @CacheEvict(value = "weekly_plan", allEntries = true)
         })
+        @RealtimeSync(entityType = "order", action = "CREATE",
+                affectedDomains = {"order"})
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
         public OrderResponseDTO save(OrderRequestDTO requestDTO) {
@@ -172,6 +175,8 @@ public class OrderService {
         })
         @Retryable(includes = {
                         ObjectOptimisticLockingFailureException.class }, maxRetries = 3, delay = 100, multiplier = 2)
+        @RealtimeSync(entityType = "order", action = "UPDATE", idFromArg = 0,
+                affectedDomains = {"order"})
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
         public Optional<OrderResponseDTO> update(Integer id, OrderRequestDTO requestDTO) {
@@ -230,6 +235,8 @@ public class OrderService {
                         @CacheEvict(value = "order_stats", allEntries = true),
                         @CacheEvict(value = "orders_pending", allEntries = true)
         })
+        @RealtimeSync(entityType = "order", action = "DELETE", idFromArg = 0,
+                affectedDomains = {"order"})
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
         public void deleteById(Integer id) {
@@ -393,6 +400,9 @@ public class OrderService {
          * 
          * Utiliza Pessimistic Locking para garantizar consistencia en el stock.
          */
+        @RealtimeSync(entityType = "order", action = "RECEIVE", idFromArg = -2,
+                affectedDomains = {"order", "ledger", "product", "weekly_plan", "stock_alerts"},
+                idsFromResult = "orderProductIds")
         @PredictorTrigger(action = "ORDER_RECEPTION")
         @OrderAuditable(action = "RECEPCION_ORDEN")
         @Caching(evict = {
@@ -530,6 +540,8 @@ public class OrderService {
                                 .toList();
         }
 
+        @RealtimeSync(entityType = "order", action = "STATUS_CHANGE", idFromArg = 0,
+                affectedDomains = {"order"})
         @OrderAuditable(action = "CAMBIO_ESTADO_ORDEN")
         @Caching(evict = {
                         @CacheEvict(value = "order", key = "#orderId"),

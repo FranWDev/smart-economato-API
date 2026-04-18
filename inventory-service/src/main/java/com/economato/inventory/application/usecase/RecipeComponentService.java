@@ -10,6 +10,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 import com.economato.inventory.application.dto.RestPage;
 import com.economato.inventory.application.dto.request.RecipeComponentRequestDTO;
@@ -66,6 +67,8 @@ public class RecipeComponentService {
     }
 
         @CacheEvict(value = { "recipe_components_page", "recipe_component", "recipe_components_by_recipe" }, allEntries = true)
+    @RealtimeSync(entityType = "recipe", action = "UPDATE", idFromArg = -2,
+            affectedDomains = {"recipe", "weekly_plan"})
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public RecipeComponentResponseDTO save(RecipeComponentRequestDTO requestDTO) {
@@ -80,6 +83,8 @@ public class RecipeComponentService {
     }
 
         @CacheEvict(value = { "recipe_components_page", "recipe_component", "recipe_components_by_recipe" }, allEntries = true)
+    @RealtimeSync(entityType = "recipe", action = "UPDATE", idFromArg = -2,
+            affectedDomains = {"recipe", "weekly_plan"})
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public Optional<RecipeComponentResponseDTO> update(Integer id, RecipeComponentRequestDTO requestDTO) {
@@ -96,6 +101,8 @@ public class RecipeComponentService {
     }
 
     @CacheEvict(value = { "recipe_components_page", "recipe_component", "recipe_components_by_recipe" }, allEntries = true)
+    @RealtimeSync(entityType = "recipe", action = "UPDATE", idFromArg = -2,
+            affectedDomains = {"recipe", "weekly_plan"})
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {

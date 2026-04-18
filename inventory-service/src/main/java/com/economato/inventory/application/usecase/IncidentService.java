@@ -44,6 +44,7 @@ import org.springframework.data.jpa.domain.JpaSort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -215,6 +216,8 @@ public class IncidentService {
                 .toList();
     }
 
+    @RealtimeSync(entityType = "incident", action = "UPDATE", idFromArg = 0,
+            affectedDomains = {"incident"})
     public IncidentAuditAttachmentResponseDTO revertAuditFromIncident(Long incidentId,
                                                                       Long attachmentId,
                                                                       RevertAuditFromIncidentRequestDTO request) {

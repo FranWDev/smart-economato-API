@@ -38,6 +38,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
@@ -143,6 +144,8 @@ public class ProductService {
                 @CacheEvict(value = "product_stats", allEntries = true),
                 @CacheEvict(value = "products_search", allEntries = true)
             })
+    @RealtimeSync(entityType = "product", action = "CREATE",
+            affectedDomains = {"product"})
     @ProductAuditable(action = "CREATE_PRODUCT")
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public ProductResponseDTO save(ProductRequestDTO requestDTO) {
@@ -189,6 +192,8 @@ public class ProductService {
             @CacheEvict(value = "products_page", allEntries = true),
             @CacheEvict(value = "products_search", allEntries = true)
         })
+    @RealtimeSync(entityType = "product", action = "UPDATE", idFromArg = 0,
+            affectedDomains = {"product", "recipe", "weekly_plan"})
     @ProductAuditable(action = "UPDATE_PRODUCT")
     @Retryable(includes = { OptimisticLockingFailureException.class }, maxRetries = 3, delay = 100)
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
@@ -295,6 +300,8 @@ public class ProductService {
             @CacheEvict(value = "products_page", allEntries = true),
             @CacheEvict(value = "products_search", allEntries = true)
         })
+    @RealtimeSync(entityType = "product", action = "UPDATE", idFromArg = 0,
+            affectedDomains = {"product", "recipe", "weekly_plan"})
     @ProductAuditable(action = "TOGGLE_HIDDEN")
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void toggleProductHiddenStatus(Integer id, boolean hidden) {
@@ -339,6 +346,8 @@ public class ProductService {
             @CacheEvict(value = "product_stats", allEntries = true),
             @CacheEvict(value = "products_search", allEntries = true)
         })
+    @RealtimeSync(entityType = "product", action = "UPDATE", idFromArg = 0,
+            affectedDomains = {"product", "ledger", "weekly_plan", "stock_alerts"})
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
             Exception.class }, isolation = Isolation.REPEATABLE_READ)
     public Optional<ProductResponseDTO> updateStockManually(Integer id, ProductRequestDTO requestDTO) {

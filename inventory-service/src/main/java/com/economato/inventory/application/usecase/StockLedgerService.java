@@ -61,6 +61,7 @@ import com.economato.inventory.infrastructure.config.security.LedgerProperties;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -270,6 +271,9 @@ public class StockLedgerService {
     }
 
     @PredictorTrigger(action = "MANUAL_ADJUSTMENT")
+    @RealtimeSync(entityType = "ledger", action = "CREATE",
+            affectedDomains = {"ledger", "product", "weekly_plan", "stock_alerts"},
+            idsFromResult = "productIds")
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public StockLedger processManualAdjustment(
             com.economato.inventory.application.dto.request.ManualStockAdjustmentRequestDTO request) {
@@ -933,6 +937,9 @@ public class StockLedgerService {
         }
     }
 
+    @RealtimeSync(entityType = "ledger", action = "UPDATE",
+            affectedDomains = {"ledger", "product", "order", "weekly_plan", "stock_alerts"},
+            idsFromResult = "productIds")
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public List<StockLedger> processBatchMovements(BatchStockMovementRequestDTO request) {
         User currentUser = securityContextHelper.getCurrentUser();
