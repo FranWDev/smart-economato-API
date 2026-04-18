@@ -279,8 +279,9 @@ function Action-Start {
     $p80 = Get-FreePort 80
     $p443 = Get-FreePort 443
     
-    $env:PROXY_HTTP_PORT = if ($p80 -eq 80) { 80 } else { 8080 }
-    $env:PROXY_HTTPS_PORT = if ($p443 -eq 443) { 443 } else { 8443 }
+    $env:PROXY_HTTP_PORT = if ($p80 -eq 80) { 80 } else { 3000 }
+    $env:PROXY_HTTPS_PORT = if ($p443 -eq 443) { 443 } else { 3443 }
+    $env:NGINX_CONF_PATH = "./nginx/reverse-proxy.template"
 
     try {
         $null = docker compose up -d --build 2>&1

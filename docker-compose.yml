@@ -294,7 +294,7 @@ services:
       grafana:
         condition: service_started
     volumes:
-      - ./nginx/reverse-proxy.conf:/etc/nginx/templates/default.conf.template:ro
+      - ${NGINX_CONF_PATH:-./nginx/reverse-proxy.conf}:/etc/nginx/templates/default.conf.template:ro
       - ./nginx/certs:/etc/nginx/certs:ro
     environment:
       NGINX_HTTP_PORT: ${PROXY_HTTP_PORT:-3000}
