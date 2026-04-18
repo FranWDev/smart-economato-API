@@ -29,6 +29,7 @@ import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 
 /**-
@@ -188,6 +189,8 @@ public class ProductBatchService {
         batchRepository.saveAndFlush(batch);
     }
 
+    @RealtimeSync(entityType = "batch", action = "UPDATE", idFromArg = 0,
+            affectedDomains = {"batch", "stock_alerts", "weekly_plan"})
     @Transactional(rollbackFor = Exception.class)
     public ProductBatch updateExpirationDate(Long batchId, LocalDate newExpirationDate, String reason) {
         return updateExpirationDate(batchId, newExpirationDate, reason, null);

@@ -62,6 +62,7 @@ import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 /**
  * Genera alertas predictivas de stock bajo combinando:
@@ -435,6 +436,8 @@ public class StockAlertService {
      * predictor externo de IA (Python/Prophet).
      */
     @CacheEvict(value = { "stock_alerts", "stock_predictions", "daily_forecast", "weekly_consumption" }, allEntries = true)
+    @RealtimeSync(entityType = "stock_alerts", action = "UPDATE", idFromArg = 0,
+            affectedDomains = {"stock_alerts"})
     @Transactional
     public void updatePredictionFromForecast(Integer productId, BigDecimal projectedConsumption) {
         updatePredictionFromForecast(productId, projectedConsumption, LocalDateTime.now());

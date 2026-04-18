@@ -38,6 +38,7 @@ import com.economato.inventory.application.dto.projection.UserProjection;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 @Service
 @Transactional(rollbackFor = { RuntimeException.class, Exception.class })
@@ -163,6 +164,8 @@ public class UserService {
             @CacheEvict(value = "users_no_teacher", allEntries = true),
             @CacheEvict(value = "user_stats", allEntries = true)
         })
+    @RealtimeSync(entityType = "user", action = "UPDATE", idFromArg = 0,
+            affectedDomains = {"weekly_plan"})
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public Optional<UserResponseDTO> update(Integer id, UserRequestDTO requestDTO) {
@@ -205,6 +208,8 @@ public class UserService {
             @CacheEvict(value = "users_by_role", allEntries = true),
             @CacheEvict(value = "users_no_teacher", allEntries = true)
         })
+    @RealtimeSync(entityType = "user", action = "DELETE", idFromArg = 0,
+            affectedDomains = {"weekly_plan"})
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
@@ -383,6 +388,8 @@ public class UserService {
             @CacheEvict(value = "users_page", allEntries = true),
             @CacheEvict(value = "users_no_teacher", allEntries = true)
         })
+    @RealtimeSync(entityType = "user", action = "UPDATE", idFromArg = -2,
+            affectedDomains = {"weekly_plan"})
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public BatchTeacherAssignmentResponseDTO assignTeacherBatch(BatchTeacherAssignmentRequestDTO request) {
         List<Integer> studentIds = request.getStudentIds();

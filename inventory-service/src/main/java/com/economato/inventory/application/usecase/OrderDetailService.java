@@ -20,6 +20,7 @@ import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 import java.util.List;
 import java.util.Optional;
@@ -60,6 +61,8 @@ public class OrderDetailService {
                                 .map(orderDetailMapper::toResponseDTO);
         }
 
+        @RealtimeSync(entityType = "order", action = "UPDATE", idFromArg = -2,
+                affectedDomains = {"order"})
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
         public OrderDetailResponseDTO save(OrderDetailRequestDTO requestDTO) {
@@ -84,6 +87,8 @@ public class OrderDetailService {
                                                 i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
         }
 
+        @RealtimeSync(entityType = "order", action = "UPDATE", idFromArg = -2,
+                affectedDomains = {"order"})
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
         public Optional<OrderDetailResponseDTO> update(Integer orderId, Integer productId,
@@ -100,6 +105,8 @@ public class OrderDetailService {
                                 });
         }
 
+        @RealtimeSync(entityType = "order", action = "UPDATE", idFromArg = -2,
+                affectedDomains = {"order"})
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
         public void deleteById(Integer orderId, Integer productId) {

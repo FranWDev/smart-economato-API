@@ -29,6 +29,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -195,6 +196,8 @@ public class SystemConfigService {
 
     @Transactional
     @CacheEvict(value = "system_config", allEntries = true)
+    @RealtimeSync(entityType = "config", action = "UPDATE", idFromArg = -2,
+            affectedDomains = {"stock_alerts"})
     public SystemConfig updateAlertsConfig(AlertsConfigRequestDTO dto, String adminUsername) {
         if (!(dto.getAlertThresholdOkDays() > dto.getAlertThresholdLowDays()
                 && dto.getAlertThresholdLowDays() > dto.getAlertThresholdMediumDays()
@@ -229,6 +232,8 @@ public class SystemConfigService {
 
     @Transactional
     @CacheEvict(value = "system_config", allEntries = true)
+    @RealtimeSync(entityType = "config", action = "UPDATE", idFromArg = -2,
+            affectedDomains = {"stock_alerts"})
     public SystemConfig updatePredictionsConfig(PredictionsConfigRequestDTO dto, String adminUsername) {
         if (dto.getPredictionRefreshIntervalHours() < 1 || dto.getPredictionHistoryDays() < 7 || dto.getPredictionBatchSize() < 1) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_CONFIG_PREDICTION_INTERVAL_INVALID));

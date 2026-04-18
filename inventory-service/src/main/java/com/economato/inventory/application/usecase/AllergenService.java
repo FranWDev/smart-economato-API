@@ -7,6 +7,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 import com.economato.inventory.application.dto.request.AllergenRequestDTO;
 import com.economato.inventory.application.dto.response.AllergenResponseDTO;
@@ -45,6 +46,8 @@ public class AllergenService {
     }
 
     @CacheEvict(value = { "allergens_page", "allergen" }, allEntries = true)
+    @RealtimeSync(entityType = "allergen", action = "CREATE", idFromArg = -2,
+            affectedDomains = {"recipe"})
     public AllergenResponseDTO save(AllergenRequestDTO requestDTO) {
         Allergen allergen = allergenMapper.toEntity(requestDTO);
         return allergenMapper.toResponseDTO(repository.save(allergen));
@@ -54,6 +57,8 @@ public class AllergenService {
             @CacheEvict(value = "allergen", key = "#id"),
             @CacheEvict(value = "allergens_page", allEntries = true)
     })
+    @RealtimeSync(entityType = "allergen", action = "UPDATE", idFromArg = 0,
+            affectedDomains = {"recipe"})
     public Optional<AllergenResponseDTO> update(Integer id, AllergenRequestDTO requestDTO) {
         return repository.findById(id)
                 .map(existing -> {
@@ -63,6 +68,8 @@ public class AllergenService {
     }
 
     @CacheEvict(value = { "allergens_page", "allergen" }, allEntries = true)
+    @RealtimeSync(entityType = "allergen", action = "DELETE", idFromArg = 0,
+            affectedDomains = {"recipe"})
     public void deleteById(Integer id) {
         if (repository.existsById(id)) {
             repository.deleteById(id);

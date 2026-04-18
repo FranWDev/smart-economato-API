@@ -1,9 +1,12 @@
 package com.economato.inventory.application.usecase;
 
+import java.time.LocalDateTime;
+
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import com.economato.inventory.application.dto.event.RealtimeSyncEvent;
 import com.economato.inventory.infrastructure.CircuitBreakerClosedEvent;
 import com.economato.inventory.infrastructure.CircuitBreakerOpenEvent;
 import com.economato.inventory.infrastructure.WebSocketConnectedEvent;
@@ -153,6 +156,29 @@ public class WebSocketNotificationService {
             messagingTemplate.convertAndSend("/topic/alerts", message);
         } catch (RuntimeException e) {
             log.error("Failed to send WebSocket prediction notification", e);
+        }
+    }
+
+    /**
+     * Emite un evento de sincronización silencioso al topic {@code /topic/sync}.
+     * El frontend usa {@code affectedDomains} para invalidar su cache local
+     * y re-fetchar los datos afectados, sin mostrar ninguna notificación visual.
+     *
+     * <p>Este método es invocado exclusivamente por {@code RealtimeSyncAspect}
+     * tras la ejecución exitosa de una operación mutante del sistema. Nunca
+     * propaga excepciones para no afectar el flujo principal.
+     */
+    public void broadcastSync(RealtimeSyncEvent event) {
+        try {
+            if (event.getTimestamp() == null) {
+                event.setTimestamp(LocalDateTime.now());
+            }
+            log.debug("Broadcasting sync event: entityType={}, action={}, domains={}",
+                    event.getEntityType(), event.getAction(), event.getAffectedDomains());
+            messagingTemplate.convertAndSend("/topic/sync", event);
+        } catch (RuntimeException e) {
+            log.error("Failed to broadcast sync event for entityType={}: {}",
+                    event.getEntityType(), e.getMessage(), e);
         }
     }
 }

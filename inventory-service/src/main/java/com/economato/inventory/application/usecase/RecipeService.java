@@ -39,6 +39,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -112,6 +113,8 @@ public class RecipeService {
             @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
             @CacheEvict(value = "cookable_recipes", allEntries = true)
         })
+    @RealtimeSync(entityType = "recipe", action = "CREATE",
+            affectedDomains = {"recipe", "weekly_plan"})
     @RecipeAuditable(action = "CREATE_RECIPE")
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
@@ -131,6 +134,8 @@ public class RecipeService {
             @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
             @CacheEvict(value = "cookable_recipes", allEntries = true)
         })
+    @RealtimeSync(entityType = "recipe", action = "UPDATE", idFromArg = 0,
+            affectedDomains = {"recipe", "weekly_plan"})
     @RecipeAuditable(action = "UPDATE_RECIPE")
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
@@ -233,6 +238,8 @@ public class RecipeService {
             @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
             @CacheEvict(value = "cookable_recipes", allEntries = true)
         })
+    @RealtimeSync(entityType = "recipe", action = "UPDATE", idFromArg = 0,
+            affectedDomains = {"recipe", "weekly_plan"})
     @RecipeAuditable(action = "TOGGLE_HIDDEN")
     @Transactional(rollbackFor = { ResourceNotFoundException.class, InvalidOperationException.class })
     public void toggleRecipeHiddenStatus(Integer id, boolean hidden) {
@@ -400,6 +407,8 @@ public class RecipeService {
         return (minCookable == null ? BigDecimal.ZERO : minCookable).setScale(3, RoundingMode.DOWN);
     }
 
+    @RealtimeSync(entityType = "recipe", action = "CONFIRM", idFromArg = -2,
+            affectedDomains = {"recipe", "ledger", "product", "weekly_plan", "stock_alerts"})
     @PredictorTrigger(action = "COOK_RECIPE")
     @RecipeCookingAuditable(action = "COOK_RECIPE")
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
@@ -477,6 +486,8 @@ public class RecipeService {
     /**
      * Revierte un cocinado de receta específico.
      */
+    @RealtimeSync(entityType = "recipe", action = "REVERT", idFromArg = -2,
+            affectedDomains = {"recipe", "ledger", "product", "weekly_plan", "stock_alerts"})
     @PredictorTrigger(action = "REVERT_COOKING")
     @Transactional(rollbackFor = Exception.class)
     public void revertCooking(Long auditId, String reason) {

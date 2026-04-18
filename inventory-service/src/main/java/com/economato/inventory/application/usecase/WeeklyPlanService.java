@@ -48,6 +48,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import com.economato.inventory.infrastructure.config.cache.event.WeeklyPlanSlotConfirmedEvent;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 @Slf4j
 @Service
@@ -72,6 +73,8 @@ public class WeeklyPlanService {
     private final ApplicationEventPublisher applicationEventPublisher;
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @RealtimeSync(entityType = "weekly_plan", action = "CREATE", idFromArg = -2,
+            affectedDomains = {"weekly_plan"})
     public WeeklyPlanResponseDTO createPlan(WeeklyPlanRequestDTO request) {
         User currentUser = securityContextHelper.getCurrentUser();
         User chef = determineChef(request.getChefId(), currentUser);
@@ -104,6 +107,8 @@ public class WeeklyPlanService {
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @RealtimeSync(entityType = "weekly_plan", action = "UPDATE", idFromArg = 0,
+            affectedDomains = {"weekly_plan"})
     public WeeklyPlanResponseDTO updatePlan(Long planId, WeeklyPlanRequestDTO request) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -134,6 +139,8 @@ public class WeeklyPlanService {
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @RealtimeSync(entityType = "weekly_plan", action = "STATUS_CHANGE", idFromArg = 0,
+            affectedDomains = {"weekly_plan"})
     public WeeklyPlanResponseDTO activatePlan(Long planId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -152,6 +159,8 @@ public class WeeklyPlanService {
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @RealtimeSync(entityType = "weekly_plan", action = "STATUS_CHANGE", idFromArg = 0,
+            affectedDomains = {"weekly_plan"})
     public WeeklyPlanResponseDTO deactivatePlan(Long planId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -174,6 +183,8 @@ public class WeeklyPlanService {
 
     @PredictorTrigger(action = "WEEKLY_PLAN_CONFIRM")
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @RealtimeSync(entityType = "weekly_plan", action = "CONFIRM", idFromArg = -2,
+            affectedDomains = {"weekly_plan", "ledger", "product", "stock_alerts"})
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public WeeklyPlanSlotResponseDTO confirmSlot(Long planId, Long slotId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
@@ -264,6 +275,8 @@ public class WeeklyPlanService {
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @RealtimeSync(entityType = "weekly_plan", action = "REVERT", idFromArg = -2,
+            affectedDomains = {"weekly_plan", "ledger", "product", "stock_alerts"})
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public WeeklyPlanSlotResponseDTO unconfirmSlot(Long planId, Long slotId) {
 
@@ -318,6 +331,8 @@ public class WeeklyPlanService {
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @RealtimeSync(entityType = "weekly_plan", action = "REVERT", idFromArg = -2,
+            affectedDomains = {"weekly_plan", "ledger", "product", "stock_alerts"})
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public ConfirmDayResponseDTO unconfirmDay(Long planId, Integer dayOfWeek) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
@@ -376,6 +391,8 @@ public class WeeklyPlanService {
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @RealtimeSync(entityType = "weekly_plan", action = "CONFIRM", idFromArg = -2,
+            affectedDomains = {"weekly_plan", "ledger", "product", "stock_alerts"})
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public ConfirmDayResponseDTO confirmDay(Long planId, Integer dayOfWeek) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
@@ -545,6 +562,8 @@ public class WeeklyPlanService {
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @RealtimeSync(entityType = "weekly_plan", action = "UPDATE", idFromArg = -2,
+            affectedDomains = {"weekly_plan"})
     public WeeklyPlanSlotResponseDTO cancelSlot(Long planId, Long slotId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -574,6 +593,8 @@ public class WeeklyPlanService {
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @RealtimeSync(entityType = "weekly_plan", action = "UPDATE", idFromArg = -2,
+            affectedDomains = {"weekly_plan"})
     public WeeklyPlanSlotResponseDTO restoreSlot(Long planId, Long slotId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -616,6 +637,8 @@ public class WeeklyPlanService {
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @RealtimeSync(entityType = "weekly_plan", action = "UPDATE", idFromArg = -2,
+            affectedDomains = {"weekly_plan"})
     public WeeklyPlanSlotStudentResponseDTO cancelStudentFromSlot(Long planId, Long slotId, Integer studentId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -649,6 +672,8 @@ public class WeeklyPlanService {
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @RealtimeSync(entityType = "weekly_plan", action = "UPDATE", idFromArg = -2,
+            affectedDomains = {"weekly_plan"})
     public WeeklyPlanSlotStudentResponseDTO restoreStudentInSlot(Long planId, Long slotId, Integer studentId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
                 () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
@@ -683,6 +708,8 @@ public class WeeklyPlanService {
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @RealtimeSync(entityType = "weekly_plan", action = "UPDATE", idFromArg = -2,
+            affectedDomains = {"weekly_plan"})
     @Transactional(rollbackFor = Exception.class)
     public void cancelStudentFromDay(Long planId, Integer dayOfWeek, Integer studentId) {
         log.info("Cancelling student {} from plan {} for day {}", studentId, planId, dayOfWeek);
@@ -725,6 +752,8 @@ public class WeeklyPlanService {
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @RealtimeSync(entityType = "weekly_plan", action = "UPDATE", idFromArg = -2,
+            affectedDomains = {"weekly_plan"})
     @Transactional(rollbackFor = Exception.class)
     public void restoreStudentFromDay(Long planId, Integer dayOfWeek, Integer studentId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
@@ -758,6 +787,8 @@ public class WeeklyPlanService {
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
+    @RealtimeSync(entityType = "weekly_plan", action = "REVERT", idFromArg = -2,
+            affectedDomains = {"weekly_plan"})
     @Transactional(rollbackFor = Exception.class)
     public void restoreDay(Long planId, Integer dayOfWeek) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(

@@ -10,6 +10,7 @@ import com.economato.inventory.infrastructure.config.web.MessageKey;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 import java.util.List;
 import java.util.Locale;
@@ -33,6 +34,8 @@ public class ValidUnitService {
     }
 
     @Transactional
+    @RealtimeSync(entityType = "config", action = "CREATE", idFromArg = -2,
+            affectedDomains = {"product"})
     public ValidUnit create(String code, String category) {
         String normalizedCode = normalize(code);
         if (validUnitRepository.existsByCodeIgnoreCase(normalizedCode)) {
@@ -47,6 +50,8 @@ public class ValidUnitService {
     }
 
     @Transactional
+    @RealtimeSync(entityType = "config", action = "UPDATE", idFromArg = 0,
+            affectedDomains = {"product"})
     public ValidUnit update(Integer id, String code, String category, Boolean active) {
         ValidUnit existing = validUnitRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_VALID_UNIT_NOT_FOUND)));
@@ -71,6 +76,8 @@ public class ValidUnitService {
     }
 
     @Transactional
+    @RealtimeSync(entityType = "config", action = "UPDATE", idFromArg = 0,
+            affectedDomains = {"product"})
     public ValidUnit toggleActive(Integer id) {
         ValidUnit existing = validUnitRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_VALID_UNIT_NOT_FOUND)));
