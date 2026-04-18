@@ -182,8 +182,12 @@ public class SecurityConfig {
                                 "http://192.168.8.182:*",
                                 "https://192.168.8.182",
                                 "https://192.168.8.182:*",
-                                "http://192.168.8.*",
-                                "http://192.168.8.*:*",
+                                "http://192.168.*.*",
+                                "http://192.168.*.*:*",
+                                "https://192.168.*.*",
+                                "https://192.168.*.*:*",
+                                "http://smart-economato",
+                                "https://smart-economato",
                                 "https://economato.servehttp.com"));
                 configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
                 configuration.setAllowedHeaders(

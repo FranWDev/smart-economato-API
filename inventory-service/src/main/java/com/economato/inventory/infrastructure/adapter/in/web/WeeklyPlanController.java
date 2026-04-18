@@ -109,6 +109,12 @@ public class WeeklyPlanController {
     public ResponseEntity<WeeklyPlanSlotResponseDTO> cancelSlot(@PathVariable Long planId, @PathVariable Long slotId) {
         return ResponseEntity.ok(weeklyPlanService.cancelSlot(planId, slotId));
     }
+    
+    @PatchMapping("/{planId}/slots/{slotId}/restore")
+    @PreAuthorize("hasAnyRole('ADMIN','CHEF','ELEVATED')")
+    public ResponseEntity<WeeklyPlanSlotResponseDTO> restoreSlot(@PathVariable Long planId, @PathVariable Long slotId) {
+        return ResponseEntity.ok(weeklyPlanService.restoreSlot(planId, slotId));
+    }
 
     @PatchMapping("/{planId}/slots/{slotId}/students/{studentId}/cancel")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
@@ -118,6 +124,13 @@ public class WeeklyPlanController {
             @PathVariable Integer studentId) {
         return ResponseEntity.ok(weeklyPlanService.cancelStudentFromSlot(planId, slotId, studentId));
     }
+    
+    @PatchMapping("/{planId}/slots/{slotId}/students/{studentId}/restore")
+    @PreAuthorize("hasAnyRole('ADMIN','CHEF','ELEVATED')")
+    public ResponseEntity<WeeklyPlanSlotStudentResponseDTO> restoreStudentInSlot(
+            @PathVariable Long planId, @PathVariable Long slotId, @PathVariable Integer studentId) {
+        return ResponseEntity.ok(weeklyPlanService.restoreStudentInSlot(planId, slotId, studentId));
+    }
 
     @PatchMapping("/{planId}/days/{dayOfWeek}/students/{studentId}/cancel")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
@@ -126,6 +139,25 @@ public class WeeklyPlanController {
             @PathVariable Integer dayOfWeek,
             @PathVariable Integer studentId) {
         weeklyPlanService.cancelStudentFromDay(planId, dayOfWeek, studentId);
+        return ResponseEntity.noContent().build();
+    }
+    
+    @PatchMapping("/{planId}/days/{dayOfWeek}/students/{studentId}/restore")
+    @PreAuthorize("hasAnyRole('ADMIN','CHEF','ELEVATED')")
+    public ResponseEntity<Void> restoreStudentFromDay(
+            @PathVariable Long planId,
+            @PathVariable Integer dayOfWeek,
+            @PathVariable Integer studentId) {
+        weeklyPlanService.restoreStudentFromDay(planId, dayOfWeek, studentId);
+        return ResponseEntity.noContent().build();
+    }
+    
+    @PatchMapping("/{planId}/days/{dayOfWeek}/restore")
+    @PreAuthorize("hasAnyRole('ADMIN','CHEF','ELEVATED')")
+    public ResponseEntity<Void> restoreDay(
+            @PathVariable Long planId,
+            @PathVariable Integer dayOfWeek) {
+        weeklyPlanService.restoreDay(planId, dayOfWeek);
         return ResponseEntity.noContent().build();
     }
 
