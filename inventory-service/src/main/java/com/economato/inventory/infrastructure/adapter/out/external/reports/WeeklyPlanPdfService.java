@@ -143,12 +143,7 @@ public class WeeklyPlanPdfService {
 			}
 		}
 
-		float[] columnWidths = new float[maxDay];
-		for (int i = 0; i < maxDay; i++) {
-			columnWidths[i] = 1f;
-		}
-
-		Table table = new Table(UnitValue.createPercentArray(columnWidths))
+		Table table = new Table(UnitValue.createPercentArray(maxDay))
 				.setWidth(UnitValue.createPercentValue(100))
 				.setFixedLayout()
 				.setMarginTop(8)
