@@ -64,7 +64,7 @@ class WeeklyPlanPdfServiceTest {
 
     @Test
     void generateWeeklyPlanPdf_WithCompletePlan_ShouldGeneratePdf() throws Exception {
-        byte[] pdfBytes = weeklyPlanPdfService.generateWeeklyPlanPdf(testPlan);
+        byte[] pdfBytes = weeklyPlanPdfService.generateWeeklyPlanPdf(testPlan, false);
 
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 0);
@@ -76,7 +76,7 @@ class WeeklyPlanPdfServiceTest {
     @Test
     void generateWeeklyPlanPdf_WithEmptySlots_ShouldGeneratePdf() throws Exception {
         testPlan.setSlots(new ArrayList<>());
-        byte[] pdfBytes = weeklyPlanPdfService.generateWeeklyPlanPdf(testPlan);
+        byte[] pdfBytes = weeklyPlanPdfService.generateWeeklyPlanPdf(testPlan, false);
 
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 0);
@@ -87,7 +87,7 @@ class WeeklyPlanPdfServiceTest {
     @Test
     void generateWeeklyPlanPdf_WithNullSlots_ShouldGeneratePdf() throws Exception {
         testPlan.setSlots(null);
-        byte[] pdfBytes = weeklyPlanPdfService.generateWeeklyPlanPdf(testPlan);
+        byte[] pdfBytes = weeklyPlanPdfService.generateWeeklyPlanPdf(testPlan, false);
 
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 0);
@@ -100,7 +100,7 @@ class WeeklyPlanPdfServiceTest {
         slots.add(createSlot(3L, "Weekend Recipe", "3.0", 7, LocalTime.of(10,0), LocalTime.of(12,0), 1, Arrays.asList("Student 4")));
         testPlan.setSlots(slots);
         
-        byte[] pdfBytes = weeklyPlanPdfService.generateWeeklyPlanPdf(testPlan);
+        byte[] pdfBytes = weeklyPlanPdfService.generateWeeklyPlanPdf(testPlan, true); // test vertical format here
 
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 0);

@@ -35,6 +35,7 @@ import com.itextpdf.layout.borders.Border;
 import com.itextpdf.layout.borders.SolidBorder;
 import com.itextpdf.layout.borders.DashedBorder;
 import com.itextpdf.layout.element.Cell;
+import com.itextpdf.layout.element.Div;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.properties.TextAlignment;
@@ -60,7 +61,7 @@ public class WeeklyPlanPdfService {
 		this.i18nService = i18nService;
 	}
 
-	public byte[] generateWeeklyPlanPdf(WeeklyPlanResponseDTO plan) {
+	public byte[] generateWeeklyPlanPdf(WeeklyPlanResponseDTO plan, boolean isVertical) {
 		try {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			PdfWriter writer = new PdfWriter(baos);
@@ -69,14 +70,15 @@ public class WeeklyPlanPdfService {
 			PdfFont footerFont = PdfFontFactory.createFont("Helvetica");
 			pdfDoc.addEventHandler(PdfDocumentEvent.END_PAGE, new FooterEventHandler(footerFont));
 
-			try (Document document = new Document(pdfDoc, PageSize.A4.rotate())) {
+			PageSize format = isVertical ? PageSize.A4 : PageSize.A4.rotate();
+			try (Document document = new Document(pdfDoc, format)) {
 				document.setMargins(30, 30, 40, 30);
 
 				PdfFont boldFont = PdfFontFactory.createFont("Helvetica-Bold");
 				PdfFont regularFont = footerFont;
 
-				addHeader(document, plan, boldFont, regularFont);
-				addTimetable(document, plan, boldFont, regularFont);
+				addHeader(document, plan, boldFont, regularFont, isVertical);
+				addTimetable(document, plan, boldFont, regularFont, isVertical);
 			}
 			return baos.toByteArray();
 		} catch (Exception e) {
@@ -84,8 +86,8 @@ public class WeeklyPlanPdfService {
 		}
 	}
 
-	private void addHeader(Document document, WeeklyPlanResponseDTO plan, PdfFont boldFont, PdfFont regularFont) {
-		Table headerTable = new Table(UnitValue.createPercentArray(new float[] { 3, 1 }))
+	private void addHeader(Document document, WeeklyPlanResponseDTO plan, PdfFont boldFont, PdfFont regularFont, boolean isVertical) {
+		Table headerTable = new Table(UnitValue.createPercentArray(new float[] { 2, 1 }))
 				.setWidth(UnitValue.createPercentValue(100))
 				.setBackgroundColor(PRIMARY_COLOR)
 				.setMarginBottom(0);
@@ -105,14 +107,13 @@ public class WeeklyPlanPdfService {
 
 		String datesStr = "";
 		if (plan.getWeekStartDate() != null && plan.getWeekEndDate() != null) {
-			datesStr = i18nService.getMessage(MessageKey.REPORT_WEEKLY_PLAN_DATE_RANGE, 
-					new Object[]{plan.getWeekStartDate().format(DATE_FORMAT), plan.getWeekEndDate().format(DATE_FORMAT)});
+			datesStr = plan.getWeekStartDate().format(DATE_FORMAT) + " - " + plan.getWeekEndDate().format(DATE_FORMAT);
 		}
 
 		Cell dateCell = new Cell()
 				.add(new Paragraph(sanitizePdfText(datesStr))
 						.setFont(boldFont)
-						.setFontSize(11)
+						.setFontSize(isVertical ? 9 : 11)
 						.setFontColor(ColorConstants.WHITE)
 						.setTextAlignment(TextAlignment.RIGHT))
 				.setBorder(Border.NO_BORDER)
@@ -131,7 +132,7 @@ public class WeeklyPlanPdfService {
 		document.add(accent);
 	}
 
-	private void addTimetable(Document document, WeeklyPlanResponseDTO plan, PdfFont boldFont, PdfFont regularFont) {
+	private void addTimetable(Document document, WeeklyPlanResponseDTO plan, PdfFont boldFont, PdfFont regularFont, boolean isVertical) {
 		
 		int maxDay = 5; // As per requirement: lunes a viernes
 		if (plan.getSlots() != null) {
@@ -155,7 +156,7 @@ public class WeeklyPlanPdfService {
 		// Add headers (Días)
 		for (int i = 1; i <= maxDay; i++) {
 			String dayName = getDayName(i);
-			table.addHeaderCell(createTableHeaderCell(dayName.toUpperCase(), boldFont));
+			table.addHeaderCell(createTableHeaderCell(dayName.toUpperCase(), boldFont, isVertical));
 		}
 
 		// Add 1 single row, and inside each cell stack the slots
@@ -177,7 +178,8 @@ public class WeeklyPlanPdfService {
 				
 				for (int s = 0; s < daySlots.size(); s++) {
 					WeeklyPlanSlotResponseDTO slot = daySlots.get(s);
-					addSlotToCell(cell, slot, boldFont, regularFont);
+					Div slotDiv = new Div().setKeepTogether(true);
+					addSlotToDiv(slotDiv, slot, boldFont, regularFont, isVertical);
 					
 					if (s < daySlots.size() - 1) {
 						// Horizontal separator dashed
@@ -186,8 +188,9 @@ public class WeeklyPlanPdfService {
 							.setMarginTop(0)
 							.setMarginBottom(0)
 							.setHeight(1);
-						cell.add(divider);
+						slotDiv.add(divider);
 					}
+					cell.add(slotDiv);
 				}
 			}
 			table.addCell(cell);
@@ -196,7 +199,7 @@ public class WeeklyPlanPdfService {
 		document.add(table);
 	}
 
-	private void addSlotToCell(Cell cell, WeeklyPlanSlotResponseDTO slot, PdfFont boldFont, PdfFont regularFont) {
+	private void addSlotToDiv(Div div, WeeklyPlanSlotResponseDTO slot, PdfFont boldFont, PdfFont regularFont, boolean isVertical) {
 		
 		// Hora
 		String timeStr = "";
@@ -210,54 +213,54 @@ public class WeeklyPlanPdfService {
 		if (!timeStr.isEmpty()) {
 			Paragraph timeP = new Paragraph(timeStr)
 				.setFont(boldFont)
-				.setFontSize(9)
+				.setFontSize(isVertical ? 7 : 9)
 				.setFontColor(PRIMARY_COLOR)
-				.setPaddingLeft(5).setPaddingRight(5).setPaddingTop(5).setMarginBottom(2);
-			cell.add(timeP);
+				.setPaddingLeft(5).setPaddingRight(5).setPaddingTop(5).setMarginBottom(isVertical ? 0 : 2);
+			div.add(timeP);
 		}
 
 		// Productos y cantidades
 		String productLine = sanitizePdfText(slot.getRecipeName());
 		if (slot.getQuantity() != null) {
-			productLine += " (x" + formatDecimal(slot.getQuantity()) + ")";
+			productLine += " (" + formatDecimal(slot.getQuantity()) + ")";
 		}
 		
 		Paragraph prodP = new Paragraph(productLine)
 			.setFont(boldFont)
-			.setFontSize(9)
+			.setFontSize(isVertical ? 7 : 9)
 			.setFontColor(TEXT_DARK)
-			.setPaddingLeft(5).setPaddingRight(5).setPaddingTop(0).setMarginTop(0).setMarginBottom(2);
-		cell.add(prodP);
+			.setPaddingLeft(5).setPaddingRight(5).setPaddingTop(0).setMarginTop(0).setMarginBottom(isVertical ? 0 : 2);
+		div.add(prodP);
 
 		// Nombres de los alumnos
 		if (slot.getStudents() != null && !slot.getStudents().isEmpty()) {
 			Paragraph studentTitle = new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_STUDENTS))
 				.setFont(boldFont)
-				.setFontSize(7)
+				.setFontSize(isVertical ? 6 : 7)
 				.setFontColor(TEXT_GRAY)
 				.setPaddingLeft(5).setPaddingRight(5).setPaddingTop(2).setMarginTop(0).setMarginBottom(0);
-			cell.add(studentTitle);
+			div.add(studentTitle);
 
 			for (WeeklyPlanSlotStudentResponseDTO student : slot.getStudents()) {
 				Paragraph studentP = new Paragraph("\u2022 " + sanitizePdfText(student.getStudentName()))
 					.setFont(regularFont)
-					.setFontSize(8)
+					.setFontSize(isVertical ? 6 : 8)
 					.setFontColor(TEXT_DARK)
 					.setPaddingLeft(8).setPaddingRight(5).setMarginTop(0).setMarginBottom(0);
-				cell.add(studentP);
+				div.add(studentP);
 			}
 		}
 		
 		// Padding bottom to space out before the divider or next slot
 		Paragraph spacer = new Paragraph("").setHeight(4).setMarginTop(0).setMarginBottom(0);
-		cell.add(spacer);
+		div.add(spacer);
 	}
 
-	private Cell createTableHeaderCell(String text, PdfFont boldFont) {
+	private Cell createTableHeaderCell(String text, PdfFont boldFont, boolean isVertical) {
 		return new Cell()
 				.add(new Paragraph(text)
 						.setFont(boldFont)
-						.setFontSize(10)
+						.setFontSize(isVertical ? 8 : 10)
 						.setFontColor(TEXT_DARK)
 						.setCharacterSpacing(0.5f)
 						.setTextAlignment(TextAlignment.CENTER))

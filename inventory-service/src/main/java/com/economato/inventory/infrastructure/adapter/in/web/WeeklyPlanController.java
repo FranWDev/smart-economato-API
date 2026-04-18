@@ -90,9 +90,14 @@ public class WeeklyPlanController {
 
     @GetMapping("/{planId}/pdf")
     @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
-    public ResponseEntity<byte[]> downloadPlanPdf(@PathVariable Long planId) {
+    public ResponseEntity<byte[]> downloadPlanPdf(
+            @PathVariable Long planId,
+            @RequestParam(defaultValue = "horizontal") String orientation) {
+        
+        boolean isVertical = "vertical".equalsIgnoreCase(orientation);
         WeeklyPlanResponseDTO plan = weeklyPlanService.getPlanById(planId);
-        byte[] pdfBytes = weeklyPlanPdfService.generateWeeklyPlanPdf(plan);
+        byte[] pdfBytes = weeklyPlanPdfService.generateWeeklyPlanPdf(plan, isVertical);
+        
         org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
         headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
         headers.setContentDisposition(org.springframework.http.ContentDisposition.attachment()
