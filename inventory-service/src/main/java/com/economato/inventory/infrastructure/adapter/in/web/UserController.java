@@ -62,7 +62,7 @@ public class UserController {
         }
 
         @GetMapping
-        @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+        @PreAuthorize("hasRole('ADMIN')")
         @Operation(summary = "Obtener todos los usuarios", description = "Devuelve una lista paginada de todos los usuarios. Accesible para administradores y chefs. [Rol requerido: ADMIN, CHEF]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Lista de usuarios", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
@@ -74,7 +74,7 @@ public class UserController {
         }
 
         @GetMapping("/search")
-        @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+        @PreAuthorize("hasRole('ADMIN')")
         @Operation(summary = "Buscar usuarios", description = "Busca usuarios visibles por nombre o usuario con paginación. Accesible para administradores y chefs. [Rol requerido: ADMIN, CHEF]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Resultados de búsqueda", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
@@ -88,7 +88,7 @@ public class UserController {
         }
 
         @GetMapping("/{id}")
-        @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED') or #id == @userService.findByUsername(authentication.name).id")
+        @PreAuthorize("hasRole('ADMIN') or #id == @userService.findByUsername(authentication.name).id")
         @Operation(summary = "Obtener usuario por ID", description = "Devuelve los datos de un usuario específico. Accesible para administradores o para el propio usuario. [Rol requerido: USER]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Usuario encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
@@ -146,7 +146,7 @@ public class UserController {
         }
 
         @GetMapping("/by-role/{role}")
-        @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
+        @PreAuthorize("hasRole('ADMIN')")
         @Operation(summary = "Obtener usuarios por rol", description = "Devuelve una lista de usuarios filtrados por rol. Accesible para administradores y chefs. [Rol requerido: ADMIN, CHEF]")
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Lista de usuarios con el rol especificado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
@@ -239,6 +239,20 @@ public class UserController {
         })
         public ResponseEntity<List<UserResponseDTO>> getTeachers() {
                 List<UserResponseDTO> teachers = service.findByRole(Role.CHEF);
+                return ResponseEntity.ok(teachers);
+        }
+
+        @GetMapping("/teachers/search")
+        @PreAuthorize("isAuthenticated()")
+        @Operation(summary = "Buscar profesores", description = "Busca profesores (rol CHEF) por nombre o usuario usando coincidencia parcial y paginación. [Rol requerido: Cualquiera autenticado]")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "200", description = "Resultados de búsqueda de profesores", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
+                        @ApiResponse(responseCode = "401", description = "No autenticado")
+        })
+        public ResponseEntity<Page<UserResponseDTO>> searchTeachers(
+                        @Parameter(description = "Texto a buscar (coincidencia parcial) en nombre o usuario") @org.springframework.web.bind.annotation.RequestParam(defaultValue = "") String term,
+                        Pageable pageable) {
+                Page<UserResponseDTO> teachers = service.searchVisibleTeachers(term, pageable);
                 return ResponseEntity.ok(teachers);
         }
 

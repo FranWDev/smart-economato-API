@@ -1,6 +1,8 @@
 package com.economato.inventory.application.usecase;
 
 import com.economato.inventory.infrastructure.config.security.LedgerProperties;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -17,11 +19,14 @@ public class BlockSealingService {
     private final LedgerProperties ledgerProperties;
     private final Timer sealingTimer;
     private final Counter blocksSealedCounter;
+    private final I18nService i18nService;
 
     public BlockSealingService(
             LedgerProperties ledgerProperties,
-            MeterRegistry meterRegistry) {
+            MeterRegistry meterRegistry,
+            I18nService i18nService) {
         this.ledgerProperties = ledgerProperties;
+        this.i18nService = i18nService;
         this.sealingTimer = Timer.builder("blockchain.sealing.duration")
                 .description("Block sealing latency")
                 .register(meterRegistry);
@@ -59,7 +64,7 @@ public class BlockSealingService {
             }
             return hex.toString();
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to compute block hash", e);
+            throw new IllegalStateException(i18nService.getMessage(MessageKey.ERROR_BLOCK_HASH_CALCULATION_FAILED), e);
         }
     }
 

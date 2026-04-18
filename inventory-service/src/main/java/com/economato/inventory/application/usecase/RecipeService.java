@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -357,7 +358,7 @@ public class RecipeService {
         BigDecimal totalCost = recipe.getComponents().stream()
                 .map(component -> component.getQuantity().multiply(component.getProduct().getUnitPrice()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, java.math.RoundingMode.HALF_UP);
+                .setScale(2, RoundingMode.HALF_UP);
         recipe.setTotalCost(totalCost);
     }
 
@@ -383,20 +384,20 @@ public class RecipeService {
 
                 BigDecimal maxAvailable = currentStock
                     .multiply(availabilityPct)
-                    .divide(BigDecimal.valueOf(100), 3, java.math.RoundingMode.DOWN);
+                    .divide(BigDecimal.valueOf(100), 3, RoundingMode.DOWN);
 
                 BigDecimal reserved = reservedByProduct.getOrDefault(component.getProduct().getId(), BigDecimal.ZERO);
                 BigDecimal available = maxAvailable.subtract(reserved).max(BigDecimal.ZERO);
 
             BigDecimal cookableByComponent = available
-                    .divide(component.getQuantity(), 3, java.math.RoundingMode.DOWN);
+                    .divide(component.getQuantity(), 3, RoundingMode.DOWN);
 
             minCookable = minCookable == null
                     ? cookableByComponent
                     : minCookable.min(cookableByComponent);
         }
 
-        return (minCookable == null ? BigDecimal.ZERO : minCookable).setScale(3, java.math.RoundingMode.DOWN);
+        return (minCookable == null ? BigDecimal.ZERO : minCookable).setScale(3, RoundingMode.DOWN);
     }
 
     @PredictorTrigger(action = "COOK_RECIPE")
@@ -404,7 +405,7 @@ public class RecipeService {
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public RecipeResponseDTO cookRecipe(RecipeCookingRequestDTO cookingRequest) {
-        String correlationId = java.util.UUID.randomUUID().toString();
+        String correlationId = UUID.randomUUID().toString();
         cookingRequest.setCorrelationId(correlationId);
 
         log.info("Iniciando proceso de cocinado de receta: recipeId={}, cantidad={}, correlationId={}",
@@ -443,7 +444,7 @@ public class RecipeService {
 
             BigDecimal usableStock = product.getCurrentStock()
                     .multiply(availabilityPercent)
-                    .divide(BigDecimal.valueOf(100), 3, java.math.RoundingMode.DOWN);
+                    .divide(BigDecimal.valueOf(100), 3, RoundingMode.DOWN);
 
             if (usableStock.compareTo(requiredQuantity) < 0) {
                 throw new InvalidOperationException(
@@ -484,12 +485,12 @@ public class RecipeService {
         try {
             var audit = recipeCookingAuditRepository.findById(auditId)
                     .orElseThrow(() -> new ResourceNotFoundException(
-                            "Auditoría de cocinado no encontrada (ID: " + auditId + ")"));
+                            i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
             if (audit.getCorrelationId() == null) {
                 log.warn("Intento de revertir auditoría sin correlationId: auditId={}", auditId);
                 throw new InvalidOperationException(
-                        "Esta auditoría no tiene ID de correlación y no puede revertirse automáticamente.");
+                        i18nService.getMessage(MessageKey.ERROR_INTERNAL_SERVER_ERROR));
             }
 
             stockLedgerService.revertMovement(audit.getCorrelationId(), "Deshacer cocinado: " + reason);

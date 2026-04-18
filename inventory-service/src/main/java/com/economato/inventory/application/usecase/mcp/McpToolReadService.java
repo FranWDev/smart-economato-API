@@ -27,6 +27,8 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockWeeklyConsumptionHistoryRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
 import com.economato.inventory.infrastructure.config.ai.AiAnalysisProperties;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -62,10 +64,11 @@ public class McpToolReadService {
     private final StockAlertService stockAlertService;
     private final WeeklyPlanService weeklyPlanService;
     private final AiAnalysisProperties aiAnalysisProperties;
+    private final I18nService i18nService;
 
     public McpProductDeepDto getProductDeep(Integer productId) {
         Product product = productRepository.findByIdWithSupplier(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
         List<ProductBatch> batches = productBatchService.getActiveBatches(productId);
         Integer daysToNearestExpiry = batches.isEmpty()
@@ -101,7 +104,7 @@ public class McpToolReadService {
 
     public McpRecipeDeepDto getRecipeDeep(Integer recipeId) {
         Recipe recipe = recipeRepository.findByIdWithDetails(recipeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Recipe not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
         List<McpComponentDto> components = recipe.getComponents().stream()
                 .map(component -> {
@@ -144,7 +147,7 @@ public class McpToolReadService {
 
     public McpFeasibilityDto checkFeasibility(Integer recipeId, BigDecimal portions) {
         Recipe recipe = recipeRepository.findByIdWithDetails(recipeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Recipe not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
         BigDecimal safePortions = portions == null || portions.compareTo(BigDecimal.ZERO) <= 0 ? BigDecimal.ONE : portions;
         BigDecimal recipePortions = recipe.getPortions() == null || recipe.getPortions().compareTo(BigDecimal.ZERO) <= 0
@@ -215,7 +218,7 @@ public class McpToolReadService {
 
     public McpSupplierDeepDto getSupplierDeep(Integer supplierId) {
         Supplier supplier = supplierRepository.findById(supplierId)
-                .orElseThrow(() -> new ResourceNotFoundException("Supplier not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
         List<McpProductDto> products = productRepository.findBySupplierId(supplierId).stream()
                 .map(this::mapProduct)

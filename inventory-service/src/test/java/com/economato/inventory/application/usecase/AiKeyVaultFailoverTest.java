@@ -27,6 +27,8 @@ import com.economato.inventory.infrastructure.config.ai.AiProviderProperties;
 import com.economato.inventory.infrastructure.config.ai.AiRateLimitProperties;
 import com.economato.inventory.infrastructure.config.ai.AiVaultProperties;
 
+import com.economato.inventory.infrastructure.config.web.I18nService;
+
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,6 +40,8 @@ class AiKeyVaultFailoverTest {
 
     @Mock
     private GlobalApiKeyRepository globalApiKeyRepository;
+    @Mock
+    private I18nService i18nService;
 
     private AiKeyVaultService service;
     private AiVaultProperties aiVaultProperties;
@@ -68,7 +72,8 @@ class AiKeyVaultFailoverTest {
             globalApiKeyRepository,
                 aiRateLimitProperties,
                 new SimpleMeterRegistry(),
-                Optional.empty()
+                Optional.empty(),
+                i18nService
         );
     }
 

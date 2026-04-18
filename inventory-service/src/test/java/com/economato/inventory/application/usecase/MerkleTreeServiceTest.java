@@ -1,12 +1,14 @@
 package com.economato.inventory.application.usecase;
 
 import com.economato.inventory.infrastructure.config.security.LedgerProperties;
+import com.economato.inventory.infrastructure.config.web.I18nService;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mock;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +19,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class MerkleTreeServiceTest {
 
     private final LedgerProperties ledgerProperties = new LedgerProperties();
+    @Mock
+    private I18nService i18nService;
     private MeterRegistry meterRegistry;
 
     private MerkleTreeService service;
@@ -27,7 +31,7 @@ class MerkleTreeServiceTest {
         ledgerProperties.setCurrentHmacVersion(1);
         ledgerProperties.setHmacSecret(TEST_SECRET);
         meterRegistry = new SimpleMeterRegistry();
-        service = new MerkleTreeService(ledgerProperties, meterRegistry);
+        service = new MerkleTreeService(ledgerProperties, meterRegistry, i18nService);
     }
 
     @Test

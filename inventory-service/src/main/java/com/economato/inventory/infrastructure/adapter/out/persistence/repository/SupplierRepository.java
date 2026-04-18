@@ -24,8 +24,9 @@ public interface SupplierRepository extends JpaRepository<Supplier, Integer> {
 
     List<SupplierProjection> findProjectedByNameContainingIgnoreCase(String namePart);
 
-    List<SupplierProjection> findProjectedByNameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrPhoneContainingIgnoreCase(
+        Page<SupplierProjection> findProjectedByNameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrPhoneContainingIgnoreCase(
             String namePart,
             String emailPart,
-            String phonePart);
+            String phonePart,
+            Pageable pageable);
 }

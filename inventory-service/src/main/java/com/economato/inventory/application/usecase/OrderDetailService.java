@@ -96,7 +96,7 @@ public class OrderDetailService {
                                         return repository.findProjectedByIdOrderIdAndIdProductId(orderId, productId)
                                                         .map(orderDetailMapper::toResponseDTO)
                                                         .orElseThrow(() -> new RuntimeException(
-                                                                        "Updated detail not found"));
+                                                                        i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
                                 });
         }
 

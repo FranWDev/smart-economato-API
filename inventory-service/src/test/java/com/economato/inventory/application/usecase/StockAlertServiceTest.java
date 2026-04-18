@@ -74,8 +74,7 @@ class StockAlertServiceTest {
     @Mock
     @SuppressWarnings("unused")
     private HoltWintersForecaster forecaster;
-    @Mock
-    private MessageSource messageSource;
+    private com.economato.inventory.infrastructure.config.web.I18nService i18nService;
     @Mock
     private ProductBatchService productBatchService;
 
@@ -85,17 +84,41 @@ class StockAlertServiceTest {
     @org.junit.jupiter.api.BeforeEach
     @SuppressWarnings("unused")
     void setUp() {
-        org.mockito.Mockito.lenient().when(messageSource.getMessage(anyString(), any(), any()))
-                .thenAnswer(invocation -> {
-                    String key = invocation.getArgument(0);
-                    if (key.contains("uncovered"))
-                        return "Déficit estimado";
-                    if (key.contains("partially"))
-                        return "Considera ampliar el pedido";
-                    if (key.contains("expiring"))
-                        return "Caducidad próxima";
-                    return "message";
-                });
+        i18nService = new com.economato.inventory.infrastructure.config.web.I18nService(null) {
+            @Override
+            public String getMessage(com.economato.inventory.infrastructure.config.web.MessageKey key, Object... args) {
+                if (key == com.economato.inventory.infrastructure.config.web.MessageKey.STOCK_ALERT_MESSAGE_UNCOVERED)
+                    return "Déficit estimado";
+                if (key == com.economato.inventory.infrastructure.config.web.MessageKey.STOCK_ALERT_MESSAGE_PARTIALLY_COVERED)
+                    return "Considera ampliar el pedido";
+                if (key == com.economato.inventory.infrastructure.config.web.MessageKey.STOCK_ALERT_MESSAGE_EXPIRING)
+                    return "Caducidad próxima";
+                return "message";
+            }
+            @Override
+            public String getMessage(com.economato.inventory.infrastructure.config.web.MessageKey key) {
+                return getMessage(key, (Object[]) null);
+            }
+            @Override
+            public String getMessage(com.economato.inventory.infrastructure.config.web.MessageKey key, java.util.Locale locale) {
+                return getMessage(key, (Object[]) null);
+            }
+        };
+
+        stockAlertService = new StockAlertService(
+            cookingAuditRepository,
+            orderDetailRepository,
+            productRepository,
+            recipeRepository,
+            predictionRepository,
+            dailyForecastRepository,
+            weeklyHistoryRepository,
+            stockDailyForecastMapper,
+            stockWeeklyConsumptionHistoryMapper,
+            forecaster,
+            i18nService,
+            productBatchService
+        );
         org.mockito.Mockito.lenient().when(productBatchService.getExpiringBatches(anyInt())).thenReturn(List.of());
     }
 
@@ -280,48 +303,48 @@ class StockAlertServiceTest {
     }
 
     @Test
-    void getAllPredictions_returnsAllPersistedPredictionsEvenIfThereAreAlerts() {
-        // two products, one would generate an active alert if queried via getActiveAlerts()
+    void getAllPredictions_filtersByActiveAndNotExpiring() {
+        // p1: Active, No expiration -> INCLUDED
+        // p2: Active, Expiring -> EXCLUDED
         Integer p1 = 11;
         Integer p2 = 22;
 
         Product prod1 = new Product();
         prod1.setId(p1);
-        prod1.setName("LowStock");
+        prod1.setName("ActiveNoExp");
         prod1.setUnit("kg");
-        prod1.setCurrentStock(BigDecimal.ZERO);
+        prod1.setCurrentStock(BigDecimal.TEN);
         prod1.setHidden(false);
 
         Product prod2 = new Product();
         prod2.setId(p2);
-        prod2.setName("Plenty");
+        prod2.setName("ActiveExpiring");
         prod2.setUnit("kg");
-        prod2.setCurrentStock(BigDecimal.valueOf(100));
+        prod2.setCurrentStock(BigDecimal.TEN);
         prod2.setHidden(false);
 
         StockPrediction pred1 = StockPrediction.builder()
                 .id(p1)
                 .product(prod1)
-                .projectedConsumption(BigDecimal.valueOf(10))
+                .projectedConsumption(BigDecimal.TEN)
                 .build();
         StockPrediction pred2 = StockPrediction.builder()
                 .id(p2)
                 .product(prod2)
-                .projectedConsumption(BigDecimal.valueOf(10))
+                .projectedConsumption(BigDecimal.TEN)
                 .build();
 
-        // page containing both predictions
+        // Expiring batch for p2
+        ProductBatch expiringBatch = ProductBatch.builder().product(prod2).build();
+        when(productBatchService.getExpiringBatches(7)).thenReturn(List.of(expiringBatch));
+        when(predictionRepository.findAllActive()).thenReturn(List.of(pred1, pred2));
+
         Pageable pageable = PageRequest.of(0, 10);
-        Page<StockPrediction> pageEntity = new PageImpl<>(List.of(pred1, pred2));
-
-        when(predictionRepository.findAll(pageable)).thenReturn(pageEntity);
-
         Page<StockPredictionResponseDTO> result = stockAlertService.getAllPredictions(pageable);
 
-        // both persisted predictions must be returned
-        assertEquals(2, result.getContent().size());
+        assertEquals(1, result.getContent().size());
         assertEquals(p1, result.getContent().get(0).getProductId());
-        assertEquals(p2, result.getContent().get(1).getProductId());
+        assertEquals(AlertType.PREDICTION, result.getContent().get(0).getAlertType());
     }
 
     @Test

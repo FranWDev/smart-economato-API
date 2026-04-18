@@ -48,7 +48,7 @@ public class FileStorageService {
         try {
             Files.createDirectories(this.basePath);
         } catch (IOException e) {
-            throw new RuntimeException("Unable to initialize upload directory", e);
+            throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_FILE_STORAGE_INIT), e);
         }
     }
 
@@ -69,7 +69,7 @@ public class FileStorageService {
             Files.copy(file.getInputStream(), target, StandardCopyOption.REPLACE_EXISTING);
             return basePath.relativize(target).toString().replace('\\', '/');
         } catch (IOException e) {
-            throw new RuntimeException("Unable to store incident attachment", e);
+            throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_FILE_STORAGE_SAVE), e);
         }
     }
 
@@ -85,7 +85,7 @@ public class FileStorageService {
             }
             return resource;
         } catch (MalformedURLException e) {
-            throw new RuntimeException("Unable to load file resource", e);
+            throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_FILE_STORAGE_LOAD), e);
         }
     }
 

@@ -11,6 +11,8 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.cache.event.NewLedgerTransactionEvent;
 import com.economato.inventory.infrastructure.config.security.BlockchainProperties;
 import com.economato.inventory.infrastructure.config.security.LedgerProperties;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -41,7 +43,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
 @Service
-@Profile({"!test", "kafka-test"})
+@Profile({ "!test", "kafka-test" })
 public class BlockchainService {
 
     private static final LocalDateTime GENESIS_TIMESTAMP = LocalDateTime.of(2026, 1, 1, 0, 0, 0);
@@ -60,6 +62,7 @@ public class BlockchainService {
     private final TransactionTemplate readTx;
     private final TransactionTemplate writeTx;
     private final Timer verificationTimer;
+    private final I18nService i18nService;
 
     public BlockchainService(
             LedgerBlockRepository blockRepository,
@@ -70,9 +73,11 @@ public class BlockchainService {
             BlockchainMerkleVerificationService merkleVerificationService,
             LedgerProperties ledgerProperties,
             BlockchainProperties blockchainProperties,
-            Optional<AuditEventProducer> auditEventProducer,
             PlatformTransactionManager txManager,
-            MeterRegistry meterRegistry) {
+            MeterRegistry meterRegistry,
+            I18nService i18nService,
+            Optional<AuditEventProducer> auditEventProducer) {
+        this.i18nService = i18nService;
         this.blockRepository = blockRepository;
         this.ledgerRepository = ledgerRepository;
         this.snapshotRepository = snapshotRepository;
@@ -164,30 +169,35 @@ public class BlockchainService {
     }
 
     private void ensureGenesisBlock() {
-        writeTx.executeWithoutResult(status -> {
-            Optional<LedgerBlock> latest = blockRepository.findTopByOrderByBlockNumberDesc();
-            if (latest.isPresent()) {
-                return;
-            }
+        try {
+            writeTx.executeWithoutResult(status -> {
+                Optional<LedgerBlock> latest = blockRepository.findTopByOrderByBlockNumberDesc();
+                if (latest.isPresent()) {
+                    return;
+                }
 
-            String merkleRoot = hmacSha256("GENESIS_BLOCK");
-            String blockHash = hmacSha256("0|" + GENESIS_PREVIOUS_HASH + "|" + merkleRoot + "|" + GENESIS_TIMESTAMP + "|0");
+                String merkleRoot = hmacSha256("GENESIS_BLOCK");
+                String blockHash = hmacSha256(
+                        "0|" + GENESIS_PREVIOUS_HASH + "|" + merkleRoot + "|" + GENESIS_TIMESTAMP + "|0");
 
-            LedgerBlock genesis = LedgerBlock.builder()
-                    .blockNumber(0L)
-                    .previousBlockHash(GENESIS_PREVIOUS_HASH)
-                    .merkleRoot(merkleRoot)
-                    .blockHash(blockHash)
-                    .nonce(0L)
-                    .difficulty(0)
-                    .timestamp(GENESIS_TIMESTAMP)
-                    .transactionCount(0)
-                    .hmacKeyVersion(ledgerProperties.getCurrentHmacVersion())
-                    .build();
+                LedgerBlock genesis = LedgerBlock.builder()
+                        .blockNumber(0L)
+                        .previousBlockHash(GENESIS_PREVIOUS_HASH)
+                        .merkleRoot(merkleRoot)
+                        .blockHash(blockHash)
+                        .nonce(0L)
+                        .difficulty(0)
+                        .timestamp(GENESIS_TIMESTAMP)
+                        .transactionCount(0)
+                        .hmacKeyVersion(ledgerProperties.getCurrentHmacVersion())
+                        .build();
 
-            blockRepository.save(genesis);
-            log.info("Genesis block created: hash={}", blockHash);
-        });
+                blockRepository.save(genesis);
+                log.info("Genesis block created: hash={}", blockHash);
+            });
+        } catch (DataIntegrityViolationException e) {
+            log.debug("Genesis block collision detected. It was likely created by another thread.");
+        }
     }
 
     private MiningCandidate readCandidate() {
@@ -199,7 +209,8 @@ public class BlockchainService {
             }
 
             LedgerBlock latest = blockRepository.findTopByOrderByBlockNumberDesc()
-                    .orElseThrow(() -> new IllegalStateException("Genesis block should exist before mining"));
+                    .orElseThrow(() -> new IllegalStateException(
+                            i18nService.getMessage(MessageKey.ERROR_INTERNAL_SERVER_ERROR)));
 
             List<Long> txIds = pending.stream().map(StockLedger::getId).toList();
             List<String> txHashes = pending.stream().map(StockLedger::getCurrentHash).toList();
@@ -286,7 +297,7 @@ public class BlockchainService {
             }
             return hex.toString();
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to compute HMAC-SHA256", e);
+            throw new IllegalStateException(i18nService.getMessage(MessageKey.ERROR_BLOCK_HASH_CALCULATION_FAILED), e);
         }
     }
 

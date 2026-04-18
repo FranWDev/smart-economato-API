@@ -105,12 +105,15 @@ public class SupplierService {
     }
 
     @Transactional(readOnly = true)
-    public List<SupplierResponseDTO> findByNameOrEmailOrPhoneContaining(String term) {
+    public Page<SupplierResponseDTO> findByNameOrEmailOrPhoneContaining(String term, Pageable pageable) {
+        String normalized = term == null ? "" : term.trim();
+
         return repository
                 .findProjectedByNameContainingIgnoreCaseOrEmailContainingIgnoreCaseOrPhoneContainingIgnoreCase(
-                        term, term, term)
-                .stream()
-                .map(supplierMapper::toResponseDTO)
-                .toList();
+                        normalized,
+                        normalized,
+                        normalized,
+                        pageable)
+                .map(supplierMapper::toResponseDTO);
     }
 }

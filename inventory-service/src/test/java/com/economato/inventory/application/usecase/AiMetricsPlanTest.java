@@ -62,6 +62,7 @@ import com.economato.inventory.infrastructure.config.ai.AiRateLimitProperties;
 import com.economato.inventory.infrastructure.config.ai.AiSmgProperties;
 import com.economato.inventory.infrastructure.config.ai.AiVaultProperties;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -85,6 +86,7 @@ class AiMetricsPlanTest {
     @Mock private RestClient nestRestClient;
     @Mock private RestClient.RequestBodyUriSpec requestBodyUriSpec;
     @Mock private RestClient.RequestBodySpec requestBodySpec;
+    @Mock private I18nService i18nService;
 
     private SimpleMeterRegistry meterRegistry;
     private AiRateLimitProperties rateLimitProperties;
@@ -258,7 +260,8 @@ class AiMetricsPlanTest {
                 circuitBreakerRegistry,
                 meterRegistry,
                 new ObjectMapper(),
-                Optional.of(auditEventProducer)
+                Optional.of(auditEventProducer),
+                i18nService
         );
 
         bridge.streamCompletion(
@@ -278,7 +281,8 @@ class AiMetricsPlanTest {
             globalApiKeyRepository,
                 rateLimitProperties,
                 meterRegistry,
-                Optional.of(auditEventProducer)
+                Optional.of(auditEventProducer),
+                i18nService
         );
     }
 
@@ -337,7 +341,8 @@ class AiMetricsPlanTest {
                 providerProperties,
                 nestProperties(),
                 meterRegistry,
-                Optional.of(auditEventProducer)
+                Optional.of(auditEventProducer),
+                i18nService
         );
     }
 

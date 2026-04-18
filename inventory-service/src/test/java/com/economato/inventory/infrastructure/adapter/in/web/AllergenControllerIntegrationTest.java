@@ -160,7 +160,7 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
                                 .param("name", allergen.getName())
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.name", is(allergen.getName())));
+                                .andExpect(jsonPath("$[0].name", is(allergen.getName())));
         }
 
         @Test
@@ -178,7 +178,7 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
                                 .param("name", "lAcToSa")
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.name", is("Lactosa")));
+                                .andExpect(jsonPath("$[0].name", is("Lactosa")));
         }
 
         @Test
@@ -187,6 +187,6 @@ class AllergenControllerIntegrationTest extends BaseIntegrationTest {
                                 .param("name", "NoExiste")
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
-                                .andExpect(content().string(""));
+                                .andExpect(content().string("[]"));
         }
 }

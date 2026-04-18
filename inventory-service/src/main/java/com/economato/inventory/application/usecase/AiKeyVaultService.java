@@ -28,6 +28,8 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.ai.AiProviderProperties;
 import com.economato.inventory.infrastructure.config.ai.AiRateLimitProperties;
 import com.economato.inventory.infrastructure.config.ai.AiVaultProperties;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -53,6 +55,7 @@ public class AiKeyVaultService {
     private final AiRateLimitProperties aiRateLimitProperties;
     private final MeterRegistry meterRegistry;
     private final Optional<AuditEventProducer> auditEventProducer;
+    private final I18nService i18nService;
 
     public void saveKey(Integer userId, AiProvider provider, String plainApiKey) {
         validateInputs(userId, provider, plainApiKey);
@@ -96,7 +99,7 @@ public class AiKeyVaultService {
 
         UserApiKey existing = userApiKeyRepository
                 .findByUserIdAndProviderAndActiveTrue(userId, provider)
-                .orElseThrow(() -> new ResourceNotFoundException("Active API key not found for provider: " + provider));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
         applyEncryptedKey(existing, newPlainApiKey);
         UserApiKey saved = userApiKeyRepository.save(existing);
@@ -112,7 +115,7 @@ public class AiKeyVaultService {
     @Transactional(readOnly = true)
     public String getDecryptedKey(Integer userId, AiProvider provider) {
         if (provider == null) {
-            throw new InvalidOperationException("Provider is required");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_PROVIDER_REQUIRED));
         }
 
         try {
@@ -124,7 +127,7 @@ public class AiKeyVaultService {
 
             UserApiKey key = userApiKeyRepository
                     .findByUserIdAndProviderAndActiveTrue(userId, provider)
-                    .orElseThrow(() -> new ResourceNotFoundException("Active API key not found for provider: " + provider));
+                    .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
             return decrypt(key.getEncryptedKey());
         }
@@ -133,12 +136,12 @@ public class AiKeyVaultService {
     @Transactional(readOnly = true)
     public String getDecryptedKey(AiProvider provider) {
         if (provider == null) {
-            throw new InvalidOperationException("Provider is required");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_PROVIDER_REQUIRED));
         }
 
         GlobalApiKey key = globalApiKeyRepository
                 .findByProviderAndActiveTrue(provider)
-                .orElseThrow(() -> new ResourceNotFoundException("Active global API key not found for provider: " + provider));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_AI_NO_GLOBAL_KEY, provider)));
 
         return decrypt(key.getEncryptedKey());
     }
@@ -184,7 +187,7 @@ public class AiKeyVaultService {
 
         GlobalApiKey existing = globalApiKeyRepository
                 .findByProviderAndActiveTrue(provider)
-                .orElseThrow(() -> new ResourceNotFoundException("Active global API key not found for provider: " + provider));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_AI_NO_GLOBAL_KEY, provider)));
 
         applyEncryptedKey(existing, plainApiKey);
         existing.setUpdatedBy(buildUserRef(adminUserId));
@@ -200,11 +203,11 @@ public class AiKeyVaultService {
 
     public void deleteGlobalKey(AiProvider provider, Integer adminUserId) {
         if (provider == null || adminUserId == null) {
-            throw new InvalidOperationException("Admin and provider are required");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_ADMIN_PROVIDER_REQUIRED));
         }
 
         GlobalApiKey key = globalApiKeyRepository.findByProvider(provider)
-                .orElseThrow(() -> new ResourceNotFoundException("Global API key not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
         globalApiKeyRepository.delete(key);
         publishAudit(AiAuditEvent.builder()
                 .eventType("AI_KEY_REMOVED")
@@ -229,12 +232,12 @@ public class AiKeyVaultService {
 
     public void deleteKey(Integer userId, Long keyId) {
         if (userId == null || keyId == null) {
-            throw new InvalidOperationException("User and key id are required");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_USER_KEY_ID_REQUIRED));
         }
 
         UserApiKey key = userApiKeyRepository
                 .findByIdAndUserId(keyId, userId)
-                .orElseThrow(() -> new ResourceNotFoundException("API key not found"));
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
         AiProvider provider = key.getProvider();
         userApiKeyRepository.delete(key);
@@ -249,7 +252,7 @@ public class AiKeyVaultService {
     @Transactional(readOnly = true)
     public List<ApiKeyMetadata> listKeys(Integer userId) {
         if (userId == null) {
-            throw new InvalidOperationException("User is required");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_USER_REQUIRED));
         }
 
         return userApiKeyRepository.findByUserIdAndActiveTrue(userId).stream()
@@ -265,7 +268,7 @@ public class AiKeyVaultService {
 
     public void reEncryptAll(int fromVersion, int toVersion) {
         if (fromVersion < 1 || toVersion < 1) {
-            throw new InvalidOperationException("Key versions must be >= 1");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_KEY_VERSION_INVALID));
         }
         if (fromVersion == toVersion) {
             return;
@@ -298,7 +301,7 @@ public class AiKeyVaultService {
     private void enforceUserApiKeyLimit(Integer userId) {
         List<UserApiKey> activeKeys = userApiKeyRepository.findByUserIdAndActiveTrue(userId);
         if (activeKeys.size() >= aiRateLimitProperties.getMaxApiKeysPerUser()) {
-            throw new InvalidOperationException("Maximum number of API keys reached for this user");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_MAX_KEYS_REACHED));
         }
     }
 
@@ -306,24 +309,24 @@ public class AiKeyVaultService {
         Map<String, AiProviderProperties.ProviderConfig> configs = aiProviderProperties.getConfigs();
         AiProviderProperties.ProviderConfig config = configs != null ? configs.get(provider.name()) : null;
         if (config == null) {
-            throw new InvalidOperationException("Provider config not found: " + provider);
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_PROVIDER_CONFIG_NOT_FOUND, provider));
         }
         if (Boolean.FALSE.equals(config.getEnabled())) {
-            throw new InvalidOperationException("Provider disabled: " + provider);
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_PROVIDER_DISABLED, provider));
         }
 
         String expectedPrefix = config.getKeyPrefix();
         if (expectedPrefix != null && !expectedPrefix.isBlank() && !plainApiKey.startsWith(expectedPrefix)) {
-            throw new InvalidOperationException("Invalid API key format for provider: " + provider);
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_INVALID_KEY_FORMAT, provider));
         }
     }
 
     private void validateInputs(Integer userId, AiProvider provider, String plainApiKey) {
         if (userId == null || provider == null) {
-            throw new InvalidOperationException("User and provider are required");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_USER_PROVIDER_REQUIRED));
         }
         if (plainApiKey == null || plainApiKey.isBlank()) {
-            throw new InvalidOperationException("API key cannot be blank");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_KEY_BLANK));
         }
     }
 
@@ -360,7 +363,7 @@ public class AiKeyVaultService {
             counter("ai.vault.encryptions.total").increment();
             return keyVersion + ":" + ivPart + ":" + encryptedPart;
         } catch (Exception ex) {
-            throw new InvalidOperationException("Failed to encrypt API key");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_ENCRYPTION_FAILED));
         } finally {
             sample.stop(timer("ai.vault.crypto.duration"));
         }
@@ -371,14 +374,14 @@ public class AiKeyVaultService {
         try {
             String[] parts = encryptedPayload != null ? encryptedPayload.split(":", 3) : new String[0];
             if (parts.length != 3) {
-                throw new InvalidOperationException("Invalid encrypted payload format");
+                throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_DECRYPTION_INVALID_FORMAT));
             }
 
             int version;
             try {
                 version = Integer.parseInt(parts[0]);
             } catch (NumberFormatException ex) {
-                throw new InvalidOperationException("Invalid encrypted payload version");
+                throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_DECRYPTION_INVALID_VERSION));
             }
 
             byte[] iv = Base64.getDecoder().decode(parts[1]);
@@ -395,7 +398,7 @@ public class AiKeyVaultService {
         } catch (InvalidOperationException ex) {
             throw ex;
         } catch (Exception ex) {
-            throw new InvalidOperationException("Failed to decrypt API key");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_DECRYPTION_FAILED));
         } finally {
             sample.stop(timer("ai.vault.crypto.duration"));
         }
@@ -416,7 +419,7 @@ public class AiKeyVaultService {
 
     private byte[] decodeHex(String hex) {
         if (hex == null || hex.isBlank() || (hex.length() % 2 != 0)) {
-            throw new InvalidOperationException("Invalid vault key format");
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_VAULT_KEY_INVALID));
         }
 
         int len = hex.length();
@@ -425,7 +428,7 @@ public class AiKeyVaultService {
             int hi = Character.digit(hex.charAt(i), 16);
             int lo = Character.digit(hex.charAt(i + 1), 16);
             if (hi < 0 || lo < 0) {
-                throw new InvalidOperationException("Invalid vault key format");
+                throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_VAULT_KEY_INVALID));
             }
             out[i / 2] = (byte) ((hi << 4) + lo);
         }

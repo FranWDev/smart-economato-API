@@ -53,6 +53,8 @@ import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
 import com.economato.inventory.infrastructure.config.ai.AiProviderProperties;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 
+import com.economato.inventory.infrastructure.config.web.I18nService;
+
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
@@ -73,6 +75,8 @@ class AiChatServiceTest {
     private AiRateLimitService aiRateLimitService;
     @Mock
     private SecurityContextHelper securityContextHelper;
+    @Mock
+    private I18nService i18nService;
 
     private AiChatService service;
     private User currentUser;
@@ -106,7 +110,8 @@ class AiChatServiceTest {
                 providerProperties,
                 nestProperties,
                 new SimpleMeterRegistry(),
-                Optional.empty()
+                Optional.empty(),
+                i18nService
         );
 
         currentUser = new User();
