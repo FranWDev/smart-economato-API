@@ -1,0 +1,51 @@
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
+# REDIRECCIÓN PROFESIONAL HTTP -> HTTPS
+server {
+    listen ${NGINX_HTTP_PORT};
+    server_name _;
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# BLOQUE SEGURO COMPLETO
+server {
+    listen ${NGINX_HTTPS_PORT} ssl;
+    server_name _;
+    ssl_certificate /etc/nginx/certs/local.crt;
+    ssl_certificate_key /etc/nginx/certs/local.key;
+    client_max_body_size 50m;
+
+    location /monitor/ {
+        proxy_pass http://inventory-grafana:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Port ${NGINX_HTTPS_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+
+    location /api/ {
+        proxy_pass http://inventory-backend:8081;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_read_timeout 300s;
+    }
+
+    location / {
+        proxy_pass http://inventory-frontend:80;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
