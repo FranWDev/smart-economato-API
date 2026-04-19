@@ -33,6 +33,7 @@ import com.itextpdf.layout.Document;
 import com.itextpdf.layout.borders.Border;
 import com.itextpdf.layout.borders.SolidBorder;
 import com.itextpdf.layout.element.Cell;
+import com.itextpdf.layout.element.Div;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.properties.TextAlignment;
@@ -184,11 +185,16 @@ public class KitchenReportPdfService {
 
     private void addEconomicAnalysisSection(Document document, KitchenReportResponseDTO report, PdfFont boldFont, PdfFont regularFont) {
         document.add(new Paragraph("\n"));
-        addSectionTitle(document, i18nService.getMessage(MessageKey.REPORT_SECTION_ECONOMIC_ANALYSIS), boldFont);
+
+        // Usamos un Div con setKeepTogether(true) para asegurar que el título y la tabla no se separen entre páginas
+        Div container = new Div().setKeepTogether(true);
+
+        container.add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_SECTION_ECONOMIC_ANALYSIS))
+                .setFont(boldFont).setFontSize(14).setFontColor(SECTION_TITLE_COLOR)
+                .setMarginBottom(4).setPaddingBottom(8).setBorderBottom(new SolidBorder(PRIMARY_COLOR, 2)));
 
         Table table = new Table(UnitValue.createPercentArray(new float[] { 1, 1 }))
-                .setWidth(UnitValue.createPercentValue(100)).setMarginTop(8).setKeepTogether(true);
-
+                .setWidth(UnitValue.createPercentValue(100)).setMarginTop(8);
 
         addInfoPair(table, i18nService.getMessage(MessageKey.REPORT_LABEL_TOTAL_ESTIMATED_COST), formatCurrency(report.getTotalEstimatedCost()), boldFont, regularFont);
         addInfoPair(table, i18nService.getMessage(MessageKey.REPORT_LABEL_TOTAL_WASTE_COST), formatCurrency(report.getTotalWasteCost()), boldFont, regularFont);
@@ -196,7 +202,14 @@ public class KitchenReportPdfService {
         addInfoPair(table, i18nService.getMessage(MessageKey.REPORT_LABEL_GROSS_PROFIT), formatCurrency(report.getGrossProfit()), boldFont, regularFont);
         addInfoPair(table, i18nService.getMessage(MessageKey.REPORT_LABEL_NET_PROFIT), formatCurrency(report.getNetProfit()), boldFont, regularFont);
 
-        document.add(table);
+        container.add(table);
+
+        // Añadimos nota explicativa sobre la merma/beneficio
+        container.add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_ECONOMIC_ANALYSIS_EXPLANATION))
+                .setFont(regularFont).setFontSize(8).setFontColor(TEXT_GRAY).setItalic()
+                .setMarginTop(8).setMarginBottom(16));
+
+        document.add(container);
     }
 
 
@@ -323,6 +336,6 @@ public class KitchenReportPdfService {
     }
 
     private String sanitizePdfText(String value) {
-        return value == null ? "" : value.replaceAll("[^\\u0009\\u000A\\u000D\\u0020-\\u00FF]", "");
+        return value == null ? "" : value.replaceAll("[^\\u0009\\u000A\\u000D\\u0020-\\u00FF\\u20AC]", "");
     }
 }

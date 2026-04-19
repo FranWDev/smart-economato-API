@@ -430,7 +430,8 @@ public enum MessageKey {
     REPORT_LABEL_GROSS_PROFIT("report.label.gross.profit"),
     REPORT_LABEL_NET_PROFIT("report.label.net.profit"),
     REPORT_COLUMN_GROSS_QUANTITY("report.column.gross.quantity"),
-    REPORT_LABEL_SELLING_PRICE("report.label.selling.price");
+    REPORT_LABEL_SELLING_PRICE("report.label.selling.price"),
+    REPORT_ECONOMIC_ANALYSIS_EXPLANATION("report.economic.analysis.explanation");
 
     private final String key;
 
