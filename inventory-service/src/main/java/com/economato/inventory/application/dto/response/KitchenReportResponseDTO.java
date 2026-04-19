@@ -21,8 +21,13 @@ public class KitchenReportResponseDTO {
     private Integer distinctProductsUsed;
     
     private BigDecimal totalEstimatedCost;
+    private BigDecimal totalWasteCost;
+    private BigDecimal totalSales;
+    private BigDecimal grossProfit; // Sales - Net Cost
+    private BigDecimal netProfit;   // Sales - Gross Cost
     
     private List<RecipeStatDTO> topRecipes;
+
     private List<UserStatDTO> topUsers;
     private List<ProductStatDTO> topProducts;
 }

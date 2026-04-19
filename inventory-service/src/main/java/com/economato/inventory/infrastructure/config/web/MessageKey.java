@@ -423,9 +423,18 @@ public enum MessageKey {
     REPORT_DAY_6("report.day.6"),
     REPORT_DAY_7("report.day.7"),
     REPORT_LABEL_STUDENTS("report.label.students"),
-    ERROR_REPORT_WEEKLY_PLAN_PDF_GENERATION("error.report.weekly.plan.pdf.generation");
+    ERROR_REPORT_WEEKLY_PLAN_PDF_GENERATION("error.report.weekly.plan.pdf.generation"),
+    REPORT_SECTION_ECONOMIC_ANALYSIS("report.section.economic.analysis"),
+    REPORT_LABEL_TOTAL_WASTE_COST("report.label.total.waste.cost"),
+    REPORT_LABEL_TOTAL_SALES("report.label.total.sales"),
+    REPORT_LABEL_GROSS_PROFIT("report.label.gross.profit"),
+    REPORT_LABEL_NET_PROFIT("report.label.net.profit"),
+    REPORT_COLUMN_GROSS_QUANTITY("report.column.gross.quantity"),
+    REPORT_LABEL_SELLING_PRICE("report.label.selling.price");
 
     private final String key;
+
+
 
     MessageKey(String key) {
         this.key = key;

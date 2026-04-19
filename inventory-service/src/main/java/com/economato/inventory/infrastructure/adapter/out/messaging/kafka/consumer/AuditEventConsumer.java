@@ -208,6 +208,10 @@ public class AuditEventConsumer {
             audit.setComponentsState(event.getComponentsState());
             audit.setCookingDate(event.getCookingDate());
             audit.setCorrelationId(event.getCorrelationId());
+            audit.setSellingPrice(event.getSellingPrice());
+            audit.setTotalGrossCost(event.getTotalGrossCost());
+            audit.setTotalNetCost(event.getTotalNetCost());
+
 
             recipeCookingAuditRepository.save(audit);
 

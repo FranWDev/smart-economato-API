@@ -20,6 +20,10 @@ public class KitchenReportMapper {
             int distinctUsers,
             int distinctProducts,
             BigDecimal totalCost,
+            BigDecimal totalWasteCost,
+            BigDecimal totalSales,
+            BigDecimal grossProfit,
+            BigDecimal netProfit,
             List<RecipeStatDTO> topRecipes,
             List<UserStatDTO> topUsers,
             List<ProductStatDTO> topProducts) {
@@ -32,9 +36,14 @@ public class KitchenReportMapper {
                 .distinctUsersCooking(distinctUsers)
                 .distinctProductsUsed(distinctProducts)
                 .totalEstimatedCost(totalCost)
+                .totalWasteCost(totalWasteCost)
+                .totalSales(totalSales)
+                .grossProfit(grossProfit)
+                .netProfit(netProfit)
                 .topRecipes(topRecipes)
                 .topUsers(topUsers)
                 .topProducts(topProducts)
                 .build();
+
     }
 }

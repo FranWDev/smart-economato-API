@@ -154,6 +154,18 @@ public class GlobalExceptionHandler {
                         "timestamp", Instant.now().toString()));
     }
 
+    @ExceptionHandler(OrderReceptionAlreadyProcessedException.class)
+    public ResponseEntity<Map<String, Object>> handleOrderReceptionAlreadyProcessedException(OrderReceptionAlreadyProcessedException ex) {
+        log.warn("Recepcion ya procesada: orderId={}, currentStatus={}", ex.getOrderId(), ex.getCurrentStatus());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+            .body(Map.of(
+                "status", 409,
+                "message", ex.getMessage(),
+                "orderId", ex.getOrderId(),
+                "currentStatus", ex.getCurrentStatus(),
+                "timestamp", Instant.now().toString()));
+    }
+
     @ExceptionHandler(PessimisticLockingFailureException.class)
     public ResponseEntity<ErrorResponse> handlePessimisticLockingFailureException(
             PessimisticLockingFailureException ex) {

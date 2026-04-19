@@ -22,14 +22,20 @@ public interface RecipeComponentMapper {
     @Mapping(source = "parentRecipe.id", target = "parentRecipeId")
     @Mapping(source = "product.id", target = "productId")
     @Mapping(source = "product.name", target = "productName")
+    @Mapping(source = "product.unitPrice", target = "unitPrice")
+    @Mapping(source = "product.availabilityPercentage", target = "availabilityPercentage")
     @Mapping(source = ".", target = "subtotal", qualifiedByName = "calculateSubtotal")
     RecipeComponentResponseDTO toResponseDTO(RecipeComponent component);
+
 
     @Mapping(target = "parentRecipeId", ignore = true)
     @Mapping(source = "summary.product.id", target = "productId")
     @Mapping(source = "summary.product.name", target = "productName")
+    @Mapping(source = "summary.product.unitPrice", target = "unitPrice")
+    @Mapping(source = "summary.product.availabilityPercentage", target = "availabilityPercentage")
     @Mapping(source = "summary", target = "subtotal", qualifiedByName = "calculateSubtotalFromSummary")
     RecipeComponentResponseDTO toResponseDTO(RecipeProjection.RecipeComponentSummary summary);
+
 
     @Named("calculateSubtotalFromSummary")
     default BigDecimal calculateSubtotalFromSummary(RecipeProjection.RecipeComponentSummary summary) {
@@ -80,7 +86,10 @@ public interface RecipeComponentMapper {
     @Mapping(source = "parentRecipe.id", target = "parentRecipeId")
     @Mapping(source = "product.id", target = "productId")
     @Mapping(source = "product.name", target = "productName")
+    @Mapping(source = "product.unitPrice", target = "unitPrice")
+    @Mapping(source = "product.availabilityPercentage", target = "availabilityPercentage")
     @Mapping(source = ".", target = "subtotal", qualifiedByName = "calculateSubtotalFromProjection")
+
     RecipeComponentResponseDTO toResponseDTO(
             RecipeComponentProjection projection);
 

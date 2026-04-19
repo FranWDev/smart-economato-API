@@ -29,4 +29,11 @@ public class RecipeComponentResponseDTO {
 
     @Schema(description = "Subtotal del producto en la receta (cantidad * precio unitario)", example = "10.50")
     private BigDecimal subtotal;
+
+    @Schema(description = "Precio unitario del producto al momento de la consulta", example = "4.20")
+    private BigDecimal unitPrice;
+
+    @Schema(description = "Porcentaje de disponibilidad del producto (merma)", example = "85.0")
+    private BigDecimal availabilityPercentage;
+
 }
