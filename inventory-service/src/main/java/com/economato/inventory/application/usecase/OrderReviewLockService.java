@@ -230,7 +230,7 @@ public class OrderReviewLockService {
         }
 
         OrderCollaborationEntry collaborationEntry = ensureCollaborationEntry(orderId, lockEntry);
-        cleanupExpiredFieldLocks(collaborationEntry);
+        cleanupExpiredFieldLocks(orderId, collaborationEntry);
         return toCollaborationResponse(orderId, lockEntry, collaborationEntry, currentUser);
     }
 
@@ -283,7 +283,7 @@ public class OrderReviewLockService {
         ensureCanCollaborate(orderId, lockEntry, collaborationEntry, currentUser);
 
         String normalizedFieldPath = normalizeFieldPath(fieldPath);
-        cleanupExpiredFieldLocks(collaborationEntry);
+        cleanupExpiredFieldLocks(orderId, collaborationEntry);
 
         LocalDateTime now = LocalDateTime.now();
         FieldLockEntry existing = collaborationEntry.fieldLocksByPath.get(normalizedFieldPath);
@@ -350,7 +350,7 @@ public class OrderReviewLockService {
         ensureCanCollaborate(orderId, lockEntry, collaborationEntry, currentUser);
 
         String normalizedFieldPath = normalizeFieldPath(fieldPath);
-        cleanupExpiredFieldLocks(collaborationEntry);
+        cleanupExpiredFieldLocks(orderId, collaborationEntry);
 
         FieldLockEntry existing = collaborationEntry.fieldLocksByPath.get(normalizedFieldPath);
         if (existing != null && !existing.lockedByUserId.equals(currentUser.getId()) && !isAdmin(currentUser)) {
@@ -382,7 +382,7 @@ public class OrderReviewLockService {
             return expired;
         });
 
-        collaborationByOrderId.forEach((orderId, collaborationEntry) -> cleanupExpiredFieldLocks(collaborationEntry));
+        collaborationByOrderId.forEach((orderId, collaborationEntry) -> cleanupExpiredFieldLocks(orderId, collaborationEntry));
     }
 
     private void cleanupIfExpired(Integer orderId) {
@@ -447,9 +447,16 @@ public class OrderReviewLockService {
         return fieldPath.trim();
     }
 
-    private void cleanupExpiredFieldLocks(OrderCollaborationEntry collaborationEntry) {
+    private void cleanupExpiredFieldLocks(Integer orderId, OrderCollaborationEntry collaborationEntry) {
         LocalDateTime now = LocalDateTime.now();
-        collaborationEntry.fieldLocksByPath.entrySet().removeIf(entry -> entry.getValue().expiresAt.isBefore(now));
+        collaborationEntry.fieldLocksByPath.entrySet().removeIf(entry -> {
+            boolean expired = entry.getValue().expiresAt.isBefore(now);
+            if (expired) {
+                broadcastCollaborationEvent(orderId, "COLLAB_FIELD_UNLOCKED", entry.getValue().lockedByUsername,
+                        Map.of("fieldPath", entry.getValue().fieldPath, "reason", "EXPIRED"));
+            }
+            return expired;
+        });
     }
 
     private OrderReviewCollaborationStateResponseDTO toCollaborationResponse(
