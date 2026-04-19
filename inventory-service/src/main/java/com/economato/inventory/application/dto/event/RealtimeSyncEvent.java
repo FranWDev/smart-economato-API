@@ -3,6 +3,7 @@ package com.economato.inventory.application.dto.event;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -74,4 +75,10 @@ public class RealtimeSyncEvent {
      * Momento en que se realizó la operación.
      */
     private LocalDateTime timestamp;
+
+    /**
+     * Metadatos opcionales para eventos colaborativos en tiempo real.
+     */
+    @Builder.Default
+    private Map<String, Object> metadata = Collections.emptyMap();
 }

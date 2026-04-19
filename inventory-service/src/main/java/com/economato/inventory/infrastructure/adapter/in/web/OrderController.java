@@ -22,11 +22,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.economato.inventory.application.dto.request.OrderReceptionRequestDTO;
+import com.economato.inventory.application.dto.request.OrderCollaborationFieldLockRequestDTO;
+import com.economato.inventory.application.dto.request.OrderCollaborationFieldPatchRequestDTO;
 import com.economato.inventory.application.dto.request.OrderRequestDTO;
 import com.economato.inventory.application.dto.request.OrdersByProductsRequestDTO;
 import com.economato.inventory.application.dto.response.OrderDetailResponseDTO;
 import com.economato.inventory.application.dto.response.OrderFilterResponseDTO;
 import com.economato.inventory.application.dto.response.OrderReviewLockResponseDTO;
+import com.economato.inventory.application.dto.response.OrderReviewCollaborationStateResponseDTO;
 import com.economato.inventory.application.dto.response.OrdersByProductsResponseDTO;
 import com.economato.inventory.application.dto.response.OrderResponseDTO;
 import com.economato.inventory.application.dto.response.OrderTotalCostResponseDTO;
@@ -309,6 +312,58 @@ public class OrderController {
         public ResponseEntity<OrderReviewLockResponseDTO> releaseReviewLock(
                         @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id) {
                 return ResponseEntity.ok(orderReviewLockService.releaseLock(id));
+        }
+
+        @Operation(summary = "Consultar estado de colaboración de revisión", description = "Devuelve participantes activos, solicitudes pendientes, bloqueos por campo y valores parcheados en tiempo real.")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @GetMapping("/{id}/review-collaboration")
+        public ResponseEntity<OrderReviewCollaborationStateResponseDTO> getReviewCollaborationState(
+                        @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id) {
+                return ResponseEntity.ok(orderReviewLockService.getCollaborationState(id));
+        }
+
+        @Operation(summary = "Solicitar revisión compartida", description = "Registra solicitud del usuario actual para colaborar en una revisión ya abierta.")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @PostMapping("/{id}/review-collaboration/request")
+        public ResponseEntity<OrderReviewCollaborationStateResponseDTO> requestSharedReview(
+                        @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id) {
+                return ResponseEntity.ok(orderReviewLockService.requestSharedReview(id));
+        }
+
+        @Operation(summary = "Admitir solicitud de revisión compartida", description = "Admite a un usuario pendiente para colaborar en la revisión actual.")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @PostMapping("/{id}/review-collaboration/admit/{userId}")
+        public ResponseEntity<OrderReviewCollaborationStateResponseDTO> admitSharedReview(
+                        @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id,
+                        @Parameter(description = "ID del usuario a admitir", example = "9") @PathVariable Integer userId) {
+                return ResponseEntity.ok(orderReviewLockService.admitSharedReview(id, userId));
+        }
+
+        @Operation(summary = "Bloquear campo de revisión", description = "Solicita lock temporal para editar un campo concreto en colaboración.")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @PostMapping("/{id}/review-collaboration/fields/lock")
+        public ResponseEntity<OrderReviewCollaborationStateResponseDTO> lockCollaborationField(
+                        @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id,
+                        @Valid @org.springframework.web.bind.annotation.RequestBody OrderCollaborationFieldLockRequestDTO body) {
+                return ResponseEntity.ok(orderReviewLockService.lockField(id, body.getFieldPath()));
+        }
+
+        @Operation(summary = "Liberar lock de campo", description = "Libera lock temporal de un campo colaborativo.")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @DeleteMapping("/{id}/review-collaboration/fields/lock")
+        public ResponseEntity<OrderReviewCollaborationStateResponseDTO> unlockCollaborationField(
+                        @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id,
+                        @Parameter(description = "Ruta del campo", example = "detail:12:lot:0:quantity") @RequestParam String fieldPath) {
+                return ResponseEntity.ok(orderReviewLockService.unlockField(id, fieldPath));
+        }
+
+        @Operation(summary = "Parchear campo colaborativo", description = "Aplica y difunde en tiempo real el nuevo valor de un campo durante la revisión compartida.")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @PostMapping("/{id}/review-collaboration/fields/patch")
+        public ResponseEntity<OrderReviewCollaborationStateResponseDTO> patchCollaborationField(
+                        @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id,
+                        @Valid @org.springframework.web.bind.annotation.RequestBody OrderCollaborationFieldPatchRequestDTO body) {
+                return ResponseEntity.ok(orderReviewLockService.patchField(id, body.getFieldPath(), body.getValue()));
         }
 
         /**

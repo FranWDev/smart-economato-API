@@ -141,6 +141,19 @@ public class GlobalExceptionHandler {
                         "timestamp", Instant.now().toString()));
     }
 
+    @ExceptionHandler(OrderCollaborationFieldLockedException.class)
+    public ResponseEntity<Map<String, Object>> handleOrderCollaborationFieldLockedException(OrderCollaborationFieldLockedException ex) {
+        log.warn("Campo bloqueado en colaboración: orderId={}, fieldPath={}, lockedBy={}", ex.getOrderId(), ex.getFieldPath(), ex.getLockedBy());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of(
+                        "status", 409,
+                        "message", ex.getMessage(),
+                        "orderId", ex.getOrderId(),
+                        "fieldPath", ex.getFieldPath(),
+                        "lockedBy", ex.getLockedBy(),
+                        "timestamp", Instant.now().toString()));
+    }
+
     @ExceptionHandler(PessimisticLockingFailureException.class)
     public ResponseEntity<ErrorResponse> handlePessimisticLockingFailureException(
             PessimisticLockingFailureException ex) {

@@ -117,9 +117,10 @@ public class RealtimeSyncAspect {
         try {
             Object entityId = resolveEntityId(joinPoint, sync, result);
             List<Object> entityIds = new ArrayList<>(resolveEntityIds(sync, result));
-            
-            // Asegurar cohesión: el ID principal debe estar en la lista si esta existe
-            if (entityId != null && !entityIds.contains(entityId)) {
+
+            // Mantener la lista vacía cuando la estrategia es none; solo añadir el ID principal
+            // cuando ya existe una lista derivada del resultado.
+            if (entityId != null && !entityIds.isEmpty() && !entityIds.contains(entityId)) {
                 entityIds.add(entityId);
             }
 
