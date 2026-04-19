@@ -14,8 +14,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDateTime;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -26,11 +28,13 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import com.economato.inventory.application.dto.event.RealtimeSyncEvent;
 import com.economato.inventory.application.dto.response.OrderReviewLockResponseDTO;
 import com.economato.inventory.application.dto.response.OrderReviewCollaborationStateResponseDTO;
 import com.economato.inventory.domain.model.OrderStatus;
@@ -228,6 +232,49 @@ class OrderReviewLockServiceTest {
         InvalidOperationException fieldPathRequired = assertThrows(InvalidOperationException.class,
                 () -> service.lockField(orderId, " "));
         assertEquals(MessageKey.ERROR_ORDER_COLLAB_FIELD_PATH_REQUIRED.getKey(), fieldPathRequired.getMessage());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void cleanupExpiredLocks_emitsFieldUnlockedEventForExpiredFieldLocks() throws Exception {
+        Integer orderId = 707;
+        User owner = buildUser(70, "chef.owner", Role.CHEF);
+
+        userContext.set(owner);
+        service.acquireLock(orderId);
+        service.lockField(orderId, "detail:1:lot:0:quantity");
+
+        Field collabMapField = OrderReviewLockService.class.getDeclaredField("collaborationByOrderId");
+        collabMapField.setAccessible(true);
+        Map<Integer, Object> collaborationByOrderId = (Map<Integer, Object>) collabMapField.get(service);
+        Object collaborationEntry = collaborationByOrderId.get(orderId);
+        assertNotNull(collaborationEntry);
+
+        Field fieldLocksField = collaborationEntry.getClass().getDeclaredField("fieldLocksByPath");
+        fieldLocksField.setAccessible(true);
+        Map<String, Object> fieldLocks = (Map<String, Object>) fieldLocksField.get(collaborationEntry);
+        Object fieldLockEntry = fieldLocks.get("detail:1:lot:0:quantity");
+        assertNotNull(fieldLockEntry);
+
+        Field expiresAtField = fieldLockEntry.getClass().getDeclaredField("expiresAt");
+        expiresAtField.setAccessible(true);
+        expiresAtField.set(fieldLockEntry, LocalDateTime.now().minusSeconds(1));
+
+        service.cleanupExpiredLocks();
+
+        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(messagingTemplate, atLeastOnce()).convertAndSend(eq("/topic/sync"), eventCaptor.capture());
+
+        boolean unlockedByExpiryEmitted = eventCaptor.getAllValues().stream()
+                .filter(RealtimeSyncEvent.class::isInstance)
+                .map(RealtimeSyncEvent.class::cast)
+                .anyMatch(event -> "order_collab".equals(event.getEntityType())
+                        && "COLLAB_FIELD_UNLOCKED".equals(event.getAction())
+                        && event.getMetadata() != null
+                        && "detail:1:lot:0:quantity".equals(event.getMetadata().get("fieldPath"))
+                        && "EXPIRED".equals(event.getMetadata().get("reason")));
+
+        assertTrue(unlockedByExpiryEmitted, "Debe emitirse COLLAB_FIELD_UNLOCKED con reason=EXPIRED al limpiar locks vencidos");
     }
 
     private boolean tryAcquireWithBarrier(Integer orderId, User user, CountDownLatch start) throws Exception {
