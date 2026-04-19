@@ -54,6 +54,7 @@ class ConfigUsageIntegrationTest {
     @Mock private PersistentNotificationService persistentNotificationService;
     @Mock private I18nService i18nService;
     @Mock private ValidUnitService validUnitService;
+    @Mock private RecipeService recipeService;
 
     private void init() {
         lenient().when(systemConfigService.isPresenceAuditEnabled()).thenReturn(true);
@@ -189,7 +190,8 @@ class ConfigUsageIntegrationTest {
                 productMapper,
                 productStockLedgerService,
                 productBatchService,
-                securityContextHelper
+                securityContextHelper,
+                recipeService
         );
         setField(service, "validUnitService", validUnitService);
 

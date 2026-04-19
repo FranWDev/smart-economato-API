@@ -68,6 +68,7 @@ public class ProductService {
     private final StockLedgerService stockLedgerService;
     private final ProductBatchService productBatchService;
     private final SecurityContextHelper securityContextHelper;
+    private final RecipeService recipeService;
     @Autowired(required = false)
     private ValidUnitService validUnitService;
 
@@ -79,7 +80,8 @@ public class ProductService {
             ProductMapper productMapper,
             StockLedgerService stockLedgerService,
             ProductBatchService productBatchService,
-            SecurityContextHelper securityContextHelper) {
+            SecurityContextHelper securityContextHelper,
+            RecipeService recipeService) {
         this.i18nService = i18nService;
         this.repository = repository;
         this.movementRepository = movementRepository;
@@ -89,6 +91,7 @@ public class ProductService {
         this.stockLedgerService = stockLedgerService;
         this.productBatchService = productBatchService;
         this.securityContextHelper = securityContextHelper;
+        this.recipeService = recipeService;
     }
 
     @Cacheable(value = "products_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
@@ -215,10 +218,25 @@ public class ProductService {
                     }
 
                     validateProductData(requestDTO);
+                    
+                    BigDecimal oldPrice = existing.getUnitPrice();
+                    BigDecimal oldAvailability = existing.getAvailabilityPercentage();
+                    
                     productMapper.updateEntity(requestDTO, existing);
 
                     try {
-                        return productMapper.toResponseDTO(repository.save(existing));
+                        Product saved = repository.save(existing);
+                        
+                        boolean priceChanged = (oldPrice == null && saved.getUnitPrice() != null) || 
+                                             (oldPrice != null && !oldPrice.equals(saved.getUnitPrice()));
+                        boolean availabilityChanged = (oldAvailability == null && saved.getAvailabilityPercentage() != null) || 
+                                                   (oldAvailability != null && !oldAvailability.equals(saved.getAvailabilityPercentage()));
+                        
+                        if (priceChanged || availabilityChanged) {
+                            recipeService.recalculateRecipesUsingProduct(id);
+                        }
+                        
+                        return productMapper.toResponseDTO(saved);
                     } catch (OptimisticLockingFailureException ex) {
                         throw new ConcurrencyException(i18nService.getMessage(MessageKey.ERROR_OPTIMISTIC_LOCK), id);
                     }
@@ -347,7 +365,7 @@ public class ProductService {
             @CacheEvict(value = "products_search", allEntries = true)
         })
     @RealtimeSync(entityType = "product", action = "UPDATE", idFromArg = 0,
-            affectedDomains = {"product", "ledger", "weekly_plan", "stock_alerts"})
+            affectedDomains = {"product", "ledger", "weekly_plan", "stock_alerts", "recipe"})
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class,
             Exception.class }, isolation = Isolation.REPEATABLE_READ)
     public Optional<ProductResponseDTO> updateStockManually(Integer id, ProductRequestDTO requestDTO) {
@@ -389,11 +407,17 @@ public class ProductService {
                                 requestDTO.getExpirationDate());
 
                         Product updated = repository.findByIdWithSupplier(id).orElseThrow();
+                        
+                        // En ajuste manual de stock también permitimos cambiar precio/merma
+                        recipeService.recalculateRecipesUsingProduct(id);
+                        
                         return productMapper.toResponseDTO(updated);
                     } else {
 
                         try {
-                            return productMapper.toResponseDTO(repository.save(existing));
+                            Product saved = repository.save(existing);
+                            recipeService.recalculateRecipesUsingProduct(id);
+                            return productMapper.toResponseDTO(saved);
                         } catch (OptimisticLockingFailureException ex) {
                             throw new ConcurrencyException(i18nService.getMessage(MessageKey.ERROR_OPTIMISTIC_LOCK),
                                     id);
