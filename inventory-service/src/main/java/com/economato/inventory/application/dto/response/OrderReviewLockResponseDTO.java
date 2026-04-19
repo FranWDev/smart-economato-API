@@ -20,6 +20,7 @@ public class OrderReviewLockResponseDTO {
     private String lockedByUsername;
     private String lockedByDisplayName;
     private LocalDateTime acquiredAt;
+    private LocalDateTime lastSeenAt;
     private LocalDateTime expiresAt;
     private boolean currentUserOwner;
     private boolean currentUserAdmin;

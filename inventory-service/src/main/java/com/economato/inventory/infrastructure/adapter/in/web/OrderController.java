@@ -295,6 +295,14 @@ public class OrderController {
                 return ResponseEntity.ok(orderReviewLockService.getLockStatus(id));
         }
 
+        @Operation(summary = "Heartbeat lock de revisión", description = "Renueva el TTL del lock si el usuario actual es propietario.")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @PostMapping("/{id}/review-lock/heartbeat")
+        public ResponseEntity<OrderReviewLockResponseDTO> heartbeatReviewLock(
+                        @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id) {
+                return ResponseEntity.ok(orderReviewLockService.heartbeatLock(id));
+        }
+
         @Operation(summary = "Liberar lock de revisión", description = "Libera el lock de revisión de una orden si el usuario actual es propietario o admin.")
         @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @DeleteMapping("/{id}/review-lock")
