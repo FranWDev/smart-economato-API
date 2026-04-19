@@ -85,8 +85,8 @@ public class KitchenReportPdfService {
                 addTopProductsTable(document, report.getTopProducts(), boldFont, regularFont);
 
                 addEconomicAnalysisSection(document, report, boldFont, regularFont);
+                addTotalBanner(document, report.getTotalEstimatedCost(), report.getNetProfit(), boldFont);
 
-                addTotalBanner(document, report.getTotalEstimatedCost(), boldFont);
 
             }
             return baos.toByteArray();
@@ -187,7 +187,8 @@ public class KitchenReportPdfService {
         addSectionTitle(document, i18nService.getMessage(MessageKey.REPORT_SECTION_ECONOMIC_ANALYSIS), boldFont);
 
         Table table = new Table(UnitValue.createPercentArray(new float[] { 1, 1 }))
-                .setWidth(UnitValue.createPercentValue(100)).setMarginTop(8);
+                .setWidth(UnitValue.createPercentValue(100)).setMarginTop(8).setKeepTogether(true);
+
 
         addInfoPair(table, i18nService.getMessage(MessageKey.REPORT_LABEL_TOTAL_ESTIMATED_COST), formatCurrency(report.getTotalEstimatedCost()), boldFont, regularFont);
         addInfoPair(table, i18nService.getMessage(MessageKey.REPORT_LABEL_TOTAL_WASTE_COST), formatCurrency(report.getTotalWasteCost()), boldFont, regularFont);
@@ -285,12 +286,33 @@ public class KitchenReportPdfService {
                 .setBackgroundColor(bgColor).setBorder(Border.NO_BORDER).setBorderBottom(new SolidBorder(BORDER_COLOR, 0.5f)).setPadding(10).setTextAlignment(TextAlignment.LEFT);
     }
 
-    private void addTotalBanner(Document document, BigDecimal totalPrice, PdfFont boldFont) {
-        Table totalTable = new Table(UnitValue.createPercentArray(new float[] { 1, 1 })).setWidth(UnitValue.createPercentValue(100)).setBackgroundColor(PRIMARY_COLOR).setMarginTop(12).setMarginBottom(20);
-        totalTable.addCell(new Cell().add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_TOTAL_ESTIMATED_COST)).setFont(boldFont).setFontSize(14).setFontColor(ColorConstants.WHITE)).setBorder(Border.NO_BORDER).setPadding(16).setVerticalAlignment(VerticalAlignment.MIDDLE));
-        totalTable.addCell(new Cell().add(new Paragraph(formatCurrency(totalPrice)).setFont(boldFont).setFontSize(22).setFontColor(ColorConstants.WHITE).setTextAlignment(TextAlignment.RIGHT)).setBorder(Border.NO_BORDER).setPadding(16).setVerticalAlignment(VerticalAlignment.MIDDLE));
+    private void addTotalBanner(Document document, BigDecimal totalCost, BigDecimal netProfit, PdfFont boldFont) {
+        Table totalTable = new Table(UnitValue.createPercentArray(new float[] { 1, 1, 1, 1 }))
+                .setWidth(UnitValue.createPercentValue(100))
+                .setBackgroundColor(PRIMARY_COLOR)
+                .setMarginTop(12)
+                .setMarginBottom(20)
+                .setKeepTogether(true);
+
+        // Costo Total
+        totalTable.addCell(new Cell().add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_TOTAL_ESTIMATED_COST))
+                        .setFont(boldFont).setFontSize(10).setFontColor(ColorConstants.WHITE))
+                .setBorder(Border.NO_BORDER).setPaddingLeft(16).setPaddingTop(16).setPaddingBottom(16).setVerticalAlignment(VerticalAlignment.MIDDLE));
+        totalTable.addCell(new Cell().add(new Paragraph(formatCurrency(totalCost))
+                        .setFont(boldFont).setFontSize(18).setFontColor(ColorConstants.WHITE))
+                .setBorder(Border.NO_BORDER).setPaddingRight(16).setPaddingTop(16).setPaddingBottom(16).setVerticalAlignment(VerticalAlignment.MIDDLE));
+
+        // Beneficio Neto
+        totalTable.addCell(new Cell().add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_NET_PROFIT))
+                        .setFont(boldFont).setFontSize(10).setFontColor(ColorConstants.WHITE))
+                .setBorder(Border.NO_BORDER).setPaddingLeft(16).setPaddingTop(16).setPaddingBottom(16).setVerticalAlignment(VerticalAlignment.MIDDLE));
+        totalTable.addCell(new Cell().add(new Paragraph(formatCurrency(netProfit))
+                        .setFont(boldFont).setFontSize(18).setFontColor(ColorConstants.WHITE).setTextAlignment(TextAlignment.RIGHT))
+                .setBorder(Border.NO_BORDER).setPaddingRight(16).setPaddingTop(16).setPaddingBottom(16).setVerticalAlignment(VerticalAlignment.MIDDLE));
+
         document.add(totalTable);
     }
+
 
     private String formatCurrency(BigDecimal value) {
         return String.format("%.2f \u20ac", value != null ? value : BigDecimal.ZERO);

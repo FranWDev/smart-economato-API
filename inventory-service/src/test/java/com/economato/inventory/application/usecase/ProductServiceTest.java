@@ -76,6 +76,9 @@ class ProductServiceTest {
     @Mock
     private SecurityContextHelper securityContextHelper;
 
+    @Mock
+    private RecipeService recipeService;
+
     @InjectMocks
     private ProductService productService;
 

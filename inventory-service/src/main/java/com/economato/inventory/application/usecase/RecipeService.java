@@ -254,7 +254,32 @@ public class RecipeService {
         repository.save(recipe);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "recipe", allEntries = true),
+            @CacheEvict(value = "recipes_page", allEntries = true),
+            @CacheEvict(value = "recipe_stats", allEntries = true),
+            @CacheEvict(value = "weekly_plan", allEntries = true),
+            @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
+            @CacheEvict(value = "student_metrics", allEntries = true),
+            @CacheEvict(value = "cookable_recipes", allEntries = true)
+    })
+    @Transactional(rollbackFor = Exception.class)
+    public void recalculateRecipesUsingProduct(Integer productId) {
+        log.info("Recalculando costes para recetas que contienen el producto ID: {}", productId);
+        List<Recipe> affectedRecipes = repository.findByComponentsProductIdWithDetails(productId);
+        if (affectedRecipes.isEmpty()) {
+            return;
+        }
+
+        for (Recipe recipe : affectedRecipes) {
+            calculateTotalCost(recipe);
+        }
+        repository.saveAll(affectedRecipes);
+        log.info("Se han actualizado {} recetas debido al cambio en el producto {}", affectedRecipes.size(), productId);
+    }
+
     private Recipe toEntity(RecipeRequestDTO requestDTO) {
+
         Recipe recipe = recipeMapper.toEntity(requestDTO);
         updateEntityCollections(recipe, requestDTO);
         return recipe;

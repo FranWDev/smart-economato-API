@@ -98,4 +98,10 @@ public interface RecipeRepository extends JpaRepository<Recipe, Integer> {
 
         @Query("SELECT DISTINCT r FROM Recipe r LEFT JOIN FETCH r.allergens WHERE r.id IN :ids")
         List<Recipe> findAllByIdWithAllergens(@Param("ids") Collection<Integer> ids);
+
+        @Query("SELECT DISTINCT r FROM Recipe r " +
+                        "LEFT JOIN FETCH r.components c " +
+                        "LEFT JOIN FETCH c.product " +
+                        "WHERE c.product.id = :productId")
+        List<Recipe> findByComponentsProductIdWithDetails(@Param("productId") Integer productId);
 }
