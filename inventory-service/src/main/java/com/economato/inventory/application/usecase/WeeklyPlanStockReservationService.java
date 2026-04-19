@@ -235,6 +235,10 @@ public class WeeklyPlanStockReservationService {
                 ? needed.multiply(new BigDecimal("100")).divide(availabilityPct, 3, RoundingMode.HALF_UP)
                 : needed;
             
+            BigDecimal grossReservedByOtherPlans = availabilityPct.compareTo(BigDecimal.ZERO) > 0
+                ? reservedByOtherPlans.multiply(new BigDecimal("100")).divide(availabilityPct, 3, RoundingMode.HALF_UP)
+                : reservedByOtherPlans;
+            
             dtos.add(com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO.builder()
                 .productId(product.getId())
                 .productName(product.getName())
@@ -242,7 +246,9 @@ public class WeeklyPlanStockReservationService {
                 .grossRequiredQuantity(grossNeeded)
                 .availabilityPercentage(availabilityPct)
                 .availableStock(maxAvailable)
+                .grossAvailableStock(currentStock)
                 .reservedByOtherPlans(reservedByOtherPlans)
+                .grossReservedByOtherPlans(grossReservedByOtherPlans)
                 .sufficient(trulyAvailable.compareTo(needed) >= 0)
                 .build());
 

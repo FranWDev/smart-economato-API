@@ -19,6 +19,8 @@ public class WeeklyPlanStockRequirementDTO {
     private BigDecimal availabilityPercentage;
 
     private BigDecimal availableStock;
+    private BigDecimal grossAvailableStock;
     private BigDecimal reservedByOtherPlans;
+    private BigDecimal grossReservedByOtherPlans;
     private boolean sufficient;
 }
