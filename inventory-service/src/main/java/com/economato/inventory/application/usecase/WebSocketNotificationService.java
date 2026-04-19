@@ -136,7 +136,6 @@ public class WebSocketNotificationService {
     @EventListener
     public void handleWebSocketDisconnected(WebSocketDisconnectedEvent event) {
         userPresenceService.userDisconnected(event.getUsername(), event.getSessionId());
-        orderReviewLockService.releaseLocksForUser(event.getUsername());
     }
 
     /**

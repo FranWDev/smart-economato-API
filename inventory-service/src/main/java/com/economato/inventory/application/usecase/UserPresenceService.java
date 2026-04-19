@@ -44,6 +44,8 @@ public class UserPresenceService {
     @Lazy
     private SystemConfigService systemConfigService;
     private final UserRepository userRepository;
+    @Autowired(required = false)
+    private OrderReviewLockService orderReviewLockService;
 
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, UserSessionInfo>> sessionsByUser = new ConcurrentHashMap<>();
 
@@ -90,6 +92,9 @@ public class UserPresenceService {
 
         if (userSessions.isEmpty()) {
             sessionsByUser.remove(username);
+            if (orderReviewLockService != null) {
+                orderReviewLockService.releaseLocksForUser(username);
+            }
         }
 
         publishAudit(removed, "DISCONNECTED");

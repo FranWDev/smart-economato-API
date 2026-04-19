@@ -405,6 +405,11 @@ public enum MessageKey {
     ERROR_LEDGER_RANGE_BROKEN("error.ledger.range.broken"),
     ERROR_AI_STREAM_PREFIX("error.ai.stream.prefix"),
     ERROR_AI_STREAM_UNKNOWN("error.ai.stream.unknown"),
+    ERROR_ORDER_COLLAB_NOT_ACTIVE("error.order.collab.not.active"),
+    ERROR_ORDER_COLLAB_NO_PERMISSION_ADMIT("error.order.collab.no.permission.admit"),
+    ERROR_ORDER_COLLAB_REQUEST_NOT_FOUND("error.order.collab.request.not.found"),
+    ERROR_ORDER_COLLAB_FIELD_PATH_REQUIRED("error.order.collab.field.path.required"),
+    ERROR_ORDER_COLLAB_FIELD_LOCKED("error.order.collab.field.locked"),
     
     // PDF Plan Semanal
     REPORT_WEEKLY_PLAN_TITLE("report.weekly.plan.title"),

@@ -89,6 +89,8 @@ class OrderServiceTest {
     @Mock
     private ProductBatchService productBatchService;
     @Mock
+    private OrderReviewLockService orderReviewLockService;
+    @Mock
     private I18nService i18nService;
     @Mock
     private Environment environment;
@@ -118,6 +120,8 @@ class OrderServiceTest {
                 String argsStr = arg instanceof Object[] ? Arrays.toString((Object[]) arg) : String.valueOf(arg);
                 return ((MessageKey) invocation.getArgument(0)).name() + " " + (argsStr != null ? argsStr : "[]");
             });
+        lenient().doNothing().when(orderReviewLockService).assertCanProcessReception(anyInt());
+        lenient().doNothing().when(orderReviewLockService).assertCanTransitionOrder(anyInt(), any(OrderStatus.class));
         Mockito.lenient().when(environment.getActiveProfiles()).thenReturn(new String[]{"test"});
         testUser = new User();
         testUser.setId(1);

@@ -5,8 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -29,10 +32,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.economato.inventory.application.dto.response.OrderReviewLockResponseDTO;
+import com.economato.inventory.application.dto.response.OrderReviewCollaborationStateResponseDTO;
 import com.economato.inventory.domain.model.OrderStatus;
 import com.economato.inventory.domain.model.Role;
 import com.economato.inventory.domain.model.User;
+import com.economato.inventory.infrastructure.adapter.in.web.OrderCollaborationFieldLockedException;
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.OrderReviewLockedException;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,6 +52,9 @@ class OrderReviewLockServiceTest {
     @Mock
     private SimpMessagingTemplate messagingTemplate;
 
+    @Mock
+    private I18nService i18nService;
+
     @InjectMocks
     private OrderReviewLockService service;
 
@@ -52,6 +63,13 @@ class OrderReviewLockServiceTest {
     @BeforeEach
     void setUp() {
         when(securityContextHelper.getCurrentUser()).thenAnswer(invocation -> userContext.get());
+        lenient().when(i18nService.getMessage(any(MessageKey.class)))
+                .thenAnswer(invocation -> ((MessageKey) invocation.getArgument(0)).getKey());
+        lenient().when(i18nService.getMessage(eq(MessageKey.ERROR_ORDER_COLLAB_FIELD_LOCKED), anyString()))
+                .thenAnswer(invocation -> {
+                    String lockedBy = invocation.getArgument(1);
+                    return "locked by " + lockedBy;
+                });
     }
 
     @Test
@@ -130,6 +148,86 @@ class OrderReviewLockServiceTest {
         assertDoesNotThrow(() -> service.assertCanTransitionOrder(orderId, OrderStatus.CONFIRMED));
         assertThrows(OrderReviewLockedException.class,
                 () -> service.assertCanTransitionOrder(orderId, OrderStatus.CANCELLED));
+    }
+
+    @Test
+    void collaborationRequestAndAdmit_supportsUnlimitedCollaborators() {
+        Integer orderId = 404;
+        User owner = buildUser(40, "chef.owner", Role.CHEF);
+        User collaboratorA = buildUser(41, "chef.a", Role.CHEF);
+        User collaboratorB = buildUser(42, "chef.b", Role.ELEVATED);
+
+        userContext.set(owner);
+        service.acquireLock(orderId);
+
+        userContext.set(collaboratorA);
+        service.requestSharedReview(orderId);
+
+        userContext.set(owner);
+        OrderReviewCollaborationStateResponseDTO admittedA = service.admitSharedReview(orderId, collaboratorA.getId());
+        assertTrue(admittedA.getCollaborators().stream().anyMatch(c -> c.getUserId().equals(collaboratorA.getId())));
+
+        userContext.set(collaboratorB);
+        service.requestSharedReview(orderId);
+
+        userContext.set(collaboratorA);
+        OrderReviewCollaborationStateResponseDTO admittedB = service.admitSharedReview(orderId, collaboratorB.getId());
+        assertTrue(admittedB.getCollaborators().stream().anyMatch(c -> c.getUserId().equals(collaboratorB.getId())));
+        assertEquals(3, admittedB.getCollaborators().size());
+        assertTrue(admittedB.getPendingRequests().isEmpty());
+    }
+
+    @Test
+    void lockFieldAndPatch_respectFieldOwnershipAndCollaborationPermission() {
+        Integer orderId = 505;
+        User owner = buildUser(50, "chef.owner", Role.CHEF);
+        User collaborator = buildUser(51, "chef.collab", Role.CHEF);
+        User outsider = buildUser(52, "chef.out", Role.CHEF);
+
+        userContext.set(owner);
+        service.acquireLock(orderId);
+
+        userContext.set(collaborator);
+        service.requestSharedReview(orderId);
+
+        userContext.set(owner);
+        service.admitSharedReview(orderId, collaborator.getId());
+
+        userContext.set(collaborator);
+        OrderReviewCollaborationStateResponseDTO locked = service.lockField(orderId, "items.0.receivedQuantity");
+        assertTrue(locked.getFieldLocks().stream().anyMatch(f -> "items.0.receivedQuantity".equals(f.getFieldPath())));
+
+        userContext.set(owner);
+        assertThrows(OrderCollaborationFieldLockedException.class,
+            () -> service.patchField(orderId, "items.0.receivedQuantity", 7));
+
+        userContext.set(collaborator);
+        OrderReviewCollaborationStateResponseDTO patched = service.patchField(orderId, "items.0.receivedQuantity", 9);
+        assertEquals(9, patched.getFieldValues().get("items.0.receivedQuantity"));
+
+        userContext.set(outsider);
+        assertThrows(OrderReviewLockedException.class,
+                () -> service.patchField(orderId, "items.0.receivedQuantity", 10));
+    }
+
+    @Test
+    void collaborationErrors_useLocalizedKeys() {
+        Integer orderId = 606;
+        User owner = buildUser(60, "chef.owner", Role.CHEF);
+        User outsider = buildUser(61, "chef.out", Role.CHEF);
+
+        userContext.set(owner);
+        service.acquireLock(orderId);
+
+        userContext.set(outsider);
+        InvalidOperationException notPending = assertThrows(InvalidOperationException.class,
+            () -> service.admitSharedReview(orderId, 999));
+        assertEquals(MessageKey.ERROR_ORDER_COLLAB_NO_PERMISSION_ADMIT.getKey(), notPending.getMessage());
+
+        userContext.set(owner);
+        InvalidOperationException fieldPathRequired = assertThrows(InvalidOperationException.class,
+                () -> service.lockField(orderId, " "));
+        assertEquals(MessageKey.ERROR_ORDER_COLLAB_FIELD_PATH_REQUIRED.getKey(), fieldPathRequired.getMessage());
     }
 
     private boolean tryAcquireWithBarrier(Integer orderId, User user, CountDownLatch start) throws Exception {
