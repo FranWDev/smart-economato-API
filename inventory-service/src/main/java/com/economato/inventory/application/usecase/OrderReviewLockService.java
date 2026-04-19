@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -41,24 +42,51 @@ public class OrderReviewLockService {
         return toResponse(orderId, entry, currentUser);
     }
 
+    public OrderReviewLockResponseDTO heartbeatLock(Integer orderId) {
+        User currentUser = getCurrentUserOrThrow();
+        cleanupIfExpired(orderId);
+
+        OrderLockEntry entry = locksByOrderId.get(orderId);
+        if (entry == null) {
+            return toResponse(orderId, null, currentUser);
+        }
+
+        if (!isOwner(entry, currentUser)) {
+            throw new OrderReviewLockedException(orderId, entry.lockedByDisplayName);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        entry.lastSeenAt = now;
+        entry.expiresAt = now.plus(LOCK_TTL);
+        return toResponse(orderId, entry, currentUser);
+    }
+
     public OrderReviewLockResponseDTO acquireLock(Integer orderId) {
         User currentUser = getCurrentUserOrThrow();
         cleanupIfExpired(orderId);
 
-        OrderLockEntry existing = locksByOrderId.get(orderId);
-        if (existing == null) {
-            OrderLockEntry created = createEntry(orderId, currentUser);
-            locksByOrderId.put(orderId, created);
+        AtomicBoolean createdNow = new AtomicBoolean(false);
+        OrderLockEntry resolved = locksByOrderId.compute(orderId, (id, existing) -> {
+            if (existing == null) {
+                createdNow.set(true);
+                return createEntry(orderId, currentUser);
+            }
+
+            if (isOwner(existing, currentUser)) {
+                LocalDateTime now = LocalDateTime.now();
+                existing.lastSeenAt = now;
+                existing.expiresAt = now.plus(LOCK_TTL);
+                return existing;
+            }
+
+            throw new OrderReviewLockedException(orderId, existing.lockedByDisplayName);
+        });
+
+        if (createdNow.get()) {
             broadcastLockEvent(orderId, "LOCK_ACQUIRED", currentUser.getName());
-            return toResponse(orderId, created, currentUser);
         }
 
-        if (isOwner(existing, currentUser)) {
-            existing.expiresAt = LocalDateTime.now().plus(LOCK_TTL);
-            return toResponse(orderId, existing, currentUser);
-        }
-
-        throw new OrderReviewLockedException(orderId, existing.lockedByDisplayName);
+        return toResponse(orderId, resolved, currentUser);
     }
 
     public OrderReviewLockResponseDTO releaseLock(Integer orderId) {
@@ -165,6 +193,7 @@ public class OrderReviewLockService {
                 user.getName(),
                 user.getName(),
                 now,
+            now,
                 now.plus(LOCK_TTL));
     }
 
@@ -201,6 +230,7 @@ public class OrderReviewLockService {
                 .lockedByUsername(entry.lockedByUsername)
                 .lockedByDisplayName(entry.lockedByDisplayName)
                 .acquiredAt(entry.acquiredAt)
+                .lastSeenAt(entry.lastSeenAt)
                 .expiresAt(entry.expiresAt)
                 .currentUserOwner(entry.lockedByUserId.equals(currentUser.getId()))
                 .currentUserAdmin(isAdmin(currentUser))
@@ -231,6 +261,7 @@ public class OrderReviewLockService {
         private final String lockedByUsername;
         private final String lockedByDisplayName;
         private final LocalDateTime acquiredAt;
+        private LocalDateTime lastSeenAt;
         private LocalDateTime expiresAt;
 
         private OrderLockEntry(
@@ -239,12 +270,14 @@ public class OrderReviewLockService {
                 String lockedByUsername,
                 String lockedByDisplayName,
                 LocalDateTime acquiredAt,
+                LocalDateTime lastSeenAt,
                 LocalDateTime expiresAt) {
             this.orderId = orderId;
             this.lockedByUserId = lockedByUserId;
             this.lockedByUsername = lockedByUsername;
             this.lockedByDisplayName = lockedByDisplayName;
             this.acquiredAt = acquiredAt;
+            this.lastSeenAt = lastSeenAt;
             this.expiresAt = expiresAt;
         }
     }
