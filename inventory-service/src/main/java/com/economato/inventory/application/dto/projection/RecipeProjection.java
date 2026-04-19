@@ -36,8 +36,11 @@ public interface RecipeProjection {
             String getName();
 
             BigDecimal getUnitPrice();
+            
+            BigDecimal getAvailabilityPercentage();
 
             String getUnit();
+
         }
     }
 

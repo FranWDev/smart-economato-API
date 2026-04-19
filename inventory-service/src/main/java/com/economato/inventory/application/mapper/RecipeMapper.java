@@ -12,6 +12,8 @@ import com.economato.inventory.application.dto.response.RecipeResponseDTO;
 import com.economato.inventory.domain.model.Recipe;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 
 @Mapper(componentModel = "spring", uses = { RecipeComponentMapper.class,
         AllergenMapper.class }, nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
@@ -43,9 +45,26 @@ public interface RecipeMapper {
                 .filter(component -> component.getQuantity() != null &&
                         component.getProduct() != null &&
                         component.getProduct().getUnitPrice() != null)
-                .map(component -> component.getQuantity().multiply(component.getProduct().getUnitPrice()))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .map(component -> {
+                    BigDecimal qty = component.getQuantity();
+                    BigDecimal price = component.getProduct().getUnitPrice();
+                    BigDecimal pct = component.getProduct().getAvailabilityPercentage() != null
+                            ? component.getProduct().getAvailabilityPercentage()
+                            : new BigDecimal("100.00");
+
+                    if (pct.compareTo(BigDecimal.ZERO) <= 0) {
+                        return qty.multiply(price);
+                    }
+
+                    // Cost = (NetQty * 100 / AvailabilityPct) * Price
+                    return qty.multiply(new BigDecimal("100"))
+                            .divide(pct, 4, RoundingMode.HALF_UP)
+                            .multiply(price);
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
     }
+
 
     /**
      * Convierte RecipeRequestDTO a Recipe entidad (sin componentes ni alérgenos)

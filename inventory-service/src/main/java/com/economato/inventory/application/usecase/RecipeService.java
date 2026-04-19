@@ -366,11 +366,30 @@ public class RecipeService {
 
     private void calculateTotalCost(Recipe recipe) {
         BigDecimal totalCost = recipe.getComponents().stream()
-                .map(component -> component.getQuantity().multiply(component.getProduct().getUnitPrice()))
+                .filter(component -> component.getQuantity() != null &&
+                        component.getProduct() != null &&
+                        component.getProduct().getUnitPrice() != null)
+                .map(component -> {
+                    BigDecimal qty = component.getQuantity();
+                    BigDecimal price = component.getProduct().getUnitPrice();
+                    BigDecimal pct = component.getProduct().getAvailabilityPercentage() != null
+                            ? component.getProduct().getAvailabilityPercentage()
+                            : new BigDecimal("100.00");
+
+                    if (pct.compareTo(BigDecimal.ZERO) <= 0) {
+                        return qty.multiply(price);
+                    }
+
+                    // Cost = (NetQty * 100 / AvailabilityPct) * Price
+                    return qty.multiply(new BigDecimal("100"))
+                            .divide(pct, 10, RoundingMode.HALF_UP)
+                            .multiply(price);
+                })
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
         recipe.setTotalCost(totalCost);
     }
+
 
     private BigDecimal calculateCookableQuantity(Recipe recipe, Map<Integer, BigDecimal> reservedByProduct) {
         if (recipe.getComponents() == null || recipe.getComponents().isEmpty()) {

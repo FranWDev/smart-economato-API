@@ -21,5 +21,8 @@ public interface RecipeComponentProjection {
         String getName();
 
         BigDecimal getUnitPrice();
+
+        BigDecimal getAvailabilityPercentage();
+
     }
 }
