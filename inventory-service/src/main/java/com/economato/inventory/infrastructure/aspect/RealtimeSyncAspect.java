@@ -174,9 +174,15 @@ public class RealtimeSyncAspect {
             return Collections.emptyList();
         }
 
+        Object unwrappedResult = result;
+        if (result instanceof java.util.Optional<?> opt) {
+            if (opt.isEmpty()) return Collections.emptyList();
+            unwrappedResult = opt.get();
+        }
+
         if ("productIds".equals(strategy)) {
             // Caso 1: el resultado es una List<StockLedger>
-            if (result instanceof List<?> list) {
+            if (unwrappedResult instanceof List<?> list) {
                 return list.stream()
                         .filter(item -> item instanceof StockLedger)
                         .map(item -> (StockLedger) item)
@@ -189,7 +195,7 @@ public class RealtimeSyncAspect {
             }
 
             // Caso 2: el resultado es un StockLedger único
-            if (result instanceof StockLedger ledger) {
+            if (unwrappedResult instanceof StockLedger ledger) {
                 if (ledger.getProduct() != null && ledger.getProduct().getId() != null) {
                     return List.of(ledger.getProduct().getId());
                 }
@@ -198,7 +204,7 @@ public class RealtimeSyncAspect {
 
         if ("orderProductIds".equals(strategy)) {
             // OrderResponseDTO.details[].productId
-            if (result instanceof OrderResponseDTO orderDTO) {
+            if (unwrappedResult instanceof OrderResponseDTO orderDTO) {
                 if (orderDTO.getDetails() != null) {
                     return orderDTO.getDetails().stream()
                             .map(OrderDetailResponseDTO::getProductId)

@@ -129,6 +129,18 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 
+    @ExceptionHandler(OrderReviewLockedException.class)
+    public ResponseEntity<Map<String, Object>> handleOrderReviewLockedException(OrderReviewLockedException ex) {
+        log.warn("Orden bloqueada para revisión: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of(
+                        "status", 409,
+                        "message", ex.getMessage(),
+                        "orderId", ex.getOrderId(),
+                        "lockedBy", ex.getLockedBy(),
+                        "timestamp", Instant.now().toString()));
+    }
+
     @ExceptionHandler(PessimisticLockingFailureException.class)
     public ResponseEntity<ErrorResponse> handlePessimisticLockingFailureException(
             PessimisticLockingFailureException ex) {

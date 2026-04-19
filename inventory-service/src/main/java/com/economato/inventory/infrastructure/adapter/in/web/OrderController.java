@@ -26,12 +26,14 @@ import com.economato.inventory.application.dto.request.OrderRequestDTO;
 import com.economato.inventory.application.dto.request.OrdersByProductsRequestDTO;
 import com.economato.inventory.application.dto.response.OrderDetailResponseDTO;
 import com.economato.inventory.application.dto.response.OrderFilterResponseDTO;
+import com.economato.inventory.application.dto.response.OrderReviewLockResponseDTO;
 import com.economato.inventory.application.dto.response.OrdersByProductsResponseDTO;
 import com.economato.inventory.application.dto.response.OrderResponseDTO;
 import com.economato.inventory.application.dto.response.OrderTotalCostResponseDTO;
 import com.economato.inventory.domain.model.OrderStatus;
 import com.economato.inventory.infrastructure.adapter.out.external.reports.OrderPdfService;
 import com.economato.inventory.application.usecase.OrderService;
+import com.economato.inventory.application.usecase.OrderReviewLockService;
 import com.economato.inventory.application.usecase.UserService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,11 +51,14 @@ import jakarta.validation.Valid;
 public class OrderController {
 
         private final OrderService orderService;
+        private final OrderReviewLockService orderReviewLockService;
         private final UserService userService;
         private final OrderPdfService orderPdfService;
 
-        public OrderController(OrderService orderService, UserService userService, OrderPdfService orderPdfService) {
+        public OrderController(OrderService orderService, OrderReviewLockService orderReviewLockService,
+                        UserService userService, OrderPdfService orderPdfService) {
                 this.orderService = orderService;
+                this.orderReviewLockService = orderReviewLockService;
                 this.userService = userService;
                 this.orderPdfService = orderPdfService;
         }
@@ -272,6 +277,30 @@ public class OrderController {
                 return orderService.updateStatus(id, statusRequest.getStatus())
                                 .map(ResponseEntity::ok)
                                 .orElse(ResponseEntity.notFound().build());
+        }
+
+        @Operation(summary = "Adquirir lock de revisión", description = "Intenta adquirir el lock de revisión de una orden para evitar edición/confirmación simultánea.")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @PostMapping("/{id}/review-lock")
+        public ResponseEntity<OrderReviewLockResponseDTO> acquireReviewLock(
+                        @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id) {
+                return ResponseEntity.ok(orderReviewLockService.acquireLock(id));
+        }
+
+        @Operation(summary = "Consultar lock de revisión", description = "Devuelve el estado actual del lock de revisión de una orden.")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @GetMapping("/{id}/review-lock")
+        public ResponseEntity<OrderReviewLockResponseDTO> getReviewLockStatus(
+                        @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id) {
+                return ResponseEntity.ok(orderReviewLockService.getLockStatus(id));
+        }
+
+        @Operation(summary = "Liberar lock de revisión", description = "Libera el lock de revisión de una orden si el usuario actual es propietario o admin.")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @DeleteMapping("/{id}/review-lock")
+        public ResponseEntity<OrderReviewLockResponseDTO> releaseReviewLock(
+                        @Parameter(description = "ID de la orden", example = "5") @PathVariable Integer id) {
+                return ResponseEntity.ok(orderReviewLockService.releaseLock(id));
         }
 
         /**
