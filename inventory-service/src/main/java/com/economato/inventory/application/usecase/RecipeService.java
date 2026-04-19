@@ -408,7 +408,8 @@ public class RecipeService {
     }
 
     @RealtimeSync(entityType = "recipe", action = "CONFIRM", idFromArg = -2,
-            affectedDomains = {"recipe", "ledger", "product", "weekly_plan", "stock_alerts"})
+            affectedDomains = {"recipe", "ledger", "product", "weekly_plan", "stock_alerts"},
+            idsFromResult = "recipeProductIds")
     @PredictorTrigger(action = "COOK_RECIPE")
     @RecipeCookingAuditable(action = "COOK_RECIPE")
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
@@ -487,10 +488,11 @@ public class RecipeService {
      * Revierte un cocinado de receta específico.
      */
     @RealtimeSync(entityType = "recipe", action = "REVERT", idFromArg = -2,
-            affectedDomains = {"recipe", "ledger", "product", "weekly_plan", "stock_alerts"})
+            affectedDomains = {"recipe", "ledger", "product", "weekly_plan", "stock_alerts"},
+            idsFromResult = "recipeProductIds")
     @PredictorTrigger(action = "REVERT_COOKING")
     @Transactional(rollbackFor = Exception.class)
-    public void revertCooking(Long auditId, String reason) {
+    public List<Integer> revertCooking(Long auditId, String reason) {
         log.info("Iniciando reversión de cocinado: auditId={}, motivo={}", auditId, reason);
 
         try {
@@ -506,10 +508,15 @@ public class RecipeService {
 
             stockLedgerService.revertMovement(audit.getCorrelationId(), "Deshacer cocinado: " + reason);
             
+            List<Integer> affectedProductIds = audit.getRecipe().getComponents().stream()
+                    .map(c -> c.getProduct().getId())
+                    .collect(Collectors.toList());
+
             // Eliminar la auditoría: si se revierte es que nunca ocurrió
             recipeCookingAuditRepository.delete(audit);
             
             log.info("Cocinado revertido y auditoría eliminada exitosamente: auditId={}, correlationId={}", auditId, audit.getCorrelationId());
+            return affectedProductIds;
         } catch (ResourceNotFoundException | InvalidOperationException e) {
             log.warn("Error validado al revertir cocinado: {}", e.getMessage());
             throw e;

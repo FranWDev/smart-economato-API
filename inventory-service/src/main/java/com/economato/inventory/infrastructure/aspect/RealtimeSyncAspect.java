@@ -2,9 +2,11 @@ package com.economato.inventory.infrastructure.aspect;
 
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -13,9 +15,13 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.economato.inventory.application.dto.event.RealtimeSyncEvent;
 import com.economato.inventory.application.usecase.WebSocketNotificationService;
+import com.economato.inventory.application.dto.response.RecipeResponseDTO;
+import com.economato.inventory.application.dto.response.RecipeComponentResponseDTO;
 import com.economato.inventory.application.dto.response.OrderResponseDTO;
 import com.economato.inventory.application.dto.response.OrderDetailResponseDTO;
 import com.economato.inventory.domain.model.StockLedger;
@@ -110,7 +116,13 @@ public class RealtimeSyncAspect {
     private void emitEvent(ProceedingJoinPoint joinPoint, RealtimeSync sync, Object result) {
         try {
             Object entityId = resolveEntityId(joinPoint, sync, result);
-            List<Object> entityIds = resolveEntityIds(sync, result);
+            List<Object> entityIds = new ArrayList<>(resolveEntityIds(sync, result));
+            
+            // Asegurar cohesión: el ID principal debe estar en la lista si esta existe
+            if (entityId != null && !entityIds.contains(entityId)) {
+                entityIds.add(entityId);
+            }
+
             String changedBy = resolveChangedBy();
             List<String> affectedDomains = Arrays.asList(sync.affectedDomains());
 
@@ -124,10 +136,20 @@ public class RealtimeSyncAspect {
                     .timestamp(LocalDateTime.now())
                     .build();
 
-            webSocketNotificationService.broadcastSync(event);
-
-            log.debug("Sync event emitted: entityType={}, entityId={}, entityIds={}, action={}, domains={}",
-                    sync.entityType(), entityId, entityIds, sync.action(), affectedDomains);
+            if (TransactionSynchronizationManager.isActualTransactionActive()) {
+                log.debug("Transaction active. Registering sync event for afterCommit: entityType={}, action={}",
+                        sync.entityType(), sync.action());
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        webSocketNotificationService.broadcastSync(event);
+                    }
+                });
+            } else {
+                log.debug("No active transaction. Emitting sync event immediately: entityType={}, action={}",
+                        sync.entityType(), sync.action());
+                webSocketNotificationService.broadcastSync(event);
+            }
 
         } catch (Exception e) {
             // Nunca propagar: el resultado del método principal ya fue obtenido.
@@ -213,6 +235,27 @@ public class RealtimeSyncAspect {
                             .distinct()
                             .collect(Collectors.toList());
                 }
+            }
+        }
+
+        if ("recipeProductIds".equals(strategy)) {
+            // RecipeResponseDTO.components[].productId
+            if (unwrappedResult instanceof RecipeResponseDTO recipeDTO) {
+                if (recipeDTO.getComponents() != null) {
+                    return recipeDTO.getComponents().stream()
+                            .map(RecipeComponentResponseDTO::getProductId)
+                            .filter(id -> id != null)
+                            .map(id -> (Object) id)
+                            .distinct()
+                            .collect(Collectors.toList());
+                }
+            }
+            // También soportar si el resultado es una lista de IDs directamente (para métodos void que retornan IDs)
+            if (unwrappedResult instanceof List<?> list) {
+                return list.stream()
+                        .filter(id -> id instanceof Integer || id instanceof Long)
+                        .distinct()
+                        .collect(Collectors.toList());
             }
         }
 
