@@ -5,6 +5,8 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
+
 import com.economato.inventory.application.dto.event.InventoryAuditEvent;
 import com.economato.inventory.application.dto.event.OrderAuditEvent;
 import com.economato.inventory.application.dto.event.PresenceAuditEvent;
@@ -183,6 +185,7 @@ public class AuditEventConsumer {
     }
 
     @KafkaListener(topics = "recipe-cooking-audit-events", groupId = "recipe-cooking-audit-consumer-group", containerFactory = "recipeCookingAuditKafkaListenerContainerFactory")
+    @RealtimeSync(entityType = "recipe", action = "CREATE", affectedDomains = {"recipe"})
     @Transactional
     public void consumeRecipeCookingAudit(RecipeCookingAuditEvent event) {
         try {
