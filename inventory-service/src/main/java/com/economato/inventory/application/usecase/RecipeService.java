@@ -212,7 +212,10 @@ public class RecipeService {
                         .divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
 
                     componentDTO.setAvailableStock(maxAvailable);
+                    componentDTO.setGrossAvailableStock(currentStock);
+                    componentDTO.setAvailabilityPercentage(availabilityPct);
                     componentDTO.setReservedByOtherPlans(reserved);
+
                 }
                 }
 
@@ -462,9 +465,13 @@ public class RecipeService {
                                 new Object[] { product.getName(), requiredQuantity, usableStock }));
             }
 
+            BigDecimal grossQuantity = availabilityPercent.compareTo(BigDecimal.ZERO) > 0
+                    ? requiredQuantity.multiply(BigDecimal.valueOf(100)).divide(availabilityPercent, 3, RoundingMode.HALF_UP)
+                    : requiredQuantity;
+
             stockLedgerService.recordStockMovement(
                     product.getId(),
-                    requiredQuantity.negate(),
+                    grossQuantity.negate(),
                     MovementType.SALIDA,
                     i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_COOKING,
                             new Object[] { recipe.getName(), cookingRequest.getQuantity() }),
@@ -473,8 +480,9 @@ public class RecipeService {
                     null,
                     correlationId);
 
-            log.info("Stock descontado del ledger: producto={}, cantidad={}",
-                    product.getName(), requiredQuantity);
+            log.info("Stock Bruto descontado del ledger: producto={}, neto={}, bruto={}",
+                    product.getName(), requiredQuantity, grossQuantity);
+
         }
 
         log.info("Receta cocinada exitosamente: receta={}, cantidad={}, usuario={}",
