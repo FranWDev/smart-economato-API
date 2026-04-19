@@ -231,14 +231,21 @@ public class WeeklyPlanStockReservationService {
             
             BigDecimal trulyAvailable = maxAvailable.subtract(reservedByOtherPlans);
             
+            BigDecimal grossNeeded = availabilityPct.compareTo(BigDecimal.ZERO) > 0
+                ? needed.multiply(new BigDecimal("100")).divide(availabilityPct, 3, RoundingMode.HALF_UP)
+                : needed;
+            
             dtos.add(com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO.builder()
                 .productId(product.getId())
                 .productName(product.getName())
                 .requiredQuantity(needed)
+                .grossRequiredQuantity(grossNeeded)
+                .availabilityPercentage(availabilityPct)
                 .availableStock(maxAvailable)
                 .reservedByOtherPlans(reservedByOtherPlans)
                 .sufficient(trulyAvailable.compareTo(needed) >= 0)
                 .build());
+
         }
         return dtos;
     }

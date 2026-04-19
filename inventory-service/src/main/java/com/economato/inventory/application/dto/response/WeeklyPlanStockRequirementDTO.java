@@ -15,6 +15,9 @@ public class WeeklyPlanStockRequirementDTO {
     private Integer productId;
     private String productName;
     private BigDecimal requiredQuantity;
+    private BigDecimal grossRequiredQuantity;
+    private BigDecimal availabilityPercentage;
+
     private BigDecimal availableStock;
     private BigDecimal reservedByOtherPlans;
     private boolean sufficient;

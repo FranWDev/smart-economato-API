@@ -49,13 +49,20 @@ public class CookableRecipeResponseDTO {
         @Schema(description = "Unidad de medida", example = "kg")
         private String unit;
 
-        @Schema(description = "Cantidad requerida por unidad de receta", example = "2.5")
+        @Schema(description = "Cantidad requerida por unidad de receta (Neta)", example = "2.5")
         private BigDecimal requiredQuantity;
 
-        @Schema(description = "Stock actual del producto", example = "12.0")
+        @Schema(description = "Stock actual del producto (Neto utilizable)", example = "10.8")
         private BigDecimal availableStock;
 
-        @Schema(description = "Stock reservado por otros planes activos", example = "3.5")
+        @Schema(description = "Stock actual del producto (Bruto total)", example = "12.0")
+        private BigDecimal grossAvailableStock;
+
+        @Schema(description = "Porcentaje de disponibilidad (100 - Merma)", example = "90.0")
+        private BigDecimal availabilityPercentage;
+
+        @Schema(description = "Stock reservado por otros planes activos (Neto)", example = "3.5")
         private BigDecimal reservedByOtherPlans;
+
     }
 }
