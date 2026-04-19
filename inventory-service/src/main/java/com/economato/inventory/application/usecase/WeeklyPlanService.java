@@ -184,7 +184,7 @@ public class WeeklyPlanService {
     @PredictorTrigger(action = "WEEKLY_PLAN_CONFIRM")
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     @RealtimeSync(entityType = "weekly_plan", action = "CONFIRM", idFromArg = -2,
-            affectedDomains = {"weekly_plan", "ledger", "product", "stock_alerts"})
+            affectedDomains = {"weekly_plan", "ledger", "product", "stock_alerts", "recipe"})
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public WeeklyPlanSlotResponseDTO confirmSlot(Long planId, Long slotId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
@@ -276,7 +276,7 @@ public class WeeklyPlanService {
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     @RealtimeSync(entityType = "weekly_plan", action = "REVERT", idFromArg = -2,
-            affectedDomains = {"weekly_plan", "ledger", "product", "stock_alerts"})
+            affectedDomains = {"weekly_plan", "ledger", "product", "stock_alerts", "recipe"})
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public WeeklyPlanSlotResponseDTO unconfirmSlot(Long planId, Long slotId) {
 
@@ -332,7 +332,7 @@ public class WeeklyPlanService {
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     @RealtimeSync(entityType = "weekly_plan", action = "REVERT", idFromArg = -2,
-            affectedDomains = {"weekly_plan", "ledger", "product", "stock_alerts"})
+            affectedDomains = {"weekly_plan", "ledger", "product", "stock_alerts", "recipe"})
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public ConfirmDayResponseDTO unconfirmDay(Long planId, Integer dayOfWeek) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
@@ -392,7 +392,7 @@ public class WeeklyPlanService {
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     @RealtimeSync(entityType = "weekly_plan", action = "CONFIRM", idFromArg = -2,
-            affectedDomains = {"weekly_plan", "ledger", "product", "stock_alerts"})
+            affectedDomains = {"weekly_plan", "ledger", "product", "stock_alerts", "recipe"})
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public ConfirmDayResponseDTO confirmDay(Long planId, Integer dayOfWeek) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow(
