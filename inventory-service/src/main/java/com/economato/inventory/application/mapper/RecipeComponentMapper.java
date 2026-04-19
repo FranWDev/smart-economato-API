@@ -13,6 +13,8 @@ import com.economato.inventory.application.dto.response.RecipeComponentResponseD
 import com.economato.inventory.domain.model.RecipeComponent;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 
 @Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface RecipeComponentMapper {
@@ -35,8 +37,22 @@ public interface RecipeComponentMapper {
                 summary.getProduct().getUnitPrice() == null) {
             return BigDecimal.ZERO;
         }
-        return summary.getQuantity().multiply(summary.getProduct().getUnitPrice());
+
+        BigDecimal qty = summary.getQuantity();
+        BigDecimal price = summary.getProduct().getUnitPrice();
+        BigDecimal pct = summary.getProduct().getAvailabilityPercentage() != null
+                ? summary.getProduct().getAvailabilityPercentage()
+                : new BigDecimal("100.00");
+
+        if (pct.compareTo(BigDecimal.ZERO) <= 0) {
+            return qty.multiply(price);
+        }
+
+        return qty.multiply(new BigDecimal("100"))
+                .divide(pct, 4, RoundingMode.HALF_UP)
+                .multiply(price);
     }
+
 
     @Named("calculateSubtotal")
     default BigDecimal calculateSubtotal(RecipeComponent component) {
@@ -44,8 +60,22 @@ public interface RecipeComponentMapper {
                 component.getProduct().getUnitPrice() == null) {
             return BigDecimal.ZERO;
         }
-        return component.getQuantity().multiply(component.getProduct().getUnitPrice());
+
+        BigDecimal qty = component.getQuantity();
+        BigDecimal price = component.getProduct().getUnitPrice();
+        BigDecimal pct = component.getProduct().getAvailabilityPercentage() != null
+                ? component.getProduct().getAvailabilityPercentage()
+                : new BigDecimal("100.00");
+
+        if (pct.compareTo(BigDecimal.ZERO) <= 0) {
+            return qty.multiply(price);
+        }
+
+        return qty.multiply(new BigDecimal("100"))
+                .divide(pct, 4, RoundingMode.HALF_UP)
+                .multiply(price);
     }
+
 
     @Mapping(source = "parentRecipe.id", target = "parentRecipeId")
     @Mapping(source = "product.id", target = "productId")
@@ -61,8 +91,22 @@ public interface RecipeComponentMapper {
                 projection.getProduct().getUnitPrice() == null) {
             return BigDecimal.ZERO;
         }
-        return projection.getQuantity().multiply(projection.getProduct().getUnitPrice());
+
+        BigDecimal qty = projection.getQuantity();
+        BigDecimal price = projection.getProduct().getUnitPrice();
+        BigDecimal pct = projection.getProduct().getAvailabilityPercentage() != null
+                ? projection.getProduct().getAvailabilityPercentage()
+                : new BigDecimal("100.00");
+
+        if (pct.compareTo(BigDecimal.ZERO) <= 0) {
+            return qty.multiply(price);
+        }
+
+        return qty.multiply(new BigDecimal("100"))
+                .divide(pct, 4, RoundingMode.HALF_UP)
+                .multiply(price);
     }
+
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "product", ignore = true)
