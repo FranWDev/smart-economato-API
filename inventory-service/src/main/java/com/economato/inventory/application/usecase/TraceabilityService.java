@@ -67,6 +67,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.Collection;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 
 /**
  * Servicio de Trazabilidad y Gestión de Crisis Alimentarias.
@@ -107,6 +110,16 @@ public class TraceabilityService {
         // Usamos aislamiento SERIALIZABLE para evitar que un producto sea vendido o
         // usado
         // en una receta mientras se está procesando su entrada en cuarentena.
+        @Caching(evict = {
+            @CacheEvict(value = "products_page", allEntries = true),
+            @CacheEvict(value = "product", allEntries = true),
+            @CacheEvict(value = "products_search", allEntries = true),
+            @CacheEvict(value = "cookable_recipes", allEntries = true),
+            @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
+            @CacheEvict(value = "stock_alerts", allEntries = true)
+        })
+        @RealtimeSync(entityType = "crisis", action = "CREATE",
+                affectedDomains = {"crisis", "product", "stock_alerts", "weekly_plan"})
         @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
         public CrisisResponseDTO activateCrisis(CrisisActivationRequestDTO request) {
                 log.info("Activating food safety crisis for supplier ID: {}", request.getSupplierId());
@@ -209,6 +222,16 @@ public class TraceabilityService {
                 return buildCrisisResponse(crisis, quarantinedProducts);
         }
 
+        @Caching(evict = {
+            @CacheEvict(value = "products_page", allEntries = true),
+            @CacheEvict(value = "product", allEntries = true),
+            @CacheEvict(value = "products_search", allEntries = true),
+            @CacheEvict(value = "cookable_recipes", allEntries = true),
+            @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
+            @CacheEvict(value = "stock_alerts", allEntries = true)
+        })
+        @RealtimeSync(entityType = "crisis", action = "UPDATE",
+                affectedDomains = {"crisis", "product", "stock_alerts", "weekly_plan"})
         @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
         public void liftCrisis(CrisisLiftRequestDTO request) {
                 FoodCrisis crisis = foodCrisisRepository.findById(request.getCrisisId())

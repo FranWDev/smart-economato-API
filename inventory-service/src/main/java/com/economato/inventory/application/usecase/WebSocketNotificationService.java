@@ -28,6 +28,7 @@ public class WebSocketNotificationService {
     private final CircuitBreakerRegistry circuitBreakerRegistry;
     private final I18nService i18nService;
     private final UserPresenceService userPresenceService;
+    private final OrderReviewLockService orderReviewLockService;
 
     /**
      * Maneja eventos de circuit breaker OPEN y envía alertas al frontend a través de WebSocket.
@@ -135,6 +136,7 @@ public class WebSocketNotificationService {
     @EventListener
     public void handleWebSocketDisconnected(WebSocketDisconnectedEvent event) {
         userPresenceService.userDisconnected(event.getUsername(), event.getSessionId());
+        orderReviewLockService.releaseLocksForUser(event.getUsername());
     }
 
     /**

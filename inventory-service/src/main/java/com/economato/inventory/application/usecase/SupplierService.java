@@ -70,10 +70,13 @@ public class SupplierService {
 
         @Caching(evict = {
             @CacheEvict(value = "supplier", key = "#id"),
-            @CacheEvict(value = "suppliers_page", allEntries = true)
+            @CacheEvict(value = "suppliers_page", allEntries = true),
+            @CacheEvict(value = "products_page", allEntries = true),
+            @CacheEvict(value = "products_search", allEntries = true),
+            @CacheEvict(value = "product", allEntries = true)
         })
     @RealtimeSync(entityType = "supplier", action = "UPDATE", idFromArg = 0,
-            affectedDomains = {"supplier"})
+            affectedDomains = {"supplier", "product"})
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public Optional<SupplierResponseDTO> update(Integer id, SupplierRequestDTO requestDTO) {

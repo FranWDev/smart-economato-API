@@ -75,6 +75,7 @@ public class OrderService {
         private final OrderMapper orderMapper;
         private final StockLedgerService stockLedgerService;
         private final ProductBatchService productBatchService;
+        private final OrderReviewLockService orderReviewLockService;
         private final Environment environment;
 
         public OrderService(I18nService i18nService, OrderRepository repository,
@@ -84,6 +85,7 @@ public class OrderService {
                         OrderMapper orderMapper,
                         StockLedgerService stockLedgerService,
                         ProductBatchService productBatchService,
+                        OrderReviewLockService orderReviewLockService,
                         Environment environment) {
                 this.i18nService = i18nService;
                 this.repository = repository;
@@ -93,6 +95,7 @@ public class OrderService {
                 this.orderMapper = orderMapper;
                 this.stockLedgerService = stockLedgerService;
                 this.productBatchService = productBatchService;
+                this.orderReviewLockService = orderReviewLockService;
                 this.environment = environment;
         }
 
@@ -118,7 +121,8 @@ public class OrderService {
                         @CacheEvict(value = "weekly_plan", allEntries = true)
         })
         @RealtimeSync(entityType = "order", action = "CREATE",
-                affectedDomains = {"order"})
+                affectedDomains = {"order", "product", "weekly_plan", "stock_alerts"},
+                idsFromResult = "orderProductIds")
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
         public OrderResponseDTO save(OrderRequestDTO requestDTO) {
@@ -176,7 +180,8 @@ public class OrderService {
         @Retryable(includes = {
                         ObjectOptimisticLockingFailureException.class }, maxRetries = 3, delay = 100, multiplier = 2)
         @RealtimeSync(entityType = "order", action = "UPDATE", idFromArg = 0,
-                affectedDomains = {"order"})
+                affectedDomains = {"order", "product", "weekly_plan", "stock_alerts"},
+                idsFromResult = "orderProductIds")
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
         public Optional<OrderResponseDTO> update(Integer id, OrderRequestDTO requestDTO) {
@@ -236,7 +241,7 @@ public class OrderService {
                         @CacheEvict(value = "orders_pending", allEntries = true)
         })
         @RealtimeSync(entityType = "order", action = "DELETE", idFromArg = 0,
-                affectedDomains = {"order"})
+                affectedDomains = {"order", "product", "weekly_plan", "stock_alerts"})
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
         public void deleteById(Integer id) {
@@ -425,6 +430,8 @@ public class OrderService {
                         RuntimeException.class,
                         Exception.class }, isolation = Isolation.REPEATABLE_READ)
         public OrderResponseDTO receiveOrder(OrderReceptionRequestDTO receptionData) {
+                orderReviewLockService.assertCanProcessReception(receptionData.getOrderId());
+
                 Order order = repository.findByIdWithDetails(receptionData.getOrderId())
                                 .orElseThrow(() -> new ResourceNotFoundException(
                                                 i18nService.getMessage(MessageKey.ERROR_ORDER_NOT_FOUND)));
@@ -516,6 +523,7 @@ public class OrderService {
                 log.info("Orden {} procesada - movimientos registrados en ledger", order.getId());
 
                 Order savedOrder = repository.save(order);
+                orderReviewLockService.releaseLockAfterReviewCompletion(order.getId());
                 OrderResponseDTO responseDTO = orderMapper.toResponseDTO(savedOrder);
 
                 if (responseDTO.getDetails() != null) {
@@ -541,7 +549,8 @@ public class OrderService {
         }
 
         @RealtimeSync(entityType = "order", action = "STATUS_CHANGE", idFromArg = 0,
-                affectedDomains = {"order"})
+                affectedDomains = {"order", "product", "weekly_plan", "stock_alerts"},
+                idsFromResult = "orderProductIds")
         @OrderAuditable(action = "CAMBIO_ESTADO_ORDEN")
         @Caching(evict = {
                         @CacheEvict(value = "order", key = "#orderId"),
@@ -563,10 +572,16 @@ public class OrderService {
                         ObjectOptimisticLockingFailureException.class }, maxRetries = 3, delay = 100, multiplier = 2)
         @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
         public Optional<OrderResponseDTO> updateStatus(Integer orderId, OrderStatus newStatus) {
+                orderReviewLockService.assertCanTransitionOrder(orderId, newStatus);
+
                 return repository.findByIdWithDetails(orderId)
                                 .map(order -> {
                                         order.setStatus(newStatus);
                                         Order updatedOrder = repository.save(order);
+                                        if (newStatus == OrderStatus.CONFIRMED || newStatus == OrderStatus.CANCELLED
+                                                        || newStatus == OrderStatus.INCOMPLETE) {
+                                                orderReviewLockService.releaseLockAfterReviewCompletion(orderId);
+                                        }
                                         return orderMapper.toResponseDTO(updatedOrder);
                                 });
         }
