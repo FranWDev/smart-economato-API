@@ -37,6 +37,12 @@ public class RecipeCookingAuditEvent implements Serializable {
     private String componentsState;
     private LocalDateTime cookingDate;
     private String correlationId;
+    
+    // Financial fields for reporting
+    private BigDecimal sellingPrice;
+    private BigDecimal totalGrossCost;
+    private BigDecimal totalNetCost;
+
 
     /**
      * Historial de consumo de 90 días por producto.

@@ -14,8 +14,9 @@ public interface RecipeProjection {
     String getPresentation();
 
     BigDecimal getTotalCost();
-
+    BigDecimal getSellingPrice();
     BigDecimal getPortions();
+
 
     boolean getIsHidden();
 

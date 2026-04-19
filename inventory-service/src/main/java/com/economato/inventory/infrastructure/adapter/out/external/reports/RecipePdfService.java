@@ -2,7 +2,9 @@ package com.economato.inventory.infrastructure.adapter.out.external.reports;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Arrays;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -89,7 +91,8 @@ public class RecipePdfService {
                 addIngredientsTable(document, recipe.getComponents(), boldFont, regularFont);
             }
 
-            addCostBanner(document, recipe.getTotalCost(), boldFont);
+            addCostBanner(document, recipe.getTotalCost(), recipe.getSellingPrice(), boldFont);
+
 
             addAllergensSection(document, recipe.getAllergens(), boldFont, regularFont);
 
@@ -181,23 +184,35 @@ public class RecipePdfService {
             PdfFont boldFont, PdfFont regularFont) {
         addSectionTitle(document, i18nService.getMessage(MessageKey.REPORT_SECTION_INGREDIENTS), boldFont);
 
-        Table table = new Table(UnitValue.createPercentArray(new float[] { 3, 1, 1 }))
+        Table table = new Table(UnitValue.createPercentArray(new float[] { 3, 1, 1, 1 }))
+
                 .setWidth(UnitValue.createPercentValue(100))
                 .setMarginTop(8)
                 .setMarginBottom(8);
 
         table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_PRODUCT), boldFont));
+        table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_GROSS_QUANTITY), boldFont));
         table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_QUANTITY), boldFont));
         table.addHeaderCell(createTableHeaderCell(i18nService.getMessage(MessageKey.REPORT_COLUMN_SUBTOTAL), boldFont));
+
 
         for (int i = 0; i < components.size(); i++) {
             RecipeComponentResponseDTO comp = components.get(i);
             Color rowBg = (i % 2 == 1) ? ROW_HOVER_BG : ColorConstants.WHITE;
 
             table.addCell(createTableDataCell(sanitizePdfText(comp.getProductName()), boldFont, rowBg, true));
+            
+            BigDecimal grossQty = comp.getQuantity();
+            if (comp.getAvailabilityPercentage() != null && comp.getAvailabilityPercentage().compareTo(BigDecimal.ZERO) > 0) {
+                grossQty = comp.getQuantity().multiply(new BigDecimal("100"))
+                        .divide(comp.getAvailabilityPercentage(), 2, RoundingMode.HALF_UP);
+            }
+            
+            table.addCell(createTableDataCell(String.format("%.2f", grossQty), regularFont, rowBg, false));
             table.addCell(createTableDataCell(String.format("%.2f", comp.getQuantity()), regularFont, rowBg, false));
             table.addCell(createTableDataCellAccent(
                     String.format("%.2f \u20ac", comp.getSubtotal()), boldFont, rowBg));
+
         }
 
         document.add(table);
@@ -244,7 +259,8 @@ public class RecipePdfService {
                 .setTextAlignment(TextAlignment.LEFT);
     }
 
-    private void addCostBanner(Document document, BigDecimal totalCost, PdfFont boldFont) {
+    private void addCostBanner(Document document, BigDecimal totalCost, BigDecimal sellingPrice, PdfFont boldFont) {
+
         Table costTable = new Table(UnitValue.createPercentArray(new float[] { 1, 1 }))
                 .setWidth(UnitValue.createPercentValue(100))
                 .setBackgroundColor(ALLERGEN_BG)
@@ -273,7 +289,49 @@ public class RecipePdfService {
         costTable.addCell(labelCell);
         costTable.addCell(valueCell);
         document.add(costTable);
+
+        if (sellingPrice != null && sellingPrice.compareTo(BigDecimal.ZERO) > 0) {
+            addSellingPriceBanner(document, sellingPrice, totalCost, boldFont);
+        }
     }
+
+    private void addSellingPriceBanner(Document document, BigDecimal sellingPrice, BigDecimal totalCost, PdfFont boldFont) {
+        Table sellTable = new Table(UnitValue.createPercentArray(new float[] { 1, 1 }))
+                .setWidth(UnitValue.createPercentValue(100))
+                .setBackgroundColor(new DeviceRgb(240, 253, 244)) // Green light
+                .setMarginTop(-24)
+                .setMarginBottom(24)
+                .setBorder(new SolidBorder(GREEN_TEXT, 0.5f));
+
+        BigDecimal margin = BigDecimal.ZERO;
+        if (totalCost.compareTo(BigDecimal.ZERO) > 0) {
+            margin = sellingPrice.subtract(totalCost).multiply(new BigDecimal("100")).divide(sellingPrice, 2, RoundingMode.HALF_UP);
+        }
+
+        Cell labelCell = new Cell()
+                .add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_SELLING_PRICE) + " (" + margin + "%)")
+                        .setFont(boldFont)
+                        .setFontSize(14)
+                        .setFontColor(GREEN_TEXT))
+                .setBorder(Border.NO_BORDER)
+                .setPadding(14)
+                .setVerticalAlignment(VerticalAlignment.MIDDLE);
+
+        Cell valueCell = new Cell()
+                .add(new Paragraph(String.format("%.2f \u20ac", sellingPrice))
+                        .setFont(boldFont)
+                        .setFontSize(20)
+                        .setFontColor(GREEN_TEXT)
+                        .setTextAlignment(TextAlignment.RIGHT))
+                .setBorder(Border.NO_BORDER)
+                .setPadding(14)
+                .setVerticalAlignment(VerticalAlignment.MIDDLE);
+
+        sellTable.addCell(labelCell);
+        sellTable.addCell(valueCell);
+        document.add(sellTable);
+    }
+
 
     private void addAllergensSection(Document document, List<AllergenResponseDTO> allergens,
             PdfFont boldFont, PdfFont regularFont) {

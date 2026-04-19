@@ -374,11 +374,19 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
                 Integer orderId = objectMapper.readTree(response).get("id").asInt();
 
+                mockMvc.perform(patch(BASE_URL + "/" + orderId + "/status")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"status\":\"REVIEW\"}"))
+                                .andExpect(status().isOk());
+
                 mockMvc.perform(get(BASE_URL + "/" + orderId)
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.id").value(orderId))
+                                .andExpect(jsonPath("$.status").value("REVIEW"))
                                 .andExpect(jsonPath("$.details[0].productId").value(testProduct1.getId()));
+
 
                 var receptionData = new java.util.HashMap<String, Object>();
                 receptionData.put("orderId", orderId);
@@ -401,6 +409,104 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.status").value("CONFIRMED"))
                                 .andExpect(jsonPath("$.id").value(orderId));
+        }
+
+        @Test
+        void whenRegisterOrderReceptionTwice_thenReturnsConflictAlreadyProcessed() throws Exception {
+
+                OrderRequestDTO orderRequest = new OrderRequestDTO();
+                orderRequest.setUserId(testUser.getId());
+                orderRequest.setSupplierId(testSupplier.getId());
+
+                List<OrderDetailRequestDTO> details = new ArrayList<>();
+                OrderDetailRequestDTO detail = new OrderDetailRequestDTO();
+                detail.setProductId(testProduct1.getId());
+                detail.setQuantity(new BigDecimal("5.0"));
+                details.add(detail);
+                orderRequest.setDetails(details);
+
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(orderRequest)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer orderId = objectMapper.readTree(response).get("id").asInt();
+
+                mockMvc.perform(patch(BASE_URL + "/{id}/status", orderId)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"status\":\"REVIEW\"}"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.status").value("REVIEW"));
+
+                var receptionData = new java.util.HashMap<String, Object>();
+                receptionData.put("orderId", orderId);
+                var items = new java.util.ArrayList<java.util.Map<String, Object>>();
+                var item = new java.util.HashMap<String, Object>();
+                item.put("productId", testProduct1.getId());
+                item.put("quantityReceived", 5.0);
+                var lot = new java.util.HashMap<String, Object>();
+                lot.put("quantity", 5.0);
+                lot.put("expirationDate", "2030-01-01");
+                item.put("lots", java.util.Arrays.asList(lot));
+                items.add(item);
+                receptionData.put("items", items);
+
+                mockMvc.perform(post(BASE_URL + "/reception")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(receptionData)))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.status").value("CONFIRMED"));
+
+                mockMvc.perform(post(BASE_URL + "/reception")
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(receptionData)))
+                                .andExpect(status().isConflict())
+                                .andExpect(jsonPath("$.currentStatus").value("CONFIRMED"))
+                                .andExpect(jsonPath("$.message", containsString("ya esta confirmada")));
+        }
+
+        @Test
+        void whenUpdateStatusOnAlreadyConfirmedToIncomplete_thenReturnsConflictAlreadyProcessed() throws Exception {
+
+                OrderRequestDTO orderRequest = new OrderRequestDTO();
+                orderRequest.setUserId(testUser.getId());
+                orderRequest.setSupplierId(testSupplier.getId());
+
+                List<OrderDetailRequestDTO> details = new ArrayList<>();
+                OrderDetailRequestDTO detail = new OrderDetailRequestDTO();
+                detail.setProductId(testProduct1.getId());
+                detail.setQuantity(new BigDecimal("2.0"));
+                details.add(detail);
+                orderRequest.setDetails(details);
+
+                String response = mockMvc.perform(post(BASE_URL)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(orderRequest)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+
+                Integer orderId = objectMapper.readTree(response).get("id").asInt();
+
+                mockMvc.perform(patch(BASE_URL + "/{id}/status", orderId)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"status\":\"CONFIRMED\"}"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.status").value("CONFIRMED"));
+
+                mockMvc.perform(patch(BASE_URL + "/{id}/status", orderId)
+                                .header("Authorization", "Bearer " + jwtToken)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"status\":\"INCOMPLETE\"}"))
+                                .andExpect(status().isConflict())
+                                .andExpect(jsonPath("$.currentStatus").value("CONFIRMED"))
+                                .andExpect(jsonPath("$.message", containsString("ya esta confirmada")));
         }
 
         @Test

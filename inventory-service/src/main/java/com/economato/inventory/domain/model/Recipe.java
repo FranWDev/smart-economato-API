@@ -45,6 +45,12 @@ public class Recipe {
     @Column(name = "total_cost", precision = 10, scale = 2)
     private BigDecimal totalCost;
 
+    @DecimalMin(value = "0.0", inclusive = true, message = "{validation.recipe.sellingPrice.decimalMin}")
+    @Digits(integer = 10, fraction = 2)
+    @Column(name = "selling_price", precision = 10, scale = 2)
+    private BigDecimal sellingPrice;
+
+
     @DecimalMin(value = "0.01", message = "{validation.recipe.portions.decimalMin}")
     @Column(name = "portions", precision = 10, scale = 2)
     @Builder.Default

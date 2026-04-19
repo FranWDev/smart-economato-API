@@ -29,7 +29,9 @@ public interface RecipeMapper {
     @Mapping(source = "projection.elaboration", target = "elaboration")
     @Mapping(source = "projection.presentation", target = "presentation")
     @Mapping(source = "projection.totalCost", target = "totalCost")
+    @Mapping(source = "projection.sellingPrice", target = "sellingPrice")
     @Mapping(source = "projection.portions", target = "portions")
+
     @Mapping(source = "projection.isHidden", target = "hidden")
     @Mapping(source = "projection.components", target = "components")
     @Mapping(source = "projection.allergens", target = "allergens")

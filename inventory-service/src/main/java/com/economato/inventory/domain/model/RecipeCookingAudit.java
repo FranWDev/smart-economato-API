@@ -60,9 +60,18 @@ public class RecipeCookingAudit {
     @Column(name = "components_state", columnDefinition = "TEXT")
     private String componentsState;
 
-    @Size(max = 64)
     @Column(name = "correlation_id", length = 64)
     private String correlationId;
+
+    @Column(name = "selling_price", precision = 10, scale = 2)
+    private BigDecimal sellingPrice;
+
+    @Column(name = "total_gross_cost", precision = 10, scale = 2)
+    private BigDecimal totalGrossCost;
+
+    @Column(name = "total_net_cost", precision = 10, scale = 2)
+    private BigDecimal totalNetCost;
+
 
     @CreatedDate
     @Column(name = "cooking_date", nullable = false, updatable = false)

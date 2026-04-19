@@ -51,6 +51,7 @@ import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.Supplier;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.OrderReceptionAlreadyProcessedException;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
@@ -436,6 +437,15 @@ public class OrderService {
                                 .orElseThrow(() -> new ResourceNotFoundException(
                                                 i18nService.getMessage(MessageKey.ERROR_ORDER_NOT_FOUND)));
 
+                if (order.getStatus() == OrderStatus.CONFIRMED || order.getStatus() == OrderStatus.INCOMPLETE) {
+                        throw new OrderReceptionAlreadyProcessedException(order.getId(), order.getStatus());
+                }
+
+                if (order.getStatus() != OrderStatus.REVIEW) {
+                        throw new InvalidOperationException(
+                                        i18nService.getMessage(MessageKey.ERROR_ORDER_INVALID_STATE, order.getStatus()));
+                }
+
                 order.setStatus(OrderStatus.REVIEW);
 
                 boolean isComplete = true;
@@ -576,6 +586,11 @@ public class OrderService {
 
                 return repository.findByIdWithDetails(orderId)
                                 .map(order -> {
+                                        if ((order.getStatus() == OrderStatus.CONFIRMED || order.getStatus() == OrderStatus.INCOMPLETE)
+                                                        && (newStatus == OrderStatus.CONFIRMED || newStatus == OrderStatus.INCOMPLETE)) {
+                                                throw new OrderReceptionAlreadyProcessedException(order.getId(), order.getStatus());
+                                        }
+
                                         order.setStatus(newStatus);
                                         Order updatedOrder = repository.save(order);
                                         if (newStatus == OrderStatus.CONFIRMED || newStatus == OrderStatus.CANCELLED

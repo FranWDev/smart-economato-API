@@ -58,6 +58,7 @@ import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.OrderReceptionAlreadyProcessedException;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
@@ -410,7 +411,9 @@ class OrderServiceTest {
 
         testOrder.getDetails().get(0).setQuantityReceived(new BigDecimal("5.0"));
 
+        testOrder.setStatus(OrderStatus.REVIEW);
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+
         when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         StockLedger ledger = StockLedger.builder()
             .id(1L)
@@ -446,6 +449,26 @@ class OrderServiceTest {
     }
 
     @Test
+    void receiveOrder_WhenOrderAlreadyProcessed_ShouldThrowConflictException() {
+
+        OrderReceptionRequestDTO receptionData = new OrderReceptionRequestDTO();
+        receptionData.setOrderId(1);
+        receptionData.setItems(Arrays.asList());
+
+        testOrder.setStatus(OrderStatus.CONFIRMED);
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+
+        assertThrows(OrderReceptionAlreadyProcessedException.class, () -> {
+            orderService.receiveOrder(receptionData);
+        });
+
+        verify(repository).findByIdWithDetails(1);
+        verify(repository, never()).save(any(Order.class));
+        verify(stockLedgerService, never()).recordStockMovement(
+            anyInt(), any(BigDecimal.class), any(MovementType.class), anyString(), any(User.class), anyInt(), nullable(LocalDate.class), nullable(String.class), nullable(String.class));
+    }
+
+    @Test
     void receiveOrder_WhenQuantityLessThanOrdered_ShouldSetStatusToIncomplete() {
 
         OrderReceptionRequestDTO receptionData = new OrderReceptionRequestDTO();
@@ -463,7 +486,9 @@ class OrderServiceTest {
 
         testOrder.getDetails().get(0).setQuantityReceived(new BigDecimal("3.0"));
 
+        testOrder.setStatus(OrderStatus.REVIEW);
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+
         when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         StockLedger ledger = new StockLedger();
         when(stockLedgerService.recordStockMovement(
@@ -503,7 +528,9 @@ class OrderServiceTest {
         receptionItem.setLots(Arrays.asList(lot));
         receptionData.setItems(Arrays.asList(receptionItem));
 
+        testOrder.setStatus(OrderStatus.REVIEW);
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+
 
         assertThrows(ResourceNotFoundException.class, () -> {
             orderService.receiveOrder(receptionData);
@@ -555,7 +582,9 @@ class OrderServiceTest {
             when(repository.save(testOrder)).thenReturn(testOrder);
             when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
 
+            testOrder.setStatus(OrderStatus.PENDING); // Reset to non-terminal state
             Optional<OrderResponseDTO> result = orderService.updateStatus(1, status);
+
 
             assertTrue(result.isPresent());
         }
@@ -576,10 +605,38 @@ class OrderServiceTest {
     }
 
     @Test
+    void updateStatus_WhenAlreadyConfirmedAndTargetConfirmed_ShouldThrowConflictException() {
+
+        testOrder.setStatus(OrderStatus.CONFIRMED);
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+
+        assertThrows(OrderReceptionAlreadyProcessedException.class,
+                () -> orderService.updateStatus(1, OrderStatus.CONFIRMED));
+
+        verify(repository).findByIdWithDetails(1);
+        verify(repository, never()).save(any(Order.class));
+    }
+
+    @Test
+    void updateStatus_WhenAlreadyIncompleteAndTargetConfirmed_ShouldThrowConflictException() {
+
+        testOrder.setStatus(OrderStatus.INCOMPLETE);
+        when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+
+        assertThrows(OrderReceptionAlreadyProcessedException.class,
+                () -> orderService.updateStatus(1, OrderStatus.CONFIRMED));
+
+        verify(repository).findByIdWithDetails(1);
+        verify(repository, never()).save(any(Order.class));
+    }
+
+    @Test
     void updateStatus_WithVersion_ShouldUseOptimisticLocking() {
 
         testOrder.setVersion(1L);
+        testOrder.setStatus(OrderStatus.REVIEW);
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+
         when(repository.save(testOrder)).thenReturn(testOrder);
         when(orderMapper.toResponseDTO(testOrder)).thenReturn(testOrderResponseDTO);
 
@@ -625,7 +682,9 @@ class OrderServiceTest {
         receptionDetail.setLots(Arrays.asList(lot));
         receptionData.setItems(Arrays.asList(receptionDetail));
 
+        testOrder.setStatus(OrderStatus.REVIEW);
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+
         when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         StockLedger ledger = new StockLedger();
         when(stockLedgerService.recordStockMovement(
@@ -662,7 +721,9 @@ class OrderServiceTest {
 
         testOrder.getDetails().get(0).setQuantityReceived(new BigDecimal("3.0"));
 
+        testOrder.setStatus(OrderStatus.REVIEW);
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+
         when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         StockLedger ledger = new StockLedger();
         when(stockLedgerService.recordStockMovement(
@@ -708,7 +769,9 @@ class OrderServiceTest {
 
         testOrder.getDetails().get(0).setQuantityReceived(new BigDecimal("5.0"));
 
+        testOrder.setStatus(OrderStatus.REVIEW);
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+
         when(productRepository.findAllById(any())).thenReturn(Arrays.asList(testProduct));
         StockLedger ledger = new StockLedger();
         when(stockLedgerService.recordStockMovement(
@@ -744,7 +807,9 @@ class OrderServiceTest {
         receptionDetail.setLots(Arrays.asList(lot1, lot2));
         receptionData.setItems(Arrays.asList(receptionDetail));
 
+        testOrder.setStatus(OrderStatus.REVIEW);
         when(repository.findByIdWithDetails(1)).thenReturn(Optional.of(testOrder));
+
 
         assertThrows(InvalidOperationException.class, () -> orderService.receiveOrder(receptionData));
         verify(stockLedgerService, never()).recordStockMovement(

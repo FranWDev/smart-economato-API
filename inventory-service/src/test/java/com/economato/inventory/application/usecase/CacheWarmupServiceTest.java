@@ -55,7 +55,7 @@ class CacheWarmupServiceTest {
                 PageRequest.of(0, 10),
                 1));
         when(recipeService.findAll(any())).thenReturn(new PageImpl<>(
-                List.of(new RecipeResponseDTO(1, "Pan", null, null, null, false, null, List.of(), List.of())),
+                List.of(new RecipeResponseDTO(1, "Pan", null, null, null, null, false, null, List.of(), List.of())),
                 PageRequest.of(0, 10),
                 1));
         when(userService.findAll(any())).thenReturn(new PageImpl<>(

@@ -38,6 +38,11 @@ public class RecipeRequestDTO {
     @Schema(description = "Número de raciones que rinde la receta", example = "10.0")
     private BigDecimal portions;
 
+    @DecimalMin(value = "0.0", message = "{validation.recipeRequestDTO.sellingPrice.decimalMin}")
+    @Schema(description = "Precio de venta de la receta", example = "15.00")
+    private BigDecimal sellingPrice;
+
+
     @NotEmpty(message = "{validation.recipeRequestDTO.components.notEmpty}")
     @Valid
     @Schema(description = "Lista de componentes de la receta")

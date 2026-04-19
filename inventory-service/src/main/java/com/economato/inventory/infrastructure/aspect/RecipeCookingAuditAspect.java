@@ -16,7 +16,9 @@ import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -102,7 +104,11 @@ public class RecipeCookingAuditAspect {
                 .componentsState(componentsState)
                 .cookingDate(LocalDateTime.now())
                 .correlationId(request.getCorrelationId())
+                .sellingPrice(recipe.getSellingPrice())
+                .totalGrossCost(recipe.getTotalCost())
+                .totalNetCost(calculateTotalNetCostFromDto(recipe))
                 .build();
+
 
         auditEventProducer.publishRecipeCookingAudit(event);
     }
@@ -123,7 +129,11 @@ public class RecipeCookingAuditAspect {
                 .componentsState(componentsState)
                 .cookingDate(LocalDateTime.now())
                 .correlationId(request.getCorrelationId())
+                .sellingPrice(recipe.getSellingPrice())
+                .totalGrossCost(recipe.getTotalCost())
+                .totalNetCost(calculateTotalNetCostFromEntity(recipe))
                 .build();
+
 
         auditEventProducer.publishRecipeCookingAudit(event);
     }
@@ -137,11 +147,14 @@ public class RecipeCookingAuditAspect {
                         Map<String, Object> data = new HashMap<>();
                         data.put("productId", comp.getProductId());
                         data.put("productName", comp.getProductName());
-                        data.put("quantity", comp.getQuantity());
+                        data.put("quantity", comp.getQuantity()); // Neto
+                        data.put("unitPrice", comp.getUnitPrice());
+                        data.put("availabilityPercentage", comp.getAvailabilityPercentage() != null ? comp.getAvailabilityPercentage() : 100.0);
                         return data;
                     }).collect(Collectors.toList());
 
             return objectMapper.writeValueAsString(Map.of("components", components));
+
         } catch (Exception e) {
             return "{}";
         }
@@ -156,13 +169,31 @@ public class RecipeCookingAuditAspect {
                         Map<String, Object> data = new HashMap<>();
                         data.put("productId", comp.getProduct().getId());
                         data.put("productName", comp.getProduct().getName());
-                        data.put("quantity", comp.getQuantity());
+                        data.put("quantity", comp.getQuantity()); // Neto
+                        data.put("unitPrice", comp.getProduct().getUnitPrice());
+                        data.put("availabilityPercentage", comp.getProduct().getAvailabilityPercentage() != null ? comp.getProduct().getAvailabilityPercentage() : 100.0);
                         return data;
                     }).collect(Collectors.toList());
 
             return objectMapper.writeValueAsString(Map.of("components", components));
+
         } catch (Exception e) {
             return "{}";
         }
     }
+
+    private BigDecimal calculateTotalNetCostFromDto(RecipeResponseDTO recipe) {
+        if (recipe.getComponents() == null) return BigDecimal.ZERO;
+        return recipe.getComponents().stream()
+                .map(c -> c.getQuantity().multiply(c.getUnitPrice() != null ? c.getUnitPrice() : BigDecimal.ZERO))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal calculateTotalNetCostFromEntity(Recipe recipe) {
+        if (recipe.getComponents() == null) return BigDecimal.ZERO;
+        return recipe.getComponents().stream()
+                .map(c -> c.getQuantity().multiply(c.getProduct().getUnitPrice() != null ? c.getProduct().getUnitPrice() : BigDecimal.ZERO))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
 }
+
