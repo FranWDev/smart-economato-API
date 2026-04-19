@@ -62,8 +62,6 @@ public class IncidentReportPdfService {
             document.add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_GENERATED) + ": "
                     + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")))
                     .setFont(regular).setFontSize(8));
-            document.add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LEGAL_NOTICE))
-                    .setFont(regular).setFontSize(8).setFontColor(ColorConstants.GRAY));
 
             document.close();
             return baos.toByteArray();
@@ -118,11 +116,7 @@ public class IncidentReportPdfService {
         header(table, i18nService.getMessage(MessageKey.REPORT_COLUMN_QUANTITY), bold);
         header(table, i18nService.getMessage(MessageKey.REPORT_LABEL_STATUS), bold);
 
-        if (attachments == null || attachments.isEmpty()) {
-            Cell cell = new Cell(1, 5).add(new Paragraph("-").setFont(regular));
-            table.addCell(cell);
-        } else {
-            List<Paragraph> traceabilityParagraphs = new ArrayList<>();
+        if (attachments != null && !attachments.isEmpty()) {
             for (IncidentAuditAttachmentResponseDTO attachment : attachments) {
                 data(table, String.valueOf(attachment.getCookingAuditId()), regular);
                 data(table, valueOrDash(attachment.getRecipeName()), regular);
@@ -131,32 +125,61 @@ public class IncidentReportPdfService {
                 data(table, attachment.isReverted()
                     ? i18nService.getMessage(MessageKey.INCIDENT_REPORT_STATUS_REVERTED)
                     : i18nService.getMessage(MessageKey.INCIDENT_REPORT_STATUS_ACTIVE), regular);
+            }
+        } else {
+            Cell cell = new Cell(1, 5).add(new Paragraph("-").setFont(regular));
+            table.addCell(cell);
+        }
 
+        document.add(table);
+
+        if (attachments != null) {
+            for (IncidentAuditAttachmentResponseDTO attachment : attachments) {
                 if (attachment.getCookingAuditId() != null) {
                     try {
                         var reverse = traceabilityService.getReverseTraceability(attachment.getCookingAuditId());
-                        int ingredientCount = reverse.getIngredientTrace() != null ? reverse.getIngredientTrace().size() : 0;
-                        traceabilityParagraphs.add(new Paragraph(i18nService.getMessage(
-                                MessageKey.INCIDENT_REPORT_TRACEABILITY_LINE,
-                                attachment.getCookingAuditId(),
-                                i18nService.getMessage(MessageKey.TRACEABILITY_SUMMARY_REVERSE, attachment.getCookingAuditId()),
-                                ingredientCount))
-                                .setFont(regular).setFontSize(8));
+                        addTraceabilityDetail(document, reverse, bold, regular);
                     } catch (Exception ex) {
                         log.warn("Unable to render reverse traceability for cookingAuditId={}", attachment.getCookingAuditId(), ex);
-                        traceabilityParagraphs.add(new Paragraph(i18nService.getMessage(
+                        document.add(new Paragraph(i18nService.getMessage(
                                 MessageKey.INCIDENT_REPORT_TRACEABILITY_UNAVAILABLE,
                                 attachment.getCookingAuditId()))
-                                .setFont(regular).setFontSize(8));
+                                .setFont(regular).setFontSize(8).setFontColor(ColorConstants.RED));
                     }
                 }
             }
+        }
+    }
 
-            document.add(table);
-            traceabilityParagraphs.forEach(document::add);
+    private void addTraceabilityDetail(Document document, com.economato.inventory.application.dto.response.ReverseTraceabilityDTO reverse, PdfFont bold, PdfFont regular) {
+        if (reverse == null || reverse.getIngredientTrace() == null || reverse.getIngredientTrace().isEmpty()) {
             return;
         }
 
+        document.add(new Paragraph(i18nService.getMessage(MessageKey.TRACEABILITY_SUMMARY_REVERSE, reverse.getCookingAudit().getId()))
+                .setFont(bold).setFontSize(10).setMarginTop(10).setKeepWithNext(true));
+
+        Table table = new Table(new float[]{3, 2, 2, 1}).setWidth(UnitValue.createPercentValue(100)).setMarginBottom(10);
+        
+        table.addCell(new Cell().add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_COLUMN_PRODUCT)).setFont(bold).setFontSize(8).setFontColor(ColorConstants.WHITE)).setBackgroundColor(ColorConstants.GRAY));
+        table.addCell(new Cell().add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_COLUMN_BATCH_CODE)).setFont(bold).setFontSize(8).setFontColor(ColorConstants.WHITE)).setBackgroundColor(ColorConstants.GRAY));
+        table.addCell(new Cell().add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_COLUMN_SUPPLIER)).setFont(bold).setFontSize(8).setFontColor(ColorConstants.WHITE)).setBackgroundColor(ColorConstants.GRAY));
+        table.addCell(new Cell().add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_COLUMN_ID)).setFont(bold).setFontSize(8).setFontColor(ColorConstants.WHITE)).setBackgroundColor(ColorConstants.GRAY));
+
+        for (var trace : reverse.getIngredientTrace()) {
+            table.addCell(new Cell().add(new Paragraph(valueOrDash(trace.getProductName())).setFont(regular).setFontSize(8)));
+            
+            String batchLabel = "-";
+            if (trace.getBatchCode() != null && !trace.getBatchCode().isBlank()) {
+                batchLabel = trace.getBatchCode();
+            } else if (trace.getBatchId() != null) {
+                batchLabel = "#" + trace.getBatchId();
+            }
+            table.addCell(new Cell().add(new Paragraph(batchLabel).setFont(regular).setFontSize(8)));
+            
+            table.addCell(new Cell().add(new Paragraph(valueOrDash(trace.getSupplierName())).setFont(regular).setFontSize(8)));
+            table.addCell(new Cell().add(new Paragraph(trace.getOrderId() != null ? String.valueOf(trace.getOrderId()) : "-").setFont(regular).setFontSize(8)));
+        }
         document.add(table);
     }
 
