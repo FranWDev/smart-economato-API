@@ -86,6 +86,7 @@ class OrderMapperTest {
                 @Override public String getName() { return "Test Product"; }
                 @Override public String getUnit() { return "KG"; }
                 @Override public BigDecimal getUnitPrice() { return unitPrice; }
+                @Override public BigDecimal getLotQuantity() { return BigDecimal.ONE; }
             };
         }
     }

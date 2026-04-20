@@ -24,5 +24,7 @@ public interface OrderDetailProjection {
         String getUnit();
 
         BigDecimal getUnitPrice();
+
+        BigDecimal getLotQuantity();
     }
 }
