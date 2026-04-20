@@ -239,7 +239,7 @@ class IncidentServiceTest {
             savedRef.set(incident);
             return incident;
         });
-        when(recipeCookingAuditRepository.findAllById(List.of(100L, 101L))).thenReturn(List.of(auditByChef, auditByStudent));
+        when(recipeCookingAuditRepository.findAllByIdWithUser(List.of(100L, 101L))).thenReturn(List.of(auditByChef, auditByStudent));
         when(incidentAuditAttachmentRepository.findAttachedCookingAuditIds(203L, List.of(100L, 101L))).thenReturn(List.of());
         when(incidentRepository.findDetailById(203L)).thenAnswer(invocation -> Optional.of(savedRef.get()));
 
@@ -339,7 +339,7 @@ class IncidentServiceTest {
         Incident incident = incident(400L, IncidentStatus.CREADO, chef, null, activeType);
         when(securityContextHelper.getCurrentUser()).thenReturn(chef);
         when(incidentRepository.findDetailById(400L)).thenReturn(Optional.of(incident));
-        when(recipeCookingAuditRepository.findAllById(List.of(100L))).thenReturn(List.of(auditByChef));
+        when(recipeCookingAuditRepository.findAllByIdWithUser(List.of(100L))).thenReturn(List.of(auditByChef));
         when(incidentAuditAttachmentRepository.findAttachedCookingAuditIds(400L, List.of(100L))).thenReturn(List.of());
         when(incidentParticipantService.allowedAuditUserIds(chef)).thenReturn(java.util.Set.of(chef.getId(), chefStudent.getId()));
         when(incidentAuditAttachmentRepository.findByIncidentId(400L)).thenReturn(List.of());
@@ -358,7 +358,7 @@ class IncidentServiceTest {
         Incident incident = incident(401L, IncidentStatus.CREADO, chef, null, activeType);
         when(securityContextHelper.getCurrentUser()).thenReturn(chef);
         when(incidentRepository.findDetailById(401L)).thenReturn(Optional.of(incident));
-        when(recipeCookingAuditRepository.findAllById(List.of(101L))).thenReturn(List.of(auditByStudent));
+        when(recipeCookingAuditRepository.findAllByIdWithUser(List.of(101L))).thenReturn(List.of(auditByStudent));
         when(incidentAuditAttachmentRepository.findAttachedCookingAuditIds(401L, List.of(101L))).thenReturn(List.of());
         when(incidentParticipantService.allowedAuditUserIds(chef)).thenReturn(java.util.Set.of(chef.getId(), chefStudent.getId()));
 
@@ -382,7 +382,7 @@ class IncidentServiceTest {
 
         when(securityContextHelper.getCurrentUser()).thenReturn(chef);
         when(incidentRepository.findDetailById(402L)).thenReturn(Optional.of(incident));
-        when(recipeCookingAuditRepository.findAllById(List.of(999L))).thenReturn(List.of(foreignAudit));
+        when(recipeCookingAuditRepository.findAllByIdWithUser(List.of(999L))).thenReturn(List.of(foreignAudit));
         when(incidentAuditAttachmentRepository.findAttachedCookingAuditIds(402L, List.of(999L))).thenReturn(List.of());
         when(incidentParticipantService.allowedAuditUserIds(chef)).thenReturn(java.util.Set.of(chef.getId(), chefStudent.getId()));
 
@@ -411,7 +411,7 @@ class IncidentServiceTest {
                 .build();
 
         when(securityContextHelper.getCurrentUser()).thenReturn(admin);
-        when(incidentAuditAttachmentRepository.findById(700L)).thenReturn(Optional.of(attachment));
+        when(incidentAuditAttachmentRepository.findByIdWithDetails(700L)).thenReturn(Optional.of(attachment));
         when(incidentAuditAttachmentRepository.save(any(IncidentAuditAttachment.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         IncidentAuditAttachmentResponseDTO result = service.revertAuditFromIncident(

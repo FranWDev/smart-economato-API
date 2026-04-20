@@ -303,7 +303,7 @@ public class McpToolReadService {
                 .map(String::toLowerCase)
                 .toList();
 
-        return recipeRepository.findAll().stream()
+        return recipeRepository.findAllWithAllergens().stream()
                 .filter(recipe -> recipe.getAllergens().stream().noneMatch(a -> excluded.contains(a.getName().toLowerCase())))
                 .map(recipe -> McpRecipeDto.builder()
                         .id(recipe.getId())
