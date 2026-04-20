@@ -1,26 +1,26 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.infrastructure.adapter.in.web.BaseIntegrationTest;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.LedgerBlockRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
-import com.economato.inventory.domain.model.MovementType;
-import com.economato.inventory.domain.model.Product;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
+import java.math.BigDecimal;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ActiveProfiles;
 
-import java.math.BigDecimal;
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.jupiter.api.Assertions.*;
+import com.economato.inventory.domain.model.MovementType;
+import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.infrastructure.adapter.in.web.BaseIntegrationTest;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.LedgerBlockRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 
 /**
- * Test de integración para validar que el proceso de minado de la blockchain funciona correctamente
+ * Test de integración para validar que el proceso de sellado de la blockchain funciona correctamente
  * de forma asíncrona y sin errores transaccionales.
  */
 @ActiveProfiles({"test", "kafka-test"})
-public class BlockchainMiningIntegrationTest extends BaseIntegrationTest {
+public class BlockchainSealingIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private StockLedgerService stockLedgerService;
@@ -35,10 +35,10 @@ public class BlockchainMiningIntegrationTest extends BaseIntegrationTest {
     private ProductRepository productRepository;
 
     @Test
-    void whenSufficientTransactionsAreRecorded_thenBlockIsMinedAsynchronously() throws Exception {
+    void whenSufficientTransactionsAreRecorded_thenBlockIsSealedAsynchronously() throws Exception {
         // 1. Preparación - Crear un producto para las transacciones
         clearDatabase();
-        
+
         Product product = new Product();
         product.setName("Blockchain Test Product");
         product.setUnit("UD");
@@ -47,10 +47,10 @@ public class BlockchainMiningIntegrationTest extends BaseIntegrationTest {
         product.setCurrentStock(BigDecimal.ZERO);
         product = productRepository.saveAndFlush(product);
 
-        // Asegurarnos de que el bloque génesis existe (el servicio lo crea al arrancar o al minar)
+        // Asegurarnos de que el bloque génesis existe (el servicio lo crea al arrancar o al sellar)
         long initialBlocks = blockRepository.count();
         if (initialBlocks == 0) {
-            // Si por alguna razón no existe el genesis, el primer minado lo creará
+            // Si por alguna razón no existe el genesis, el primer sellado lo creará
             // pero para este test esperamos que el sistema esté inicializado.
         }
 
@@ -70,21 +70,21 @@ public class BlockchainMiningIntegrationTest extends BaseIntegrationTest {
 
         // 3. Verificación - Esperar a que el proceso asíncrono termine
         // Usamos un bucle de reintento simple para no depender de Awaitility si no está en el classpath
-        boolean mined = false;
+        boolean sealed = false;
         for (int i = 0; i < 20; i++) { // Reintentar durante 10 segundos
             if (blockRepository.count() > initialBlocks) {
-                mined = true;
+                sealed = true;
                 break;
             }
             TimeUnit.MILLISECONDS.sleep(500);
         }
 
         // 4. Aserciones
-        assertTrue(mined, "Se debería haber minado al menos un bloque nuevo tras alcanzar el blockSize de 10");
-        
+        assertTrue(sealed, "Se debería haber sellado al menos un bloque nuevo tras alcanzar el blockSize de 10");
+
         long finalBlocks = blockRepository.count();
-        assertTrue(finalBlocks >= 1, "Debe existir al menos el bloque génesis y un bloque minado");
-        
+        assertTrue(finalBlocks >= 1, "Debe existir al menos el bloque génesis y un bloque sellado");
+
         // Verificar que las transacciones pendientes se han reducido (asignadas al bloque)
         long pending = ledgerRepository.countByBlockIsNull();
         assertTrue(pending < 10, "Las transacciones deberían haber sido asignadas al bloque (pendientes: " + pending + ")");

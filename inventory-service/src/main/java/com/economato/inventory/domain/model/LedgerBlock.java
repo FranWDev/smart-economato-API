@@ -47,14 +47,6 @@ public class LedgerBlock {
     private String blockHash;
 
     @NotNull
-    @Column(name = "nonce", nullable = false)
-    private Long nonce;
-
-    @NotNull
-    @Column(name = "difficulty", nullable = false)
-    private Integer difficulty;
-
-    @NotNull
     @Column(name = "timestamp", nullable = false)
     private LocalDateTime timestamp;
 

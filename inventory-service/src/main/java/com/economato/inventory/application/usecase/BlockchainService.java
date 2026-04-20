@@ -1,5 +1,33 @@
 package com.economato.inventory.application.usecase;
 
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.locks.ReentrantLock;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.annotation.Profile;
+import org.springframework.context.event.EventListener;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.support.TransactionTemplate;
+
 import com.economato.inventory.application.dto.event.BlockchainAuditEvent;
 import com.economato.inventory.domain.model.LedgerBlock;
 import com.economato.inventory.domain.model.StockLedger;
@@ -13,34 +41,10 @@ import com.economato.inventory.infrastructure.config.security.BlockchainProperti
 import com.economato.inventory.infrastructure.config.security.LedgerProperties;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
+
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.context.annotation.Profile;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
-import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.dao.DataIntegrityViolationException;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.locks.ReentrantLock;
 
 @Slf4j
 @Service
@@ -59,10 +63,9 @@ public class BlockchainService {
     private final LedgerProperties ledgerProperties;
     private final BlockchainProperties blockchainProperties;
     private final Optional<AuditEventProducer> auditEventProducer;
-    private final ReentrantLock miningLock = new ReentrantLock();
+    private final ReentrantLock sealingLock = new ReentrantLock();
     private final TransactionTemplate readTx;
     private final TransactionTemplate writeTx;
-    private final Timer verificationTimer;
     private final I18nService i18nService;
 
     public BlockchainService(
@@ -97,10 +100,6 @@ public class BlockchainService {
         this.writeTx.setIsolationLevel(TransactionDefinition.ISOLATION_SERIALIZABLE);
         this.writeTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
-        this.verificationTimer = Timer.builder("blockchain.verification.duration")
-                .description("Blockchain full verification duration")
-                .register(meterRegistry);
-
         Gauge.builder("blockchain.mempool.size", ledgerRepository, repo -> (double) repo.countByBlockIsNull())
                 .description("Current persisted mempool size")
                 .register(meterRegistry);
@@ -124,23 +123,23 @@ public class BlockchainService {
     public void notifyNewTransaction() {
         long pending = ledgerRepository.countByBlockIsNull();
         if (pending >= blockchainProperties.getBlockSize()) {
-            mineNextBlock();
+            sealNextBlock();
         }
     }
 
-    @Scheduled(fixedRateString = "${blockchain.mining-interval-ms:30000}")
-    public void scheduledMine() {
-        mineNextBlock();
+    @Scheduled(fixedRateString = "${blockchain.sealing-interval-ms:30000}")
+    public void scheduledSeal() {
+        sealNextBlock();
     }
 
-    public void mineNextBlock() {
-        if (!miningLock.tryLock()) {
+    public void sealNextBlock() {
+        if (!sealingLock.tryLock()) {
             return;
         }
 
         try {
             ensureGenesisBlock();
-            MiningCandidate candidate = readCandidate();
+            SealingCandidate candidate = readCandidate();
             if (candidate == null) {
                 return;
             }
@@ -151,9 +150,9 @@ public class BlockchainService {
                     candidate.merkleRoot(),
                     candidate.timestamp());
 
-            persistMinedBlock(candidate, sealingResult);
+            persistSealedBlock(candidate, sealingResult);
         } finally {
-            miningLock.unlock();
+            sealingLock.unlock();
         }
     }
 
@@ -179,15 +178,13 @@ public class BlockchainService {
 
                 String merkleRoot = hmacSha256("GENESIS_BLOCK");
                 String blockHash = hmacSha256(
-                        "0|" + GENESIS_PREVIOUS_HASH + "|" + merkleRoot + "|" + GENESIS_TIMESTAMP + "|0");
+                    "0|" + GENESIS_PREVIOUS_HASH + "|" + merkleRoot + "|" + GENESIS_TIMESTAMP);
 
                 LedgerBlock genesis = LedgerBlock.builder()
                         .blockNumber(0L)
                         .previousBlockHash(GENESIS_PREVIOUS_HASH)
                         .merkleRoot(merkleRoot)
                         .blockHash(blockHash)
-                        .nonce(0L)
-                        .difficulty(0)
                         .timestamp(GENESIS_TIMESTAMP)
                         .transactionCount(0)
                         .hmacKeyVersion(ledgerProperties.getCurrentHmacVersion())
@@ -201,7 +198,7 @@ public class BlockchainService {
         }
     }
 
-    private MiningCandidate readCandidate() {
+    private SealingCandidate readCandidate() {
         return readTx.execute(status -> {
             List<StockLedger> pending = ledgerRepository.findPendingTransactionsOrderByIdAsc(
                     PageRequest.of(0, blockchainProperties.getBlockSize()));
@@ -221,7 +218,7 @@ public class BlockchainService {
             }
 
             String merkleRoot = merkleTreeService.computeMerkleRoot(txHashes);
-            return new MiningCandidate(
+            return new SealingCandidate(
                     latest.getBlockNumber() + 1,
                     latest.getBlockHash(),
                     merkleRoot,
@@ -232,11 +229,11 @@ public class BlockchainService {
         });
     }
 
-    private void persistMinedBlock(MiningCandidate candidate, BlockSealingService.SealingResult miningResult) {
+    private void persistSealedBlock(SealingCandidate candidate, BlockSealingService.SealingResult sealingResult) {
         writeTx.executeWithoutResult(status -> {
             long stillPending = ledgerRepository.countByIdInAndBlockIsNull(candidate.txIds());
             if (stillPending != candidate.txIds().size()) {
-                log.warn("Mining candidate became stale before persist. expectedPending={} actualPending={}",
+                log.warn("Sealing candidate became stale before persist. expectedPending={} actualPending={}",
                         candidate.txIds().size(), stillPending);
                 return;
             }
@@ -245,9 +242,7 @@ public class BlockchainService {
                     .blockNumber(candidate.blockNumber())
                     .previousBlockHash(candidate.previousBlockHash())
                     .merkleRoot(candidate.merkleRoot())
-                    .blockHash(miningResult.blockHash())
-                    .nonce(miningResult.nonce())
-                    .difficulty(miningResult.difficulty())
+                    .blockHash(sealingResult.blockHash())
                     .timestamp(candidate.timestamp())
                     .transactionCount(candidate.txIds().size())
                     .hmacKeyVersion(ledgerProperties.getCurrentHmacVersion())
@@ -256,7 +251,7 @@ public class BlockchainService {
             LedgerBlock savedBlock = blockRepository.save(block);
             int updated = ledgerRepository.assignBlockToTransactions(savedBlock, candidate.txIds());
             if (updated <= 0) {
-                log.warn("No transactions were assigned to mined block {}", savedBlock.getBlockNumber());
+                log.warn("No transactions were assigned to sealed block {}", savedBlock.getBlockNumber());
                 return;
             }
 
@@ -279,7 +274,7 @@ public class BlockchainService {
                             .transactionHashes(candidate.txHashes())
                             .build()));
 
-            log.info("Mined block #{} hash={} txCount={}",
+            log.info("Sealed block #{} hash={} txCount={}",
                     savedBlock.getBlockNumber(), savedBlock.getBlockHash(), savedBlock.getTransactionCount());
         });
     }
@@ -297,12 +292,12 @@ public class BlockchainService {
                 hex.append(String.format("%02x", b));
             }
             return hex.toString();
-        } catch (Exception e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new IllegalStateException(i18nService.getMessage(MessageKey.ERROR_BLOCK_HASH_CALCULATION_FAILED), e);
         }
     }
 
-    private record MiningCandidate(
+    private record SealingCandidate(
             Long blockNumber,
             String previousBlockHash,
             String merkleRoot,

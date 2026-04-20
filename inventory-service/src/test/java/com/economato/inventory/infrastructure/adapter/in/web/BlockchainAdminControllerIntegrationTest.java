@@ -1,22 +1,13 @@
 package com.economato.inventory.infrastructure.adapter.in.web;
 
-import com.economato.inventory.application.dto.response.BlockchainStatsResponseDTO;
-import com.economato.inventory.application.dto.response.BlockchainVerificationResponseDTO;
-import com.economato.inventory.application.dto.response.LedgerBlockResponseDTO;
-import com.economato.inventory.application.dto.response.StockLedgerResponseDTO;
-import com.economato.inventory.application.mapper.StockLedgerMapper;
-import com.economato.inventory.application.usecase.BlockchainService;
-import com.economato.inventory.application.usecase.StockLedgerService;
-import com.economato.inventory.domain.model.LedgerBlock;
-import com.economato.inventory.domain.model.StockLedger;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.LedgerBlockRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
-import com.economato.inventory.infrastructure.config.security.JwtUtils;
-import com.economato.inventory.infrastructure.config.security.SecurityConfig;
-import com.economato.inventory.application.usecase.TokenBlacklistService;
-import com.economato.inventory.infrastructure.config.web.I18nService;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.cache.CacheManager;
@@ -27,24 +18,29 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.servlet.LocaleResolver;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import org.springframework.web.servlet.LocaleResolver;
+
+import com.economato.inventory.application.dto.response.StockLedgerResponseDTO;
+import com.economato.inventory.application.mapper.StockLedgerMapper;
+import com.economato.inventory.application.usecase.BlockchainService;
+import com.economato.inventory.application.usecase.StockLedgerService;
+import com.economato.inventory.application.usecase.TokenBlacklistService;
+import com.economato.inventory.domain.model.LedgerBlock;
+import com.economato.inventory.domain.model.StockLedger;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.LedgerBlockRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
+import com.economato.inventory.infrastructure.config.security.JwtUtils;
+import com.economato.inventory.infrastructure.config.security.SecurityConfig;
+import com.economato.inventory.infrastructure.config.web.I18nService;
 
 @WebMvcTest(BlockchainAdminController.class)
 @ActiveProfiles({"test", "kafka-test"})
@@ -98,8 +94,6 @@ class BlockchainAdminControllerIntegrationTest {
                 .previousBlockHash("0000000000000000000000000000000000000000000000000000000000000001")
                 .merkleRoot("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
                 .blockHash("0000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
-                .nonce(0L)
-                .difficulty(0)
                 .timestamp(LocalDateTime.of(2026, 4, 10, 10, 15, 0))
                 .transactionCount(10)
                 .hmacKeyVersion(1)
