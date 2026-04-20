@@ -1,6 +1,12 @@
 package com.economato.inventory.application.usecase;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -14,8 +20,10 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import org.mockito.Mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -122,6 +130,49 @@ class NestStreamBridgeServiceTest {
         assertEquals(1.0, meterRegistry.counter("ai.nest.stream.errors.total", "type", "connection").count());
     }
 
+    @Test
+    void streamCompletion_sseParser_preservesTokenSpaces() throws Exception {
+        mockCircuitBreakerClosed();
+        mockRequestChain();
+
+        String ssePayload = """
+                event:token
+                data: Hello
+
+                event:token
+                data:  world
+
+                event:done
+                data:{\"fullResponse\":\"Hello world\",\"inputTokens\":5,\"outputTokens\":3}
+
+                """;
+
+        when(requestBodySpec.exchange(any())).thenAnswer(invocation -> {
+            RestClient.RequestHeadersSpec.ExchangeFunction<?> exchangeFunction =
+                    invocation.getArgument(0, RestClient.RequestHeadersSpec.ExchangeFunction.class);
+            RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse clientHttpResponse =
+                    mock(RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse.class);
+            when(clientHttpResponse.getStatusCode()).thenReturn(HttpStatus.OK);
+            when(clientHttpResponse.getBody())
+                    .thenReturn(new ByteArrayInputStream(ssePayload.getBytes(StandardCharsets.UTF_8)));
+            return exchangeFunction.exchange(null, clientHttpResponse);
+        });
+
+        CapturingSseEmitter emitter = new CapturingSseEmitter();
+        NestStreamBridgeService.StreamCompletionResult result =
+                service.streamCompletion(request(), emitter, "jwt-token");
+
+        List<String> emittedTokens = emitter.nonEmptyPayloads().stream()
+                .filter(payload -> payload.startsWith("event:token"))
+                .map(CapturingSseEmitter::extractDataPayload)
+                .toList();
+
+        assertEquals(List.of("Hello", " world"), emittedTokens);
+        assertEquals("Hello world", result.fullResponse());
+        assertEquals(5, result.inputTokens());
+        assertEquals(3, result.outputTokens());
+    }
+
     private NestCompletionRequest request() {
         return new NestCompletionRequest(
                 "compressed-context",
@@ -145,6 +196,74 @@ class NestStreamBridgeServiceTest {
         private void mockCircuitBreakerClosed() {
                 when(circuitBreakerRegistry.circuitBreaker("nest")).thenReturn(circuitBreaker);
                 when(circuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
+        }
+
+        private static class CapturingSseEmitter extends SseEmitter {
+                private final List<String> payloads = new ArrayList<>();
+
+                @Override
+                public synchronized void send(SseEventBuilder builder) throws IOException {
+                        payloads.add(readPayload(builder));
+                }
+
+                private List<String> nonEmptyPayloads() {
+                        return payloads.stream()
+                                        .filter(payload -> payload != null && !payload.isEmpty())
+                                        .toList();
+                }
+
+                private static String extractDataPayload(String serializedEvent) {
+                        for (String line : serializedEvent.split("\\R")) {
+                                if (line.startsWith("data:")) {
+                                        return line.substring(5);
+                                }
+                        }
+                        return "";
+                }
+
+                private String readPayload(SseEventBuilder builder) {
+                        try {
+                                Field dataField = findField(builder.getClass(), "dataToSend");
+                                if (dataField == null) {
+                                        throw new IllegalStateException("Missing dataToSend field in SseEventBuilder");
+                                }
+                                @SuppressWarnings("unchecked")
+                                LinkedHashSet<Object> dataToSend = (LinkedHashSet<Object>) readFieldValue(dataField, builder);
+
+                                StringBuilder payload = new StringBuilder();
+                                for (Object dataWithMediaType : dataToSend) {
+                                        Field rawDataField = findField(dataWithMediaType.getClass(), "data");
+                                        Object rawData = rawDataField != null ? readFieldValue(rawDataField, dataWithMediaType) : null;
+                                        if (rawData != null) {
+                                                payload.append(rawData);
+                                        }
+                                }
+
+                                return payload.toString();
+                        } catch (Exception ex) {
+                                throw new IllegalStateException("Unable to capture SSE event", ex);
+                        }
+                }
+
+                private Object readFieldValue(Field field, Object instance) throws IllegalAccessException {
+                        field.setAccessible(true);
+                        return field.get(instance);
+                }
+
+                private Field findField(Class<?> type, String... fieldNames) {
+                        Class<?> current = type;
+                        while (current != null) {
+                                for (String fieldName : fieldNames) {
+                                        try {
+                                                return current.getDeclaredField(fieldName);
+                                        } catch (NoSuchFieldException ignored) {
+                                                // Keep searching in the class hierarchy.
+                                        }
+                                }
+                                current = current.getSuperclass();
+                        }
+                        return null;
+                }
         }
 
 }

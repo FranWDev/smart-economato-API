@@ -130,7 +130,11 @@ public class NestStreamBridgeService {
                         if (!dataBuffer.isEmpty()) {
                             dataBuffer.append('\n');
                         }
-                        dataBuffer.append(line.substring(5).trim());
+                        String rawData = line.substring(5);
+                        if (rawData.startsWith(" ")) {
+                            rawData = rawData.substring(1);
+                        }
+                        dataBuffer.append(rawData);
                     } else if (line.isBlank()) {
                         if (currentEvent != null) {
                             NestStreamEvent event = parseEvent(currentEvent, dataBuffer.toString());
