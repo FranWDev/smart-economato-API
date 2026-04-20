@@ -23,6 +23,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -212,6 +213,19 @@ public class StockAlertService {
                         .updatedAt(prediction.getUpdatedAt())
                         .build())
                 .collect(Collectors.toList());
+
+        // Aplicar ordenación manual ya que el repositorio no puede ordenar el filtro en memoria
+        if (pageable.getSort().isSorted()) {
+            allValidPredictions.sort((p1, p2) -> {
+                for (Sort.Order order : pageable.getSort()) {
+                    int result = compareByProperty(p1, p2, order.getProperty());
+                    if (result != 0) {
+                        return order.isAscending() ? result : -result;
+                    }
+                }
+                return 0;
+            });
+        }
 
         int start = (int) pageable.getOffset();
         int end = Math.min((start + pageable.getPageSize()), allValidPredictions.size());
@@ -928,5 +942,25 @@ public class StockAlertService {
                               int expirationCriticalDays,
                               int expirationHighDays,
                               int expirationMediumDays) {
+    }
+
+    private int compareByProperty(StockPredictionResponseDTO p1, StockPredictionResponseDTO p2, String property) {
+        switch (property) {
+            case "productName":
+                return p1.getProductName().compareToIgnoreCase(p2.getProductName());
+            case "projectedConsumption":
+                return p1.getProjectedConsumption().compareTo(p2.getProjectedConsumption());
+            case "currentStock":
+                BigDecimal s1 = p1.getCurrentStock() != null ? p1.getCurrentStock() : BigDecimal.ZERO;
+                BigDecimal s2 = p2.getCurrentStock() != null ? p2.getCurrentStock() : BigDecimal.ZERO;
+                return s1.compareTo(s2);
+            case "updatedAt":
+                if (p1.getUpdatedAt() == null && p2.getUpdatedAt() == null) return 0;
+                if (p1.getUpdatedAt() == null) return -1;
+                if (p2.getUpdatedAt() == null) return 1;
+                return p1.getUpdatedAt().compareTo(p2.getUpdatedAt());
+            default:
+                return 0;
+        }
     }
 }
