@@ -216,12 +216,15 @@ public class WeeklyPlanStockReservationService {
             requiredStockMap.put((Integer) row[0], toBigDecimal(row[1]));
         }
         
+        return calculateStockRequirements(requiredStockMap, planId);
+    }
+
+    public List<com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO> calculateStockRequirements(Map<Integer, BigDecimal> requiredStockMap, Long excludePlanId) {
         List<com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO> dtos = new ArrayList<>();
         if (requiredStockMap.isEmpty()) return dtos;
 
-        Map<Integer, BigDecimal> currentReservations = calculateReservedStock(planId);
+        Map<Integer, BigDecimal> currentReservations = calculateReservedStock(excludePlanId);
         List<Product> products = productRepository.findAllById(requiredStockMap.keySet());
-        WeeklyPlan plan = weeklyPlanRepository.findById(planId).orElseThrow();
         
         for (Product product : products) {
             BigDecimal needed = requiredStockMap.get(product.getId());
