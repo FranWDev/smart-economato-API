@@ -28,6 +28,8 @@ import com.economato.inventory.domain.model.RecipeCookingAudit;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
+import com.economato.inventory.infrastructure.config.web.I18nService;
 
 @ExtendWith(MockitoExtension.class)
 class KitchenReportServiceTest {
@@ -38,6 +40,12 @@ class KitchenReportServiceTest {
     @Mock
     private ProductRepository productRepository;
 
+    @Mock
+    private StockLedgerRepository ledgerRepository;
+
+    @Mock
+    private I18nService i18nService;
+
     @Spy
     private KitchenReportMapper mapper; // Use real mapper to get the DTO assembled properly
 
@@ -46,6 +54,7 @@ class KitchenReportServiceTest {
 
     @Test
     void testGenerateReport_emptyAudits() {
+        when(ledgerRepository.sumMermaCostByDateRange(any(), any())).thenReturn(BigDecimal.ZERO);
         when(auditRepository.streamByDateRange(any(), any())).thenReturn(Stream.empty());
 
         KitchenReportResponseDTO report = kitchenReportService.generateReport(ReportRange.DAILY, null, null);
@@ -96,6 +105,7 @@ class KitchenReportServiceTest {
         when(auditRepository.streamByDateRange(any(), any())).thenReturn(Stream.of(audit));
 
         when(productRepository.findAllById(any(Set.class))).thenReturn(List.of(cheese, tomato));
+        when(ledgerRepository.sumMermaCostByDateRange(any(), any())).thenReturn(new BigDecimal("10.00"));
 
         KitchenReportResponseDTO report = kitchenReportService.generateReport(ReportRange.WEEKLY, null, null);
 
@@ -110,6 +120,9 @@ class KitchenReportServiceTest {
 
         assertEquals(0, BigDecimal.valueOf(19.50).compareTo(report.getTotalEstimatedCost()),
                 "Cost calculation mismatched");
+        assertEquals(0, new BigDecimal("10.00").compareTo(report.getTotalExpiredWasteCost()));
+        // Net Profit = Sales (0) - Total Cost (19.50) - Expired (10.00) = -29.50
+        assertEquals(0, new BigDecimal("-29.50").compareTo(report.getNetProfit()));
 
         List<RecipeStatDTO> recipes = report.getTopRecipes();
         assertEquals(1, recipes.size());

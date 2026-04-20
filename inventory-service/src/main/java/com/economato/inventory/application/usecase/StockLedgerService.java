@@ -491,7 +491,7 @@ public class StockLedgerService {
             true);
         }
 
-        private StockLedger recordStockMovementInternal(
+    private StockLedger recordStockMovementInternal(
             Integer productId,
             BigDecimal quantityDelta,
             MovementType movementType,
@@ -503,6 +503,24 @@ public class StockLedgerService {
             Long targetBatchId,
             String batchCode,
             boolean enforceReservationGuard) {
+        return recordStockMovementInternal(productId, quantityDelta, movementType,
+                description, user, orderId, expirationDate, correlationId,
+                targetBatchId, batchCode, enforceReservationGuard, false);
+    }
+
+    private StockLedger recordStockMovementInternal(
+            Integer productId,
+            BigDecimal quantityDelta,
+            MovementType movementType,
+            String description,
+            User user,
+            Integer orderId,
+            LocalDate expirationDate,
+            String correlationId,
+            Long targetBatchId,
+            String batchCode,
+            boolean enforceReservationGuard,
+            boolean skipBatchConsumption) {
 
         log.info("Registrando movimiento: Producto={}, Delta={}, Tipo={}",
                 productId, quantityDelta, movementType);
@@ -538,17 +556,19 @@ public class StockLedgerService {
 
         List<BatchConsumptionDetail> batchMovements = new ArrayList<>();
 
-        if (targetBatchId != null) {
-            if (quantityDelta.compareTo(BigDecimal.ZERO) < 0) {
-                batchMovements = productBatchService.consumeFromSpecificBatch(targetBatchId, quantityDelta.abs());
-            } else if (quantityDelta.compareTo(BigDecimal.ZERO) > 0) {
-                productBatchService.addStockToBatch(targetBatchId, quantityDelta);
-                batchMovements.add(new BatchConsumptionDetail(targetBatchId, quantityDelta.negate()));
+        if (!skipBatchConsumption) {
+            if (targetBatchId != null) {
+                if (quantityDelta.compareTo(BigDecimal.ZERO) < 0) {
+                    batchMovements = productBatchService.consumeFromSpecificBatch(targetBatchId, quantityDelta.abs());
+                } else if (quantityDelta.compareTo(BigDecimal.ZERO) > 0) {
+                    productBatchService.addStockToBatch(targetBatchId, quantityDelta);
+                    batchMovements.add(new BatchConsumptionDetail(targetBatchId, quantityDelta.negate()));
+                }
+            } else if (quantityDelta.compareTo(BigDecimal.ZERO) < 0) {
+                // Toda salida de stock DEBE consumir de lotes vía FEFO
+                BigDecimal toConsume = quantityDelta.abs();
+                batchMovements = productBatchService.consumeStock(productId, toConsume);
             }
-        } else if (quantityDelta.compareTo(BigDecimal.ZERO) < 0) {
-            // Toda salida de stock DEBE consumir de lotes vía FEFO
-            BigDecimal toConsume = quantityDelta.abs();
-            batchMovements = productBatchService.consumeStock(productId, toConsume);
         }
 
         Optional<StockLedger> lastTransaction = ledgerRepository.findLastTransactionByProductId(productId);
@@ -596,7 +616,7 @@ public class StockLedgerService {
 
         // Crear lote automáticamente para cualquier delta positivo sin targetBatchId
         // (incluye REVERSION para que se cree el lote consolidado)
-        if (targetBatchId == null
+        if (!skipBatchConsumption && targetBatchId == null
                 && quantityDelta.compareTo(BigDecimal.ZERO) > 0) {
             ProductBatch newBatch = productBatchService.createBatch(
                     product,
@@ -608,26 +628,38 @@ public class StockLedgerService {
         }
 
         // Guardar detalles de trazabilidad de lotes si existen
-        if (!batchMovements.isEmpty()) {
-            List<Long> batchIds = batchMovements.stream()
-                    .map(BatchConsumptionDetail::getBatchId)
-                    .toList();
-            Map<Long, ProductBatch> batchesById = batchRepository.findAllById(batchIds).stream()
-                    .collect(Collectors.toMap(ProductBatch::getId, b -> b));
-
-            for (BatchConsumptionDetail detail : batchMovements) {
-                ProductBatch affectedBatch = batchesById.get(detail.getBatchId());
-                if (affectedBatch == null) {
-                    throw new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND));
-                }
-
+        if (!batchMovements.isEmpty() || (skipBatchConsumption && targetBatchId != null)) {
+            if (skipBatchConsumption && targetBatchId != null) {
+                // Si saltamos el consumo pero pasamos un targetBatchId, registrarlo para trazabilidad
+                ProductBatch affectedBatch = batchRepository.findById(targetBatchId)
+                        .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
+                
                 StockLedgerBatchDetail batchDetail = StockLedgerBatchDetail.builder()
                         .ledgerTransaction(transaction)
                         .batch(affectedBatch)
-                        .quantity(detail.getQuantityConsumed().negate()) // Guardamos la cantidad tal cual afectó al
-                                                                         // lote
+                        .quantity(normalizedDelta)
                         .build();
                 batchDetailRepository.save(batchDetail);
+            } else {
+                List<Long> batchIds = batchMovements.stream()
+                        .map(BatchConsumptionDetail::getBatchId)
+                        .toList();
+                Map<Long, ProductBatch> batchesById = batchRepository.findAllById(batchIds).stream()
+                        .collect(Collectors.toMap(ProductBatch::getId, b -> b));
+
+                for (BatchConsumptionDetail detail : batchMovements) {
+                    ProductBatch affectedBatch = batchesById.get(detail.getBatchId());
+                    if (affectedBatch == null) {
+                        throw new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND));
+                    }
+
+                    StockLedgerBatchDetail batchDetail = StockLedgerBatchDetail.builder()
+                            .ledgerTransaction(transaction)
+                            .batch(affectedBatch)
+                            .quantity(detail.getQuantityConsumed().negate()) // Guardamos la cantidad tal cual afectó al lote
+                            .build();
+                    batchDetailRepository.save(batchDetail);
+                }
             }
         }
 
@@ -1112,29 +1144,42 @@ public class StockLedgerService {
                 ));
     }
 
+    @RealtimeSync(entityType = "batch", action = "STATUS_CHANGE", idFromArg = 0,
+            affectedDomains = {"batch", "product", "weekly_plan", "ledger", "stock_alerts"})
     @Transactional(rollbackFor = Exception.class)
     public void withdrawExpiredBatch(Long batchId) {
         User user = securityContextHelper.getCurrentUser();
         ProductBatch batch = productBatchService.getBatchById(batchId)
-                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
         if (batch.isDepleted() || batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) == 0) {
-            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_BATCH_DEPLETED_WITHDRAWAL));
+            throw new InvalidOperationException(
+                i18nService.getMessage(MessageKey.ERROR_BATCH_DEPLETED_WITHDRAWAL));
         }
 
         BigDecimal quantity = batch.getRemainingQuantity();
         Integer productId = batch.getProduct().getId();
 
-        // Retirada de lote caducado: es una salida, no necesita expirationDate (no crea
-        // lote nuevo)
-        recordManualAdjustment(
+        // 1. Agotar el lote directamente (valida internamente que esté caducado)
+        productBatchService.depleteExpiredBatch(batchId);
+
+        // 2. Registrar movimiento en el ledger SIN targetBatchId
+        //    (el lote ya fue agotado en el paso anterior, no necesita consumeFromSpecificBatch)
+        recordStockMovementInternal(
                 productId,
                 quantity.negate(),
                 MovementType.MERMA,
-                i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_EXPIRED_BATCH_WITHDRAWAL, new Object[] { batchId }),
+                i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_EXPIRED_BATCH_WITHDRAWAL,
+                        new Object[]{batchId}),
                 user,
-                batchId,
-                null);
+                null,   // orderId
+                null,   // expirationDate
+                null,   // correlationId
+                batchId, // targetBatchId (para trazabilidad en el ledger)
+                null,   // batchCode
+                false,  // enforceReservationGuard
+                true);  // skipBatchConsumption = true (lote ya agotado por depleteExpiredBatch)
 
         log.info("Lote caducado retirado: batchId={}, productId={}, qty={}", batchId, productId, quantity);
     }

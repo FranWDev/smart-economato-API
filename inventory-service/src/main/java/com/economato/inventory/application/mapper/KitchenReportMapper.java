@@ -21,6 +21,7 @@ public class KitchenReportMapper {
             int distinctProducts,
             BigDecimal totalCost,
             BigDecimal totalWasteCost,
+            BigDecimal totalExpiredWasteCost,
             BigDecimal totalSales,
             BigDecimal grossProfit,
             BigDecimal netProfit,
@@ -37,6 +38,7 @@ public class KitchenReportMapper {
                 .distinctProductsUsed(distinctProducts)
                 .totalEstimatedCost(totalCost)
                 .totalWasteCost(totalWasteCost)
+                .totalExpiredWasteCost(totalExpiredWasteCost)
                 .totalSales(totalSales)
                 .grossProfit(grossProfit)
                 .netProfit(netProfit)

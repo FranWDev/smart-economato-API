@@ -198,6 +198,7 @@ public class KitchenReportPdfService {
 
         addInfoPair(table, i18nService.getMessage(MessageKey.REPORT_LABEL_TOTAL_ESTIMATED_COST), formatCurrency(report.getTotalEstimatedCost()), boldFont, regularFont);
         addInfoPair(table, i18nService.getMessage(MessageKey.REPORT_LABEL_TOTAL_WASTE_COST), formatCurrency(report.getTotalWasteCost()), boldFont, regularFont);
+        addInfoPair(table, i18nService.getMessage(MessageKey.REPORT_LABEL_TOTAL_EXPIRED_WASTE_COST), formatCurrency(report.getTotalExpiredWasteCost()), boldFont, regularFont);
         addInfoPair(table, i18nService.getMessage(MessageKey.REPORT_LABEL_TOTAL_SALES), formatCurrency(report.getTotalSales()), boldFont, regularFont);
         addInfoPair(table, i18nService.getMessage(MessageKey.REPORT_LABEL_GROSS_PROFIT), formatCurrency(report.getGrossProfit()), boldFont, regularFont);
         addInfoPair(table, i18nService.getMessage(MessageKey.REPORT_LABEL_NET_PROFIT), formatCurrency(report.getNetProfit()), boldFont, regularFont);

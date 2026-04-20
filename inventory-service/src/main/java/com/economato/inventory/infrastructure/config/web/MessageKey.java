@@ -426,12 +426,14 @@ public enum MessageKey {
     ERROR_REPORT_WEEKLY_PLAN_PDF_GENERATION("error.report.weekly.plan.pdf.generation"),
     REPORT_SECTION_ECONOMIC_ANALYSIS("report.section.economic.analysis"),
     REPORT_LABEL_TOTAL_WASTE_COST("report.label.total.waste.cost"),
+    REPORT_LABEL_TOTAL_EXPIRED_WASTE_COST("report.label.total.expired.waste.cost"),
     REPORT_LABEL_TOTAL_SALES("report.label.total.sales"),
     REPORT_LABEL_GROSS_PROFIT("report.label.gross.profit"),
     REPORT_LABEL_NET_PROFIT("report.label.net.profit"),
     REPORT_COLUMN_GROSS_QUANTITY("report.column.gross.quantity"),
     REPORT_LABEL_SELLING_PRICE("report.label.selling.price"),
-    REPORT_ECONOMIC_ANALYSIS_EXPLANATION("report.economic.analysis.explanation");
+    REPORT_ECONOMIC_ANALYSIS_EXPLANATION("report.economic.analysis.explanation"),
+    ERROR_BATCH_NOT_EXPIRED("error.batch.not.expired");
 
     private final String key;
 

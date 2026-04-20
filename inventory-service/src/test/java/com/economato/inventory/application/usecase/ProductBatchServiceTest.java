@@ -126,7 +126,7 @@ class ProductBatchServiceTest {
     }
 
     @Test
-    void consumeStock_shouldFailIfFirstEligibleBatchIsExpired() {
+    void consumeStock_shouldSkipExpiredBatches_AndConsumeFromNextValidOne() {
         Product product = new Product();
         product.setId(1);
 
@@ -134,16 +134,28 @@ class ProductBatchServiceTest {
                 .id(1L)
                 .product(product)
                 .expirationDate(LocalDate.now().minusDays(1))
-                .remainingQuantity(new BigDecimal("3.000"))
-                .initialQuantity(new BigDecimal("3.000"))
+                .remainingQuantity(new BigDecimal("10.000"))
+                .initialQuantity(new BigDecimal("10.000"))
                 .depleted(false)
                 .build();
 
-        when(i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRED)).thenReturn("Batch expired");
-        when(batchRepository.findActiveByProductIdOrderByExpiration(1)).thenReturn(List.of(expired));
+        ProductBatch valid = ProductBatch.builder()
+                .id(2L)
+                .product(product)
+                .expirationDate(LocalDate.now().plusDays(5))
+                .remainingQuantity(new BigDecimal("5.000"))
+                .initialQuantity(new BigDecimal("5.000"))
+                .depleted(false)
+                .build();
 
-        assertThrows(InvalidOperationException.class,
-                () -> productBatchService.consumeStock(1, new BigDecimal("1.000")));
+        when(batchRepository.findActiveByProductIdOrderByExpiration(1)).thenReturn(List.of(expired, valid));
+
+        List<BatchConsumptionDetail> affected = productBatchService.consumeStock(1, new BigDecimal("2.000"));
+
+        assertEquals(new BigDecimal("10.000"), expired.getRemainingQuantity(), "Expired batch should not be touched");
+        assertEquals(new BigDecimal("3.000"), valid.getRemainingQuantity(), "Valid batch should be consumed");
+        assertEquals(1, affected.size());
+        assertEquals(new BigDecimal("2.000"), affected.get(0).getQuantityConsumed());
     }
 
     // ===== Tests para updateExpirationDate =====
@@ -245,6 +257,64 @@ class ProductBatchServiceTest {
 
         assertThrows(com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException.class,
                 () -> productBatchService.updateExpirationDate(999L, LocalDate.now().plusDays(10), null));
+    }
+
+    // ===== Tests para depleteExpiredBatch =====
+
+    @Test
+    void depleteExpiredBatch_shouldSucceed_whenBatchIsExpired() {
+        Product product = new Product();
+        product.setId(1);
+
+        ProductBatch expired = ProductBatch.builder()
+                .id(100L).product(product)
+                .expirationDate(LocalDate.now().minusDays(1))
+                .remainingQuantity(new BigDecimal("5.000"))
+                .depleted(false).build();
+
+        when(batchRepository.findById(100L)).thenReturn(java.util.Optional.of(expired));
+
+        productBatchService.depleteExpiredBatch(100L);
+
+        assertEquals(BigDecimal.ZERO, expired.getRemainingQuantity());
+        assertTrue(expired.isDepleted());
+        verify(batchRepository).save(expired);
+    }
+
+    @Test
+    void depleteExpiredBatch_shouldFail_whenBatchIsNotExpired() {
+        Product product = new Product();
+        product.setId(1);
+
+        ProductBatch valid = ProductBatch.builder()
+                .id(101L).product(product)
+                .expirationDate(LocalDate.now().plusDays(1))
+                .remainingQuantity(new BigDecimal("5.000"))
+                .depleted(false).build();
+
+        when(batchRepository.findById(101L)).thenReturn(java.util.Optional.of(valid));
+        when(i18nService.getMessage(MessageKey.ERROR_BATCH_NOT_EXPIRED)).thenReturn("Not expired");
+
+        assertThrows(InvalidOperationException.class,
+                () -> productBatchService.depleteExpiredBatch(101L));
+    }
+
+    @Test
+    void depleteExpiredBatch_shouldFail_whenBatchAlreadyDepleted() {
+        Product product = new Product();
+        product.setId(1);
+
+        ProductBatch depleted = ProductBatch.builder()
+                .id(102L).product(product)
+                .expirationDate(LocalDate.now().minusDays(1))
+                .remainingQuantity(BigDecimal.ZERO)
+                .depleted(true).build();
+
+        when(batchRepository.findById(102L)).thenReturn(java.util.Optional.of(depleted));
+        when(i18nService.getMessage(MessageKey.ERROR_BATCH_DEPLETED)).thenReturn("Depleted");
+
+        assertThrows(InvalidOperationException.class,
+                () -> productBatchService.depleteExpiredBatch(102L));
     }
 
     @Test

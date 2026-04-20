@@ -85,4 +85,8 @@ public interface ProductBatchRepository extends JpaRepository<ProductBatch, Long
     @Query("SELECT COALESCE(SUM(b.remainingQuantity), 0) FROM ProductBatch b " +
             "WHERE b.product.id = :productId AND b.depleted = false")
     BigDecimal sumRemainingQuantityByProductId(@Param("productId") Integer productId);
+
+    @Query("SELECT COALESCE(SUM(b.remainingQuantity), 0) FROM ProductBatch b " +
+            "WHERE b.product.id = :productId AND b.depleted = false AND b.expirationDate IS NOT NULL AND b.expirationDate < CURRENT_DATE")
+    BigDecimal sumExpiredRemainingQuantityByProductId(@Param("productId") Integer productId);
 }

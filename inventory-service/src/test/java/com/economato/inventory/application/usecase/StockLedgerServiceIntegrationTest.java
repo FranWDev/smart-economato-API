@@ -585,6 +585,37 @@ class StockLedgerServiceIntegrationTest {
                 assertTrue(transactions.stream().allMatch(StockLedger::getVerified));
         }
 
-        // Reset/repair flows were removed when the ledger became append-only.
-        // Coverage now focuses on history retrieval, integrity verification, and snapshot updates.
+        @Test
+        @Transactional
+        @DisplayName("Debe retirar un lote caducado correctamente actualizando stock y ledger")
+        void testWithdrawExpiredBatch_Success() {
+                // 1. Crear un lote caducado
+                ProductBatch expiredBatch = ProductBatch.builder()
+                                .product(testProduct)
+                                .initialQuantity(new BigDecimal("10.000"))
+                                .remainingQuantity(new BigDecimal("10.000"))
+                                .expirationDate(LocalDate.now().minusDays(5))
+                                .receivedAt(java.time.LocalDateTime.now().minusDays(10))
+                                .depleted(false)
+                                .build();
+                expiredBatch = productBatchRepository.saveAndFlush(expiredBatch);
+                
+                BigDecimal initialStock = productRepository.findById(testProduct.getId()).get().getCurrentStock();
+
+                // 2. Ejecutar retirada
+                stockLedgerService.withdrawExpiredBatch(expiredBatch.getId());
+
+                // 3. Verificar resultados
+                ProductBatch updatedBatch = productBatchRepository.findById(expiredBatch.getId()).get();
+                assertTrue(updatedBatch.isDepleted());
+                assertEquals(0, BigDecimal.ZERO.compareTo(updatedBatch.getRemainingQuantity()));
+
+                Product updatedProduct = productRepository.findById(testProduct.getId()).get();
+                assertEquals(0, initialStock.subtract(new BigDecimal("10.000")).compareTo(updatedProduct.getCurrentStock()));
+
+                List<StockLedger> history = stockLedgerService.getProductHistory(testProduct.getId());
+                StockLedger lastTx = history.get(history.size() - 1);
+                assertEquals(MovementType.MERMA, lastTx.getMovementType());
+                assertEquals(0, new BigDecimal("-10.000").compareTo(lastTx.getQuantityDelta()));
+        }
 }
