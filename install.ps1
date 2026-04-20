@@ -6,8 +6,15 @@ Smart Economato - Panel de Control & Instalador para Windows Server
 $ErrorActionPreference = "Continue"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
+# Detección de OS para compatibilidad con PS 5.1
+if ($PSVersionTable.PSVersion.Major -lt 6) {
+    $script:IsWindowsOS = $true   # PS 5.1 solo corre en Windows
+} else {
+    $script:IsWindowsOS = $IsWindows
+}
+
 # Elevación automática en Windows
-if ($IsWindows) {
+if ($script:IsWindowsOS) {
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if (-not $isAdmin) {
         Write-Host "Solicitando permisos de Administrador..." -ForegroundColor Yellow
@@ -27,48 +34,143 @@ function Write-Header {
     Write-Host "  ╚═╗║║║╠═╣╠╦╝ ║   ║╣ ║  ║ ║║║║║ ║║║║╠═╣ ║ ║ ║" -ForegroundColor Cyan
     Write-Host "  ╚═╝╩ ╩╩ ╩╩╚═ ╩   ╚═╝╚═╝╚═╝╝╚╝╚═╝╩ ╩╩ ╩ ╩ ╚═╝" -ForegroundColor Cyan
     Write-Host "===============================================================" -ForegroundColor Cyan
-    Write-Host "       Panel de Control y Mantenimiento de Producción v2.0     " -ForegroundColor White
+    Write-Host "       Panel de Control y Mantenimiento de Producción v3.1     " -ForegroundColor White
     Write-Host ""
 }
 
-function Write-Info { param([string]$msg); Write-Host "[ INFO ] " -NoNewline -ForegroundColor Cyan; Write-Host $msg }
-function Write-Success { param([string]$msg); Write-Host "[  OK  ] " -NoNewline -ForegroundColor Green; Write-Host $msg }
-function Write-Warn { param([string]$msg); Write-Host "[ WARN ] " -NoNewline -ForegroundColor Yellow; Write-Host $msg }
-function Write-ErrorMsg { param([string]$msg); Write-Host "[ERROR ] " -NoNewline -ForegroundColor Red; Write-Host $msg }
+function Write-Typewriter {
+    param([string]$msg, [int]$speed = 10, [string]$color = "White")
+    foreach ($char in $msg.ToCharArray()) {
+        Write-Host $char -NoNewline -ForegroundColor $color
+        Start-Sleep -Milliseconds $speed
+    }
+    Write-Host ""
+}
+
+function Show-Spinner {
+    param([string]$msg, [scriptblock]$action, [array]$ArgsList = @())
+    $spinner = @('|', '/', '-', '\')
+    $job = Start-Job -ScriptBlock $action -ArgumentList ($using:PWD + $ArgsList)
+    
+    Write-Host "[ .... ] $msg " -NoNewline -ForegroundColor Cyan
+    $i = 0
+    while ($job.State -eq 'Running') {
+        Write-Host ("`b" * 1) -NoNewline
+        Write-Host $spinner[$i % 4] -NoNewline -ForegroundColor Yellow
+        $i++
+        Start-Sleep -Milliseconds 150
+    }
+    
+    $result = Receive-Job -Job $job -Wait
+    $success = $job.ChildJobs[0].Error.Count -eq 0 -and $null -ne $result -and $result -ne $false
+    
+    # Limpiar spinner
+    Write-Host ("`b" * 10) -NoNewline
+    if ($success) {
+        Write-Host "[  OK  ] " -NoNewline -ForegroundColor Green
+    } else {
+        Write-Host "[ERROR ] " -NoNewline -ForegroundColor Red
+    }
+    Write-Host "$msg"
+    
+    Remove-Job $job
+    return $result
+}
+
+$script:LogFile = Join-Path $PWD "smart-economato.log"
+
+function Write-Log {
+    param([string]$level, [string]$msg)
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Add-Content -Path $script:LogFile -Value "[$timestamp] [$level] $msg" -ErrorAction SilentlyContinue
+}
+
+function Write-Info { param([string]$msg); Write-Host "[ INFO ] " -NoNewline -ForegroundColor Cyan; Write-Host $msg; Write-Log "INFO" $msg }
+function Write-Success { param([string]$msg); Write-Host "[  OK  ] " -NoNewline -ForegroundColor Green; Write-Host $msg; Write-Log "SUCCESS" $msg }
+function Write-Warn { param([string]$msg); Write-Host "[ WARN ] " -NoNewline -ForegroundColor Yellow; Write-Host $msg; Write-Log "WARN" $msg }
+function Write-ErrorMsg { param([string]$msg); Write-Host "[ERROR ] " -NoNewline -ForegroundColor Red; Write-Host $msg; Write-Log "ERROR" $msg }
+
+function Invoke-Docker {
+    param([string]$Arguments, [switch]$Silent)
+    $output = & docker $Arguments.Split(' ') 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        if (-not $Silent) { Write-ErrorMsg "Docker falló (exit code $LASTEXITCODE): $output" }
+        return $false
+    }
+    return $true
+}
+
+function Sanitize-EnvValue {
+    param([string]$value)
+    # Eliminar caracteres que rompen el formato .env
+    $value = $value -replace '[=\r\n"''#\\]', ''
+    return $value.Trim()
+}
+
+function Set-EnvValue($envPath, $key, $value) {
+    $escapedKey = [regex]::Escape($key)
+    $content = Get-Content $envPath -ErrorAction SilentlyContinue
+    if ($content | Select-String "^${escapedKey}=") {
+        $content = $content | ForEach-Object {
+            if ($_ -match "^${escapedKey}=") { "${key}=${value}" } else { $_ }
+        }
+        $content | Set-Content $envPath
+    } else {
+        Add-Content -Path $envPath -Value "${key}=${value}"
+    }
+}
 
 function Generate-RandomString($length, $isPassword=$false) {
     $chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
     if ($isPassword) { $chars += "@#%*()_+:?" }
     
-    $bytes = New-Object Byte[] $length
     $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
-    $rng.GetBytes($bytes)
+    $maxValid = [Math]::Floor(256 / $chars.Length) * $chars.Length  # Rejection threshold
+    $result = [System.Text.StringBuilder]::new($length)
+    $buf = New-Object Byte[] 1
     
-    $result = ""
-    foreach ($byte in $bytes) {
-        $result += $chars[$byte % $chars.Length]
+    while ($result.Length -lt $length) {
+        $rng.GetBytes($buf)
+        if ($buf[0] -lt $maxValid) {
+            [void]$result.Append($chars[$buf[0] % $chars.Length])
+        }
     }
-    return $result
+    $rng.Dispose()
+    return $result.ToString()
 }
 
-function Set-EnvSecret($envPath, $key, $length, $isComplex) {
+function Set-EnvSecret($envPath, $key, $length, $isComplex, $forceLetterStart=$false) {
     if (-not (Test-Path $envPath)) { New-Item -ItemType File -Path $envPath -Force | Out-Null }
     
-    $exists = Select-String -Path $envPath -Pattern "^$key=" -Quiet
+    $escapedKey = [regex]::Escape($key)
+    $exists = Select-String -Path $envPath -Pattern "^${escapedKey}=" -Quiet
     if (-not $exists) {
         $val = Generate-RandomString $length $isComplex
-        Add-Content -Path $envPath -Value "$key=$val"
+        if ($forceLetterStart) {
+            $letters = "abcdefghijklmnopqrstuvwxyz"
+            $val = $letters[(Get-Random -Maximum $letters.Length)] + $val.Substring(1)
+        }
+        Add-Content -Path $envPath -Value "${key}=${val}"
     } else {
-        $existingVal = (Select-String -Path $envPath -Pattern "^$key=(.*)").Matches.Groups[1].Value
+        $existingVal = (Select-String -Path $envPath -Pattern "^${escapedKey}=(.*)").Matches.Groups[1].Value
         if ([string]::IsNullOrWhiteSpace($existingVal)) {
             $val = Generate-RandomString $length $isComplex
-            (Get-Content $envPath) -replace "^$key=", "$key=$val" | Set-Content $envPath
+            if ($forceLetterStart) {
+                $letters = "abcdefghijklmnopqrstuvwxyz"
+                $val = $letters[(Get-Random -Maximum $letters.Length)] + $val.Substring(1)
+            }
+            $content = Get-Content $envPath
+            $content = $content | ForEach-Object {
+                if ($_ -match "^${escapedKey}=") { "${key}=${val}" } else { $_ }
+            }
+            $content | Set-Content $envPath
         }
     }
 }
 
 function Pause-Execution {
-    Write-Host "`nPresiona ENTER para continuar..." -ForegroundColor Cyan
+    Write-Host ""
+    Write-Typewriter ">> Presiona ENTER para volver al menú principal..." 5 "Cyan"
     Read-Host
 }
 
@@ -89,11 +191,12 @@ function Get-FreePort {
 # =============================================================================
 
 function Ensure-LocalDns {
-    $hostsPath = if ($IsWindows) { "C:\Windows\System32\drivers\etc\hosts" } else { "/etc/hosts" }
+    $hostsPath = if ($script:IsWindowsOS) { "C:\Windows\System32\drivers\etc\hosts" } else { "/etc/hosts" }
     $entry = "127.0.0.1 smart-economato"
     
     try {
-        if (-not (Select-String -Path $hostsPath -Pattern "\bsmart-economato\b" -Quiet)) {
+        $content = Get-Content $hostsPath -Raw -ErrorAction SilentlyContinue
+        if ($content -notmatch '127\.0\.0\.1\s+smart-economato') {
             Add-Content -Path $hostsPath -Value "`n$entry" -ErrorAction Stop
             Write-Success "Resolvedor DNS local (smart-economato) configurado."
         }
@@ -123,30 +226,25 @@ function Ensure-Certificates {
     $keyPath = Join-Path $certDir "local.key"
     
     if (-not (Test-Path $crtPath) -or -not (Test-Path $keyPath)) {
-        Write-Info "Generando certificados de seguridad (SSL)..."
-        if ($IsWindows) {
-            # Generar certificado auto-firmado nativamente en Windows
-            $name = "SmartEconomatoLocal"
-            $cert = New-SelfSignedCertificate -DnsName "localhost", "smart-economato" -CertStoreLocation "Cert:\LocalMachine\My" -NotAfter (Get-Date).AddYears(10) -FriendlyName "Smart Economato SSL"
-            
-            # Exportar Public Key (CRT)
-            $crtBase64 = "-----BEGIN CERTIFICATE-----`n" + [Convert]::ToBase64String($cert.RawData, "InsertLineBreaks") + "`n-----END CERTIFICATE-----"
-            Set-Content -Path $crtPath -Value $crtBase64
-            
-            # Exportar Private Key (KEY) - Usando un hack de .NET para extraerla sin contraseña en formato PEM
-            $rsa = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($cert)
-            $keyBase64 = "-----BEGIN PRIVATE KEY-----`n" + [Convert]::ToBase64String($rsa.ExportPkcs8PrivateKey(), "InsertLineBreaks") + "`n-----END PRIVATE KEY-----"
-            Set-Content -Path $keyPath -Value $keyBase64
-            
-            Write-Success "Certificados generados correctamente."
-        } else {
-            Write-Warn "Certificados no encontrados. Por favor, genéralos manualmente con OpenSSL en Linux."
+        Show-Spinner "Generando certificados de seguridad (SSL)..." {
+            param($cwd)
+            if ($PSVersionTable.PSVersion.Major -lt 6) { $script:IsWindowsOS = $true } else { $script:IsWindowsOS = $IsWindows }
+            if ($script:IsWindowsOS) {
+                $cert = New-SelfSignedCertificate -DnsName "localhost", "smart-economato" -CertStoreLocation "Cert:\LocalMachine\My" -NotAfter (Get-Date).AddYears(10) -FriendlyName "Smart Economato SSL"
+                $crtBase64 = "-----BEGIN CERTIFICATE-----`n" + [Convert]::ToBase64String($cert.RawData, "InsertLineBreaks") + "`n-----END CERTIFICATE-----"
+                Set-Content -Path (Join-Path $cwd "nginx\certs\local.crt") -Value $crtBase64
+                $rsa = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($cert)
+                $keyBase64 = "-----BEGIN PRIVATE KEY-----`n" + [Convert]::ToBase64String($rsa.ExportPkcs8PrivateKey(), "InsertLineBreaks") + "`n-----END PRIVATE KEY-----"
+                Set-Content -Path (Join-Path $cwd "nginx\certs\local.key") -Value $keyBase64
+                return $true
+            }
+            return $false
         }
     }
 }
 
 function Create-DesktopShortcut {
-    if ($IsWindows) {
+    if ($script:IsWindowsOS) {
         $desktopPath = [Environment]::GetFolderPath('Desktop')
         $shortcutPath = Join-Path $desktopPath "Smart Economato.lnk"
         
@@ -168,7 +266,7 @@ function Create-DesktopShortcut {
 }
 
 function Ensure-DockerService {
-    if ($IsWindows) {
+    if ($script:IsWindowsOS) {
         try {
             $dockerSvc = Get-Service -Name "docker" -ErrorAction Stop
             if ($dockerSvc.StartType -ne 'Automatic') {
@@ -191,13 +289,11 @@ function Configure-System {
     Write-Info "Ejecutando Inicialización y Despliegue de Auto-Configuración..."
     
     # 1. Dependencias
-    try {
-        $null = docker compose version 2>$null
-        Write-Success "Docker Compose Engine Detectado."
-    } catch {
+    if (-not (Invoke-Docker "compose version" -Silent)) {
         Write-ErrorMsg "Docker no detectado. Instálalo para poder correr Smart Economato."
         return
     }
+    Write-Success "Docker Compose Engine Detectado."
 
     Ensure-DockerService
     Create-DesktopShortcut
@@ -213,13 +309,20 @@ function Configure-System {
         Write-Host "`n--- Configuración Inicial ---" -ForegroundColor Cyan
         $adminName = Read-Host "Nombre (Ej: Jefe_de_Cocina o pulsa Enter)"
         if ([string]::IsNullOrWhiteSpace($adminName)) { $adminName = "Admin" }
+        $adminName = Sanitize-EnvValue $adminName
         
         $adminUser = Read-Host "Nombre de usuario"
         if ([string]::IsNullOrWhiteSpace($adminUser)) { $adminUser = "admin" }
+        $adminUser = Sanitize-EnvValue $adminUser
         
-        $adminPass = Read-Host -AsSecureString "Contraseña"
-        $adminPassStr = [System.Net.NetworkCredential]::new("", $adminPass).Password
-        if ([string]::IsNullOrWhiteSpace($adminPassStr)) { $adminPassStr = "admin1234" }
+        do {
+            $adminPass = Read-Host -AsSecureString "Contraseña (obligatoria, mínimo 8 caracteres)"
+            $adminPassStr = [System.Net.NetworkCredential]::new("", $adminPass).Password
+            if ($adminPassStr.Length -lt 8) {
+                Write-Warn "La contraseña debe tener al menos 8 caracteres."
+            }
+        } while ($adminPassStr.Length -lt 8)
+        $adminPassStr = Sanitize-EnvValue $adminPassStr
         
         Add-Content -Path $envPath -Value "SEED_ADMIN_NAME=$adminName"
         Add-Content -Path $envPath -Value "SEED_ADMIN_USER=$adminUser"
@@ -230,8 +333,8 @@ function Configure-System {
         Add-Content -Path $envPath -Value "GRAFANA_PASSWORD=$adminPassStr"
     }
 
-    Set-EnvSecret $envPath "POSTGRES_DB" 12 $false
-    Set-EnvSecret $envPath "POSTGRES_USER" 12 $false
+    Set-EnvSecret $envPath "POSTGRES_DB" 12 $false $true
+    Set-EnvSecret $envPath "POSTGRES_USER" 12 $false $true
     Set-EnvSecret $envPath "POSTGRES_PASSWORD" 32 $true
     Set-EnvSecret $envPath "JWT_SECRET" 128 $true
     Set-EnvSecret $envPath "LEDGER_HMAC_SECRET" 128 $true
@@ -243,16 +346,17 @@ function Configure-System {
     $volumes = @("turing-backend_postgres-data", "turing-backend_postgres-replica-data", "turing-backend_redis-data", "turing-backend_kafka-data", "turing-backend_prometheus-data", "turing-backend_grafana-data", "turing-backend_predictor-outbox-data", "turing-backend_uploads-data")
     foreach ($vol in $volumes) {
         if (-not (docker volume ls -q | Select-String "^$vol$")) {
-            $null = docker volume create $vol
+            Invoke-Docker "volume create $vol" | Out-Null
         }
     }
     Write-Success "Volúmenes persistentes mapeados."
 
     # 4. Tarea en Background (Arrancar contenedores junto a Windows)
-    if ($IsWindows) {
+    if ($script:IsWindowsOS) {
         try {
             # Se requiere Administrador
-            $action = New-ScheduledTaskAction -Execute "docker" -Argument "compose -f `"$PWD/docker-compose.yml`" up -d" -WorkingDirectory "$PWD"
+            $projectRoot = (Resolve-Path $PSScriptRoot).Path
+            $action = New-ScheduledTaskAction -Execute "docker" -Argument "compose -f `"$projectRoot/docker-compose.yml`" up -d" -WorkingDirectory "$projectRoot"
             $trigger = New-ScheduledTaskTrigger -AtBoot
             $trigger2 = New-ScheduledTaskTrigger -AtLogOn
             $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
@@ -279,12 +383,45 @@ function Action-Start {
     $p80 = Get-FreePort 80
     $p443 = Get-FreePort 443
     
-    $env:PROXY_HTTP_PORT = if ($p80 -eq 80) { 80 } else { 3000 }
-    $env:PROXY_HTTPS_PORT = if ($p443 -eq 443) { 443 } else { 3443 }
+    $httpPort = if ($p80 -eq 80) { 80 } else { 3000 }
+    $httpsPort = if ($p443 -eq 443) { 443 } else { 3443 }
+    
+    # Verificar que los puertos fallback también estén libres
+    if ($p80 -ne 80) {
+        $pFallback = Get-FreePort 3000
+        if ($pFallback -eq 0) {
+            Write-ErrorMsg "Los puertos 80 y 3000 están ocupados. Libera uno de ellos."
+            return
+        }
+    }
+    if ($p443 -ne 443) {
+        $pFallback = Get-FreePort 3443
+        if ($pFallback -eq 0) {
+            Write-ErrorMsg "Los puertos 443 y 3443 están ocupados. Libera uno de ellos."
+            return
+        }
+    }
+    
+    # Persistir en .env para que docker-compose los lea
+    $envPath = Join-Path $PWD ".env"
+    Set-EnvValue $envPath "PROXY_HTTP_PORT" $httpPort
+    Set-EnvValue $envPath "PROXY_HTTPS_PORT" $httpsPort
+    Set-EnvValue $envPath "NGINX_CONF_PATH" "./nginx/reverse-proxy.template"
+    
+    # También setear en el proceso actual
+    $env:PROXY_HTTP_PORT = $httpPort
+    $env:PROXY_HTTPS_PORT = $httpsPort
     $env:NGINX_CONF_PATH = "./nginx/reverse-proxy.template"
 
-    try {
-        $null = docker compose up -d --build 2>&1
+    $success = Show-Spinner "Desplegando contenedores Docker..." {
+        param($cwd)
+        Set-Location $cwd
+        $args = "compose up -d --build"
+        & docker $args.Split(' ') 2>&1
+        return ($LASTEXITCODE -eq 0)
+    }
+
+    if ($success) {
         Write-Success "¡Sistema encendido!"
         
         $protocol = "https"
@@ -305,17 +442,16 @@ function Action-Start {
         Write-Host "    $networkUrl" -ForegroundColor White
         Write-Host "===============================================================`n" -ForegroundColor Cyan
 
-    } catch {
+    } else {
         Write-ErrorMsg "No se pudo iniciar el sistema. Revisa el registro de actividad."
     }
 }
 
 function Action-Stop {
     Write-Info "Apagando el sistema..."
-    try {
-        $null = docker compose down 2>&1
+    if (Invoke-Docker "compose down") {
         Write-Success "Sistema apagado correctamente."
-    } catch {
+    } else {
         Write-ErrorMsg "Error al apagar el sistema."
     }
 }
@@ -330,14 +466,14 @@ function Action-Health {
     Write-Info "Revisando que todo funcione bien..."
     
     # Revisar contenedores detenidos y levantarlos automágicamente.
-    $exited = docker ps -a --filter "status=exited" --format "{{.Names}}"
+    $exited = docker compose ps --filter "status=exited" --format "{{.Names}}" 2>$null
     if ([string]::IsNullOrWhiteSpace($exited)) {
         Write-Success "Todo parece estar en orden. El sistema está funcionando bien."
     } else {
         Write-Warn "Se ha detectado que algo se detuvo:"
         Write-Host $exited -ForegroundColor Yellow
         Write-Info "Intentando arreglarlo automáticamente..."
-        docker compose up -d 
+        Invoke-Docker "compose up -d" | Out-Null
         Write-Success "Se han vuelto a encender los servicios que fallaban."
     }
 
@@ -374,8 +510,33 @@ function Action-RepairBlockchain {
         password = $passwordStr
     } | ConvertTo-Json
 
+    $invokeParams = @{
+        Uri = "$baseUrl/api/auth/login"
+        Method = 'Post'
+        Body = $body
+        ContentType = 'application/json'
+        ErrorAction = 'Stop'
+    }
+
+    # PS 7+: usar -SkipCertificateCheck
+    if ($PSVersionTable.PSVersion.Major -ge 7) {
+        $invokeParams['SkipCertificateCheck'] = $true
+    } else {
+        # PS 5.1: deshabilitar validación SSL temporalmente
+        if (-not ([System.Management.Automation.PSTypeName]'TrustAllCertsPolicy').Type) {
+            Add-Type @"
+using System.Net;
+using System.Security.Cryptography.X509Certificates;
+public class TrustAllCertsPolicy : ICertificatePolicy {
+    public bool CheckValidationResult(ServicePoint sp, X509Certificate cert, WebRequest req, int problem) { return true; }
+}
+"@
+        }
+        [System.Net.ServicePointManager]::CertificatePolicy = New-Object TrustAllCertsPolicy
+    }
+
     try {
-        $loginRes = Invoke-RestMethod -Uri "$baseUrl/api/auth/login" -Method Post -Body $body -ContentType "application/json" -ErrorAction Stop
+        $loginRes = Invoke-RestMethod @invokeParams
         $token = $loginRes.token
         if ([string]::IsNullOrEmpty($token)) {
             Write-ErrorMsg "No se pudo entrar al sistema."
@@ -393,7 +554,15 @@ function Action-RepairBlockchain {
 
     Write-Info "Reparando el Libro de Movimientos y Stock. Por favor, espera..."
     try {
-        $rebuildRes = Invoke-RestMethod -Uri "$baseUrl/api/admin/blockchain/rebuild-all" -Method Post -Headers $headers -ErrorAction Stop
+        $repairParams = @{
+            Uri = "$baseUrl/api/admin/blockchain/rebuild-all"
+            Method = 'Post'
+            Headers = $headers
+            ErrorAction = 'Stop'
+        }
+        if ($PSVersionTable.PSVersion.Major -ge 7) { $repairParams['SkipCertificateCheck'] = $true }
+
+        $rebuildRes = Invoke-RestMethod @repairParams
         Write-Success "El libro de movimientos ha sido reparado con éxito."
     } catch {
         Write-ErrorMsg "Fallo al intentar reparar el libro de movimientos."
@@ -404,24 +573,53 @@ function Action-RepairBlockchain {
     Write-Success "La operación de mantenimiento ha finalizado correctamente."
 }
 
+function Action-Backup {
+    Write-Info "Creando copia de seguridad de la base de datos..."
+    $backupDir = Join-Path $PWD "backups"
+    if (-not (Test-Path $backupDir)) { New-Item -Path $backupDir -ItemType Directory | Out-Null }
+    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $backupFile = Join-Path $backupDir "backup_$timestamp.sql"
+    
+    $user = if ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { 
+        try { (Select-String -Path ".env" -Pattern "^POSTGRES_USER=(.*)").Matches.Groups[1].Value } catch { "postgres" }
+    }
+
+    $success = Show-Spinner "Exportando base de datos a SQL..." {
+        param($cwd, $pgUser)
+        Set-Location $cwd
+        $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+        $backupFile = Join-Path $cwd "backups\backup_$timestamp.sql"
+        $args = "compose exec -T postgres pg_dumpall -U $pgUser"
+        & docker $args.Split(' ') 2>&1 | Out-File $backupFile
+        return ($LASTEXITCODE -eq 0)
+    } -ArgsList $user
+
+    if ($success) {
+        Write-Success "Backup completado con éxito."
+    }
+}
+
 # =============================================================================
 # BUCLE DEL MENÚ
 # =============================================================================
 
+$envCheckPath = Join-Path $PWD ".env"
+
 function Should-Run-Config {
-    if (-not (Test-Path $envCheckPath)) { return $true }
+    param([string]$envPath)
+    if (-not (Test-Path $envPath)) { return $true }
     
     # Comprobar si faltan claves críticas para que no sea solo "que exista el archivo"
     $criticalKeys = @("SEED_ADMIN_NAME", "JWT_SECRET", "POSTGRES_PASSWORD", "LEDGER_HMAC_SECRET")
-    $content = Get-Content $envCheckPath
+    $content = Get-Content $envPath
     foreach ($key in $criticalKeys) {
-        if (-not ($content | Select-String "^$key=")) { return $true }
+        $escapedKey = [regex]::Escape($key)
+        if (-not ($content | Select-String "^${escapedKey}=")) { return $true }
     }
     return $false
 }
 
-$envCheckPath = Join-Path $PWD ".env"
-if (Should-Run-Config) {
+if (Should-Run-Config $envCheckPath) {
     Ensure-Certificates
     Configure-System
     Pause-Execution
@@ -429,19 +627,21 @@ if (Should-Run-Config) {
 
 while ($true) {
     Write-Header
+    Write-Typewriter "  Acceso rápido al Panel de Control Smart Economato" 5 "Gray"
+    Write-Host " ---------------------------------------------------------------" -ForegroundColor DarkGray
     Write-Host " [ 1 ] 🟢 Iniciar Smart Economato" -ForegroundColor Green
     Write-Host " [ 2 ] 🔴 Apagar sistema" -ForegroundColor Red
     Write-Host " [ 3 ] 🔄 Reiniciar" -ForegroundColor Yellow
     Write-Host " [ 4 ] 🏥 Solucionar problemas" -ForegroundColor Cyan
     Write-Host " [ 5 ] 📋 Ver historial de actividad" -ForegroundColor Magenta
+    Write-Host " [ 6 ] 💾 Crear copia de seguridad (Backup)" -ForegroundColor Blue
     Write-Host " [ 7 ] ⚖️  Reparar libro de stock" -ForegroundColor DarkYellow
-    Write-Host " [ 9 ] 🚪 Salir" -ForegroundColor DarkGray
-    Write-Host "---------------------------------------------------------------" -ForegroundColor Cyan
-    Write-Host " Hecho con ❤️  por el Grupo Turing del IES Domingo Pérez Minik:" -ForegroundColor White
-    Write-Host " Francisco Airam | Javier Remedios | Lorena Fumero | Javier Pascual" -ForegroundColor Gray
-    Write-Host "---------------------------------------------------------------" -ForegroundColor Cyan
+    Write-Host " [ 0 ] 🚪 Salir" -ForegroundColor DarkGray
+    Write-Host " ---------------------------------------------------------------" -ForegroundColor Cyan
+    Write-Host " Hecho con ❤️  por el Grupo Turing del IES Domingo Pérez Minik" -ForegroundColor White
+    Write-Host " ---------------------------------------------------------------" -ForegroundColor Cyan
     
-    $choice = Read-Host "Elige una opción (1-9)"
+    $choice = Read-Host " >> Selecciona una acción"
     
     switch ($choice) {
         '1' { Action-Start; Pause-Execution }
@@ -449,8 +649,9 @@ while ($true) {
         '3' { Action-Restart; Pause-Execution }
         '4' { Action-Health; Pause-Execution }
         '5' { Action-Logs }
+        '6' { Action-Backup; Pause-Execution }
         '7' { Action-RepairBlockchain; Pause-Execution }
-        '9' { Write-Host "Saliendo del Panel de Control... Ciao!"; exit }
+        '0' { Write-Host "Saliendo del Panel de Control... Ciao!"; exit }
         default { Write-ErrorMsg "Opción inválida." }
     }
 }
