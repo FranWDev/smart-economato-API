@@ -15,6 +15,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +59,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.ai.AiChatProperties;
 import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
 import com.economato.inventory.infrastructure.config.ai.AiProviderProperties;
+import com.economato.inventory.infrastructure.config.security.JwtUtils;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
@@ -89,6 +92,7 @@ public class AiChatService {
 
     private final ConcurrentHashMap<Integer, AtomicInteger> activeStreamsByUser = new ConcurrentHashMap<>();
     private final AtomicInteger activeStreamsGlobal = new AtomicInteger(0);
+    private final JwtUtils jwtUtils;
 
     @Autowired
     public AiChatService(AiChatRepository aiChatRepository,
@@ -104,7 +108,8 @@ public class AiChatService {
             AiNestProperties aiNestProperties,
             MeterRegistry meterRegistry,
             Optional<AuditEventProducer> auditEventProducer,
-            I18nService i18nService) {
+            I18nService i18nService,
+            JwtUtils jwtUtils) {
         this.aiChatRepository = aiChatRepository;
         this.aiChatMessageRepository = aiChatMessageRepository;
         this.aiKeyVaultService = aiKeyVaultService;
@@ -119,6 +124,7 @@ public class AiChatService {
         this.meterRegistry = meterRegistry;
         this.auditEventProducer = auditEventProducer;
         this.i18nService = i18nService;
+        this.jwtUtils = jwtUtils;
     }
 
     public AiChatService(AiChatRepository aiChatRepository,
@@ -136,7 +142,7 @@ public class AiChatService {
             I18nService i18nService) {
         this(aiChatRepository, aiChatMessageRepository, aiKeyVaultService, null, semanticMemoryGraphService,
                 nestStreamBridgeService, aiRateLimitService, securityContextHelper, aiChatProperties,
-                aiProviderProperties, aiNestProperties, meterRegistry, auditEventProducer, i18nService);
+                aiProviderProperties, aiNestProperties, meterRegistry, auditEventProducer, i18nService, null);
     }
 
     @PostConstruct
@@ -293,6 +299,16 @@ public class AiChatService {
         User currentUser = requireCurrentUser();
         AiChat chat = getOwnedChat(chatId, currentUser.getId());
 
+        // Validate JWT early before returning SseEmitter to detect authorization issues before streaming starts.
+        if (jwtUtils != null && userJwt != null && !userJwt.isBlank()) {
+            String username = jwtUtils.validateAndExtractUsername(userJwt);
+            if (username == null) {
+                log.warn("Invalid JWT token provided for AI chat streaming: chatId={}, userId={}", chatId,
+                        currentUser.getId());
+                throw new AiStreamException(i18nService.getMessage(MessageKey.ERROR_AUTH_JWT_INVALID));
+            }
+        }
+
         if (!aiRateLimitService.isAllowed(currentUser.getId())) {
             log.warn("AI rate limited: userId={}, reason={}", currentUser.getId(), "per_minute");
             publishAudit(AiAuditEvent.builder()
@@ -377,10 +393,15 @@ public class AiChatService {
 
         SseEmitter emitter = new SseEmitter(aiNestProperties.getStreamTimeoutMs());
         StreamLease lease = acquireStreamLease(currentUser.getId());
+        // Capture current security context to propagate to virtual thread.
+        SecurityContext securityContext = SecurityContextHolder.getContext();
+
 
         Thread.startVirtualThread(() -> {
             Timer.Sample sample = Timer.start(meterRegistry);
             long streamStart = System.nanoTime();
+            // Restore security context in virtual thread.
+            SecurityContextHolder.setContext(securityContext);
             try {
                 NestStreamBridgeService.StreamCompletionResult result = nestStreamBridgeService
                         .streamCompletion(nestRequest, emitter, userJwt);

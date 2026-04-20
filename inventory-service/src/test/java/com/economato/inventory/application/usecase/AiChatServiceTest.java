@@ -16,8 +16,10 @@ import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.Mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -46,11 +48,14 @@ import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiKey
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiMaxMessagesReachedException;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiProviderDisabledException;
 import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiRateLimitExceededException;
+import com.economato.inventory.infrastructure.adapter.in.web.mcp.exception.AiStreamException;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.AiChatMessageRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.AiChatRepository;
 import com.economato.inventory.infrastructure.config.ai.AiChatProperties;
 import com.economato.inventory.infrastructure.config.ai.AiNestProperties;
 import com.economato.inventory.infrastructure.config.ai.AiProviderProperties;
+import com.economato.inventory.infrastructure.config.security.JwtUtils;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 
 import com.economato.inventory.infrastructure.config.web.I18nService;
@@ -75,6 +80,8 @@ class AiChatServiceTest {
     private AiRateLimitService aiRateLimitService;
     @Mock
     private SecurityContextHelper securityContextHelper;
+    @Mock
+    private JwtUtils jwtUtils;
     @Mock
     private I18nService i18nService;
 
@@ -102,6 +109,7 @@ class AiChatServiceTest {
                 aiChatRepository,
                 aiChatMessageRepository,
                 aiKeyVaultService,
+                null,
                 semanticMemoryGraphService,
                 nestStreamBridgeService,
                 aiRateLimitService,
@@ -110,14 +118,16 @@ class AiChatServiceTest {
                 providerProperties,
                 nestProperties,
                 new SimpleMeterRegistry(),
-                Optional.empty(),
-                i18nService
+                Optional.<AuditEventProducer>empty(),
+                i18nService,
+                jwtUtils
         );
 
         currentUser = new User();
         currentUser.setId(10);
         currentUser.setName("Admin");
         when(securityContextHelper.getCurrentUser()).thenReturn(currentUser);
+        when(jwtUtils.validateAndExtractUsername(anyString())).thenReturn("Admin");
     }
 
     @Test
@@ -254,6 +264,19 @@ class AiChatServiceTest {
 
         assertThrows(AiKeyNotFoundException.class,
                 () -> service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "jwt"));
+    }
+
+    @Test
+    void sendMessage_invalidJwt_throwsBeforeStreaming() {
+        AiChat chat = chat(100L);
+        when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
+        when(jwtUtils.validateAndExtractUsername("bad-jwt")).thenReturn(null);
+
+        assertThrows(AiStreamException.class,
+                () -> service.sendMessage(100L, new McpChatMessageRequest("hola", "es"), "bad-jwt"));
+
+        verify(nestStreamBridgeService, never()).streamCompletion(any(NestCompletionRequest.class), any(), anyString());
+        verify(aiRateLimitService, never()).isAllowed(anyInt());
     }
 
     @Test
