@@ -1,5 +1,18 @@
 package com.economato.inventory.application.usecase;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.economato.inventory.application.dto.event.StockPredictionEvent;
 import com.economato.inventory.application.dto.event.StockPredictionEvent.DailyConsumption;
 import com.economato.inventory.application.dto.response.ProductConsumptionResponseDTO.DailyConsumptionDTO;
@@ -7,21 +20,12 @@ import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Profile;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Profile({ "!test", "kafka-test" })
 @Slf4j
-@RequiredArgsConstructor
 public class ScheduledForecastRefreshService {
 
     private static final int DEFAULT_INTERVAL_HOURS = 6;
@@ -34,8 +38,34 @@ public class ScheduledForecastRefreshService {
     private final AuditEventProducer auditEventProducer;
     private final WebSocketNotificationService webSocketNotificationService;
     private final PersistentNotificationService persistentNotificationService;
-    @Autowired(required = false)
-    private SystemConfigService systemConfigService;
+    private final SystemConfigService systemConfigService;
+
+    @Autowired
+    public ScheduledForecastRefreshService(ProductRepository productRepository,
+            StockLedgerRepository stockLedgerRepository,
+            StockLedgerService stockLedgerService,
+            AuditEventProducer auditEventProducer,
+            WebSocketNotificationService webSocketNotificationService,
+            PersistentNotificationService persistentNotificationService,
+            @Autowired(required = false) SystemConfigService systemConfigService) {
+        this.productRepository = productRepository;
+        this.stockLedgerRepository = stockLedgerRepository;
+        this.stockLedgerService = stockLedgerService;
+        this.auditEventProducer = auditEventProducer;
+        this.webSocketNotificationService = webSocketNotificationService;
+        this.persistentNotificationService = persistentNotificationService;
+        this.systemConfigService = systemConfigService;
+    }
+
+    public ScheduledForecastRefreshService(ProductRepository productRepository,
+            StockLedgerRepository stockLedgerRepository,
+            StockLedgerService stockLedgerService,
+            AuditEventProducer auditEventProducer,
+            WebSocketNotificationService webSocketNotificationService,
+            PersistentNotificationService persistentNotificationService) {
+        this(productRepository, stockLedgerRepository, stockLedgerService, auditEventProducer,
+                webSocketNotificationService, persistentNotificationService, null);
+    }
 
     /**
      * Refresh forecasts for products with stock alterations in the last 6 hours.

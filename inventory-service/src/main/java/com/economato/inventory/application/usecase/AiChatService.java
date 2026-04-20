@@ -64,20 +64,17 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional
 public class AiChatService {
 
     private final AiChatRepository aiChatRepository;
     private final AiChatMessageRepository aiChatMessageRepository;
     private final AiKeyVaultService aiKeyVaultService;
-    @Autowired(required = false)
-    private PlatformTransactionManager transactionManager;
+    private final PlatformTransactionManager transactionManager;
     private final SemanticMemoryGraphService semanticMemoryGraphService;
     private final NestStreamBridgeService nestStreamBridgeService;
     private final AiRateLimitService aiRateLimitService;
@@ -91,6 +88,55 @@ public class AiChatService {
 
     private final ConcurrentHashMap<Integer, AtomicInteger> activeStreamsByUser = new ConcurrentHashMap<>();
     private final AtomicInteger activeStreamsGlobal = new AtomicInteger(0);
+
+    @Autowired
+    public AiChatService(AiChatRepository aiChatRepository,
+            AiChatMessageRepository aiChatMessageRepository,
+            AiKeyVaultService aiKeyVaultService,
+            @Autowired(required = false) PlatformTransactionManager transactionManager,
+            SemanticMemoryGraphService semanticMemoryGraphService,
+            NestStreamBridgeService nestStreamBridgeService,
+            AiRateLimitService aiRateLimitService,
+            SecurityContextHelper securityContextHelper,
+            AiChatProperties aiChatProperties,
+            AiProviderProperties aiProviderProperties,
+            AiNestProperties aiNestProperties,
+            MeterRegistry meterRegistry,
+            Optional<AuditEventProducer> auditEventProducer,
+            I18nService i18nService) {
+        this.aiChatRepository = aiChatRepository;
+        this.aiChatMessageRepository = aiChatMessageRepository;
+        this.aiKeyVaultService = aiKeyVaultService;
+        this.transactionManager = transactionManager;
+        this.semanticMemoryGraphService = semanticMemoryGraphService;
+        this.nestStreamBridgeService = nestStreamBridgeService;
+        this.aiRateLimitService = aiRateLimitService;
+        this.securityContextHelper = securityContextHelper;
+        this.aiChatProperties = aiChatProperties;
+        this.aiProviderProperties = aiProviderProperties;
+        this.aiNestProperties = aiNestProperties;
+        this.meterRegistry = meterRegistry;
+        this.auditEventProducer = auditEventProducer;
+        this.i18nService = i18nService;
+    }
+
+    public AiChatService(AiChatRepository aiChatRepository,
+            AiChatMessageRepository aiChatMessageRepository,
+            AiKeyVaultService aiKeyVaultService,
+            SemanticMemoryGraphService semanticMemoryGraphService,
+            NestStreamBridgeService nestStreamBridgeService,
+            AiRateLimitService aiRateLimitService,
+            SecurityContextHelper securityContextHelper,
+            AiChatProperties aiChatProperties,
+            AiProviderProperties aiProviderProperties,
+            AiNestProperties aiNestProperties,
+            MeterRegistry meterRegistry,
+            Optional<AuditEventProducer> auditEventProducer,
+            I18nService i18nService) {
+        this(aiChatRepository, aiChatMessageRepository, aiKeyVaultService, null, semanticMemoryGraphService,
+                nestStreamBridgeService, aiRateLimitService, securityContextHelper, aiChatProperties,
+                aiProviderProperties, aiNestProperties, meterRegistry, auditEventProducer, i18nService);
+    }
 
     @PostConstruct
     @SuppressWarnings("unused")

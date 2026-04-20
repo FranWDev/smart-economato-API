@@ -11,7 +11,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -21,8 +20,6 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -58,11 +55,11 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockDailyForecastRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockPredictionRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockWeeklyConsumptionHistoryRepository;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
+import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 /**
  * Genera alertas predictivas de stock bajo combinando:
@@ -72,7 +69,6 @@ import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class StockAlertService {
 
     private static final int DEFAULT_HISTORY_WEEKS = 12;
@@ -93,8 +89,53 @@ public class StockAlertService {
     private final HoltWintersForecaster forecaster;
     private final I18nService i18nService;
     private final ProductBatchService productBatchService;
-    @Autowired(required = false)
-    private SystemConfigService systemConfigService;
+    private final SystemConfigService systemConfigService;
+
+    @Autowired
+    public StockAlertService(RecipeCookingAuditRepository cookingAuditRepository,
+            OrderDetailRepository orderDetailRepository,
+            ProductRepository productRepository,
+            RecipeRepository recipeRepository,
+            StockPredictionRepository predictionRepository,
+            StockDailyForecastRepository dailyForecastRepository,
+            StockWeeklyConsumptionHistoryRepository weeklyHistoryRepository,
+            StockDailyForecastMapper stockDailyForecastMapper,
+            StockWeeklyConsumptionHistoryMapper stockWeeklyConsumptionHistoryMapper,
+            HoltWintersForecaster forecaster,
+            I18nService i18nService,
+            ProductBatchService productBatchService,
+            @Autowired(required = false) SystemConfigService systemConfigService) {
+        this.cookingAuditRepository = cookingAuditRepository;
+        this.orderDetailRepository = orderDetailRepository;
+        this.productRepository = productRepository;
+        this.recipeRepository = recipeRepository;
+        this.predictionRepository = predictionRepository;
+        this.dailyForecastRepository = dailyForecastRepository;
+        this.weeklyHistoryRepository = weeklyHistoryRepository;
+        this.stockDailyForecastMapper = stockDailyForecastMapper;
+        this.stockWeeklyConsumptionHistoryMapper = stockWeeklyConsumptionHistoryMapper;
+        this.forecaster = forecaster;
+        this.i18nService = i18nService;
+        this.productBatchService = productBatchService;
+        this.systemConfigService = systemConfigService;
+    }
+
+    public StockAlertService(RecipeCookingAuditRepository cookingAuditRepository,
+            OrderDetailRepository orderDetailRepository,
+            ProductRepository productRepository,
+            RecipeRepository recipeRepository,
+            StockPredictionRepository predictionRepository,
+            StockDailyForecastRepository dailyForecastRepository,
+            StockWeeklyConsumptionHistoryRepository weeklyHistoryRepository,
+            StockDailyForecastMapper stockDailyForecastMapper,
+            StockWeeklyConsumptionHistoryMapper stockWeeklyConsumptionHistoryMapper,
+            HoltWintersForecaster forecaster,
+            I18nService i18nService,
+            ProductBatchService productBatchService) {
+        this(cookingAuditRepository, orderDetailRepository, productRepository, recipeRepository, predictionRepository,
+                dailyForecastRepository, weeklyHistoryRepository, stockDailyForecastMapper,
+                stockWeeklyConsumptionHistoryMapper, forecaster, i18nService, productBatchService, null);
+    }
 
     /**
      * Calcula y devuelve todas las alertas predictivas activas

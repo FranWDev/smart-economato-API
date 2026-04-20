@@ -6,11 +6,11 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -35,10 +35,10 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeComponentRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
-import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
@@ -69,8 +69,32 @@ public class ProductService {
     private final ProductBatchService productBatchService;
     private final SecurityContextHelper securityContextHelper;
     private final RecipeService recipeService;
-    @Autowired(required = false)
-    private ValidUnitService validUnitService;
+    private final ValidUnitService validUnitService;
+
+    @Autowired
+    public ProductService(I18nService i18nService,
+            ProductRepository repository,
+            InventoryAuditRepository movementRepository,
+            RecipeComponentRepository recipeComponentRepository,
+            SupplierRepository supplierRepository,
+            ProductMapper productMapper,
+            StockLedgerService stockLedgerService,
+            ProductBatchService productBatchService,
+            SecurityContextHelper securityContextHelper,
+            RecipeService recipeService,
+            @Autowired(required = false) ValidUnitService validUnitService) {
+        this.i18nService = i18nService;
+        this.repository = repository;
+        this.movementRepository = movementRepository;
+        this.recipeComponentRepository = recipeComponentRepository;
+        this.supplierRepository = supplierRepository;
+        this.productMapper = productMapper;
+        this.stockLedgerService = stockLedgerService;
+        this.productBatchService = productBatchService;
+        this.securityContextHelper = securityContextHelper;
+        this.recipeService = recipeService;
+        this.validUnitService = validUnitService;
+    }
 
     public ProductService(I18nService i18nService,
             ProductRepository repository,
@@ -82,16 +106,8 @@ public class ProductService {
             ProductBatchService productBatchService,
             SecurityContextHelper securityContextHelper,
             RecipeService recipeService) {
-        this.i18nService = i18nService;
-        this.repository = repository;
-        this.movementRepository = movementRepository;
-        this.recipeComponentRepository = recipeComponentRepository;
-        this.supplierRepository = supplierRepository;
-        this.productMapper = productMapper;
-        this.stockLedgerService = stockLedgerService;
-        this.productBatchService = productBatchService;
-        this.securityContextHelper = securityContextHelper;
-        this.recipeService = recipeService;
+        this(i18nService, repository, movementRepository, recipeComponentRepository, supplierRepository, productMapper,
+                stockLedgerService, productBatchService, securityContextHelper, recipeService, null);
     }
 
     @Cacheable(value = "products_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")

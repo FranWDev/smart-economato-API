@@ -1,5 +1,19 @@
 package com.economato.inventory.application.usecase;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.economato.inventory.application.dto.request.AdvancedConfigRequestDTO;
 import com.economato.inventory.application.dto.request.AlertsConfigRequestDTO;
 import com.economato.inventory.application.dto.request.IncidentsConfigRequestDTO;
@@ -19,28 +33,14 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SystemConfigRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserActivityLogRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class SystemConfigService {
 
     private static final String CATEGORY_PRESENCE = "PRESENCE";
@@ -58,10 +58,34 @@ public class SystemConfigService {
     private final UserActivityLogRepository userActivityLogRepository;
     private final NotificationRepository notificationRepository;
     private final I18nService i18nService;
+    private final com.economato.inventory.infrastructure.scheduler.DynamicSchedulerConfig dynamicSchedulerConfig;
 
-    @Autowired(required = false)
-    @Lazy
-    private com.economato.inventory.infrastructure.scheduler.DynamicSchedulerConfig dynamicSchedulerConfig;
+    @Autowired
+    public SystemConfigService(SystemConfigRepository systemConfigRepository,
+            SystemConfigAuditLogRepository auditLogRepository,
+            UserRepository userRepository,
+            UserActivityLogRepository userActivityLogRepository,
+            NotificationRepository notificationRepository,
+            I18nService i18nService,
+            @Lazy @Autowired(required = false) com.economato.inventory.infrastructure.scheduler.DynamicSchedulerConfig dynamicSchedulerConfig) {
+        this.systemConfigRepository = systemConfigRepository;
+        this.auditLogRepository = auditLogRepository;
+        this.userRepository = userRepository;
+        this.userActivityLogRepository = userActivityLogRepository;
+        this.notificationRepository = notificationRepository;
+        this.i18nService = i18nService;
+        this.dynamicSchedulerConfig = dynamicSchedulerConfig;
+    }
+
+    public SystemConfigService(SystemConfigRepository systemConfigRepository,
+            SystemConfigAuditLogRepository auditLogRepository,
+            UserRepository userRepository,
+            UserActivityLogRepository userActivityLogRepository,
+            NotificationRepository notificationRepository,
+            I18nService i18nService) {
+        this(systemConfigRepository, auditLogRepository, userRepository, userActivityLogRepository,
+                notificationRepository, i18nService, null);
+    }
 
     @Cacheable("system_config")
     @Transactional(readOnly = true)

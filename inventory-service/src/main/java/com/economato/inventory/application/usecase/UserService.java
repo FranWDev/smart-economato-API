@@ -1,14 +1,14 @@
 package com.economato.inventory.application.usecase;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.time.LocalDateTime;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -17,11 +17,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.RestPage;
+import com.economato.inventory.application.dto.projection.UserProjection;
 import com.economato.inventory.application.dto.request.BatchTeacherAssignmentRequestDTO;
 import com.economato.inventory.application.dto.request.ChangePasswordRequestDTO;
 import com.economato.inventory.application.dto.request.RoleEscalationRequestDTO;
-import com.economato.inventory.application.dto.request.UserRequestDTO;
 import com.economato.inventory.application.dto.request.TransferStudentsRequestDTO;
+import com.economato.inventory.application.dto.request.UserRequestDTO;
 import com.economato.inventory.application.dto.response.BatchTeacherAssignmentResponseDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
 import com.economato.inventory.application.dto.response.UserStatsResponseDTO;
@@ -34,11 +35,10 @@ import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.TemporaryRoleEscalationRepository;
-import com.economato.inventory.application.dto.projection.UserProjection;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
-import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 @Service
 @Transactional(rollbackFor = { RuntimeException.class, Exception.class })
@@ -53,16 +53,17 @@ public class UserService {
     private final CustomUserDetailsService customUserDetailsService;
     private final TemporaryRoleEscalationRepository escalationRepository;
     private final RoleNotificationService roleNotificationService;
-    @Autowired(required = false)
-    private SystemConfigService systemConfigService;
+    private final SystemConfigService systemConfigService;
 
+    @Autowired
     public UserService(I18nService i18nService, UserRepository repository, PasswordEncoder passwordEncoder,
             UserMapper userMapper,
             TemporaryRoleEscalationMapper escalationMapper,
             StatsMapper statsMapper,
             CustomUserDetailsService customUserDetailsService,
             TemporaryRoleEscalationRepository escalationRepository,
-            RoleNotificationService roleNotificationService) {
+            RoleNotificationService roleNotificationService,
+            @Autowired(required = false) SystemConfigService systemConfigService) {
         this.i18nService = i18nService;
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
@@ -72,6 +73,18 @@ public class UserService {
         this.customUserDetailsService = customUserDetailsService;
         this.escalationRepository = escalationRepository;
         this.roleNotificationService = roleNotificationService;
+        this.systemConfigService = systemConfigService;
+    }
+
+    public UserService(I18nService i18nService, UserRepository repository, PasswordEncoder passwordEncoder,
+            UserMapper userMapper,
+            TemporaryRoleEscalationMapper escalationMapper,
+            StatsMapper statsMapper,
+            CustomUserDetailsService customUserDetailsService,
+            TemporaryRoleEscalationRepository escalationRepository,
+            RoleNotificationService roleNotificationService) {
+        this(i18nService, repository, passwordEncoder, userMapper, escalationMapper, statsMapper,
+                customUserDetailsService, escalationRepository, roleNotificationService, null);
     }
 
         @Cacheable(value = "users_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize")

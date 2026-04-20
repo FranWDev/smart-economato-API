@@ -1,17 +1,5 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
@@ -22,6 +10,20 @@ import java.util.Arrays;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
+
+import lombok.extern.slf4j.Slf4j;
+
 @Service
 @Slf4j
 public class FileStorageService {
@@ -30,13 +32,14 @@ public class FileStorageService {
     private final long maxFileSize;
     private final Set<String> allowedTypes;
     private final I18nService i18nService;
-    @Autowired(required = false)
-    private SystemConfigService systemConfigService;
+    private final SystemConfigService systemConfigService;
 
+    @Autowired
     public FileStorageService(@Value("${app.uploads.base-path:uploads}") String basePath,
                               @Value("${app.uploads.max-file-size:10485760}") long maxFileSize,
                               @Value("${app.uploads.allowed-types:image/jpeg,image/png,image/gif,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet}") String allowedTypes,
-                              I18nService i18nService) {
+                      I18nService i18nService,
+                      @Autowired(required = false) SystemConfigService systemConfigService) {
         this.basePath = Paths.get(basePath).toAbsolutePath().normalize();
         this.maxFileSize = maxFileSize;
         this.allowedTypes = Arrays.stream(allowedTypes.split(","))
@@ -44,12 +47,20 @@ public class FileStorageService {
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toSet());
         this.i18nService = i18nService;
+        this.systemConfigService = systemConfigService;
 
         try {
             Files.createDirectories(this.basePath);
         } catch (IOException e) {
             throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_FILE_STORAGE_INIT), e);
         }
+    }
+
+    public FileStorageService(String basePath,
+                              long maxFileSize,
+                              String allowedTypes,
+                              I18nService i18nService) {
+        this(basePath, maxFileSize, allowedTypes, i18nService, null);
     }
 
     public String store(Long incidentId, Long messageId, MultipartFile file) {

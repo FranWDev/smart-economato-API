@@ -9,9 +9,9 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.context.event.EventListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -25,12 +25,10 @@ import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class UserPresenceService {
 
     private static final String ADMIN_PRESENCE_TOPIC = "/topic/roles/ADMIN/presence";
@@ -38,16 +36,29 @@ public class UserPresenceService {
     private static final long STALE_SECONDS = 60L;
 
     private final SimpMessagingTemplate messagingTemplate;
-    @Autowired(required = false)
-    private AuditEventProducer auditEventProducer;
-    @Autowired(required = false)
-    @Lazy
-    private SystemConfigService systemConfigService;
+    private final AuditEventProducer auditEventProducer;
+    private final SystemConfigService systemConfigService;
     private final UserRepository userRepository;
-    @Autowired(required = false)
-    private OrderReviewLockService orderReviewLockService;
+    private final OrderReviewLockService orderReviewLockService;
 
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, UserSessionInfo>> sessionsByUser = new ConcurrentHashMap<>();
+
+    @Autowired
+    public UserPresenceService(SimpMessagingTemplate messagingTemplate,
+            UserRepository userRepository,
+            @Autowired(required = false) AuditEventProducer auditEventProducer,
+            @Lazy @Autowired(required = false) SystemConfigService systemConfigService,
+            @Autowired(required = false) OrderReviewLockService orderReviewLockService) {
+        this.messagingTemplate = messagingTemplate;
+        this.auditEventProducer = auditEventProducer;
+        this.systemConfigService = systemConfigService;
+        this.userRepository = userRepository;
+        this.orderReviewLockService = orderReviewLockService;
+    }
+
+    public UserPresenceService(SimpMessagingTemplate messagingTemplate, UserRepository userRepository) {
+        this(messagingTemplate, userRepository, null, null, null);
+    }
 
     public void userConnected(String username, String sessionId, Role role, Integer userId, Integer teacherId, String displayName) {
         LocalDateTime now = LocalDateTime.now();
