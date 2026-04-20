@@ -6,5 +6,6 @@ public enum AiProvider {
     DEEPSEEK,
     GOOGLE,
     MISTRAL,
-    GROK
+    GROK,
+    GROQ
 }
