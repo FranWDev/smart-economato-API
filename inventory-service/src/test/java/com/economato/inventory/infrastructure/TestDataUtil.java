@@ -211,6 +211,7 @@ public class TestDataUtil {
         dto.setProductCode("HAR002");
         dto.setCurrentStock(new BigDecimal("100.0"));
         dto.setExpirationDate(java.time.LocalDate.now().plusDays(30));
+        dto.setLotQuantity(new BigDecimal("1.000"));
         return dto;
     }
 

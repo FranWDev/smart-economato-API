@@ -17,5 +17,6 @@ public class McpProductDto {
     private BigDecimal stock;
     private String unit;
     private BigDecimal price;
+    private BigDecimal lotQuantity;
 
 }

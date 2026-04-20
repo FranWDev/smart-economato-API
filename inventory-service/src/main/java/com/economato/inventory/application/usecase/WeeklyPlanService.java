@@ -55,6 +55,7 @@ import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundExc
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.NotificationRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.WeeklyPlanRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.WeeklyPlanSlotRepository;
@@ -82,6 +83,7 @@ public class WeeklyPlanService {
     private final UserRepository userRepository;
     private final RecipeRepository recipeRepository;
     private final RecipeCookingAuditRepository cookingAuditRepository;
+    private final StockLedgerRepository stockLedgerRepository;
     private final StockLedgerService stockLedgerService;
     private final WeeklyPlanStockReservationService reservationService;
     private final WeeklyPlanMapper wrapperMapper;
@@ -321,7 +323,7 @@ public class WeeklyPlanService {
 
         String correlationId = slot.getCorrelationId();
         if (correlationId != null && !correlationId.isBlank()) {
-            stockLedgerService.revertMovement(correlationId, "Reverting confirmation for slot " + slot.getId());
+            revertMovementIfNeeded(correlationId, "Reverting confirmation for slot " + slot.getId());
             cookingAuditRepository.findByCorrelationId(correlationId).ifPresent(cookingAuditRepository::delete);
         }
 
@@ -373,7 +375,7 @@ public class WeeklyPlanService {
         for (WeeklyPlanSlot slot : daySlots) {
             String correlationId = slot.getCorrelationId();
             if (correlationId != null && !correlationId.isBlank()) {
-                stockLedgerService.revertMovement(correlationId, "Reversion for full day " + dayOfWeek + " [Plan " + planId + "]");
+                revertMovementIfNeeded(correlationId, "Reversion for full day " + dayOfWeek + " [Plan " + planId + "]");
                 cookingAuditRepository.findByCorrelationId(correlationId).ifPresent(cookingAuditRepository::delete);
             }
 
@@ -405,6 +407,18 @@ public class WeeklyPlanService {
                 .planStatus(plan.getStatus())
                 .totalSlotsConfirmed(0)
                 .build();
+    }
+
+    private void revertMovementIfNeeded(String correlationId, String reason) {
+        String reversalCorrelationId = "REV-" + correlationId;
+        boolean alreadyReverted = !stockLedgerRepository.findByCorrelationId(reversalCorrelationId).isEmpty();
+
+        if (alreadyReverted) {
+            log.info("La reversión ya estaba aplicada para correlationId={}, se continúa con desconfirmación del slot", correlationId);
+            return;
+        }
+
+        stockLedgerService.revertMovement(correlationId, reason);
     }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)

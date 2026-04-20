@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.math.BigDecimal;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,7 +52,7 @@ class CacheWarmupServiceTest {
     @Test
     void run_executesExpandedWarmupFlows() throws Exception {
         when(productService.findAll(any())).thenReturn(new PageImpl<>(
-                List.of(new ProductResponseDTO(1, "Harina", "KG", null, "P1", null, null, false, null)),
+                List.of(new ProductResponseDTO(1, "Harina", "KG", null, "P1", null, null, new BigDecimal("1.000"), false, null)),
                 PageRequest.of(0, 10),
                 1));
         when(recipeService.findAll(any())).thenReturn(new PageImpl<>(

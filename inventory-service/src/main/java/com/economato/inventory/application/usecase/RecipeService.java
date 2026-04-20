@@ -44,13 +44,20 @@ import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.Recipe;
 import com.economato.inventory.domain.model.RecipeComponent;
+import com.economato.inventory.domain.model.StudentSlotStatus;
 import com.economato.inventory.domain.model.User;
+import com.economato.inventory.domain.model.WeeklyPlan;
+import com.economato.inventory.domain.model.WeeklyPlanSlot;
+import com.economato.inventory.domain.model.WeeklyPlanSlotStatus;
+import com.economato.inventory.domain.model.WeeklyPlanStatus;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.AllergenRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.WeeklyPlanRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.WeeklyPlanSlotRepository;
 import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.I18nService;
@@ -75,6 +82,8 @@ public class RecipeService {
     private final WeeklyPlanStockReservationService weeklyPlanStockReservationService;
     private final SecurityContextHelper securityContextHelper;
     private final RecipeCookingAuditRepository recipeCookingAuditRepository;
+    private final WeeklyPlanSlotRepository weeklyPlanSlotRepository;
+    private final WeeklyPlanRepository weeklyPlanRepository;
 
     public RecipeService(I18nService i18nService, RecipeRepository repository,
             ProductRepository productRepository,
@@ -85,7 +94,9 @@ public class RecipeService {
             StockLedgerService stockLedgerService,
             WeeklyPlanStockReservationService weeklyPlanStockReservationService,
             SecurityContextHelper securityContextHelper,
-            RecipeCookingAuditRepository recipeCookingAuditRepository) {
+            RecipeCookingAuditRepository recipeCookingAuditRepository,
+            WeeklyPlanSlotRepository weeklyPlanSlotRepository,
+            WeeklyPlanRepository weeklyPlanRepository) {
         this.i18nService = i18nService;
         this.repository = repository;
         this.productRepository = productRepository;
@@ -97,6 +108,8 @@ public class RecipeService {
         this.weeklyPlanStockReservationService = weeklyPlanStockReservationService;
         this.securityContextHelper = securityContextHelper;
         this.recipeCookingAuditRepository = recipeCookingAuditRepository;
+        this.weeklyPlanSlotRepository = weeklyPlanSlotRepository;
+        this.weeklyPlanRepository = weeklyPlanRepository;
     }
 
     @Cacheable(value = "recipes_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
@@ -589,7 +602,10 @@ public class RecipeService {
                         i18nService.getMessage(MessageKey.ERROR_INTERNAL_SERVER_ERROR));
             }
 
-            stockLedgerService.revertMovement(audit.getCorrelationId(), "Deshacer cocinado: " + reason);
+            String correlationId = audit.getCorrelationId();
+
+            stockLedgerService.revertMovement(correlationId, "Deshacer cocinado: " + reason);
+            syncWeeklyPlanSlotAfterExternalRevert(correlationId);
             
                 List<Integer> affectedProductIds = recipeCookingAuditRepository.findProductIdsByAuditId(auditId);
 
@@ -605,5 +621,40 @@ public class RecipeService {
             log.error("Error inesperado al revertir cocinado: {}", e.getMessage(), e);
             throw e; // Permitir que ruede hasta el GlobalExceptionHandler
         }
+    }
+
+    private void syncWeeklyPlanSlotAfterExternalRevert(String correlationId) {
+        weeklyPlanSlotRepository.findByCorrelationId(correlationId).ifPresent(slot -> {
+            WeeklyPlan plan = slot.getWeeklyPlan();
+            if (!isRuntimePlanStatus(plan.getStatus()) || slot.getStatus() != WeeklyPlanSlotStatus.CONFIRMED) {
+                return;
+            }
+
+            slot.setStatus(WeeklyPlanSlotStatus.PENDING);
+            slot.setConfirmedAt(null);
+            slot.setConfirmedBy(null);
+            slot.setCorrelationId(null);
+
+            slot.getStudents().forEach(studentSlot -> {
+                if (studentSlot.getStatus() == StudentSlotStatus.CONFIRMED) {
+                    studentSlot.setStatus(StudentSlotStatus.ASSIGNED);
+                }
+            });
+
+            boolean hasConfirmed = plan.getSlots().stream().anyMatch(s -> s.getStatus() == WeeklyPlanSlotStatus.CONFIRMED);
+            if (hasConfirmed) {
+                plan.setStatus(WeeklyPlanStatus.IN_PROGRESS);
+            } else if (plan.getStatus() == WeeklyPlanStatus.IN_PROGRESS) {
+                plan.setStatus(WeeklyPlanStatus.ACTIVE);
+            }
+
+            weeklyPlanRepository.saveAndFlush(plan);
+            weeklyPlanSlotRepository.saveAndFlush(slot);
+            log.info("Slot de plan semanal sincronizado tras reversión externa: slotId={}, planId={}", slot.getId(), plan.getId());
+        });
+    }
+
+    private boolean isRuntimePlanStatus(WeeklyPlanStatus status) {
+        return status == WeeklyPlanStatus.ACTIVE || status == WeeklyPlanStatus.IN_PROGRESS;
     }
 }

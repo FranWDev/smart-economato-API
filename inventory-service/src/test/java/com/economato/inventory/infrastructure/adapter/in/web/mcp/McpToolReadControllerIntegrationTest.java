@@ -146,7 +146,7 @@ class McpToolReadControllerIntegrationTest extends BaseIntegrationTest {
                 "Proveedor Central",
                 "555-123",
                 "proveedor@test.local",
-                List.of(new com.economato.inventory.application.dto.mcp.McpProductDto(42, "Tomate", "P42", new BigDecimal("10"), "kg", new BigDecimal("2.5"))),
+                List.of(new com.economato.inventory.application.dto.mcp.McpProductDto(42, "Tomate", "P42", new BigDecimal("10"), "kg", new BigDecimal("2.5"), new BigDecimal("1.000"))),
                 2,
                 true
         ));

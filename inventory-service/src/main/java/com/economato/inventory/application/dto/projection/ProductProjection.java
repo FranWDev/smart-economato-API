@@ -18,6 +18,8 @@ public interface ProductProjection {
 
     BigDecimal getAvailabilityPercentage();
 
+    BigDecimal getLotQuantity();
+
 
     boolean getIsHidden();
 

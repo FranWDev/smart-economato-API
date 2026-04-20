@@ -115,6 +115,7 @@ public class McpToolReadService {
                 .dailyForecast(dailyForecast)
                 .weeklyConsumption(weeklyConsumption)
                 .batches(mapBatches(batches))
+                .lotQuantity(product.getLotQuantity())
                 .build();
     }
 
@@ -365,6 +366,7 @@ public class McpToolReadService {
                 .stock(product.getCurrentStock())
                 .unit(product.getUnit())
                 .price(product.getUnitPrice())
+                .lotQuantity(product.getLotQuantity())
                 .build();
     }
 
