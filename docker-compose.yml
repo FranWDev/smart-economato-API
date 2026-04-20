@@ -207,6 +207,10 @@ services:
       SEED_ADMIN_USER: ${SEED_ADMIN_USER:-admin}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin123}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      AI_NEST_BASE_URL: ${AI_NEST_BASE_URL}
+      AI_NEST_SERVICE_KEY: ${AI_NEST_SERVICE_KEY}
+      AI_NEST_ALLOWED_ORIGIN: ${AI_NEST_ALLOWED_ORIGIN}
+      AI_NEST_COMPLETION_ENDPOINT: ${AI_NEST_COMPLETION_ENDPOINT:-/api/completion}
       
       # Limite de RAM para el contenedor Java
       JAVA_OPTS: "-Xms192m -Xmx384m -XX:+UseZGC -XX:+ZGenerational --enable-preview -Dnet.bytebuddy.experimental=true"
