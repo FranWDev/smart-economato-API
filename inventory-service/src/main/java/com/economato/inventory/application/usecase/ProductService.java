@@ -402,6 +402,7 @@ public class ProductService {
                     existing.setUnit(requestDTO.getUnit());
                     existing.setUnitPrice(requestDTO.getUnitPrice());
                     existing.setProductCode(requestDTO.getProductCode());
+                    existing.setLotQuantity(requestDTO.getLotQuantity());
                     if (requestDTO.getAvailabilityPercentage() != null) {
                         existing.setAvailabilityPercentage(requestDTO.getAvailabilityPercentage());
                     }
