@@ -34,6 +34,9 @@ public class ProductResponseDTO {
     @Schema(description = "Porcentaje de disponibilidad del producto (0-100)", example = "85.50")
     private BigDecimal availabilityPercentage;
 
+    @Schema(description = "Cantidad por lote de compra. Null si no aplica.", example = "1.000")
+    private BigDecimal lotQuantity;
+
 
     @Schema(description = "Indica si el producto está oculto", example = "false")
     private boolean isHidden;

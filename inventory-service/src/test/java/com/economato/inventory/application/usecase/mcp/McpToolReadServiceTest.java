@@ -185,6 +185,7 @@ class McpToolReadServiceTest {
         product.setCurrentStock(new BigDecimal("10.000"));
         product.setUnit("kg");
         product.setUnitPrice(new BigDecimal("2.50"));
+        product.setLotQuantity(new BigDecimal("1.000"));
         when(productRepository.findBySupplierId(3)).thenReturn(List.of(product));
         when(orderRepository.countBySupplierId(3)).thenReturn(2L);
         when(foodCrisisRepository.existsByStatusAndSupplierId(FoodCrisis.CrisisStatus.ACTIVE, 3)).thenReturn(false);

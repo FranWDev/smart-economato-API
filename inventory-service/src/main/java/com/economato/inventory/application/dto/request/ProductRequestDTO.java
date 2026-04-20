@@ -50,6 +50,11 @@ public class ProductRequestDTO {
     @Schema(description = "Porcentaje de disponibilidad del producto (0-100). Si no se especifica, se asume 100%", example = "85.50")
     private BigDecimal availabilityPercentage;
 
+    @DecimalMin(value = "0.001", message = "{validation.productRequestDTO.lotQuantity.decimalMin}")
+    @Digits(integer = 10, fraction = 3, message = "{validation.productRequestDTO.lotQuantity.digits}")
+    @Schema(description = "Cantidad por lote de compra. Representa la unidad mínima de compra del producto (ej: 1.000 para botes de 1L, 5.000 para sacos de 5kg). Si se establece, el frontend puede redondear las cantidades de pedido al múltiplo superior de este valor.", example = "1.000")
+    private BigDecimal lotQuantity;
+
 
     @Schema(description = "ID del proveedor del producto", example = "1")
     private Integer supplierId;

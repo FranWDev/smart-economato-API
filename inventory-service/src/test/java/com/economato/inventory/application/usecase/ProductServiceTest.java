@@ -100,6 +100,7 @@ class ProductServiceTest {
         testProduct.setCurrentStock(new BigDecimal("10.0"));
         testProduct.setUnitPrice(new BigDecimal("5.0"));
         testProduct.setProductCode("TEST001");
+        testProduct.setLotQuantity(new BigDecimal("1.000"));
 
         testProductRequestDTO = new ProductRequestDTO();
         testProductRequestDTO.setName("Test Product");
@@ -107,6 +108,7 @@ class ProductServiceTest {
         testProductRequestDTO.setCurrentStock(new BigDecimal("10.0"));
         testProductRequestDTO.setUnitPrice(new BigDecimal("5.0"));
         testProductRequestDTO.setProductCode("TEST001");
+        testProductRequestDTO.setLotQuantity(new BigDecimal("1.000"));
 
         testProductResponseDTO = new ProductResponseDTO();
         testProductResponseDTO.setId(1);
@@ -115,6 +117,7 @@ class ProductServiceTest {
         testProductResponseDTO.setCurrentStock(new BigDecimal("10.0"));
         testProductResponseDTO.setUnitPrice(new BigDecimal("5.0"));
         testProductResponseDTO.setProductCode("TEST001");
+        testProductResponseDTO.setLotQuantity(new BigDecimal("1.000"));
 
         testProjection = mock(ProductProjection.class);
         lenient().when(testProjection.getId()).thenReturn(1);
@@ -123,6 +126,7 @@ class ProductServiceTest {
         lenient().when(testProjection.getCurrentStock()).thenReturn(new BigDecimal("10.0"));
         lenient().when(testProjection.getUnitPrice()).thenReturn(new BigDecimal("5.0"));
         lenient().when(testProjection.getProductCode()).thenReturn("TEST001");
+        lenient().when(testProjection.getLotQuantity()).thenReturn(new BigDecimal("1.000"));
 
         User testUser = new User();
         testUser.setId(1);

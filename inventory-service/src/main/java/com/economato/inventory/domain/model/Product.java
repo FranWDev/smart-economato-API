@@ -59,6 +59,11 @@ public class Product {
         @Column(name = "availability_percentage", precision = 5, scale = 2)
         private BigDecimal availabilityPercentage;
 
+        @DecimalMin(value = "0.001", message = "{validation.product.lotQuantity.decimalMin}")
+        @Digits(integer = 10, fraction = 3, message = "{validation.product.lotQuantity.digits}")
+        @Column(name = "lot_quantity", precision = 10, scale = 3)
+        private BigDecimal lotQuantity;
+
 
         @JsonIgnore
         @ManyToOne(fetch = FetchType.LAZY)

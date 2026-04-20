@@ -37,6 +37,7 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
     @Autowired private ProductRepository productRepository;
     @Autowired private ProductBatchRepository productBatchRepository;
     @Autowired private RecipeRepository recipeRepository;
+    @Autowired private RecipeCookingAuditRepository cookingAuditRepository;
     @Autowired private WeeklyPlanRepository weeklyPlanRepository;
     @Autowired private StockLedgerRepository stockLedgerRepository;
 
@@ -647,6 +648,74 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
             mockMvc.perform(get(BASE_URL + "/{id}", planId).header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status", is("ACTIVE")));
+            }
+
+            @Test
+            void whenExternalRevertOnActivePlan_thenSlotAutoSyncsToPending() throws Exception {
+            WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student1.getId()));
+            WeeklyPlanSlotRequestDTO slot2 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1.0"), 1, LocalTime.of(11,0), LocalTime.of(12,0), 2, Arrays.asList(student2.getId()));
+            WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, getNextMonday(), Arrays.asList(slot1, slot2));
+
+            String rb = mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+            Long planId = objectMapper.readTree(rb).get("id").asLong();
+
+            mockMvc.perform(patch(BASE_URL + "/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+
+            String getRb = mockMvc.perform(get(BASE_URL + "/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+            Long slotId = objectMapper.readTree(getRb).get("slots").get(0).get("id").asLong();
+
+            mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/confirm", planId, slotId).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk());
+
+            WeeklyPlan confirmedPlan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow();
+            WeeklyPlanSlot confirmedSlot = confirmedPlan.getSlots().stream()
+                .filter(s -> s.getId().equals(slotId))
+                .findFirst()
+                .orElseThrow();
+
+            RecipeCookingAudit audit = cookingAuditRepository.findByCorrelationId(confirmedSlot.getCorrelationId()).orElseThrow();
+
+            mockMvc.perform(post("/api/recipes/cook/{auditId}/revert", audit.getId())
+                    .param("reason", "External revert")
+                    .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isNoContent());
+
+            mockMvc.perform(get(BASE_URL + "/{id}", planId).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.slots[0].status", is("PENDING")));
+            }
+
+            @Test
+            void whenExternalRevertOnCompletedPlan_thenUnconfirmStillSucceeds() throws Exception {
+            WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student1.getId()));
+            WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, getNextMonday(), Arrays.asList(slot1));
+
+            String rb = mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+            Long planId = objectMapper.readTree(rb).get("id").asLong();
+            mockMvc.perform(patch(BASE_URL + "/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
+
+            String getRb = mockMvc.perform(get(BASE_URL + "/{id}", planId).header("Authorization", "Bearer " + chef1Token)).andReturn().getResponse().getContentAsString();
+            Long slotId = objectMapper.readTree(getRb).get("slots").get(0).get("id").asLong();
+
+            mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/confirm", planId, slotId).header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk());
+
+            WeeklyPlan completedPlan = weeklyPlanRepository.findWithDetailsById(planId).orElseThrow();
+            WeeklyPlanSlot confirmedSlot = completedPlan.getSlots().stream()
+                .filter(s -> s.getId().equals(slotId))
+                .findFirst()
+                .orElseThrow();
+
+            RecipeCookingAudit audit = cookingAuditRepository.findByCorrelationId(confirmedSlot.getCorrelationId()).orElseThrow();
+
+            mockMvc.perform(post("/api/recipes/cook/{auditId}/revert", audit.getId())
+                    .param("reason", "External revert completed plan")
+                    .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isNoContent());
+
+            mockMvc.perform(patch(BASE_URL + "/{planId}/slots/{slotId}/unconfirm", planId, slotId).header("Authorization", "Bearer " + adminToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("PENDING")));
             }
 
             @Test

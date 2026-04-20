@@ -22,4 +22,6 @@ public interface WeeklyPlanSlotRepository extends JpaRepository<WeeklyPlanSlot, 
 
     @Query("SELECT rc.product.id FROM WeeklyPlanSlot s JOIN s.recipe r JOIN r.components rc WHERE s.id = :slotId")
     List<Integer> findProductIdsBySlotId(@Param("slotId") Long slotId);
+
+    Optional<WeeklyPlanSlot> findByCorrelationId(String correlationId);
 }

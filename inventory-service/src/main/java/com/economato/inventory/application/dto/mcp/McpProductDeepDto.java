@@ -26,4 +26,5 @@ public class McpProductDeepDto {
     private List<BigDecimal> dailyForecast;
     private List<BigDecimal> weeklyConsumption;
     private List<McpBatchDto> batches;
+    private BigDecimal lotQuantity;
 }
