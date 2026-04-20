@@ -27,8 +27,12 @@ public class RoleEscalationSchedulerService {
         LocalDateTime now = LocalDateTime.now();
         List<TemporaryRoleEscalation> expired = escalationRepository.findExpiredWithUser(now);
 
-        for (TemporaryRoleEscalation escalation : expired) {
-            userService.deescalateRole(escalation.getUser().getId(), "AUTO_EXPIRED");
-        }
+        List<Integer> userIds = expired.stream()
+                .map(TemporaryRoleEscalation::getUser)
+                .filter(java.util.Objects::nonNull)
+                .map(user -> user.getId())
+                .toList();
+
+        userService.deescalateRoles(userIds, "AUTO_EXPIRED");
     }
 }

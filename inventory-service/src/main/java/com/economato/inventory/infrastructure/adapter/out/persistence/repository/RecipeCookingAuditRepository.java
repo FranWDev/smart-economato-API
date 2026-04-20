@@ -1,23 +1,26 @@
 package com.economato.inventory.infrastructure.adapter.out.persistence.repository;
 
+import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import java.util.stream.Stream;
 import org.springframework.stereotype.Repository;
 
-import com.economato.inventory.domain.model.RecipeCookingAudit;
 import com.economato.inventory.application.dto.projection.WeeklyIngredientConsumption;
-
-import java.time.LocalDateTime;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
+import com.economato.inventory.domain.model.RecipeCookingAudit;
 
 @Repository
 public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookingAudit, Long> {
+
+  @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.id = :id")
+  Optional<RecipeCookingAudit> findByIdWithDetails(@Param("id") Long id);
 
   @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.recipe.id = :recipeId ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findByRecipeId(@Param("recipeId") Integer recipeId);

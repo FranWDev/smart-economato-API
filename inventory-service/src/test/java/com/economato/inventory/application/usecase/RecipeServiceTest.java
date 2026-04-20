@@ -21,7 +21,6 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import org.mockito.InjectMocks;
@@ -41,6 +40,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import com.economato.inventory.application.dto.projection.RecipeProjection;
+import com.economato.inventory.application.dto.request.BatchMovementItem;
 import com.economato.inventory.application.dto.request.RecipeComponentRequestDTO;
 import com.economato.inventory.application.dto.request.RecipeCookingRequestDTO;
 import com.economato.inventory.application.dto.request.RecipeRequestDTO;
@@ -472,15 +472,14 @@ class RecipeServiceTest {
         assertNotNull(result);
         verify(repository).findByIdWithDetails(1);
         verify(productRepository).findAllById(any());
-        verify(stockLedgerService).recordStockMovement(
-                eq(1),
-                argThat(amount -> amount.compareTo(new BigDecimal("4.0").negate()) == 0),
-                eq(MovementType.SALIDA),
-                any(),
-                any(),
-                isNull(),
-                isNull(),
-                anyString());
+        verify(stockLedgerService).recordBatchStockMovements(
+            argThat((List<BatchMovementItem> items) ->
+                items.size() == 1
+                    && items.get(0).getProductId().equals(1)
+                    && items.get(0).getMovementType() == MovementType.SALIDA
+                    && items.get(0).getQuantityDelta().compareTo(new BigDecimal("-4.000")) == 0),
+            any(User.class),
+            isNull());
     }
 
     @Test
@@ -588,15 +587,12 @@ class RecipeServiceTest {
         RecipeResponseDTO result = recipeService.cookRecipe(cookingRequest);
 
         assertNotNull(result);
-        verify(stockLedgerService, times(2)).recordStockMovement(
-                anyInt(),
-                any(BigDecimal.class),
-                eq(MovementType.SALIDA),
-                any(),
-                any(),
-                isNull(),
-                isNull(),
-                anyString());
+        verify(stockLedgerService).recordBatchStockMovements(
+            argThat((List<BatchMovementItem> items) ->
+                items.size() == 2
+                    && items.stream().allMatch(i -> i.getMovementType() == MovementType.SALIDA)),
+            any(User.class),
+            isNull());
     }
 
     @Test
@@ -617,15 +613,14 @@ class RecipeServiceTest {
 
         assertNotNull(result);
 
-        verify(stockLedgerService).recordStockMovement(
-                eq(1),
-                argThat(amount -> amount.compareTo(new BigDecimal("3.0").negate()) == 0),
-                eq(MovementType.SALIDA),
-                any(),
-                any(),
-                isNull(),
-                isNull(),
-                anyString());
+        verify(stockLedgerService).recordBatchStockMovements(
+            argThat((List<BatchMovementItem> items) ->
+                items.size() == 1
+                    && items.get(0).getProductId().equals(1)
+                    && items.get(0).getMovementType() == MovementType.SALIDA
+                    && items.get(0).getQuantityDelta().compareTo(new BigDecimal("-3.000")) == 0),
+            any(User.class),
+            isNull());
     }
 
     @Test

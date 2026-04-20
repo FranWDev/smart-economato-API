@@ -1,11 +1,40 @@
 package com.economato.inventory.application.usecase.mcp;
 
-import com.economato.inventory.application.dto.mcp.*;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.economato.inventory.application.dto.mcp.McpAlertDto;
+import com.economato.inventory.application.dto.mcp.McpBatchDto;
+import com.economato.inventory.application.dto.mcp.McpComponentDto;
+import com.economato.inventory.application.dto.mcp.McpComponentFeasibilityDto;
+import com.economato.inventory.application.dto.mcp.McpCrisisDto;
+import com.economato.inventory.application.dto.mcp.McpCrisisProductDto;
+import com.economato.inventory.application.dto.mcp.McpExpiringBatchDto;
+import com.economato.inventory.application.dto.mcp.McpFeasibilityDto;
+import com.economato.inventory.application.dto.mcp.McpLedgerEntryDto;
+import com.economato.inventory.application.dto.mcp.McpPredictionDto;
+import com.economato.inventory.application.dto.mcp.McpProductDeepDto;
+import com.economato.inventory.application.dto.mcp.McpProductDto;
+import com.economato.inventory.application.dto.mcp.McpRecipeDeepDto;
+import com.economato.inventory.application.dto.mcp.McpRecipeDto;
+import com.economato.inventory.application.dto.mcp.McpSlotDto;
+import com.economato.inventory.application.dto.mcp.McpSupplierDeepDto;
+import com.economato.inventory.application.dto.mcp.McpWeeklyPlanDeepDto;
 import com.economato.inventory.application.dto.response.StockAlertDTO;
 import com.economato.inventory.application.dto.response.WeeklyPlanResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyPlanSlotResponseDTO;
 import com.economato.inventory.application.usecase.ProductBatchService;
-import java.math.RoundingMode;
 import com.economato.inventory.application.usecase.StockAlertService;
 import com.economato.inventory.application.usecase.WeeklyPlanService;
 import com.economato.inventory.domain.model.FoodCrisis;
@@ -29,21 +58,8 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.ai.AiAnalysisProperties;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
@@ -226,11 +242,9 @@ public class McpToolReadService {
 
         int recentOrderCount = Math.toIntExact(orderRepository.countBySupplierId(supplierId));
 
-        boolean hasCrisis = !foodCrisisRepository.findByStatus(FoodCrisis.CrisisStatus.ACTIVE).stream()
-                .filter(c -> c.getSupplier() != null)
-                .filter(c -> supplierId.equals(c.getSupplier().getId()))
-                .toList()
-                .isEmpty();
+        boolean hasCrisis = foodCrisisRepository.existsByStatusAndSupplierId(
+                FoodCrisis.CrisisStatus.ACTIVE,
+                supplierId);
 
         return McpSupplierDeepDto.builder()
                 .id(supplier.getId())

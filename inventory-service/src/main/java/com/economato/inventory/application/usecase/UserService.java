@@ -561,6 +561,46 @@ public class UserService {
         notifyRoleEscalationChange(user, Role.USER, reason);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "user", allEntries = true),
+            @CacheEvict(value = "userByEmail", allEntries = true),
+            @CacheEvict(value = "users_by_role", allEntries = true),
+            @CacheEvict(value = "users_page", allEntries = true),
+            @CacheEvict(value = "user_stats", allEntries = true)
+    })
+    @Transactional(rollbackFor = { ResourceNotFoundException.class })
+    public void deescalateRoles(List<Integer> userIds, String reason) {
+        if (userIds == null || userIds.isEmpty()) {
+            return;
+        }
+
+        List<Integer> uniqueUserIds = userIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        if (uniqueUserIds.isEmpty()) {
+            return;
+        }
+
+        List<User> users = repository.findAllById(uniqueUserIds);
+        List<User> elevatedUsers = users.stream()
+                .filter(user -> Role.ELEVATED.equals(user.getRole()))
+                .toList();
+
+        if (elevatedUsers.isEmpty()) {
+            return;
+        }
+
+        elevatedUsers.forEach(user -> user.setRole(Role.USER));
+        repository.saveAll(elevatedUsers);
+
+        List<Integer> elevatedUserIds = elevatedUsers.stream().map(User::getId).toList();
+        escalationRepository.deleteByUserIdIn(elevatedUserIds);
+
+        for (User user : elevatedUsers) {
+            customUserDetailsService.evictUser(user.getName());
+            customUserDetailsService.evictUser(user.getUser());
+            notifyRoleEscalationChange(user, Role.USER, reason);
+        }
+    }
+
     private void notifyRoleEscalationChange(User user, Role newRole, String reason) {
         String notificationMessageText = Role.ELEVATED.equals(newRole)
             ? i18nService.getMessage(MessageKey.NOTIFICATION_ROLE_ESCALATED)

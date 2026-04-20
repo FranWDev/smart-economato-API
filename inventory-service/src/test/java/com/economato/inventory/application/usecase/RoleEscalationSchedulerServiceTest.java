@@ -1,21 +1,21 @@
 package com.economato.inventory.application.usecase;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import com.economato.inventory.domain.model.Role;
 import com.economato.inventory.domain.model.TemporaryRoleEscalation;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.TemporaryRoleEscalationRepository;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.LocalDateTime;
-import java.util.List;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class RoleEscalationSchedulerServiceTest {
@@ -52,7 +52,6 @@ class RoleEscalationSchedulerServiceTest {
 
         schedulerService.expireEscalations();
 
-        verify(userService).deescalateRole(10, "AUTO_EXPIRED");
-        verify(userService).deescalateRole(11, "AUTO_EXPIRED");
+        verify(userService).deescalateRoles(List.of(10, 11), "AUTO_EXPIRED");
     }
 }

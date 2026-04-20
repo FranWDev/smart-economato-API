@@ -1,6 +1,7 @@
 package com.economato.inventory.application.usecase;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -447,6 +448,7 @@ public class AiChatService {
 
             // Persist tool calls as separate TOOL messages
             if (toolCalls != null) {
+                List<AiChatMessage> toolMessages = new ArrayList<>(toolCalls.size());
                 for (ToolCallInfo tc : toolCalls) {
                     AiChatMessage toolMessage = AiChatMessage.builder()
                             .chat(managedChat)
@@ -455,7 +457,10 @@ public class AiChatService {
                             .toolCallId(tc.toolCallId())
                             .toolResult(tc.toolResult())
                             .build();
-                    aiChatMessageRepository.save(toolMessage);
+                    toolMessages.add(toolMessage);
+                }
+                if (!toolMessages.isEmpty()) {
+                    aiChatMessageRepository.saveAll(toolMessages);
                 }
             }
 

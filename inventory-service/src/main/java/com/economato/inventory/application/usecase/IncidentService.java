@@ -330,6 +330,8 @@ public class IncidentService {
                 ? Collections.emptySet()
                 : incidentParticipantService.allowedAuditUserIds(currentUser);
 
+        List<IncidentAuditAttachment> attachmentsToPersist = new ArrayList<>(audits.size());
+
         for (RecipeCookingAudit audit : audits) {
             if (currentUser.getRole() != Role.ADMIN) {
                 Integer ownerId = audit.getUser() != null ? audit.getUser().getId() : null;
@@ -345,8 +347,11 @@ public class IncidentService {
                     .attachedBy(currentUser)
                     .reverted(false)
                     .build();
+            attachmentsToPersist.add(attachment);
+        }
 
-            incidentAuditAttachmentRepository.save(attachment);
+        if (!attachmentsToPersist.isEmpty()) {
+            incidentAuditAttachmentRepository.saveAll(attachmentsToPersist);
         }
     }
 
