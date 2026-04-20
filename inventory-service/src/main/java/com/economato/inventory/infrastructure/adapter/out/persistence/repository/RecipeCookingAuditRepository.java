@@ -22,6 +22,9 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
   @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.id = :id")
   Optional<RecipeCookingAudit> findByIdWithDetails(@Param("id") Long id);
 
+  @Query("SELECT DISTINCT rca FROM RecipeCookingAudit rca LEFT JOIN FETCH rca.user WHERE rca.id IN :ids")
+  List<RecipeCookingAudit> findAllByIdWithUser(@Param("ids") Collection<Long> ids);
+
   @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.recipe.id = :recipeId ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findByRecipeId(@Param("recipeId") Integer recipeId);
 

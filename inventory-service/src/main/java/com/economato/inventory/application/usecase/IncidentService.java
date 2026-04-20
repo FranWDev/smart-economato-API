@@ -269,7 +269,7 @@ public class IncidentService {
         User currentUser = getCurrentUserOrThrow();
         ensureAdmin(currentUser);
 
-        IncidentAuditAttachment attachment = incidentAuditAttachmentRepository.findById(attachmentId)
+        IncidentAuditAttachment attachment = incidentAuditAttachmentRepository.findByIdWithDetails(attachmentId)
                 .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
         if (!attachment.getIncident().getId().equals(incidentId)) {
@@ -315,7 +315,7 @@ public class IncidentService {
         }
 
         List<Long> uniqueCookingAuditIds = new ArrayList<>(new HashSet<>(cookingAuditIds));
-        List<RecipeCookingAudit> audits = recipeCookingAuditRepository.findAllById(uniqueCookingAuditIds);
+        List<RecipeCookingAudit> audits = recipeCookingAuditRepository.findAllByIdWithUser(uniqueCookingAuditIds);
         if (audits.size() != uniqueCookingAuditIds.size()) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_INCIDENT_AUDIT_NOT_ATTACHABLE));
         }

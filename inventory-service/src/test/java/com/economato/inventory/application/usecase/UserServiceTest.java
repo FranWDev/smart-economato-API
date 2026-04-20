@@ -1,52 +1,64 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.infrastructure.config.web.I18nService;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.economato.inventory.application.dto.projection.RoleCountProjection;
 import com.economato.inventory.application.dto.projection.UserProjection;
+import com.economato.inventory.application.dto.request.ChangePasswordRequestDTO;
+import com.economato.inventory.application.dto.request.RoleEscalationRequestDTO;
 import com.economato.inventory.application.dto.request.TransferStudentsRequestDTO;
 import com.economato.inventory.application.dto.request.UserRequestDTO;
-import com.economato.inventory.application.dto.request.ChangePasswordRequestDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
 import com.economato.inventory.application.dto.response.UserStatsResponseDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
-import com.economato.inventory.application.mapper.UserMapper;
-import com.economato.inventory.domain.model.Role;
-import com.economato.inventory.domain.model.User;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.TemporaryRoleEscalationRepository;
-import com.economato.inventory.domain.model.TemporaryRoleEscalation;
 import com.economato.inventory.application.mapper.StatsMapper;
 import com.economato.inventory.application.mapper.TemporaryRoleEscalationMapper;
-import com.economato.inventory.application.dto.request.RoleEscalationRequestDTO;
-import org.springframework.scheduling.TaskScheduler;
-import java.time.LocalDateTime;
-
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
-import org.mockito.ArgumentCaptor;
+import com.economato.inventory.application.mapper.UserMapper;
+import com.economato.inventory.domain.model.Role;
+import com.economato.inventory.domain.model.TemporaryRoleEscalation;
+import com.economato.inventory.domain.model.User;
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.TemporaryRoleEscalationRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -216,6 +228,7 @@ class UserServiceTest {
         when(userMapper.toEntity(testUserRequestDTO)).thenReturn(testUser);
         when(passwordEncoder.encode(testUserRequestDTO.getPassword())).thenReturn("encodedPassword");
         when(repository.save(any(User.class))).thenReturn(testUser);
+        when(repository.findByName(testUserRequestDTO.getName())).thenReturn(Optional.empty(), Optional.of(testUser));
         when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponseDTO);
 
         UserResponseDTO result = userService.save(testUserRequestDTO);
@@ -256,6 +269,7 @@ class UserServiceTest {
             savedUser.setId(1);
             return savedUser;
         });
+        when(repository.findByName(testUserRequestDTO.getName())).thenReturn(Optional.empty(), Optional.of(userWithNullRole));
         when(userMapper.toResponseDTO(any(User.class))).thenReturn(testUserResponseDTO);
 
         UserResponseDTO result = userService.save(testUserRequestDTO);
@@ -269,6 +283,7 @@ class UserServiceTest {
 
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
         when(repository.save(any(User.class))).thenReturn(testUser);
+        when(repository.findByName(testUserRequestDTO.getName())).thenReturn(Optional.empty(), Optional.of(testUser));
         when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponseDTO);
         doNothing().when(userMapper).updateEntity(testUserRequestDTO, testUser);
         when(passwordEncoder.encode(testUserRequestDTO.getPassword())).thenReturn("newEncodedPassword");
@@ -288,6 +303,7 @@ class UserServiceTest {
         testUserRequestDTO.setPassword(null);
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
         when(repository.save(any(User.class))).thenReturn(testUser);
+        when(repository.findByName(testUserRequestDTO.getName())).thenReturn(Optional.empty(), Optional.of(testUser));
         when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponseDTO);
         doNothing().when(userMapper).updateEntity(testUserRequestDTO, testUser);
 
@@ -303,6 +319,7 @@ class UserServiceTest {
         testUserRequestDTO.setPassword("");
         when(repository.findById(1)).thenReturn(Optional.of(testUser));
         when(repository.save(any(User.class))).thenReturn(testUser);
+        when(repository.findByName(testUserRequestDTO.getName())).thenReturn(Optional.empty(), Optional.of(testUser));
         when(userMapper.toResponseDTO(testUser)).thenReturn(testUserResponseDTO);
         doNothing().when(userMapper).updateEntity(testUserRequestDTO, testUser);
 

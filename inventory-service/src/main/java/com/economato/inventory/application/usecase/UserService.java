@@ -166,7 +166,10 @@ public class UserService {
 
         validateTeacherAssignment(user.getRole(), requestDTO.getTeacherId());
 
-        return userMapper.toResponseDTO(repository.save(user));
+        User savedUser = repository.save(user);
+        return repository.findByName(savedUser.getName())
+            .map(userMapper::toResponseDTO)
+            .orElseGet(() -> userMapper.toResponseDTO(savedUser));
     }
 
         @Caching(evict = {
@@ -206,10 +209,12 @@ public class UserService {
 
                     validateTeacherAssignment(existing.getRole(), requestDTO.getTeacherId());
 
-                    User updatedUser = repository.save(existing);
+                        User updatedUser = repository.save(existing);
                     customUserDetailsService.evictUser(updatedUser.getName());
                     customUserDetailsService.evictUser(updatedUser.getUser());
-                    return userMapper.toResponseDTO(updatedUser);
+                        return repository.findByName(updatedUser.getName())
+                            .map(userMapper::toResponseDTO)
+                            .orElseGet(() -> userMapper.toResponseDTO(updatedUser));
                 });
     }
 
