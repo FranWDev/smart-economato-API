@@ -2,6 +2,8 @@ package com.economato.inventory.application.usecase;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +11,10 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import com.economato.inventory.application.dto.request.RecipeQuantityRequestDTO;
+import com.economato.inventory.application.dto.request.RecipeRequirementsRequestDTO;
+import com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO;
 
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -230,6 +236,23 @@ public class RecipeService {
                 return dto;
             })
             .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<WeeklyPlanStockRequirementDTO> calculateRequirements(RecipeRequirementsRequestDTO request) {
+        Map<Integer, BigDecimal> netRequirements = new HashMap<>();
+        for (RecipeQuantityRequestDTO item : request.getRecipes()) {
+            Recipe recipe = repository.findByIdWithDetails(item.getRecipeId())
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RECIPE_NOT_FOUND, new Object[]{item.getRecipeId()})));
+            
+            for (RecipeComponent component : recipe.getComponents()) {
+                BigDecimal needed = component.getQuantity().multiply(item.getQuantity())
+                    .divide(recipe.getPortions(), 4, RoundingMode.HALF_UP);
+                netRequirements.merge(component.getProduct().getId(), needed, BigDecimal::add);
+            }
+        }
+
+        return weeklyPlanStockReservationService.calculateStockRequirements(netRequirements, null);
     }
 
     @Transactional(readOnly = true)

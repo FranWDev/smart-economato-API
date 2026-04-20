@@ -17,8 +17,10 @@ import org.springframework.web.bind.annotation.*;
 
 import com.economato.inventory.application.dto.request.RecipeCookingRequestDTO;
 import com.economato.inventory.application.dto.request.RecipeRequestDTO;
+import com.economato.inventory.application.dto.request.RecipeRequirementsRequestDTO;
 import com.economato.inventory.application.dto.response.CookableRecipeResponseDTO;
 import com.economato.inventory.application.dto.response.RecipeResponseDTO;
+import com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO;
 import com.economato.inventory.infrastructure.adapter.out.external.reports.RecipePdfService;
 import com.economato.inventory.application.usecase.RecipeService;
 
@@ -156,6 +158,14 @@ public class RecipeController {
         @Operation(summary = "Obtener recetas cocinables", description = "Devuelve las recetas visibles con su cantidad cocinable en función del stock actual. [Rol requerido: CHEF]")
         public ResponseEntity<List<CookableRecipeResponseDTO>> getCookableRecipes() {
                 return ResponseEntity.ok(recipeService.findCookableRecipes());
+        }
+
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
+        @PostMapping("/requirements")
+        @Operation(summary = "Calcular requisitos de stock para recetas", description = "Calcula los ingredientes necesarios para un conjunto de recetas y cantidades, devolviendo la disponibilidad de stock. [Rol requerido: CHEF]")
+        public ResponseEntity<List<WeeklyPlanStockRequirementDTO>> calculateRequirements(
+                        @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Lista de recetas y raciones", required = true, content = @Content(schema = @Schema(implementation = RecipeRequirementsRequestDTO.class))) @Valid @RequestBody RecipeRequirementsRequestDTO request) {
+                return ResponseEntity.ok(recipeService.calculateRequirements(request));
         }
 
         @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
