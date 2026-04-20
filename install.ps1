@@ -284,6 +284,68 @@ function Ensure-DockerService {
     }
 }
 
+$script:ManagedVolumes = @(
+    "turing-backend_postgres-data",
+    "turing-backend_postgres-replica-data",
+    "turing-backend_redis-data",
+    "turing-backend_kafka-data",
+    "turing-backend_prometheus-data",
+    "turing-backend_grafana-data",
+    "turing-backend_predictor-outbox-data",
+    "turing-backend_uploads-data"
+)
+
+function Get-VolumeBackupRoot {
+    $backupRoot = Join-Path $PWD "backups\volumes"
+    if (-not (Test-Path $backupRoot)) {
+        New-Item -Path $backupRoot -ItemType Directory -Force | Out-Null
+    }
+    return $backupRoot
+}
+
+function Export-ManagedVolumes {
+    param([string]$targetDir)
+
+    if (-not (Test-Path $targetDir)) {
+        New-Item -Path $targetDir -ItemType Directory -Force | Out-Null
+    }
+
+    foreach ($vol in $script:ManagedVolumes) {
+        $archiveName = "$vol.tar.gz"
+        Write-Info "Copiando volumen: $vol"
+        & docker run --rm -v "${vol}:/volume" -v "${targetDir}:/backup" alpine sh -c "tar -C /volume -czf /backup/$archiveName ." 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-ErrorMsg "No se pudo exportar el volumen $vol."
+            return $false
+        }
+    }
+
+    Set-Content -Path (Join-Path $targetDir "manifest.txt") -Value ($script:ManagedVolumes -join [Environment]::NewLine)
+    return $true
+}
+
+function Import-ManagedVolumes {
+    param([string]$sourceDir)
+
+    foreach ($vol in $script:ManagedVolumes) {
+        $archiveName = "$vol.tar.gz"
+        $archivePath = Join-Path $sourceDir $archiveName
+        if (-not (Test-Path $archivePath)) {
+            Write-ErrorMsg "Falta el archivo de respaldo del volumen: $archiveName"
+            return $false
+        }
+
+        Write-Info "Restaurando volumen: $vol"
+        & docker run --rm -v "${vol}:/volume" -v "${sourceDir}:/backup" alpine sh -c "rm -rf /volume/* /volume/.[!.]* /volume/..?* 2>/dev/null; tar -xzf /backup/$archiveName -C /volume" 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            Write-ErrorMsg "No se pudo restaurar el volumen $vol."
+            return $false
+        }
+    }
+
+    return $true
+}
+
 function Configure-System {
     Write-Header
     Write-Info "Ejecutando Inicialización y Despliegue de Auto-Configuración..."
@@ -343,8 +405,7 @@ function Configure-System {
     Write-Success "Las llaves de seguridad y contraseñas se han configurado correctamente."
 
     # 3. Volúmenes
-    $volumes = @("turing-backend_postgres-data", "turing-backend_postgres-replica-data", "turing-backend_redis-data", "turing-backend_kafka-data", "turing-backend_prometheus-data", "turing-backend_grafana-data", "turing-backend_predictor-outbox-data", "turing-backend_uploads-data")
-    foreach ($vol in $volumes) {
+    foreach ($vol in $script:ManagedVolumes) {
         if (-not (docker volume ls -q | Select-String "^$vol$")) {
             Invoke-Docker "volume create $vol" | Out-Null
         }
@@ -574,29 +635,90 @@ public class TrustAllCertsPolicy : ICertificatePolicy {
 }
 
 function Action-Backup {
-    Write-Info "Creando copia de seguridad de la base de datos..."
-    $backupDir = Join-Path $PWD "backups"
-    if (-not (Test-Path $backupDir)) { New-Item -Path $backupDir -ItemType Directory | Out-Null }
+    Write-Info "Creando copia de seguridad de volúmenes Docker..."
+
+    $backupRoot = Get-VolumeBackupRoot
     $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-    $backupFile = Join-Path $backupDir "backup_$timestamp.sql"
-    
-    $user = if ($env:POSTGRES_USER) { $env:POSTGRES_USER } else { 
-        try { (Select-String -Path ".env" -Pattern "^POSTGRES_USER=(.*)").Matches.Groups[1].Value } catch { "postgres" }
+    $backupDir = Join-Path $backupRoot "backup_$timestamp"
+    New-Item -Path $backupDir -ItemType Directory -Force | Out-Null
+
+    if (Export-ManagedVolumes $backupDir) {
+        Write-Success "Backup de volúmenes completado: $backupDir"
+    } else {
+        Write-ErrorMsg "Falló la copia de seguridad de volúmenes."
+    }
+}
+
+function Action-RestoreBackup {
+    Write-Info "Restaurando backup de volúmenes Docker..."
+
+    $backupRoot = Get-VolumeBackupRoot
+    $backupDirs = Get-ChildItem -Path $backupRoot -Directory | Sort-Object Name -Descending
+    if (-not $backupDirs -or $backupDirs.Count -eq 0) {
+        Write-ErrorMsg "No hay backups de volúmenes disponibles."
+        return
     }
 
-    $success = Show-Spinner "Exportando base de datos a SQL..." {
-        param($cwd, $pgUser)
-        Set-Location $cwd
-        $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-        $backupFile = Join-Path $cwd "backups\backup_$timestamp.sql"
-        $args = "compose exec -T postgres pg_dumpall -U $pgUser"
-        & docker $args.Split(' ') 2>&1 | Out-File $backupFile
-        return ($LASTEXITCODE -eq 0)
-    } -ArgsList $user
-
-    if ($success) {
-        Write-Success "Backup completado con éxito."
+    Write-Host "`n--- Backups de volúmenes disponibles ---" -ForegroundColor Cyan
+    for ($i = 0; $i -lt $backupDirs.Count; $i++) {
+        Write-Host (" [" + ($i + 1) + "] " + $backupDirs[$i].Name) -ForegroundColor White
     }
+
+    $selection = Read-Host "Selecciona el número del backup a restaurar"
+    if (-not ($selection -match '^\d+$')) {
+        Write-ErrorMsg "Selección inválida."
+        return
+    }
+
+    $index = [int]$selection - 1
+    if ($index -lt 0 -or $index -ge $backupDirs.Count) {
+        Write-ErrorMsg "Selección fuera de rango."
+        return
+    }
+
+    $selectedBackup = $backupDirs[$index]
+    Write-Warn "Se guardará una copia del estado actual y luego se reemplazarán los volúmenes por el backup elegido."
+    $confirm = Read-Host "Escribe SI para continuar"
+    if ($confirm -ne "SI") {
+        Write-Info "Operación cancelada por el usuario."
+        return
+    }
+
+    Write-Info "Deteniendo servicios para restauración consistente..."
+    if (-not (Invoke-Docker "compose down" -Silent)) {
+        Write-Warn "No se pudo detener completamente Docker Compose. Se intentará continuar."
+    }
+
+    $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+    $safetyBackup = Join-Path $backupRoot "pre_restore_$timestamp"
+    New-Item -Path $safetyBackup -ItemType Directory -Force | Out-Null
+
+    Write-Info "Guardando estado actual de volúmenes en: $safetyBackup"
+    if (-not (Export-ManagedVolumes $safetyBackup)) {
+        Write-ErrorMsg "No se pudo crear la copia de seguridad previa. Restauración cancelada para proteger datos."
+        return
+    }
+
+    if (Import-ManagedVolumes $selectedBackup.FullName) {
+        Write-Success "Backup restaurado correctamente desde: $($selectedBackup.Name)"
+    } else {
+        Write-ErrorMsg "Falló la restauración de volúmenes. El backup previo quedó guardado en: $safetyBackup"
+    }
+
+    Write-Info "Arrancando servicios nuevamente..."
+    if (Invoke-Docker "compose up -d") {
+        Write-Success "Servicios levantados correctamente."
+    } else {
+        Write-Warn "No se pudieron iniciar todos los servicios automáticamente."
+    }
+}
+
+function Action-Credits {
+    Write-Host "`n--- Créditos ---" -ForegroundColor Cyan
+    Write-Host "Francisco Airam - Backend e Infraestructura" -ForegroundColor White
+    Write-Host "Javier Remedios - Frontend e Integracion de IA" -ForegroundColor White
+    Write-Host "Lorena Fumero - Maquetacion y UI/UX" -ForegroundColor White
+    Write-Host "Javier Pascual - Apoyo emocional" -ForegroundColor White
 }
 
 # =============================================================================
@@ -635,7 +757,9 @@ while ($true) {
     Write-Host " [ 4 ] 🏥 Solucionar problemas" -ForegroundColor Cyan
     Write-Host " [ 5 ] 📋 Ver historial de actividad" -ForegroundColor Magenta
     Write-Host " [ 6 ] 💾 Crear copia de seguridad (Backup)" -ForegroundColor Blue
-    Write-Host " [ 7 ] ⚖️  Reparar libro de stock" -ForegroundColor DarkYellow
+    Write-Host " [ 7 ] 📥 Cargar copia de seguridad" -ForegroundColor Blue
+    Write-Host " [ 8 ] ⚖️  Reparar libro de stock" -ForegroundColor DarkYellow
+    Write-Host " [ 9 ] 👥 Ver creditos" -ForegroundColor White
     Write-Host " [ 0 ] 🚪 Salir" -ForegroundColor DarkGray
     Write-Host " ---------------------------------------------------------------" -ForegroundColor Cyan
     Write-Host " Hecho con ❤️  por el Grupo Turing del IES Domingo Pérez Minik" -ForegroundColor White
@@ -650,7 +774,9 @@ while ($true) {
         '4' { Action-Health; Pause-Execution }
         '5' { Action-Logs }
         '6' { Action-Backup; Pause-Execution }
-        '7' { Action-RepairBlockchain; Pause-Execution }
+        '7' { Action-RestoreBackup; Pause-Execution }
+        '8' { Action-RepairBlockchain; Pause-Execution }
+        '9' { Action-Credits; Pause-Execution }
         '0' { Write-Host "Saliendo del Panel de Control... Ciao!"; exit }
         default { Write-ErrorMsg "Opción inválida." }
     }
