@@ -22,6 +22,7 @@ public class StockAlertDTO {
     private String productName;
 
     private String unit;
+    private BigDecimal lotQuantity;
 
     private BigDecimal currentStock;
 

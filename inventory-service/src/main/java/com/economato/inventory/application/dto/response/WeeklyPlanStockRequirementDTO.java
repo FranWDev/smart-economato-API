@@ -26,5 +26,7 @@ public class WeeklyPlanStockRequirementDTO {
     private BigDecimal expiredStock;
     private BigDecimal grossExpiredStock;
 
+    private BigDecimal lotQuantity;
+
     private boolean sufficient;
 }
