@@ -20,6 +20,7 @@ public interface ProductMapper {
 
     @Mapping(source = "supplier.id", target = "supplier.id")
     @Mapping(source = "supplier.name", target = "supplier.name")
+    @Mapping(source = "lotQuantity", target = "lotQuantity")
     @Mapping(source = "isHidden", target = "hidden")
     ProductResponseDTO toResponseDTO(ProductProjection projection);
 
