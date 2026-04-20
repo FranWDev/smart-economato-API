@@ -19,22 +19,22 @@ public class AiSmgProperties {
 
     @NotNull
     @Min(1000)
-    private Integer tokenBudget = 6000;
+    private Integer tokenBudget = 7000;
 
     @NotNull
-    private Double workingMemoryWeight = 0.57;
+    private Double workingMemoryWeight = 0.60;
 
     @NotNull
-    private Double entityMemoryWeight = 0.20;
+    private Double entityMemoryWeight = 0.22;
 
     @NotNull
-    private Double topicMemoryWeight = 0.10;
+    private Double topicMemoryWeight = 0.08;
 
     @NotNull
     private Double intentMemoryWeight = 0.03;
 
     @NotNull
-    private Double systemContextWeight = 0.10;
+    private Double systemContextWeight = 0.07;
 
     @NotNull
     @Positive

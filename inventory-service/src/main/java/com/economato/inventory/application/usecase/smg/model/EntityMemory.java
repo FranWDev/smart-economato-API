@@ -81,39 +81,45 @@ public class EntityMemory {
         StringBuilder sb = new StringBuilder();
 
         if (!products.isEmpty()) {
+            sb.append("## Products\n");
             for (ProductSnapshot p : products.values()) {
-                sb.append("P").append(p.id())
-                        .append(":")
-                        .append(safe(p.name())).append("|")
-                        .append(safe(p.stock())).append(safeUnit(p.unit())).append("|")
-                        .append("price:").append(safe(p.price())).append("|")
-                        .append("alert:").append(safe(p.alertLevel())).append("|")
-                        .append("pred14d:").append(safe(p.prediction14d())).append("|")
-                        .append("expDays:").append(safe(p.daysToExpiry()))
-                        .append("\n");
+                sb.append("- ").append(safe(p.name())).append(" (ID:").append(p.id()).append("): ");
+                sb.append(safe(p.stock())).append(" ").append(safeUnit(p.unit()));
+                sb.append(", price: ").append(safe(p.price()));
+                if (p.alertLevel() != null && !"-".equals(safe(p.alertLevel()))) {
+                    sb.append(" [ALERT: ").append(p.alertLevel()).append("]");
+                }
+                if (p.prediction14d() != null && !"-".equals(safe(p.prediction14d()))) {
+                    sb.append(", 14d forecast: ").append(p.prediction14d());
+                }
+                if (p.daysToExpiry() != null && !"-".equals(safe(p.daysToExpiry()))) {
+                    sb.append(", expires in ").append(p.daysToExpiry()).append("d");
+                }
+                sb.append("\n");
             }
         }
 
         if (!recipes.isEmpty()) {
+            sb.append("## Recipes\n");
             for (RecipeSnapshot r : recipes.values()) {
-                sb.append("R").append(r.id())
-                        .append(":")
-                        .append(safe(r.name())).append("|")
-                        .append("cost:").append(safe(r.cost())).append("|")
-                        .append("allergens:").append(r.allergens() == null ? "-" : String.join(",", r.allergens()))
-                        .append("\n");
+                sb.append("- ").append(safe(r.name())).append(" (ID:").append(r.id()).append("): ");
+                sb.append("cost ").append(safe(r.cost()));
+                if (r.allergens() != null && !r.allergens().isEmpty()) {
+                    sb.append(", allergens: ").append(String.join(", ", r.allergens()));
+                }
+                sb.append("\n");
             }
         }
 
         if (!orders.isEmpty()) {
+            sb.append("## Orders\n");
             for (OrderSnapshot o : orders.values()) {
-                sb.append("O").append(o.id())
-                        .append(":")
-                        .append(safe(o.status())).append("|")
-                        .append("supplier:").append(safe(o.supplierName())).append("|")
-                        .append("items:").append(o.itemCount()).append("|")
-                        .append("total:").append(safe(o.total()))
-                        .append("\n");
+                sb.append("- Order #").append(o.id()).append(": ");
+                sb.append(safe(o.status()));
+                sb.append(", supplier: ").append(safe(o.supplierName()));
+                sb.append(", ").append(o.itemCount()).append(" items");
+                sb.append(", total: ").append(safe(o.total()));
+                sb.append("\n");
             }
         }
 

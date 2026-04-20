@@ -1,25 +1,43 @@
 package com.economato.inventory.application.usecase.smg;
 
-import com.economato.inventory.application.usecase.smg.model.CompressedMessage;
-import com.economato.inventory.domain.model.MessageRole;
-import com.economato.inventory.infrastructure.config.ai.AiSmgProperties;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.anyString;
+import org.mockito.Mock;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
+import com.economato.inventory.application.usecase.smg.model.CompressedMessage;
+import com.economato.inventory.domain.model.MessageRole;
+import com.economato.inventory.infrastructure.config.ai.AiSmgProperties;
+import com.knuddels.jtokkit.api.Encoding;
+
+@ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class TokenEstimatorTest {
 
+    @Mock
+    private Encoding failingEncoding;
+
+    private AiSmgProperties properties;
     private TokenEstimator tokenEstimator;
+    private TokenEstimator fallbackEstimator;
 
     @BeforeEach
     void setUp() {
-        AiSmgProperties properties = new AiSmgProperties();
+        properties = new AiSmgProperties();
         properties.setTokenEstimationDivisor(4);
         tokenEstimator = new TokenEstimator(properties);
+        fallbackEstimator = new TokenEstimator(properties, failingEncoding);
+        when(failingEncoding.countTokens(anyString())).thenThrow(new RuntimeException("boom"));
     }
 
     @Test
@@ -29,8 +47,13 @@ class TokenEstimatorTest {
     }
 
     @Test
-    void estimate_shortText_returnsAtLeastOne() {
-        assertEquals(1, tokenEstimator.estimate("abc"));
+    void estimate_nonBlankText_usesTokenizer() {
+        assertTrue(tokenEstimator.estimate("hello world") > 0);
+    }
+
+    @Test
+    void estimate_fallbackUsesNaiveHeuristic() {
+        assertEquals(2, fallbackEstimator.estimate("12345678"));
     }
 
     @Test
@@ -40,6 +63,7 @@ class TokenEstimatorTest {
         messages.add(null);
         messages.add(new CompressedMessage(MessageRole.ASSISTANT, "abcd", null));
 
-        assertEquals(3, tokenEstimator.estimateMessages(messages));
+        assertEquals(fallbackEstimator.estimate("12345678") + fallbackEstimator.estimate("abcd"),
+                fallbackEstimator.estimateMessages(messages));
     }
 }
