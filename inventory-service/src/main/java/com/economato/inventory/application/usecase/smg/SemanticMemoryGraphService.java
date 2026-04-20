@@ -1,5 +1,6 @@
 package com.economato.inventory.application.usecase.smg;
 
+import com.economato.inventory.application.dto.mcp.McpSystemContextDto;
 import com.economato.inventory.application.usecase.mcp.McpUtilityService;
 import com.economato.inventory.application.usecase.smg.model.CompressedContext;
 import com.economato.inventory.application.usecase.smg.model.CompressedMessage;
@@ -180,9 +181,14 @@ public class SemanticMemoryGraphService {
     }
 
     private String buildSystemContext(String userLanguage) {
-        return "date=" + LocalDate.now() +
-                ", language=" + (userLanguage == null || userLanguage.isBlank() ? "es" : userLanguage) +
-                ", context=" + mcpUtilityService.getSystemContext();
+        McpSystemContextDto ctx = mcpUtilityService.getSystemContext();
+        String lang = userLanguage == null || userLanguage.isBlank() ? "es" : userLanguage;
+        return "date: " + LocalDate.now() +
+            ", language: " + lang +
+            ", total_products: " + ctx.getTotalProducts() +
+            ", pending_orders: " + ctx.getPendingOrdersCount() +
+            ", total_recipes: " + ctx.getTotalRecipes() +
+            ", active_alerts: " + ctx.getActiveAlertsCount();
     }
 
     private String truncateToBudget(String text, int budgetTokens) {
@@ -197,19 +203,23 @@ public class SemanticMemoryGraphService {
     }
 
     private String smartTruncateByTokens(String text, int budgetTokens) {
-        if (text == null || text.isBlank() || budgetTokens <= 0) {
-            return "";
-        }
-        int maxChars = Math.max(1, budgetTokens * aiSmgProperties.getTokenEstimationDivisor());
-        if (text.length() <= maxChars) {
-            return text;
+        if (text == null || text.isBlank() || budgetTokens <= 0) return "";
+        if (tokenEstimator.estimate(text) <= budgetTokens) return text;
+
+        int maxChars = Math.min(text.length(), budgetTokens * 4);
+        String candidate = text.substring(0, maxChars);
+
+        int iterations = 0;
+        while (tokenEstimator.estimate(candidate) > budgetTokens && maxChars > 10 && iterations < 10) {
+            maxChars = (int) (maxChars * 0.85);
+            candidate = text.substring(0, Math.min(maxChars, text.length()));
+            iterations++;
         }
 
-        String candidate = text.substring(0, maxChars);
         int dotIdx = candidate.lastIndexOf('.');
         int lineIdx = candidate.lastIndexOf('\n');
         int cut = Math.max(dotIdx, lineIdx);
-        if (cut > 0) {
+        if (cut > candidate.length() / 2) {
             candidate = candidate.substring(0, cut + 1);
         }
         return candidate + " ...(truncated)";

@@ -22,12 +22,12 @@ class AiSmgPropertiesTest {
         ValidatorFactory validatorFactory = Validation.buildDefaultValidatorFactory();
         validator = validatorFactory.getValidator();
         properties = new AiSmgProperties();
-        properties.setTokenBudget(6000);
-        properties.setWorkingMemoryWeight(0.57);
-        properties.setEntityMemoryWeight(0.20);
-        properties.setTopicMemoryWeight(0.10);
+        properties.setTokenBudget(7000);
+        properties.setWorkingMemoryWeight(0.60);
+        properties.setEntityMemoryWeight(0.22);
+        properties.setTopicMemoryWeight(0.08);
         properties.setIntentMemoryWeight(0.03);
-        properties.setSystemContextWeight(0.10);
+        properties.setSystemContextWeight(0.07);
     }
 
     @Test
@@ -63,7 +63,7 @@ class AiSmgPropertiesTest {
     void defaults_areCorrect() {
         AiSmgProperties defaults = new AiSmgProperties();
 
-        assertEquals(6000, defaults.getTokenBudget());
+        assertEquals(7000, defaults.getTokenBudget());
         assertEquals(3.0, defaults.getDecayLambda());
         assertEquals(5, defaults.getTopicSplitGapMinutes());
     }

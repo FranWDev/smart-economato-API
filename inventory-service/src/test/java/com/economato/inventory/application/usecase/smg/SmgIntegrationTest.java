@@ -93,6 +93,7 @@ class SmgIntegrationTest {
 
         assertNotNull(context);
         assertNotNull(context.systemContext());
+        assertTrue(context.systemContext().contains("language: es"));
         assertNotNull(context.workingMemory());
         assertFalse(context.workingMemory().isEmpty());
         assertTrue(context.compressionRatio() > 0);
@@ -124,8 +125,10 @@ class SmgIntegrationTest {
 
         CompressedContext context = semanticMemoryGraphService.compress(history, "es");
 
+        assertTrue(context.entityMemory().contains("## Products"));
         assertTrue(context.entityMemory().contains("50.000"));
         assertTrue(context.entityMemory().contains("Tomate"));
+        assertTrue(context.entityMemory().contains("[ALERT: LOW]"));
     }
 
     @Test

@@ -232,7 +232,14 @@ class AiMetricsTest {
     void smgCompression_recordsDurationAndEntityCounter() {
         EntityExtractor extractor = org.mockito.Mockito.mock(EntityExtractor.class);
         EntityEnricher enricher = org.mockito.Mockito.mock(EntityEnricher.class);
+        com.economato.inventory.application.usecase.mcp.McpUtilityService mcpUtilityService = org.mockito.Mockito.mock(com.economato.inventory.application.usecase.mcp.McpUtilityService.class);
         when(extractor.extract(any())).thenReturn(new com.economato.inventory.application.usecase.smg.model.EntityMemory());
+        when(mcpUtilityService.getSystemContext()).thenReturn(com.economato.inventory.application.dto.mcp.McpSystemContextDto.builder()
+            .totalProducts(10)
+            .pendingOrdersCount(2)
+            .totalRecipes(5)
+            .activeAlertsCount(1)
+            .build());
         AiSmgProperties props = smgProperties();
         SemanticMemoryGraphService service = new SemanticMemoryGraphService(
                 new com.economato.inventory.application.usecase.smg.TokenEstimator(props),
@@ -243,10 +250,9 @@ class AiMetricsTest {
                 new com.economato.inventory.application.usecase.smg.DecayFunction(props),
                 new com.economato.inventory.application.usecase.smg.ToolResultCompressor(props, new com.fasterxml.jackson.databind.ObjectMapper()),
                 props,
-                org.mockito.Mockito.mock(com.economato.inventory.application.usecase.mcp.McpUtilityService.class),
+                mcpUtilityService,
                 meterRegistry
         );
-        when(org.mockito.Mockito.mock(com.economato.inventory.application.usecase.mcp.McpUtilityService.class).getSystemContext()).thenReturn(null);
 
         service.compress(List.of(message(MessageRole.USER, "hola")), "es");
 

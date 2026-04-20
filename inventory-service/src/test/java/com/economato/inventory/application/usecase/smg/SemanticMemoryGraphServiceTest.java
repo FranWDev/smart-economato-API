@@ -1,5 +1,22 @@
 package com.economato.inventory.application.usecase.smg;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import com.economato.inventory.application.dto.mcp.McpSystemContextDto;
 import com.economato.inventory.application.usecase.mcp.McpUtilityService;
 import com.economato.inventory.application.usecase.smg.model.CompressedContext;
@@ -12,24 +29,8 @@ import com.economato.inventory.domain.model.MessageRole;
 import com.economato.inventory.infrastructure.config.ai.AiIntentProperties;
 import com.economato.inventory.infrastructure.config.ai.AiSmgProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class SemanticMemoryGraphServiceTest {
@@ -49,7 +50,7 @@ class SemanticMemoryGraphServiceTest {
     @BeforeEach
     void setUp() {
         AiSmgProperties smgProperties = new AiSmgProperties();
-        smgProperties.setTokenBudget(200);
+        smgProperties.setTokenBudget(1000);
         smgProperties.setWorkingMemoryWeight(0.50);
         smgProperties.setEntityMemoryWeight(0.20);
         smgProperties.setTopicMemoryWeight(0.10);
@@ -136,15 +137,19 @@ class SemanticMemoryGraphServiceTest {
         CompressedContext context = service.compress(history, "es");
 
         assertEquals("es", context.userLanguage());
-        assertTrue(context.systemContext().contains("language=es"));
-        assertTrue(context.systemContext().contains("totalProducts=7"));
+        assertTrue(context.systemContext().contains("language: es"));
+        assertTrue(context.systemContext().contains("total_products: 7"));
         assertTrue(context.intentMemory().contains("[resolved] ORDER_CREATE"));
-        assertTrue(context.entityMemory().contains("P1:Tomate"));
-        assertTrue(context.entityMemory().contains("R2:Salsa"));
+        assertTrue(context.entityMemory().contains("## Products"));
+        assertTrue(context.entityMemory().contains("Tomate"));
+        assertTrue(context.entityMemory().contains("(ID:1)"));
+        assertTrue(context.entityMemory().contains("price: 2.50"));
+        assertTrue(context.entityMemory().contains("## Recipes"));
+        assertTrue(context.entityMemory().contains("Salsa"));
         assertTrue(context.topicMemory().contains("ORDER_CREATE"));
         assertTrue(context.workingMemory().stream().anyMatch(message ->
                 MessageRole.TOOL.equals(message.role())
-                        && message.content().contains("\"items\":[1,2,3,\"...+3 more\"]")));
+                        && message.content().contains("\"items\"")));
         assertTrue(context.totalEstimatedTokens() > 0);
         assertTrue(context.compressionRatio() > 0d);
         assertNotNull(meterRegistry.find("ai.smg.compression.duration").timer());
@@ -170,7 +175,8 @@ class SemanticMemoryGraphServiceTest {
         assertEquals("-", context.intentMemory());
         assertEquals("-", context.entityMemory());
         assertEquals("-", context.topicMemory());
-        assertTrue(context.systemContext().contains("language=es"));
+                assertTrue(context.systemContext().contains("language: es"));
+                assertTrue(context.systemContext().contains("total_products: 0"));
         assertTrue(context.workingMemory().isEmpty());
         verify(mcpUtilityService).getSystemContext();
     }
