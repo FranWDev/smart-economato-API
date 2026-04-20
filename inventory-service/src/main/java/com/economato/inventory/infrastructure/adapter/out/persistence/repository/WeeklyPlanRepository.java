@@ -1,7 +1,10 @@
 package com.economato.inventory.infrastructure.adapter.out.persistence.repository;
 
-import com.economato.inventory.domain.model.WeeklyPlan;
-import com.economato.inventory.domain.model.WeeklyPlanStatus;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
@@ -11,10 +14,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.List;
-import java.util.Optional;
+import com.economato.inventory.domain.model.WeeklyPlan;
+import com.economato.inventory.domain.model.WeeklyPlanStatus;
 
 @Repository
 public interface WeeklyPlanRepository extends JpaRepository<WeeklyPlan, Long> {
@@ -55,18 +56,28 @@ public interface WeeklyPlanRepository extends JpaRepository<WeeklyPlan, Long> {
            "GROUP BY rc.product.id")
     List<Object[]> calculateRequiredStockForPlan(@Param("planId") Long planId);
 
-    @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.recipe.components", "slots.recipe.components.product", "slots.students", "slots.students.student", "chef"})
+       @EntityGraph(attributePaths = {
+                     "slots",
+                     "slots.recipe",
+                     "slots.recipe.components",
+                     "slots.recipe.components.product",
+                     "slots.confirmedBy",
+                     "slots.students",
+                     "slots.students.student",
+                     "slots.students.cancelledBy",
+                     "chef"
+       })
     Optional<WeeklyPlan> findWithDetailsById(Long id);
 
-    @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.students", "slots.students.student", "chef"})
+       @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.confirmedBy", "slots.students", "slots.students.student", "slots.students.cancelledBy", "chef"})
     Page<WeeklyPlan> findAllByChefId(Integer chefId, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.students", "slots.students.student", "chef"})
+       @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.confirmedBy", "slots.students", "slots.students.student", "slots.students.cancelledBy", "chef"})
     Page<WeeklyPlan> findAll(@NonNull Pageable pageable);
 
-    @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.students", "slots.students.student", "chef"})
+       @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.confirmedBy", "slots.students", "slots.students.student", "slots.students.cancelledBy", "chef"})
     Optional<WeeklyPlan> findByChefIdAndWeekStartDateAndStatus(Integer chefId, LocalDate weekStartDate, WeeklyPlanStatus status);
 
-    @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.students", "slots.students.student", "chef"})
+       @EntityGraph(attributePaths = {"slots", "slots.recipe", "slots.confirmedBy", "slots.students", "slots.students.student", "slots.students.cancelledBy", "chef"})
     Optional<WeeklyPlan> findByChefIdAndWeekStartDateAndStatusIn(Integer chefId, LocalDate weekStartDate, List<WeeklyPlanStatus> statuses);
 }

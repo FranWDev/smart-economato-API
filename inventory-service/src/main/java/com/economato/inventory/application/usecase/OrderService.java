@@ -27,18 +27,18 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.request.LotReceptionRequestDTO;
-import com.economato.inventory.application.dto.request.OrdersByProductsRequestDTO;
 import com.economato.inventory.application.dto.request.OrderDetailRequestDTO;
 import com.economato.inventory.application.dto.request.OrderReceptionDetailRequestDTO;
 import com.economato.inventory.application.dto.request.OrderReceptionRequestDTO;
 import com.economato.inventory.application.dto.request.OrderRequestDTO;
+import com.economato.inventory.application.dto.request.OrdersByProductsRequestDTO;
 import com.economato.inventory.application.dto.response.LotReceptionResponseDTO;
-import com.economato.inventory.application.dto.response.OrdersByProductsResponseDTO;
 import com.economato.inventory.application.dto.response.OrderDetailResponseDTO;
 import com.economato.inventory.application.dto.response.OrderFilterResponseDTO;
-import com.economato.inventory.application.dto.response.ProductOrderQuantityResponseDTO;
 import com.economato.inventory.application.dto.response.OrderResponseDTO;
 import com.economato.inventory.application.dto.response.OrderTotalCostResponseDTO;
+import com.economato.inventory.application.dto.response.OrdersByProductsResponseDTO;
+import com.economato.inventory.application.dto.response.ProductOrderQuantityResponseDTO;
 import com.economato.inventory.application.dto.response.UserResponseDTO;
 import com.economato.inventory.application.mapper.OrderMapper;
 import com.economato.inventory.domain.OrderAuditable;
@@ -58,9 +58,9 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.specification.OrderSpecifications;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
-import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -163,7 +163,9 @@ public class OrderService {
                 }
 
                 Order savedOrder = repository.save(order);
-                return orderMapper.toResponseDTO(savedOrder);
+                return repository.findProjectedById(savedOrder.getId())
+                                .map(projection -> orderMapper.toResponseDTO(projection))
+                                .orElseGet(() -> orderMapper.toResponseDTO(savedOrder));
         }
 
         /**
@@ -231,7 +233,9 @@ public class OrderService {
                                         }
 
                                         Order saved = repository.save(existing);
-                                        return orderMapper.toResponseDTO(saved);
+                                        return repository.findProjectedById(saved.getId())
+                                                        .map(projection -> orderMapper.toResponseDTO(projection))
+                                                        .orElseGet(() -> orderMapper.toResponseDTO(saved));
                                 });
         }
 
@@ -534,7 +538,9 @@ public class OrderService {
 
                 Order savedOrder = repository.save(order);
                 orderReviewLockService.releaseLockAfterReviewCompletion(order.getId());
-                OrderResponseDTO responseDTO = orderMapper.toResponseDTO(savedOrder);
+                OrderResponseDTO responseDTO = repository.findProjectedById(savedOrder.getId())
+                                .map(projection -> orderMapper.toResponseDTO(projection))
+                                .orElseGet(() -> orderMapper.toResponseDTO(savedOrder));
 
                 if (responseDTO.getDetails() != null) {
                         for (OrderDetailResponseDTO detailResp : responseDTO.getDetails()) {
@@ -597,7 +603,9 @@ public class OrderService {
                                                         || newStatus == OrderStatus.INCOMPLETE) {
                                                 orderReviewLockService.releaseLockAfterReviewCompletion(orderId);
                                         }
-                                        return orderMapper.toResponseDTO(updatedOrder);
+                                        return repository.findProjectedById(updatedOrder.getId())
+                                                        .map(projection -> orderMapper.toResponseDTO(projection))
+                                                        .orElseGet(() -> orderMapper.toResponseDTO(updatedOrder));
                                 });
         }
 

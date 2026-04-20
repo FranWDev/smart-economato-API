@@ -365,7 +365,7 @@ public class TraceabilityService {
          */
         @Transactional(readOnly = true)
         public ReverseTraceabilityDTO getReverseTraceability(Long cookingAuditId) {
-                RecipeCookingAudit audit = cookingAuditRepository.findById(cookingAuditId)
+                RecipeCookingAudit audit = cookingAuditRepository.findByIdWithDetails(cookingAuditId)
                                 .orElseThrow(() -> new InvalidOperationException(
                                                 i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 

@@ -1,5 +1,35 @@
 package com.economato.inventory.application.usecase;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import org.mockito.Mock;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
+
 import com.economato.inventory.application.dto.projection.IncidentChatMessageCountProjection;
 import com.economato.inventory.application.dto.request.AttachAuditRequestDTO;
 import com.economato.inventory.application.dto.request.CloseIncidentRequestDTO;
@@ -30,37 +60,6 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.access.AccessDeniedException;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class IncidentServiceTest {
@@ -251,7 +250,9 @@ class IncidentServiceTest {
                 .cookingAuditIds(List.of(100L, 101L))
                 .build());
 
-        verify(incidentAuditAttachmentRepository, times(2)).save(any(IncidentAuditAttachment.class));
+        verify(incidentAuditAttachmentRepository).saveAll(org.mockito.ArgumentMatchers.argThat((List<IncidentAuditAttachment> attachments) ->
+            attachments.size() == 2
+                && attachments.stream().allMatch(attachment -> attachment.getIncident().getId().equals(203L))));
     }
 
     @Test
@@ -347,7 +348,9 @@ class IncidentServiceTest {
                 AttachAuditRequestDTO.builder().cookingAuditIds(List.of(100L)).build());
 
         assertNotNull(result);
-        verify(incidentAuditAttachmentRepository).save(any(IncidentAuditAttachment.class));
+        verify(incidentAuditAttachmentRepository).saveAll(org.mockito.ArgumentMatchers.argThat((List<IncidentAuditAttachment> attachments) ->
+            attachments.size() == 1
+                && attachments.get(0).getIncident().getId().equals(400L)));
     }
 
     @Test
@@ -361,7 +364,9 @@ class IncidentServiceTest {
 
         service.attachAudits(401L, AttachAuditRequestDTO.builder().cookingAuditIds(List.of(101L)).build());
 
-        verify(incidentAuditAttachmentRepository).save(any(IncidentAuditAttachment.class));
+        verify(incidentAuditAttachmentRepository).saveAll(org.mockito.ArgumentMatchers.argThat((List<IncidentAuditAttachment> attachments) ->
+            attachments.size() == 1
+                && attachments.get(0).getIncident().getId().equals(401L)));
     }
 
     @Test

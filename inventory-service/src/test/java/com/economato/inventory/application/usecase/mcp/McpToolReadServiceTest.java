@@ -1,20 +1,40 @@
 package com.economato.inventory.application.usecase.mcp;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+
 import com.economato.inventory.application.dto.mcp.McpExpiringBatchDto;
 import com.economato.inventory.application.dto.mcp.McpLedgerEntryDto;
+import com.economato.inventory.application.dto.mcp.McpSupplierDeepDto;
 import com.economato.inventory.application.usecase.ProductBatchService;
 import com.economato.inventory.application.usecase.StockAlertService;
 import com.economato.inventory.application.usecase.WeeklyPlanService;
-import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.FoodCrisis;
+import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.domain.model.StockDailyForecast;
 import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.StockWeeklyConsumptionHistory;
-import com.economato.inventory.domain.model.User;
 import com.economato.inventory.domain.model.Supplier;
-import com.economato.inventory.application.dto.mcp.McpSupplierDeepDto;
+import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.FoodCrisisRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
@@ -26,26 +46,6 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockWeeklyConsumptionHistoryRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
 import com.economato.inventory.infrastructure.config.ai.AiAnalysisProperties;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageImpl;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class McpToolReadServiceTest {
@@ -187,7 +187,7 @@ class McpToolReadServiceTest {
         product.setUnitPrice(new BigDecimal("2.50"));
         when(productRepository.findBySupplierId(3)).thenReturn(List.of(product));
         when(orderRepository.countBySupplierId(3)).thenReturn(2L);
-        when(foodCrisisRepository.findByStatus(FoodCrisis.CrisisStatus.ACTIVE)).thenReturn(List.of());
+        when(foodCrisisRepository.existsByStatusAndSupplierId(FoodCrisis.CrisisStatus.ACTIVE, 3)).thenReturn(false);
 
         McpSupplierDeepDto result = service.getSupplierDeep(3);
 

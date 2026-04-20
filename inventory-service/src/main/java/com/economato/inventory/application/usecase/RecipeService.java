@@ -1,46 +1,5 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
-
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.economato.inventory.domain.RecipeAuditable;
-import com.economato.inventory.domain.RecipeCookingAuditable;
-import com.economato.inventory.domain.PredictorTrigger;
-import com.economato.inventory.application.dto.RestPage;
-import com.economato.inventory.application.dto.request.RecipeComponentRequestDTO;
-import com.economato.inventory.application.dto.request.RecipeCookingRequestDTO;
-import com.economato.inventory.application.dto.request.RecipeRequestDTO;
-import com.economato.inventory.application.dto.response.CookableRecipeResponseDTO;
-import com.economato.inventory.application.dto.response.RecipeAverageCostResponseDTO;
-import com.economato.inventory.application.dto.response.RecipeCountResponseDTO;
-import com.economato.inventory.application.dto.response.RecipeResponseDTO;
-import com.economato.inventory.application.dto.response.RecipeStatsResponseDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
-import com.economato.inventory.application.mapper.RecipeMapper;
-import com.economato.inventory.application.mapper.StatsMapper;
-import com.economato.inventory.application.mapper.CookableRecipeMapper;
-import com.economato.inventory.domain.model.MovementType;
-import com.economato.inventory.domain.model.Product;
-import com.economato.inventory.domain.model.Recipe;
-import com.economato.inventory.domain.model.RecipeComponent;
-import com.economato.inventory.domain.model.User;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.AllergenRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
-import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
-import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.HashSet;
@@ -50,6 +9,48 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.economato.inventory.application.dto.RestPage;
+import com.economato.inventory.application.dto.request.BatchMovementItem;
+import com.economato.inventory.application.dto.request.RecipeComponentRequestDTO;
+import com.economato.inventory.application.dto.request.RecipeCookingRequestDTO;
+import com.economato.inventory.application.dto.request.RecipeRequestDTO;
+import com.economato.inventory.application.dto.response.CookableRecipeResponseDTO;
+import com.economato.inventory.application.dto.response.RecipeAverageCostResponseDTO;
+import com.economato.inventory.application.dto.response.RecipeCountResponseDTO;
+import com.economato.inventory.application.dto.response.RecipeResponseDTO;
+import com.economato.inventory.application.dto.response.RecipeStatsResponseDTO;
+import com.economato.inventory.application.mapper.CookableRecipeMapper;
+import com.economato.inventory.application.mapper.RecipeMapper;
+import com.economato.inventory.application.mapper.StatsMapper;
+import com.economato.inventory.domain.PredictorTrigger;
+import com.economato.inventory.domain.RecipeAuditable;
+import com.economato.inventory.domain.RecipeCookingAuditable;
+import com.economato.inventory.domain.model.MovementType;
+import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.domain.model.Recipe;
+import com.economato.inventory.domain.model.RecipeComponent;
+import com.economato.inventory.domain.model.User;
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.AllergenRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
+import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -121,10 +122,12 @@ public class RecipeService {
     public RecipeResponseDTO save(RecipeRequestDTO requestDTO) {
         Recipe recipe = toEntity(requestDTO);
         calculateTotalCost(recipe);
-        recipe = repository.save(recipe);
+        final Recipe savedRecipe = repository.save(recipe);
+        final Integer recipeId = savedRecipe.getId();
 
-        // Return using mapper for consistency with entity state
-        return recipeMapper.toResponseDTO(recipe);
+        return repository.findProjectedById(recipeId)
+            .map(projection -> recipeMapper.toResponseDTO(projection))
+            .orElseGet(() -> recipeMapper.toResponseDTO(savedRecipe));
     }
 
         @Caching(evict = {
@@ -145,7 +148,9 @@ public class RecipeService {
                     updateEntity(existing, requestDTO);
                     calculateTotalCost(existing);
                     Recipe saved = repository.save(existing);
-                    return recipeMapper.toResponseDTO(saved);
+                    return repository.findProjectedById(saved.getId())
+                        .map(projection -> recipeMapper.toResponseDTO(projection))
+                        .orElseGet(() -> recipeMapper.toResponseDTO(saved));
                 });
     }
 
@@ -489,6 +494,7 @@ public class RecipeService {
                     i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND, new Object[] { "multiple" }));
         }
 
+        List<BatchMovementItem> movements = new java.util.ArrayList<>();
         for (RecipeComponent component : recipe.getComponents()) {
             Product product = productsById.get(component.getProduct().getId());
 
@@ -513,27 +519,29 @@ public class RecipeService {
                     ? requiredQuantity.multiply(BigDecimal.valueOf(100)).divide(availabilityPercent, 3, RoundingMode.HALF_UP)
                     : requiredQuantity;
 
-            stockLedgerService.recordStockMovement(
+                movements.add(new BatchMovementItem(
                     product.getId(),
                     grossQuantity.negate(),
                     MovementType.SALIDA,
                     i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_COOKING,
                             new Object[] { recipe.getName(), cookingRequest.getQuantity() }),
-                    currentUser,
                     null,
-                    null,
-                    correlationId);
+                    correlationId));
 
             log.info("Stock Bruto descontado del ledger: producto={}, neto={}, bruto={}",
                     product.getName(), requiredQuantity, grossQuantity);
 
         }
 
+        stockLedgerService.recordBatchStockMovements(movements, currentUser, null);
+
         log.info("Receta cocinada exitosamente: receta={}, cantidad={}, usuario={}",
                 recipe.getName(), cookingRequest.getQuantity(),
                 currentUser != null ? currentUser.getName() : "Sistema");
 
-        return recipeMapper.toResponseDTO(recipe);
+        return repository.findProjectedById(recipe.getId())
+            .map(projection -> recipeMapper.toResponseDTO(projection))
+            .orElseGet(() -> recipeMapper.toResponseDTO(recipe));
     }
 
     /**
@@ -560,9 +568,7 @@ public class RecipeService {
 
             stockLedgerService.revertMovement(audit.getCorrelationId(), "Deshacer cocinado: " + reason);
             
-            List<Integer> affectedProductIds = audit.getRecipe().getComponents().stream()
-                    .map(c -> c.getProduct().getId())
-                    .collect(Collectors.toList());
+                List<Integer> affectedProductIds = recipeCookingAuditRepository.findProductIdsByAuditId(auditId);
 
             // Eliminar la auditoría: si se revierte es que nunca ocurrió
             recipeCookingAuditRepository.delete(audit);
