@@ -37,6 +37,9 @@ public class OrderDetailResponseDTO {
     @Schema(description = "Subtotal del detalle (cantidad × precio unitario)", example = "4.20")
     private BigDecimal subtotal;
 
+    @Schema(description = "Cantidad por lote de compra del producto", example = "5.00")
+    private BigDecimal lotQuantity;
+
     @Schema(description = "Lista de lotes recibidos con sus cantidades y fechas de caducidad")
     private List<LotReceptionResponseDTO> lots;
 }
