@@ -6,7 +6,6 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -14,7 +13,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -149,42 +147,4 @@ class NestStreamBridgeServiceTest {
                 when(circuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
         }
 
-    @Test
-    void streamCompletion_mockEnabled_streamsWordsWithDelay() throws Exception {
-        AiNestProperties mockProps = new AiNestProperties();
-        mockProps.setBaseUrl("http://localhost:9999");
-        mockProps.setServiceKey("test-service-key");
-        mockProps.setAllowedOrigin("http://localhost:9999");
-        mockProps.setCompletionEndpoint("/api/completion");
-        mockProps.setMockEnabled(true);
-
-        NestStreamBridgeService mockService = new NestStreamBridgeService(
-                nestRestClient,
-                mockProps,
-                circuitBreakerRegistry,
-                new SimpleMeterRegistry(),
-                new ObjectMapper(),
-                Optional.empty(),
-                i18nService
-        );
-
-        SseEmitter emitter = Mockito.spy(new SseEmitter(30000L));
-
-        long startMs = System.currentTimeMillis();
-        NestStreamBridgeService.StreamCompletionResult result =
-                mockService.streamCompletion(request(), emitter, "jwt-token");
-        long elapsedMs = System.currentTimeMillis() - startMs;
-
-        assertEquals("Hola, no soy una IA, soy un mock porque javi no trabaja, pero no te preocupes! le di un latigazo a javi para que trabaje!", result.fullResponse());
-
-        // Mock emits: 1 thinking + 6 thinking_delta + 1 tool_called + 1 tool_result + tokens with spaces + 1 done
-        // Should have at least 20 events
-        verify(emitter, Mockito.atLeast(20)).send(any(SseEmitter.SseEventBuilder.class));
-
-        assertTrue(elapsedMs >= 900,
-                "El streaming mock debería tardar al menos 900ms, " +
-                        "pero tardó solo " + elapsedMs + "ms.");
-
-        verify(emitter).complete();
-    }
 }

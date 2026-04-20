@@ -49,8 +49,6 @@ public class NestStreamBridgeService {
     private static final String EVENT_THINKING = "thinking";
     private static final String EVENT_THINKING_DELTA = "thinking_delta";
     private static final String EVENT_TOOL_RESULT = "tool_result";
-    private static final long MOCK_DELAY_MS = 200L;
-    private static final String MOCK_MESSAGE = "Hola, no soy una IA, soy un mock porque javi no trabaja, pero no te preocupes! le di un latigazo a javi para que trabaje!";
 
     @Qualifier("nestRestClient")
     private final RestClient nestRestClient;
@@ -64,11 +62,6 @@ public class NestStreamBridgeService {
     public StreamCompletionResult streamCompletion(NestCompletionRequest request,
                                                    SseEmitter emitter,
                                                    String userJwt) {
-        if (Boolean.TRUE.equals(aiNestProperties.getMockEnabled())) {
-            log.info("AI mock stream activated for user={}", request.userName());
-            return handleMockStream(emitter);
-        }
-
         Timer.Sample timerSample = Timer.start(meterRegistry);
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("nest");
         log.info("AI stream started: provider={}, user={}", request.provider(), request.userName());
@@ -256,115 +249,6 @@ public class NestStreamBridgeService {
 
     private void publishAudit(AiAuditEvent event) {
         auditEventProducer.ifPresent(producer -> producer.publishAiAudit(event));
-    }
-
-    private StreamCompletionResult handleMockStream(SseEmitter emitter) {
-        StringBuilder thinkingContent = new StringBuilder();
-        List<ToolCallInfo> toolCalls = new ArrayList<>();
-        List<String> tokens = tokenizeMockMessage(MOCK_MESSAGE);
-        StringBuilder accumulated = new StringBuilder();
-
-        try {
-            // Emit thinking event
-            String thinkingText = "Analizando la solicitud... Parece ser una pregunta sobre inventario. Pero como soy un mock," +
-            " y javi no trabaja, no puedo responderla correctamente... Ya lo se! Voy a usar la tool latigazo_a_javi para que trabaje de una vez!";
-            emitter.send(SseEmitter.event().name(EVENT_THINKING).data(thinkingText));
-            thinkingContent.append(thinkingText);
-            Thread.sleep(MOCK_DELAY_MS);
-
-            // Emit thinking_delta events
-            String[] thinkingDeltas = {"", " Voy a ", " buscar ", " el ", " latigo ", " mas fuerte."};
-            for (String delta : thinkingDeltas) {
-                emitter.send(SseEmitter.event().name(EVENT_THINKING_DELTA).data(delta));
-                thinkingContent.append(delta);
-                Thread.sleep(MOCK_DELAY_MS);
-            }
-
-            // Emit tool_called event for searching database
-            emitter.send(SseEmitter.event().name(EVENT_TOOL_CALLED).data("{\"toolName\":\"search_latigo\",\"toolCallId\":\"call_001\"}"));
-            toolCalls.add(new ToolCallInfo("search_latigo", "call_001", null));
-            Thread.sleep(MOCK_DELAY_MS);
-
-            // Emit tool_result event
-            String toolResult = "{\"status\":\"success\",\"results\":1,\"items\":[{\"name\":\"Latigo Tocho del bueno\",\"qty\":10}]}";
-            emitter.send(SseEmitter.event().name(EVENT_TOOL_RESULT).data(toolResult));
-            if (!toolCalls.isEmpty()) {
-                ToolCallInfo lastTool = toolCalls.get(toolCalls.size() - 1);
-                toolCalls.set(toolCalls.size() - 1, new ToolCallInfo(lastTool.toolName(), lastTool.toolCallId(), toolResult));
-            }
-            Thread.sleep(MOCK_DELAY_MS);
-
-            // Emit token events with delay
-            for (int i = 0; i < tokens.size(); i++) {
-                String token = tokens.get(i);
-                accumulated.append(token);
-                emitter.send(SseEmitter.event().name(EVENT_TOKEN).data(token));
-                if (i < tokens.size() - 1) {
-                    Thread.sleep(MOCK_DELAY_MS);
-                }
-            }
-            emitter.send(SseEmitter.event().name(EVENT_DONE).data(""));
-            emitter.complete();
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            throw new AiStreamException(i18nService.getMessage(MessageKey.ERROR_AI_STREAM_MOCK_INTERRUPTED), ex);
-        } catch (Exception ex) {
-            log.error("Mock stream error: {}", ex.getMessage());
-            throw new AiStreamException(i18nService.getMessage(MessageKey.ERROR_AI_STREAM_MOCK_FAILED), ex);
-        }
-
-        return new StreamCompletionResult(accumulated.toString(), 5, accumulated.length(), thinkingContent.toString(), toolCalls);
-    }
-
-    private List<String> tokenizeMockMessage(String message) {
-        List<String> tokens = new ArrayList<>();
-        StringBuilder currentWord = new StringBuilder();
-        
-        for (int i = 0; i < message.length(); i++) {
-            char current = message.charAt(i);
-            
-            // Handle spaces - append to current word or create a space token
-            if (Character.isWhitespace(current)) {
-                if (!currentWord.isEmpty()) {
-                    tokens.add(currentWord.toString());
-                    currentWord.setLength(0);
-                }
-                continue;
-            }
-            
-            // Handle punctuation
-            if (isPunctuation(current)) {
-                if (!currentWord.isEmpty()) {
-                    tokens.add(currentWord.toString());
-                    currentWord.setLength(0);
-                }
-                tokens.add(String.valueOf(current));
-                continue;
-            }
-            
-            currentWord.append(current);
-        }
-        
-        if (!currentWord.isEmpty()) {
-            tokens.add(currentWord.toString());
-        }
-        
-        // Add spaces between tokens for proper display
-        List<String> spacedTokens = new ArrayList<>();
-        for (int i = 0; i < tokens.size(); i++) {
-            String token = tokens.get(i);
-            if (i > 0 && !isPunctuation(token.charAt(0))) {
-                spacedTokens.add(" " + token);
-            } else {
-                spacedTokens.add(token);
-            }
-        }
-        
-        return spacedTokens;
-    }
-
-    private boolean isPunctuation(char value) {
-        return !Character.isLetterOrDigit(value) && !Character.isWhitespace(value);
     }
 
     public record StreamCompletionResult(
