@@ -96,7 +96,8 @@ public class ProductBatchService {
             }
 
             if (batch.getExpirationDate() != null && batch.getExpirationDate().isBefore(LocalDate.now())) {
-                throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRED));
+                log.warn("FEFO: saltando lote caducado batchId={}, expiration={}", batch.getId(), batch.getExpirationDate());
+                continue;
             }
 
             BigDecimal toConsume = remaining.min(batch.getRemainingQuantity());
@@ -159,6 +160,33 @@ public class ProductBatchService {
         }
 
         return List.of(new BatchConsumptionDetail(batch.getId(), toConsume));
+    }
+
+    /**
+     * Agota un lote caducado directamente. Solo funciona si el lote está realmente caducado.
+     * Este método existe para evitar exponer un flag "allowExpired" en consumeFromSpecificBatch.
+     */
+    @RealtimeSync(entityType = "batch", action = "STATUS_CHANGE", idFromArg = 0,
+            affectedDomains = {"batch", "product", "weekly_plan", "stock_alerts"})
+    @Transactional(rollbackFor = Exception.class)
+    public void depleteExpiredBatch(Long batchId) {
+        ProductBatch batch = batchRepository.findById(batchId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                    i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
+
+        if (batch.getExpirationDate() == null || !batch.getExpirationDate().isBefore(LocalDate.now())) {
+            throw new InvalidOperationException(
+                i18nService.getMessage(MessageKey.ERROR_BATCH_NOT_EXPIRED));
+        }
+
+        if (batch.isDepleted() || batch.getRemainingQuantity().compareTo(BigDecimal.ZERO) == 0) {
+            throw new InvalidOperationException(
+                i18nService.getMessage(MessageKey.ERROR_BATCH_DEPLETED));
+        }
+
+        batch.setRemainingQuantity(BigDecimal.ZERO);
+        batch.setDepleted(true);
+        batchRepository.save(batch);
     }
 
     @Transactional(rollbackFor = Exception.class)

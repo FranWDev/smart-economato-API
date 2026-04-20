@@ -5,6 +5,7 @@ import com.economato.inventory.domain.model.WeeklyPlan;
 import com.economato.inventory.domain.model.WeeklyPlanSlot;
 import com.economato.inventory.domain.model.RecipeComponent;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.WeeklyPlanRepository;
 import com.economato.inventory.infrastructure.config.web.I18nService;
@@ -31,6 +32,7 @@ public class WeeklyPlanStockReservationService {
 
     private final WeeklyPlanRepository weeklyPlanRepository;
     private final ProductRepository productRepository;
+    private final ProductBatchRepository batchRepository;
     private final I18nService i18nService;
 
     public Map<Integer, BigDecimal> calculateReservedStock(Long excludePlanId) {
@@ -239,6 +241,9 @@ public class WeeklyPlanStockReservationService {
                 ? reservedByOtherPlans.multiply(new BigDecimal("100")).divide(availabilityPct, 3, RoundingMode.HALF_UP)
                 : reservedByOtherPlans;
             
+            BigDecimal grossExpiredStock = batchRepository.sumExpiredRemainingQuantityByProductId(product.getId());
+            BigDecimal expiredStock = grossExpiredStock.multiply(availabilityPct).divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
+
             dtos.add(com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO.builder()
                 .productId(product.getId())
                 .productName(product.getName())
@@ -249,6 +254,8 @@ public class WeeklyPlanStockReservationService {
                 .grossAvailableStock(currentStock)
                 .reservedByOtherPlans(reservedByOtherPlans)
                 .grossReservedByOtherPlans(grossReservedByOtherPlans)
+                .expiredStock(expiredStock)
+                .grossExpiredStock(grossExpiredStock)
                 .sufficient(trulyAvailable.compareTo(needed) >= 0)
                 .build());
 

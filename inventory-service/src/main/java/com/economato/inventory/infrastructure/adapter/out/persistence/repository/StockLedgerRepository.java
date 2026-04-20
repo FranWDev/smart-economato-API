@@ -137,4 +137,15 @@ public interface StockLedgerRepository extends JpaRepository<StockLedger, Long> 
 
     @Query("SELECT DISTINCT l.product.id FROM StockLedger l WHERE l.transactionTimestamp >= :since")
     List<Integer> findProductIdsWithMovementsSince(@Param("since") LocalDateTime since);
+
+    @Query("SELECT COALESCE(SUM(ABS(l.quantityDelta) * l.product.unitPrice), 0) " +
+           "FROM StockLedger l " +
+           "WHERE l.movementType = 'MERMA' " +
+           "AND l.transactionTimestamp BETWEEN :start AND :end")
+    BigDecimal sumMermaCostByDateRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    @Query("SELECT COALESCE(SUM(ABS(l.quantityDelta) * l.product.unitPrice), 0) " +
+           "FROM StockLedger l " +
+           "WHERE l.movementType = 'MERMA'")
+    BigDecimal sumMermaCostAllTime();
 }

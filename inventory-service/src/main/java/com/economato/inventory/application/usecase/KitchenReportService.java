@@ -12,6 +12,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,13 +41,16 @@ public class KitchenReportService {
     private final RecipeCookingAuditRepository auditRepository;
     private final ProductRepository productRepository;
     private final KitchenReportMapper mapper;
+    private final StockLedgerRepository ledgerRepository;
     private final ObjectMapper objectMapper;
 
-    public KitchenReportService(I18nService i18nService, RecipeCookingAuditRepository auditRepository, ProductRepository productRepository, KitchenReportMapper mapper) {
+    public KitchenReportService(I18nService i18nService, RecipeCookingAuditRepository auditRepository, 
+            ProductRepository productRepository, KitchenReportMapper mapper, StockLedgerRepository ledgerRepository) {
         this.i18nService = i18nService;
         this.auditRepository = auditRepository;
         this.productRepository = productRepository;
         this.mapper = mapper;
+        this.ledgerRepository = ledgerRepository;
         this.objectMapper = new ObjectMapper();
     }
 
@@ -100,15 +104,22 @@ public class KitchenReportService {
             reportPeriodText = start.toLocalDate().format(formatter) + " - " + end.toLocalDate().format(formatter);
         }
 
+        BigDecimal expiredWasteCost;
+        if (range == ReportRange.ALL_TIME) {
+            expiredWasteCost = ledgerRepository.sumMermaCostAllTime();
+        } else {
+            expiredWasteCost = ledgerRepository.sumMermaCostByDateRange(start, end);
+        }
+
         try (Stream<RecipeCookingAudit> auditStream = (range == ReportRange.ALL_TIME) ?
                 auditRepository.streamAllOrderByDateDesc() :
                 auditRepository.streamByDateRange(start, end)) {
 
-            return processAudits(auditStream, reportPeriodText);
+            return processAudits(auditStream, reportPeriodText, expiredWasteCost);
         }
     }
 
-    private KitchenReportResponseDTO processAudits(Stream<RecipeCookingAudit> auditStream, String reportPeriodText) {
+    private KitchenReportResponseDTO processAudits(Stream<RecipeCookingAudit> auditStream, String reportPeriodText, BigDecimal totalExpiredWasteCost) {
         final BigDecimal[] totalPortionsHolder = new BigDecimal[]{BigDecimal.ZERO};
         final int[] totalSessionsHolder = new int[]{0};
         
@@ -218,7 +229,8 @@ public class KitchenReportService {
         if (totalSessionsHolder[0] == 0) {
             return mapper.toReport(
                 reportPeriodText, 0, BigDecimal.ZERO, 0, 0, 0, 
-                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.ZERO, BigDecimal.ZERO, totalExpiredWasteCost.setScale(2, RoundingMode.HALF_UP),
+                BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
                 Collections.emptyList(), Collections.emptyList(), Collections.emptyList()
             );
         }
@@ -241,8 +253,9 @@ public class KitchenReportService {
 
         BigDecimal totalSales = totalSalesHolder[0].setScale(2, RoundingMode.HALF_UP);
         BigDecimal totalWasteCost = totalWasteCostHolder[0].setScale(2, RoundingMode.HALF_UP);
+        BigDecimal expiredWaste = totalExpiredWasteCost.setScale(2, RoundingMode.HALF_UP);
         BigDecimal grossProfit = totalSales.subtract(totalCost.subtract(totalWasteCost)).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal netProfit = totalSales.subtract(totalCost).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal netProfit = totalSales.subtract(totalCost).subtract(expiredWaste).setScale(2, RoundingMode.HALF_UP);
 
         return mapper.toReport(
                 reportPeriodText,
@@ -253,6 +266,7 @@ public class KitchenReportService {
                 productStats.size(),
                 totalCost.setScale(2, RoundingMode.HALF_UP),
                 totalWasteCost,
+                expiredWaste,
                 totalSales,
                 grossProfit,
                 netProfit,

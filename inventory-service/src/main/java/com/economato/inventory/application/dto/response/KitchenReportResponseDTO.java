@@ -22,6 +22,7 @@ public class KitchenReportResponseDTO {
     
     private BigDecimal totalEstimatedCost;
     private BigDecimal totalWasteCost;
+    private BigDecimal totalExpiredWasteCost; // Pérdidas por retirada de stock caducado (MERMA del ledger)
     private BigDecimal totalSales;
     private BigDecimal grossProfit; // Sales - Net Cost
     private BigDecimal netProfit;   // Sales - Gross Cost
