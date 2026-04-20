@@ -5,5 +5,6 @@ public enum AiProvider {
     ANTHROPIC,
     DEEPSEEK,
     GOOGLE,
-    MISTRAL
+    MISTRAL,
+    GROK
 }
