@@ -259,6 +259,7 @@ public class WeeklyPlanStockReservationService {
                 .grossReservedByOtherPlans(grossReservedByOtherPlans)
                 .expiredStock(expiredStock)
                 .grossExpiredStock(grossExpiredStock)
+                .lotQuantity(product.getLotQuantity())
                 .sufficient(trulyAvailable.compareTo(needed) >= 0)
                 .build());
 

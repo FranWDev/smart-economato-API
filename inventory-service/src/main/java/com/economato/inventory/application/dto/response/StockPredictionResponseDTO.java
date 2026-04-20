@@ -15,6 +15,7 @@ public class StockPredictionResponseDTO {
     private BigDecimal projectedConsumption;
     private String projectedConsumptionUnit;
     private BigDecimal currentStock;
+    private BigDecimal lotQuantity;
     private AlertType alertType;
     private LocalDateTime updatedAt;
 }
