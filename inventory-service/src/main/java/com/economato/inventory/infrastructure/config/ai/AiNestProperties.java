@@ -43,6 +43,4 @@ public class AiNestProperties {
     private Integer maxRetries = 2;
 
     private String completionEndpoint = "/api/completion";
-
-    private Boolean mockEnabled = false;
 }
