@@ -211,7 +211,7 @@ function Configure-System {
 
     if (-not (Select-String -Path $envPath -Pattern "^SEED_ADMIN_NAME=" -Quiet)) {
         Write-Host "`n--- Configuración Inicial ---" -ForegroundColor Cyan
-        $adminName = Read-Host "Nombre (Ej: Jefe de Cocina o pulsa Enter)"
+        $adminName = Read-Host "Nombre (Ej: Jefe_de_Cocina o pulsa Enter)"
         if ([string]::IsNullOrWhiteSpace($adminName)) { $adminName = "Admin" }
         
         $adminUser = Read-Host "Nombre de usuario"
