@@ -1,11 +1,27 @@
 package com.economato.inventory.application.usecase;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.economato.inventory.application.dto.RestPage;
 import com.economato.inventory.application.dto.response.ChatReadReceiptBroadcastDTO;
-import com.economato.inventory.application.dto.response.IncidentChatTypingResponseDTO;
 import com.economato.inventory.application.dto.response.IncidentChatMessageResponseDTO;
-import com.economato.inventory.application.mapper.IncidentChatReadReceiptMapper;
+import com.economato.inventory.application.dto.response.IncidentChatTypingResponseDTO;
 import com.economato.inventory.application.mapper.IncidentChatMessageMapper;
+import com.economato.inventory.application.mapper.IncidentChatReadReceiptMapper;
 import com.economato.inventory.domain.model.Incident;
 import com.economato.inventory.domain.model.IncidentChatMessage;
 import com.economato.inventory.domain.model.IncidentChatReadReceipt;
@@ -19,25 +35,8 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.Resource;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
 
 @Service
-@RequiredArgsConstructor
 @Transactional(rollbackFor = Exception.class)
 public class IncidentChatService {
 
@@ -54,8 +53,50 @@ public class IncidentChatService {
     private final PersistentNotificationService persistentNotificationService;
     private final SimpMessagingTemplate messagingTemplate;
     private final I18nService i18nService;
-    @Autowired(required = false)
-    private SystemConfigService systemConfigService;
+    private final SystemConfigService systemConfigService;
+
+    @Autowired
+    public IncidentChatService(IncidentRepository incidentRepository,
+            IncidentChatMessageRepository incidentChatMessageRepository,
+            IncidentChatReadReceiptRepository readReceiptRepository,
+            SecurityContextHelper securityContextHelper,
+            IncidentParticipantService incidentParticipantService,
+            IncidentChatMessageMapper incidentChatMessageMapper,
+            IncidentChatReadReceiptMapper readReceiptMapper,
+            FileStorageService fileStorageService,
+            PersistentNotificationService persistentNotificationService,
+            SimpMessagingTemplate messagingTemplate,
+            I18nService i18nService,
+            @Autowired(required = false) SystemConfigService systemConfigService) {
+        this.incidentRepository = incidentRepository;
+        this.incidentChatMessageRepository = incidentChatMessageRepository;
+        this.readReceiptRepository = readReceiptRepository;
+        this.securityContextHelper = securityContextHelper;
+        this.incidentParticipantService = incidentParticipantService;
+        this.incidentChatMessageMapper = incidentChatMessageMapper;
+        this.readReceiptMapper = readReceiptMapper;
+        this.fileStorageService = fileStorageService;
+        this.persistentNotificationService = persistentNotificationService;
+        this.messagingTemplate = messagingTemplate;
+        this.i18nService = i18nService;
+        this.systemConfigService = systemConfigService;
+    }
+
+    public IncidentChatService(IncidentRepository incidentRepository,
+            IncidentChatMessageRepository incidentChatMessageRepository,
+            IncidentChatReadReceiptRepository readReceiptRepository,
+            SecurityContextHelper securityContextHelper,
+            IncidentParticipantService incidentParticipantService,
+            IncidentChatMessageMapper incidentChatMessageMapper,
+            IncidentChatReadReceiptMapper readReceiptMapper,
+            FileStorageService fileStorageService,
+            PersistentNotificationService persistentNotificationService,
+            SimpMessagingTemplate messagingTemplate,
+            I18nService i18nService) {
+        this(incidentRepository, incidentChatMessageRepository, readReceiptRepository, securityContextHelper,
+                incidentParticipantService, incidentChatMessageMapper, readReceiptMapper, fileStorageService,
+                persistentNotificationService, messagingTemplate, i18nService, null);
+    }
 
     public IncidentChatMessageResponseDTO sendMessage(Long incidentId, String content, MultipartFile file) {
         Incident incident = getIncidentOrThrow(incidentId);

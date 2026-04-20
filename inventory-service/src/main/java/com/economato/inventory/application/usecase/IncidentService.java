@@ -1,5 +1,25 @@
 package com.economato.inventory.application.usecase;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.JpaSort;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.economato.inventory.application.dto.RestPage;
 import com.economato.inventory.application.dto.projection.IncidentChatMessageCountProjection;
 import com.economato.inventory.application.dto.request.AttachAuditRequestDTO;
@@ -29,35 +49,15 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.IncidentTypeRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.specification.IncidentSpecifications;
+import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.domain.JpaSort;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import com.economato.inventory.infrastructure.aspect.annotation.RealtimeSync;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(rollbackFor = Exception.class)
 public class IncidentService {
 
@@ -75,8 +75,53 @@ public class IncidentService {
     private final PersistentNotificationService persistentNotificationService;
     private final RecipeService recipeService;
     private final I18nService i18nService;
-    @Autowired(required = false)
-    private SystemConfigService systemConfigService;
+    private final SystemConfigService systemConfigService;
+
+    @Autowired
+    public IncidentService(IncidentRepository incidentRepository,
+            IncidentTypeRepository incidentTypeRepository,
+            IncidentAuditAttachmentRepository incidentAuditAttachmentRepository,
+            IncidentChatMessageRepository incidentChatMessageRepository,
+            RecipeCookingAuditRepository recipeCookingAuditRepository,
+            IncidentMapper incidentMapper,
+            RecipeCookingAuditMapper recipeCookingAuditMapper,
+            SecurityContextHelper securityContextHelper,
+            IncidentParticipantService incidentParticipantService,
+            PersistentNotificationService persistentNotificationService,
+            RecipeService recipeService,
+            I18nService i18nService,
+            @Autowired(required = false) SystemConfigService systemConfigService) {
+        this.incidentRepository = incidentRepository;
+        this.incidentTypeRepository = incidentTypeRepository;
+        this.incidentAuditAttachmentRepository = incidentAuditAttachmentRepository;
+        this.incidentChatMessageRepository = incidentChatMessageRepository;
+        this.recipeCookingAuditRepository = recipeCookingAuditRepository;
+        this.incidentMapper = incidentMapper;
+        this.recipeCookingAuditMapper = recipeCookingAuditMapper;
+        this.securityContextHelper = securityContextHelper;
+        this.incidentParticipantService = incidentParticipantService;
+        this.persistentNotificationService = persistentNotificationService;
+        this.recipeService = recipeService;
+        this.i18nService = i18nService;
+        this.systemConfigService = systemConfigService;
+    }
+
+    public IncidentService(IncidentRepository incidentRepository,
+            IncidentTypeRepository incidentTypeRepository,
+            IncidentAuditAttachmentRepository incidentAuditAttachmentRepository,
+            IncidentChatMessageRepository incidentChatMessageRepository,
+            RecipeCookingAuditRepository recipeCookingAuditRepository,
+            IncidentMapper incidentMapper,
+            RecipeCookingAuditMapper recipeCookingAuditMapper,
+            SecurityContextHelper securityContextHelper,
+            IncidentParticipantService incidentParticipantService,
+            PersistentNotificationService persistentNotificationService,
+            RecipeService recipeService,
+            I18nService i18nService) {
+        this(incidentRepository, incidentTypeRepository, incidentAuditAttachmentRepository, incidentChatMessageRepository,
+                recipeCookingAuditRepository, incidentMapper, recipeCookingAuditMapper, securityContextHelper,
+                incidentParticipantService, persistentNotificationService, recipeService, i18nService, null);
+    }
 
     public IncidentResponseDTO createIncident(CreateIncidentRequestDTO request) {
         User currentUser = getCurrentUserOrThrow();

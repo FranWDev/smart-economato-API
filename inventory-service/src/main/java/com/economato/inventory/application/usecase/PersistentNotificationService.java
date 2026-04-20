@@ -1,20 +1,13 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.application.dto.RestPage;
-import com.economato.inventory.application.dto.request.SendNotificationRequestDTO;
-import com.economato.inventory.application.dto.response.NotificationResponseDTO;
-import com.economato.inventory.application.dto.response.NotificationUnreadCountDTO;
-import com.economato.inventory.application.mapper.NotificationMapper;
-import com.economato.inventory.domain.model.*;
-import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.NotificationRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.specification.NotificationSpecifications;
-import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
-import lombok.extern.slf4j.Slf4j;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -25,9 +18,28 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
+import com.economato.inventory.application.dto.RestPage;
+import com.economato.inventory.application.dto.request.SendNotificationRequestDTO;
+import com.economato.inventory.application.dto.response.NotificationResponseDTO;
+import com.economato.inventory.application.dto.response.NotificationUnreadCountDTO;
+import com.economato.inventory.application.mapper.NotificationMapper;
+import com.economato.inventory.domain.model.Incident;
+import com.economato.inventory.domain.model.Notification;
+import com.economato.inventory.domain.model.NotificationType;
+import com.economato.inventory.domain.model.Role;
+import com.economato.inventory.domain.model.User;
+import com.economato.inventory.domain.model.WeeklyPlan;
+import com.economato.inventory.domain.model.WeeklyPlanSlot;
+import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.NotificationRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.specification.NotificationSpecifications;
+import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -40,8 +52,24 @@ public class PersistentNotificationService {
     private final SecurityContextHelper securityContextHelper;
     private final RoleNotificationService roleNotificationService;
     private final I18nService i18nService;
-    @Autowired(required = false)
-    private SystemConfigService systemConfigService;
+    private final SystemConfigService systemConfigService;
+
+    @Autowired
+    public PersistentNotificationService(NotificationRepository notificationRepository,
+                                        NotificationMapper notificationMapper,
+                                        UserRepository userRepository,
+                                        SecurityContextHelper securityContextHelper,
+                                        RoleNotificationService roleNotificationService,
+                                        I18nService i18nService,
+                                        @Autowired(required = false) SystemConfigService systemConfigService) {
+        this.notificationRepository = notificationRepository;
+        this.notificationMapper = notificationMapper;
+        this.userRepository = userRepository;
+        this.securityContextHelper = securityContextHelper;
+        this.roleNotificationService = roleNotificationService;
+        this.i18nService = i18nService;
+        this.systemConfigService = systemConfigService;
+    }
 
     public PersistentNotificationService(NotificationRepository notificationRepository,
                                         NotificationMapper notificationMapper,
@@ -49,12 +77,8 @@ public class PersistentNotificationService {
                                         SecurityContextHelper securityContextHelper,
                                         RoleNotificationService roleNotificationService,
                                         I18nService i18nService) {
-        this.notificationRepository = notificationRepository;
-        this.notificationMapper = notificationMapper;
-        this.userRepository = userRepository;
-        this.securityContextHelper = securityContextHelper;
-        this.roleNotificationService = roleNotificationService;
-        this.i18nService = i18nService;
+        this(notificationRepository, notificationMapper, userRepository, securityContextHelper,
+                roleNotificationService, i18nService, null);
     }
 
     public Notification createNotification(User recipient,
