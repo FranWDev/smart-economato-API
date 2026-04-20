@@ -57,12 +57,17 @@ public class SecurityConfig {
                                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                                 .csrf(csrf -> csrf.disable())
                                 .authorizeHttpRequests(auth -> auth
-                                                // Los dispatches ASYNC son continuaciones de requests ya autenticadas.
+                                                // Los dispatches internos son continuaciones de requests ya autenticadas.
                                                 // El JwtFilter (OncePerRequestFilter) no corre en ASYNC, por lo que
                                                 // hay que permitirlos explícitamente para que StreamingResponseBody
                                                 // funcione. También permitimos ERROR para evitar que las excepciones
                                                 // manejadas por el BasicErrorController retornen 401.
-                                                .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR)
+                                                // INCLUDE/FORWARD también aparecen en el flujo de ErrorPage de Tomcat.
+                                                .dispatcherTypeMatchers(
+                                                                DispatcherType.ASYNC,
+                                                                DispatcherType.ERROR,
+                                                                DispatcherType.INCLUDE,
+                                                                DispatcherType.FORWARD)
                                                 .permitAll()
 
                                                 // Autenticación
