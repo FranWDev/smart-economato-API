@@ -1,17 +1,22 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.infrastructure.config.security.LedgerProperties;
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import com.economato.inventory.infrastructure.config.web.MessageKey;
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
-import org.springframework.stereotype.Service;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
+
+import org.springframework.stereotype.Service;
+
+import com.economato.inventory.infrastructure.config.security.LedgerProperties;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+import com.economato.inventory.infrastructure.config.web.MessageKey;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 
 @Service
 public class BlockSealingService {
@@ -37,10 +42,9 @@ public class BlockSealingService {
 
     public SealingResult sealBlock(Long blockNumber, String previousBlockHash, String merkleRoot, LocalDateTime timestamp) {
         return sealingTimer.record(() -> {
-            long nonce = 0L;
-            String blockHash = computeBlockHash(blockNumber, previousBlockHash, merkleRoot, timestamp, nonce);
+            String blockHash = computeBlockHash(blockNumber, previousBlockHash, merkleRoot, timestamp);
             blocksSealedCounter.increment();
-            return new SealingResult(blockHash, nonce, 0);
+            return new SealingResult(blockHash);
         });
     }
 
@@ -48,9 +52,8 @@ public class BlockSealingService {
             Long blockNumber,
             String previousBlockHash,
             String merkleRoot,
-            LocalDateTime timestamp,
-            long nonce) {
-        String header = blockNumber + "|" + previousBlockHash + "|" + merkleRoot + "|" + timestamp + "|" + nonce;
+            LocalDateTime timestamp) {
+        String header = blockNumber + "|" + previousBlockHash + "|" + merkleRoot + "|" + timestamp;
         try {
             Mac mac = Mac.getInstance("HmacSHA256");
             String secret = ledgerProperties.getHmacSecretForVersion(ledgerProperties.getCurrentHmacVersion());
@@ -63,11 +66,11 @@ public class BlockSealingService {
                 hex.append(String.format("%02x", b));
             }
             return hex.toString();
-        } catch (Exception e) {
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new IllegalStateException(i18nService.getMessage(MessageKey.ERROR_BLOCK_HASH_CALCULATION_FAILED), e);
         }
     }
 
-    public record SealingResult(String blockHash, long nonce, int difficulty) {
+    public record SealingResult(String blockHash) {
     }
 }

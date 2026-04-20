@@ -52,7 +52,7 @@ CREATE TRIGGER trg_ledger_block_no_delete
     FOR EACH ROW
     EXECUTE FUNCTION prevent_ledger_block_mutation();
 
--- Stock ledger is immutable except attaching a mined block_id.
+-- Stock ledger is immutable except attaching a sealed block_id.
 CREATE OR REPLACE FUNCTION enforce_stock_ledger_immutability()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -126,3 +126,7 @@ CREATE INDEX IF NOT EXISTS idx_ledger_block_merkle
 
 CREATE INDEX IF NOT EXISTS idx_stock_ledger_tx_composite 
     ON stock_ledger (product_id, sequence_number, merkle_root);
+
+-- Remove mining-related columns (nonce/difficulty were always 0, no proof-of-work)
+ALTER TABLE ledger_block DROP COLUMN IF EXISTS nonce;
+ALTER TABLE ledger_block DROP COLUMN IF EXISTS difficulty;

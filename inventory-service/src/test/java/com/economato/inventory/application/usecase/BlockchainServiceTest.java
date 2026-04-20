@@ -1,38 +1,43 @@
 package com.economato.inventory.application.usecase;
 
-import com.economato.inventory.domain.model.LedgerBlock;
-import com.economato.inventory.domain.model.Product;
-import com.economato.inventory.domain.model.StockLedger;
-import com.economato.inventory.domain.model.StockSnapshot;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.LedgerBlockRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockSnapshotRepository;
-import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
-import com.economato.inventory.infrastructure.config.cache.event.NewLedgerTransactionEvent;
-import com.economato.inventory.infrastructure.config.security.BlockchainProperties;
-import com.economato.inventory.infrastructure.config.security.LedgerProperties;
-import com.economato.inventory.infrastructure.config.web.I18nService;
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.TransactionStatus;
-import org.springframework.transaction.support.SimpleTransactionStatus;
-
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import org.mockito.Mock;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+
+import com.economato.inventory.domain.model.LedgerBlock;
+import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.domain.model.StockLedger;
+import com.economato.inventory.infrastructure.adapter.out.messaging.kafka.producer.AuditEventProducer;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.LedgerBlockRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockSnapshotRepository;
+import com.economato.inventory.infrastructure.config.cache.event.NewLedgerTransactionEvent;
+import com.economato.inventory.infrastructure.config.security.BlockchainProperties;
+import com.economato.inventory.infrastructure.config.security.LedgerProperties;
+import com.economato.inventory.infrastructure.config.web.I18nService;
+
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
 class BlockchainServiceTest {
@@ -57,7 +62,7 @@ class BlockchainServiceTest {
         ledgerProperties.setHmacSecret("test-secret-32chars-minimum-length");
         ledgerProperties.setCurrentHmacVersion(1);
         blockchainProperties.setBlockSize(10);
-        blockchainProperties.setMiningIntervalMs(30000L);
+        blockchainProperties.setSealingIntervalMs(30000L);
         blockchainProperties.setMerkleVerificationEnabled(true);
         meterRegistry = new SimpleMeterRegistry();
 
@@ -91,25 +96,25 @@ class BlockchainServiceTest {
     }
 
     @Test
-    void notifyNewTransaction_triggersMininingWhenMempoolReachesThreshold() {
+    void notifyNewTransaction_triggersSealingWhenMempoolReachesThreshold() {
         when(ledgerRepository.countByBlockIsNull()).thenReturn(10L);
         when(blockRepository.findTopByOrderByBlockNumberDesc()).thenReturn(createMockBlock(0L));
         when(ledgerRepository.findPendingTransactionsOrderByIdAsc(any())).thenReturn(List.of());
 
-        // This should attempt to mine if mempool size >= blockSize
+        // This should attempt to seal if mempool size >= blockSize
         service.notifyNewTransaction();
 
-        // Verify mining was at least attempted
+        // Verify sealing was at least attempted
         verify(blockRepository, atLeastOnce()).findTopByOrderByBlockNumberDesc();
     }
 
     @Test
-    void notifyNewTransaction_doesNotTriggerMiningWhenMempoolBelowThreshold() {
+    void notifyNewTransaction_doesNotTriggerSealingWhenMempoolBelowThreshold() {
         when(ledgerRepository.countByBlockIsNull()).thenReturn(5L);
 
         service.notifyNewTransaction();
 
-        // Should not attempt mining when below threshold
+        // Should not attempt sealing when below threshold
         verify(blockRepository, never()).findTopByOrderByBlockNumberDesc();
     }
 
@@ -159,21 +164,21 @@ class BlockchainServiceTest {
     }
 
     @Test
-    void mineNextBlock_withNoPendingTransactions_returnsEarly() {
+    void sealNextBlock_withNoPendingTransactions_returnsEarly() {
         when(blockRepository.findTopByOrderByBlockNumberDesc()).thenReturn(createMockBlock(0L));
         when(ledgerRepository.findPendingTransactionsOrderByIdAsc(any())).thenReturn(List.of());
 
-        service.mineNextBlock();
+        service.sealNextBlock();
 
         verify(blockRepository, never()).save(any(LedgerBlock.class));
     }
 
     @Test
-    void scheduledMine_doesNotThrow() {
+    void scheduledSeal_doesNotThrow() {
         when(blockRepository.findTopByOrderByBlockNumberDesc()).thenReturn(createMockBlock(0L));
         when(ledgerRepository.findPendingTransactionsOrderByIdAsc(any())).thenReturn(List.of());
 
-        assertDoesNotThrow(() -> service.scheduledMine());
+        assertDoesNotThrow(() -> service.scheduledSeal());
     }
 
     @Test
@@ -196,8 +201,6 @@ class BlockchainServiceTest {
             .blockHash(generateHash(blockNumber))
             .previousBlockHash(previousHash)
             .merkleRoot("merkleroot" + blockNumber)
-            .nonce(0L)
-            .difficulty(0)
             .timestamp(LocalDateTime.now())
             .transactionCount(blockNumber.intValue() * 2)
             .hmacKeyVersion(1)
@@ -214,8 +217,6 @@ class BlockchainServiceTest {
                 .blockHash(generateHash(i))
                 .previousBlockHash(previousHash)
                 .merkleRoot("merkleroot" + i)
-                .nonce(0L)
-                .difficulty(0)
                 .timestamp(LocalDateTime.now())
                 .transactionCount((int) (i * 2))
                 .hmacKeyVersion(1)
