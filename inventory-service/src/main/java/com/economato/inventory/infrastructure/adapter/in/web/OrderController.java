@@ -179,9 +179,10 @@ public class OrderController {
         })
         @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/status/{status}")
-        public List<OrderResponseDTO> getByStatus(
-                        @Parameter(description = "Estado del pedido", example = "CREATED") @PathVariable OrderStatus status) {
-                return orderService.findByStatus(status);
+        public Page<OrderResponseDTO> getByStatus(
+                        @Parameter(description = "Estado del pedido", example = "CREATED") @PathVariable OrderStatus status,
+                        Pageable pageable) {
+                return orderService.findByStatus(status, pageable);
         }
 
         @Operation(summary = "Obtener pedidos por rango de fechas", description = "Filtra los pedidos que fueron creados entre dos fechas específicas (formato ISO-8601). [Rol requerido: CHEF]", parameters = {
