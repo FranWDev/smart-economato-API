@@ -320,15 +320,15 @@ class OrderServiceTest {
 
     @Test
     void findByStatus_ShouldReturnOrdersWithStatus() {
-
+        Pageable pageable = PageRequest.of(0, 10);
         Page<OrderProjection> page = new PageImpl<>(Arrays.asList(testProjection));
         when(repository.findProjectedByStatus(eq(OrderStatus.CREATED), any(Pageable.class))).thenReturn(page);
         when(orderMapper.toResponseDTO(any(OrderProjection.class))).thenReturn(testOrderResponseDTO);
 
-        List<OrderResponseDTO> result = orderService.findByStatus(OrderStatus.CREATED);
+        Page<OrderResponseDTO> result = orderService.findByStatus(OrderStatus.CREATED, pageable);
 
         assertNotNull(result);
-        assertEquals(1, result.size());
+        assertEquals(1, result.getTotalElements());
         verify(repository).findProjectedByStatus(eq(OrderStatus.CREATED), any(Pageable.class));
     }
 
