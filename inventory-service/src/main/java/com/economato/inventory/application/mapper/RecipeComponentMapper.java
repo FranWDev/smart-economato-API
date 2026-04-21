@@ -24,6 +24,7 @@ public interface RecipeComponentMapper {
     @Mapping(source = "product.name", target = "productName")
     @Mapping(source = "product.unitPrice", target = "unitPrice")
     @Mapping(source = "product.availabilityPercentage", target = "availabilityPercentage")
+    @Mapping(source = "product.unit", target = "productUnit")
     @Mapping(source = ".", target = "subtotal", qualifiedByName = "calculateSubtotal")
     RecipeComponentResponseDTO toResponseDTO(RecipeComponent component);
 
@@ -33,6 +34,7 @@ public interface RecipeComponentMapper {
     @Mapping(source = "summary.product.name", target = "productName")
     @Mapping(source = "summary.product.unitPrice", target = "unitPrice")
     @Mapping(source = "summary.product.availabilityPercentage", target = "availabilityPercentage")
+    @Mapping(source = "summary.product.unit", target = "productUnit")
     @Mapping(source = "summary", target = "subtotal", qualifiedByName = "calculateSubtotalFromSummary")
     RecipeComponentResponseDTO toResponseDTO(RecipeProjection.RecipeComponentSummary summary);
 
@@ -87,7 +89,7 @@ public interface RecipeComponentMapper {
     @Mapping(source = "product.id", target = "productId")
     @Mapping(source = "product.name", target = "productName")
     @Mapping(source = "product.unitPrice", target = "unitPrice")
-    @Mapping(source = "product.availabilityPercentage", target = "availabilityPercentage")
+    @Mapping(source = "product.unit", target = "productUnit")
     @Mapping(source = ".", target = "subtotal", qualifiedByName = "calculateSubtotalFromProjection")
 
     RecipeComponentResponseDTO toResponseDTO(

@@ -196,7 +196,7 @@ public class OrderPdfService {
 				table.addCell(createTableDataCell(sanitizePdfText(detail.getProductName()), boldFont,
 						rowBg, true));
 				table.addCell(
-						createTableDataCell(formatDecimal(detail.getQuantity()) + " " + i18nService.getMessage(MessageKey.GENERAL_UNIT_ABBREVIATION),
+						createTableDataCell(formatDecimal(detail.getQuantity()) + " " + (detail.getUnit() != null ? detail.getUnit() : ""),
 								regularFont, rowBg, false));
 				table.addCell(createTableDataCell(formatCurrency(detail.getUnitPrice()), regularFont,
 						rowBg, false));

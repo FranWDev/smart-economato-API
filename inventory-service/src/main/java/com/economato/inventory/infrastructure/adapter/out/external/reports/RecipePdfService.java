@@ -208,8 +208,9 @@ public class RecipePdfService {
                         .divide(comp.getAvailabilityPercentage(), 2, RoundingMode.HALF_UP);
             }
             
-            table.addCell(createTableDataCell(String.format("%.2f", grossQty), regularFont, rowBg, false));
-            table.addCell(createTableDataCell(String.format("%.2f", comp.getQuantity()), regularFont, rowBg, false));
+            String unit = comp.getProductUnit() != null ? comp.getProductUnit() : "";
+            table.addCell(createTableDataCell(String.format("%.2f %s", grossQty, unit).trim(), regularFont, rowBg, false));
+            table.addCell(createTableDataCell(String.format("%.2f %s", comp.getQuantity(), unit).trim(), regularFont, rowBg, false));
             table.addCell(createTableDataCellAccent(
                     String.format("%.2f \u20ac", comp.getSubtotal()), boldFont, rowBg));
 

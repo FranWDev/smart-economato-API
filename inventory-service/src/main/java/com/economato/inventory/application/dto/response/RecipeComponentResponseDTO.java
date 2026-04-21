@@ -36,4 +36,7 @@ public class RecipeComponentResponseDTO {
     @Schema(description = "Porcentaje de disponibilidad del producto (merma)", example = "85.0")
     private BigDecimal availabilityPercentage;
 
+    @Schema(description = "Unidad de medida del producto", example = "KG")
+    private String productUnit;
+
 }
