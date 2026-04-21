@@ -340,6 +340,18 @@ public class PersistentNotificationService {
                 new ArrayList<>(recipientsById.values()));
     }
 
+        public void notifyPlanAutoClosed(WeeklyPlan plan) {
+        String title = i18nService.getMessage(MessageKey.NOTIFICATION_PLAN_AUTO_CLOSED,
+            new Object[]{plan.getChef().getName(), plan.getWeekStartDate(), plan.getId()});
+
+        LinkedHashMap<Integer, User> recipientsById = new LinkedHashMap<>();
+        userRepository.findByRoleAndIsHiddenFalse(Role.ADMIN)
+            .forEach(user -> recipientsById.put(user.getId(), user));
+
+        notifyUsersOfType(NotificationType.WEEKLY_PLAN_AUTO_CLOSED, title, title, plan.getId(),
+            new ArrayList<>(recipientsById.values()));
+        }
+
     public void notifyCrisis(String title, String message, AlertCode code, Long crisisId) {
         NotificationType type = code == AlertCode.FOOD_CRISIS_LIFTED
                 ? NotificationType.FOOD_CRISIS_LIFTED

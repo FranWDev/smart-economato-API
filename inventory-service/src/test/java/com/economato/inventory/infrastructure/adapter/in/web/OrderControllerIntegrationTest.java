@@ -259,7 +259,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
                 mockMvc.perform(get(BASE_URL + "/status/{status}", "CREATED")
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$").isArray());
+                                .andExpect(jsonPath("$.content", instanceOf(List.class)));
         }
 
         @Test

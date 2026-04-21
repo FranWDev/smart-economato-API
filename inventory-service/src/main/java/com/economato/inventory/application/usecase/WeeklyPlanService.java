@@ -55,6 +55,7 @@ import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundExc
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.NotificationRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.RecipeRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.WeeklyPlanRepository;
@@ -84,6 +85,7 @@ public class WeeklyPlanService {
     private final RecipeRepository recipeRepository;
     private final RecipeCookingAuditRepository cookingAuditRepository;
     private final StockLedgerRepository stockLedgerRepository;
+    private final ProductBatchRepository batchRepository;
     private final StockLedgerService stockLedgerService;
     private final WeeklyPlanStockReservationService reservationService;
     private final WeeklyPlanMapper wrapperMapper;
@@ -103,6 +105,11 @@ public class WeeklyPlanService {
 
         if (request.getWeekStartDate().getDayOfWeek() != DayOfWeek.MONDAY) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_MUST_START_MONDAY));
+        }
+
+        LocalDate currentWeekStart = LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        if (request.getWeekStartDate().isBefore(currentWeekStart)) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_PAST_WEEK));
         }
 
         boolean exists = weeklyPlanRepository.findByChefIdAndWeekStartDate(chefId, request.getWeekStartDate())
@@ -238,10 +245,11 @@ public class WeeklyPlanService {
         String desc = i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_WEEKLY_PLAN,
                 new Object[] { String.join(", ", studentNames), slot.getRecipe().getName(), slot.getQuantity() });
 
+        validateStockForConfirmation(plan, List.of(slot));
+
         List<BatchMovementItem> movements = new ArrayList<>();
         for (RecipeComponent rc : slot.getRecipe().getComponents()) {
-            BigDecimal totalQty = rc.getQuantity().multiply(slot.getQuantity())
-                    .divide(slot.getRecipe().getPortions(), 4, RoundingMode.HALF_UP);
+            BigDecimal totalQty = calculateGrossQuantity(rc, slot);
             movements.add(new BatchMovementItem(
                     rc.getProduct().getId(),
                     totalQty.negate(),
@@ -448,6 +456,8 @@ public class WeeklyPlanService {
         User currentUser = securityContextHelper.getCurrentUser();
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
 
+        validateStockForConfirmation(plan, slotsToConfirm);
+
         for (WeeklyPlanSlot slot : slotsToConfirm) {
             String correlationId = UUID.randomUUID().toString();
             slot.setCorrelationId(correlationId);
@@ -461,8 +471,7 @@ public class WeeklyPlanService {
                     new Object[] { String.join(", ", studentNames), slot.getRecipe().getName(), slot.getQuantity() });
 
             for (RecipeComponent rc : slot.getRecipe().getComponents()) {
-                BigDecimal totalQty = rc.getQuantity().multiply(slot.getQuantity())
-                        .divide(slot.getRecipe().getPortions(), 4, RoundingMode.HALF_UP);
+                BigDecimal totalQty = calculateGrossQuantity(rc, slot);
                 allMovements.add(new BatchMovementItem(
                         rc.getProduct().getId(),
                         totalQty.negate(),
@@ -530,6 +539,57 @@ public class WeeklyPlanService {
                 .build();
     }
 
+            private void validateStockForConfirmation(WeeklyPlan plan, List<WeeklyPlanSlot> slotsToConfirm) {
+            Map<Integer, BigDecimal> requiredByProduct = new HashMap<>();
+            Map<Integer, LocalDate> requiredDateByProduct = new HashMap<>();
+
+            for (WeeklyPlanSlot slot : slotsToConfirm) {
+                BigDecimal portions = slot.getRecipe().getPortions() == null || slot.getRecipe().getPortions().compareTo(BigDecimal.ZERO) <= 0
+                    ? BigDecimal.ONE
+                    : slot.getRecipe().getPortions();
+
+                for (RecipeComponent rc : slot.getRecipe().getComponents()) {
+                BigDecimal netQty = rc.getQuantity().multiply(slot.getQuantity())
+                    .divide(portions, 4, RoundingMode.HALF_UP);
+                BigDecimal availabilityPercent = rc.getProduct().getAvailabilityPercentage() != null
+                    ? rc.getProduct().getAvailabilityPercentage()
+                    : BigDecimal.valueOf(100.00);
+                BigDecimal grossQty = availabilityPercent.compareTo(BigDecimal.ZERO) > 0
+                    ? netQty.multiply(BigDecimal.valueOf(100)).divide(availabilityPercent, 3, RoundingMode.HALF_UP)
+                    : netQty;
+                Integer productId = rc.getProduct().getId();
+                requiredByProduct.merge(productId, grossQty, BigDecimal::add);
+
+                int dayOffset = Math.max(0, slot.getDayOfWeek() - 1);
+                LocalDate slotDate = plan.getWeekStartDate().plusDays(dayOffset);
+                requiredDateByProduct.merge(productId, slotDate,
+                    (current, candidate) -> candidate.isAfter(current) ? candidate : current);
+                }
+            }
+
+            for (Map.Entry<Integer, BigDecimal> entry : requiredByProduct.entrySet()) {
+                LocalDate targetDate = requiredDateByProduct.getOrDefault(entry.getKey(), plan.getWeekStartDate());
+                BigDecimal available = batchRepository.sumNonExpiredRemainingQuantity(entry.getKey(), targetDate);
+                if (available.compareTo(entry.getValue()) < 0) {
+                throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_BATCH_INSUFFICIENT_STOCK));
+                }
+            }
+            }
+
+            private BigDecimal calculateGrossQuantity(RecipeComponent rc, WeeklyPlanSlot slot) {
+            BigDecimal portions = slot.getRecipe().getPortions() == null || slot.getRecipe().getPortions().compareTo(BigDecimal.ZERO) <= 0
+                ? BigDecimal.ONE
+                : slot.getRecipe().getPortions();
+            BigDecimal netQty = rc.getQuantity().multiply(slot.getQuantity())
+                .divide(portions, 4, RoundingMode.HALF_UP);
+            BigDecimal availabilityPercent = rc.getProduct().getAvailabilityPercentage() != null
+                ? rc.getProduct().getAvailabilityPercentage()
+                : BigDecimal.valueOf(100.00);
+            return availabilityPercent.compareTo(BigDecimal.ZERO) > 0
+                ? netQty.multiply(BigDecimal.valueOf(100)).divide(availabilityPercent, 3, RoundingMode.HALF_UP)
+                : netQty;
+            }
+
     @Cacheable(value = "weekly_plan", key = "#planId")
     @Transactional(readOnly = true)
     public WeeklyPlanResponseDTO getPlanById(Long planId) {
@@ -582,7 +642,6 @@ public class WeeklyPlanService {
         return wrapperMapper.toResponseDTO(plan);
     }
 
-    @Cacheable(value = "weekly_plan_requirements", key = "#planId")
     @Transactional(readOnly = true)
     public List<WeeklyPlanStockRequirementDTO> getStockRequirements(Long planId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId)
@@ -1086,7 +1145,8 @@ public class WeeklyPlanService {
             NotificationType.WEEKLY_PLAN_SLOT_CONFIRMED,
             NotificationType.WEEKLY_PLAN_DAY_CONFIRMED,
             NotificationType.WEEKLY_PLAN_COMPLETED,
-            NotificationType.WEEKLY_PLAN_CANCELLED
+            NotificationType.WEEKLY_PLAN_CANCELLED,
+            NotificationType.WEEKLY_PLAN_AUTO_CLOSED
         );
         notificationRepository.deleteByTypes(wpTypes);
         

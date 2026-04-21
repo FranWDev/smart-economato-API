@@ -99,11 +99,15 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     private void createBatch(Product p) {
+        createBatch(p, p.getCurrentStock(), LocalDate.now().plusYears(1));
+    }
+
+    private void createBatch(Product p, BigDecimal quantity, LocalDate expirationDate) {
         ProductBatch batch = new ProductBatch();
         batch.setProduct(p);
-        batch.setInitialQuantity(p.getCurrentStock());
-        batch.setRemainingQuantity(p.getCurrentStock());
-        batch.setExpirationDate(LocalDate.now().plusYears(1));
+        batch.setInitialQuantity(quantity);
+        batch.setRemainingQuantity(quantity);
+        batch.setExpirationDate(expirationDate);
         batch.setReceivedAt(java.time.LocalDateTime.now());
         batch.setDepleted(false);
         productBatchRepository.saveAndFlush(batch);
@@ -264,6 +268,37 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    void whenActivatePlan_withStockExpiringBeforePlan_thenReturnsBadRequest() throws Exception {
+        Product milk = TestDataUtil.createProduct("Leche", "L", new BigDecimal("1.00"), "LCH001", new BigDecimal("130.0"));
+        milk = productRepository.saveAndFlush(milk);
+        createBatch(milk, new BigDecimal("30.0"), LocalDate.now().plusDays(1));
+        createBatch(milk, new BigDecimal("100.0"), LocalDate.now().plusMonths(6));
+
+        Recipe milkRecipe = TestDataUtil.createRecipe("Postre", "Mezclar", "Servir", BigDecimal.ONE);
+        RecipeComponent milkComponent = TestDataUtil.createRecipeComponent(milkRecipe, milk, BigDecimal.ONE);
+        milkRecipe.setComponents(new HashSet<>(Arrays.asList(milkComponent)));
+        milkRecipe = recipeRepository.saveAndFlush(milkRecipe);
+
+        WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(
+            milkRecipe.getId(), new BigDecimal("120.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student1.getId())
+        );
+        WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, getNextMonday(), Arrays.asList(slot1));
+
+        String rb = mockMvc.perform(post(BASE_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(req))
+                .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Long planId = objectMapper.readTree(rb).get("id").asLong();
+
+        mockMvc.perform(patch(BASE_URL + "/{id}/activate", planId)
+                .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message", containsStringIgnoringCase("caduc")));
+    }
+
+    @Test
     void whenGetCurrentWeekPlan_thenReturnsActivePlanForThisWeek() throws Exception {
         // Plan must be for the CURRENT week, so weekStartDate must be Monday of this week.
         LocalDate thisMonday = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
@@ -339,6 +374,40 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$[?(@.productName == 'Harina')].requiredQuantity", contains(5.0)))
                 .andExpect(jsonPath("$[?(@.productName == 'Azúcar')].requiredQuantity", contains(3.0)))
                 .andExpect(jsonPath("$[0].sufficient", is(true)));
+    }
+
+    @Test
+    void whenGetStockRequirements_withExpiringLots_thenIncludesExpirationMetadata() throws Exception {
+        Product milk = TestDataUtil.createProduct("Leche", "L", new BigDecimal("1.00"), "LCH002", new BigDecimal("130.0"));
+        milk = productRepository.saveAndFlush(milk);
+        createBatch(milk, new BigDecimal("30.0"), LocalDate.now().plusDays(1));
+        createBatch(milk, new BigDecimal("100.0"), LocalDate.now().plusMonths(6));
+
+        Recipe milkRecipe = TestDataUtil.createRecipe("Postre 2", "Mezclar", "Servir", BigDecimal.ONE);
+        RecipeComponent milkComponent = TestDataUtil.createRecipeComponent(milkRecipe, milk, BigDecimal.ONE);
+        milkRecipe.setComponents(new HashSet<>(Arrays.asList(milkComponent)));
+        milkRecipe = recipeRepository.saveAndFlush(milkRecipe);
+
+        WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(
+            milkRecipe.getId(), new BigDecimal("120.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student1.getId())
+        );
+        WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, getNextMonday(), Arrays.asList(slot1));
+
+        String rb = mockMvc.perform(post(BASE_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(req))
+                .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Long planId = objectMapper.readTree(rb).get("id").asLong();
+
+        mockMvc.perform(get(BASE_URL + "/{id}/stock-requirements", planId)
+                .header("Authorization", "Bearer " + chef1Token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].expiringBeforePlanStock", is(30.0)))
+                .andExpect(jsonPath("$[0].nearestExpirationDate", is(LocalDate.now().plusDays(1).toString())))
+                .andExpect(jsonPath("$[0].expirationRisk", is(true)))
+                .andExpect(jsonPath("$[0].sufficient", is(false)));
     }
 
     // -------------------------------------------------------------------------------------------------------------------------

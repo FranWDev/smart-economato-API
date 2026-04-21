@@ -24,5 +24,7 @@ public interface RecipeComponentProjection {
 
         BigDecimal getAvailabilityPercentage();
 
+        String getUnit();
+
     }
 }

@@ -8,6 +8,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -36,6 +37,7 @@ import com.economato.inventory.application.dto.response.WeeklyPlanResponseDTO;
 import com.economato.inventory.application.dto.response.WeeklyPlanSlotResponseDTO;
 import com.economato.inventory.application.usecase.ProductBatchService;
 import com.economato.inventory.application.usecase.StockAlertService;
+import com.economato.inventory.application.usecase.WeeklyPlanStockReservationService;
 import com.economato.inventory.application.usecase.WeeklyPlanService;
 import com.economato.inventory.domain.model.FoodCrisis;
 import com.economato.inventory.domain.model.Product;
@@ -78,6 +80,7 @@ public class McpToolReadService {
     private final FoodCrisisRepository foodCrisisRepository;
     private final ProductBatchService productBatchService;
     private final StockAlertService stockAlertService;
+        private final WeeklyPlanStockReservationService weeklyPlanStockReservationService;
     private final WeeklyPlanService weeklyPlanService;
     private final AiAnalysisProperties aiAnalysisProperties;
     private final I18nService i18nService;
@@ -127,13 +130,17 @@ public class McpToolReadService {
                 .map(component -> {
                     Product product = component.getProduct();
                     BigDecimal stock = product != null ? product.getCurrentStock() : BigDecimal.ZERO;
-                    boolean sufficient = stock.compareTo(component.getQuantity()) >= 0;
+                    BigDecimal availability = product != null && product.getAvailabilityPercentage() != null
+                            ? product.getAvailabilityPercentage()
+                            : BigDecimal.valueOf(100);
+                    BigDecimal usableStock = stock.multiply(availability).divide(BigDecimal.valueOf(100), 4, RoundingMode.DOWN);
+                    boolean sufficient = usableStock.compareTo(component.getQuantity()) >= 0;
                     return new McpComponentDto(
                             product != null ? product.getId() : null,
                             product != null ? product.getName() : null,
                             component.getQuantity(),
                             product != null ? product.getUnit() : null,
-                            stock,
+                            usableStock,
                             sufficient
                     );
                 })
@@ -170,6 +177,7 @@ public class McpToolReadService {
         BigDecimal recipePortions = recipe.getPortions() == null || recipe.getPortions().compareTo(BigDecimal.ZERO) <= 0
                 ? BigDecimal.ONE
                 : recipe.getPortions();
+        Map<Integer, BigDecimal> reservedStock = weeklyPlanStockReservationService.calculateReservedStock(null);
 
         List<McpComponentFeasibilityDto> components = new ArrayList<>();
         boolean feasible = true;
@@ -177,7 +185,8 @@ public class McpToolReadService {
             Product product = component.getProduct();
             BigDecimal required = component.getQuantity().multiply(safePortions).divide(recipePortions, 4, RoundingMode.HALF_UP);
             BigDecimal availability = product.getAvailabilityPercentage() == null ? BigDecimal.valueOf(100) : product.getAvailabilityPercentage();
-            BigDecimal available = product.getCurrentStock().multiply(availability).divide(BigDecimal.valueOf(100), 4, RoundingMode.DOWN);
+            BigDecimal available = product.getCurrentStock().multiply(availability).divide(BigDecimal.valueOf(100), 4, RoundingMode.DOWN)
+                    .subtract(reservedStock.getOrDefault(product.getId(), BigDecimal.ZERO)).max(BigDecimal.ZERO);
             BigDecimal deficit = required.subtract(available);
             if (deficit.compareTo(BigDecimal.ZERO) > 0) {
                 feasible = false;
