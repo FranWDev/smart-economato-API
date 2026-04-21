@@ -20,8 +20,12 @@ server {
     ssl_certificate_key /etc/nginx/certs/local.key;
     client_max_body_size 50m;
 
+    # Resolver para Docker (necesario para variables en proxy_pass)
+    resolver 127.0.0.11 valid=30s;
+
     location /monitor/ {
-        proxy_pass http://inventory-grafana:3000;
+        set $monitor_service inventory-grafana;
+        proxy_pass http://$monitor_service:3000;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Proto https;
         proxy_set_header X-Forwarded-Port ${NGINX_HTTPS_PORT};
