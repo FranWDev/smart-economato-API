@@ -1330,4 +1330,94 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .header("Authorization", "Bearer " + jwtToken))
                                 .andExpect(status().isNotFound());
         }
+
+        @Test
+        void whenGetStudentsByTeacher_asAdmin_thenSuccess() throws Exception {
+                // Crear profesor chef
+                User teacher = TestDataUtil.createChefUser();
+                teacher.setUser("chef_students");
+                userRepository.saveAndFlush(teacher);
+
+                // Crear estudiante
+                User student = TestDataUtil.createUser("Student X", "student_x", "pass", Role.USER);
+                student.setTeacher(teacher);
+                userRepository.saveAndFlush(student);
+
+                mockMvc.perform(get(BASE_URL + "/teachers/" + teacher.getId() + "/students")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$", hasSize(1)))
+                                .andExpect(jsonPath("$[0].name").value("Student X"));
+        }
+
+        @Test
+        void whenGetStudentsByTeacher_asOwnChef_thenSuccess() throws Exception {
+                // Crear profesor chef
+                User chef = TestDataUtil.createChefUser();
+                chef.setUser("chef_own");
+                userRepository.saveAndFlush(chef);
+
+                // Login como el chef
+                LoginRequestDTO chefLogin = new LoginRequestDTO();
+                chefLogin.setName(chef.getName());
+                chefLogin.setPassword("chef123");
+
+                String chefTokenResponse = mockMvc.perform(post(AUTH_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(chefLogin)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+                String chefToken = objectMapper.readValue(chefTokenResponse, LoginResponseDTO.class).getToken();
+
+                // Crear estudiante
+                User student = TestDataUtil.createUser("My Own Student", "my_own_student", "pass", Role.USER);
+                student.setTeacher(chef);
+                userRepository.saveAndFlush(student);
+
+                mockMvc.perform(get(BASE_URL + "/teachers/" + chef.getId() + "/students")
+                                .header("Authorization", "Bearer " + chefToken))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$", hasSize(1)))
+                                .andExpect(jsonPath("$[0].name").value("My Own Student"));
+        }
+
+        @Test
+        void whenGetStudentsByTeacher_asOtherChef_thenForbidden() throws Exception {
+                // Profesor A
+                User chefA = TestDataUtil.createChefUser();
+                chefA.setUser("chef_a");
+                userRepository.saveAndFlush(chefA);
+
+                // Profesor B
+                User chefB = TestDataUtil.createChefUser();
+                chefB.setUser("chef_b");
+                userRepository.saveAndFlush(chefB);
+
+                // Login como Chef B
+                LoginRequestDTO chefBLogin = new LoginRequestDTO();
+                chefBLogin.setName(chefB.getName());
+                chefBLogin.setPassword("chef123");
+
+                String chefBTokenResponse = mockMvc.perform(post(AUTH_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(chefBLogin)))
+                                .andExpect(status().isOk())
+                                .andReturn().getResponse().getContentAsString();
+                String chefBToken = objectMapper.readValue(chefBTokenResponse, LoginResponseDTO.class).getToken();
+
+                // Intentar ver alumnos de Chef A con token de Chef B
+                mockMvc.perform(get(BASE_URL + "/teachers/" + chefA.getId() + "/students")
+                                .header("Authorization", "Bearer " + chefBToken))
+                                .andExpect(status().isForbidden());
+        }
+
+        @Test
+        void whenGetStudentsByTeacher_TeacherNotChef_thenBadRequest() throws Exception {
+                User notChef = TestDataUtil.createUser("Not Chef", "not_chef_student", "pass", Role.USER);
+                userRepository.saveAndFlush(notChef);
+
+                mockMvc.perform(get(BASE_URL + "/teachers/" + notChef.getId() + "/students")
+                                .header("Authorization", "Bearer " + jwtToken))
+                                .andExpect(status().isBadRequest());
+        }
 }

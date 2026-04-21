@@ -472,6 +472,21 @@ public class UserService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<UserResponseDTO> getStudentsByTeacherId(Integer teacherId) {
+        User teacher = repository.findById(teacherId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { teacherId })));
+
+        if (!Role.CHEF.equals(teacher.getRole())) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_TEACHER_MUST_BE_ADMIN));
+        }
+
+        return repository.findProjectedByTeacherIdAndIsHiddenFalse(teacherId).stream()
+                .map(userMapper::toResponseDTO)
+                .toList();
+    }
+
     @Cacheable(value = "user_stats", key = "'global'")
     @Transactional(readOnly = true)
     public UserStatsResponseDTO getUserStats() {
