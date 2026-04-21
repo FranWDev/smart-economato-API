@@ -266,10 +266,9 @@ public class OrderService {
         }
 
         @Transactional(readOnly = true)
-        public List<OrderResponseDTO> findByStatus(OrderStatus status) {
-                return repository.findProjectedByStatus(status, Pageable.unpaged()).getContent().stream()
-                                .map(orderMapper::toResponseDTO)
-                                .toList();
+        public Page<OrderResponseDTO> findByStatus(OrderStatus status, Pageable pageable) {
+                return repository.findProjectedByStatus(status, pageable)
+                                .map(orderMapper::toResponseDTO);
         }
 
         @Transactional(readOnly = true)
