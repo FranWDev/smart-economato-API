@@ -32,7 +32,7 @@ services:
         limits:
           memory: 128M
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U \"${POSTGRES_USER}\" -d \"${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -295,8 +295,6 @@ services:
         condition: service_started
       frontend:
         condition: service_started
-      grafana:
-        condition: service_started
     volumes:
       - ${NGINX_CONF_PATH:-./nginx/reverse-proxy.conf}:/etc/nginx/templates/default.conf.template:ro
       - ./nginx/certs:/etc/nginx/certs:ro
@@ -319,6 +317,7 @@ services:
   prometheus:
     image: prom/prometheus:v2.51.0
     container_name: inventory-prometheus
+    profiles: ["monitoring"]
     depends_on:
       - backend
     deploy:
@@ -350,6 +349,7 @@ services:
   grafana:
     image: grafana/grafana:10.4.2
     container_name: inventory-grafana
+    profiles: ["monitoring"]
     depends_on:
       - prometheus
     environment:
