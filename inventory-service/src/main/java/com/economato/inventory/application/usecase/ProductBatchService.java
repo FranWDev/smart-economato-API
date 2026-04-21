@@ -224,6 +224,8 @@ public class ProductBatchService {
         return updateExpirationDate(batchId, newExpirationDate, reason, null);
     }
 
+    @RealtimeSync(entityType = "batch", action = "UPDATE", idFromArg = 0,
+            affectedDomains = {"batch", "stock_alerts", "weekly_plan"})
     @Transactional(rollbackFor = Exception.class)
     public ProductBatch updateExpirationDate(Long batchId, LocalDate newExpirationDate, String reason, String batchCode) {
         ProductBatch batch = batchRepository.findById(batchId)
