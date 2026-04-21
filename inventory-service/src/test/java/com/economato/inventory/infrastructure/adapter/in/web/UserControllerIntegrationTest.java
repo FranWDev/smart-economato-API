@@ -9,9 +9,10 @@ import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -1385,11 +1386,13 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
         void whenGetStudentsByTeacher_asOtherChef_thenForbidden() throws Exception {
                 // Profesor A
                 User chefA = TestDataUtil.createChefUser();
+                chefA.setName("Chef A Students");
                 chefA.setUser("chef_a");
                 userRepository.saveAndFlush(chefA);
 
                 // Profesor B
                 User chefB = TestDataUtil.createChefUser();
+                chefB.setName("Chef B Students");
                 chefB.setUser("chef_b");
                 userRepository.saveAndFlush(chefB);
 
