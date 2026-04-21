@@ -541,6 +541,7 @@ public class WeeklyPlanService {
 
             private void validateStockForConfirmation(WeeklyPlan plan, List<WeeklyPlanSlot> slotsToConfirm) {
             Map<Integer, BigDecimal> requiredByProduct = new HashMap<>();
+            Map<Integer, LocalDate> requiredDateByProduct = new HashMap<>();
 
             for (WeeklyPlanSlot slot : slotsToConfirm) {
                 BigDecimal portions = slot.getRecipe().getPortions() == null || slot.getRecipe().getPortions().compareTo(BigDecimal.ZERO) <= 0
@@ -556,12 +557,19 @@ public class WeeklyPlanService {
                 BigDecimal grossQty = availabilityPercent.compareTo(BigDecimal.ZERO) > 0
                     ? netQty.multiply(BigDecimal.valueOf(100)).divide(availabilityPercent, 3, RoundingMode.HALF_UP)
                     : netQty;
-                requiredByProduct.merge(rc.getProduct().getId(), grossQty, BigDecimal::add);
+                Integer productId = rc.getProduct().getId();
+                requiredByProduct.merge(productId, grossQty, BigDecimal::add);
+
+                int dayOffset = Math.max(0, slot.getDayOfWeek() - 1);
+                LocalDate slotDate = plan.getWeekStartDate().plusDays(dayOffset);
+                requiredDateByProduct.merge(productId, slotDate,
+                    (current, candidate) -> candidate.isAfter(current) ? candidate : current);
                 }
             }
 
             for (Map.Entry<Integer, BigDecimal> entry : requiredByProduct.entrySet()) {
-                BigDecimal available = batchRepository.sumNonExpiredRemainingQuantity(entry.getKey(), plan.getWeekStartDate());
+                LocalDate targetDate = requiredDateByProduct.getOrDefault(entry.getKey(), plan.getWeekStartDate());
+                BigDecimal available = batchRepository.sumNonExpiredRemainingQuantity(entry.getKey(), targetDate);
                 if (available.compareTo(entry.getValue()) < 0) {
                 throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_BATCH_INSUFFICIENT_STOCK));
                 }
@@ -634,7 +642,6 @@ public class WeeklyPlanService {
         return wrapperMapper.toResponseDTO(plan);
     }
 
-    @Cacheable(value = "weekly_plan_requirements", key = "#planId")
     @Transactional(readOnly = true)
     public List<WeeklyPlanStockRequirementDTO> getStockRequirements(Long planId) {
         WeeklyPlan plan = weeklyPlanRepository.findWithDetailsById(planId)

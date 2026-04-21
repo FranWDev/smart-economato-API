@@ -347,7 +347,6 @@ public class PersistentNotificationService {
         LinkedHashMap<Integer, User> recipientsById = new LinkedHashMap<>();
         userRepository.findByRoleAndIsHiddenFalse(Role.ADMIN)
             .forEach(user -> recipientsById.put(user.getId(), user));
-        recipientsById.put(plan.getChef().getId(), plan.getChef());
 
         notifyUsersOfType(NotificationType.WEEKLY_PLAN_AUTO_CLOSED, title, title, plan.getId(),
             new ArrayList<>(recipientsById.values()));

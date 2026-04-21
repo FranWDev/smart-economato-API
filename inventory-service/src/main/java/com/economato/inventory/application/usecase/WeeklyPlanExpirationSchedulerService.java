@@ -1,7 +1,6 @@
 package com.economato.inventory.application.usecase;
 
 import com.economato.inventory.domain.model.WeeklyPlan;
-import com.economato.inventory.domain.model.WeeklyPlanSlotStatus;
 import com.economato.inventory.domain.model.WeeklyPlanStatus;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.WeeklyPlanRepository;
 import lombok.RequiredArgsConstructor;
@@ -43,14 +42,9 @@ public class WeeklyPlanExpirationSchedulerService {
         }
 
         for (WeeklyPlan plan : expiredPlans) {
-            plan.getSlots().stream()
-                    .filter(slot -> slot.getStatus() == WeeklyPlanSlotStatus.PENDING
-                            || slot.getStatus() == WeeklyPlanSlotStatus.IN_PROGRESS)
-                    .forEach(slot -> slot.setStatus(WeeklyPlanSlotStatus.CANCELLED));
-
-            boolean hasConfirmed = plan.getSlots().stream()
-                    .anyMatch(slot -> slot.getStatus() == WeeklyPlanSlotStatus.CONFIRMED);
-            WeeklyPlanStatus newStatus = hasConfirmed ? WeeklyPlanStatus.COMPLETED : WeeklyPlanStatus.CANCELLED;
+            // Silent closure: release virtual reservation by moving the plan out of ACTIVE/IN_PROGRESS.
+            // Keep slot statuses untouched to avoid surfacing explicit cancellations.
+            WeeklyPlanStatus newStatus = WeeklyPlanStatus.COMPLETED;
             plan.setStatus(newStatus);
 
             weeklyPlanRepository.save(plan);

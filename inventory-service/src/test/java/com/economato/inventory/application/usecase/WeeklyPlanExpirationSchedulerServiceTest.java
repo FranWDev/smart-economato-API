@@ -35,7 +35,7 @@ class WeeklyPlanExpirationSchedulerServiceTest {
     private WeeklyPlanExpirationSchedulerService schedulerService;
 
     @Test
-    void closeExpiredPlans_shouldMarkCancelledWhenNoConfirmedSlots() {
+    void closeExpiredPlans_shouldMarkCompletedSilentlyWhenNoConfirmedSlots() {
         WeeklyPlan plan = createPlan(1L, WeeklyPlanStatus.ACTIVE,
                 List.of(
                         createSlot(WeeklyPlanSlotStatus.PENDING),
@@ -46,7 +46,8 @@ class WeeklyPlanExpirationSchedulerServiceTest {
 
         schedulerService.closeExpiredPlans();
 
-        assertEquals(WeeklyPlanStatus.CANCELLED, plan.getStatus());
+        assertEquals(WeeklyPlanStatus.COMPLETED, plan.getStatus());
+        assertEquals(WeeklyPlanSlotStatus.PENDING, plan.getSlots().stream().filter(s -> s.getStatus() == WeeklyPlanSlotStatus.PENDING).findFirst().orElseThrow().getStatus());
         verify(weeklyPlanRepository, times(1)).save(plan);
         verify(persistentNotificationService, times(1)).notifyPlanAutoClosed(plan);
     }
