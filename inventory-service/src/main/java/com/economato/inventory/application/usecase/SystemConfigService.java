@@ -112,6 +112,7 @@ public class SystemConfigService {
             case WEEKLY_PLAN_DAY_CONFIRMED -> cfg.isNotifyWeeklyPlanDayConfirmed();
             case WEEKLY_PLAN_COMPLETED -> cfg.isNotifyWeeklyPlanCompleted();
             case WEEKLY_PLAN_CANCELLED -> cfg.isNotifyWeeklyPlanCancelled();
+            case WEEKLY_PLAN_AUTO_CLOSED -> true;
             case FOOD_CRISIS_ACTIVATED -> cfg.isNotifyFoodCrisisActivated();
             case FOOD_CRISIS_LIFTED -> cfg.isNotifyFoodCrisisLifted();
             case STOCK_PREDICTION_TRIGGERED -> cfg.isNotifyStockPredictionTriggered();

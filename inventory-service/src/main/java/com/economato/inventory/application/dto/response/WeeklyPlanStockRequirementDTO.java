@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Data
 @Builder
@@ -25,6 +26,10 @@ public class WeeklyPlanStockRequirementDTO {
 
     private BigDecimal expiredStock;
     private BigDecimal grossExpiredStock;
+
+    private BigDecimal expiringBeforePlanStock;
+    private LocalDate nearestExpirationDate;
+    private boolean expirationRisk;
 
     private BigDecimal lotQuantity;
 

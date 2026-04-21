@@ -1,10 +1,12 @@
 package com.economato.inventory.application.usecase;
 
 import com.economato.inventory.domain.model.Product;
+import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.domain.model.WeeklyPlan;
 import com.economato.inventory.domain.model.WeeklyPlanSlot;
 import com.economato.inventory.domain.model.RecipeComponent;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.WeeklyPlanRepository;
@@ -17,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -55,15 +58,29 @@ public class WeeklyPlanStockReservationService {
     public boolean isStockSufficientForAction(Integer productId, BigDecimal requiredAmount) {
         Product product = productRepository.findById(productId)
             .orElseThrow(() -> new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND, new Object[]{productId})));
-            
-        BigDecimal currentStock = product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO;
+
+        BigDecimal currentStock = calculateEffectiveStock(productId, LocalDate.now());
         BigDecimal availabilityPct = product.getAvailabilityPercentage() != null ? product.getAvailabilityPercentage() : new BigDecimal("100.00");
-        
+
         BigDecimal availableForUse = currentStock.multiply(availabilityPct).divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
         BigDecimal reservedStock = getReservedStockForProduct(productId);
-        
+
         BigDecimal actualAvailable = availableForUse.subtract(reservedStock);
-        
+
+        return actualAvailable.compareTo(requiredAmount) >= 0;
+    }
+
+    public boolean isStockSufficientForAction(Integer productId, BigDecimal requiredAmount, LocalDate targetDate) {
+        Product product = productRepository.findById(productId)
+            .orElseThrow(() -> new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND, new Object[]{productId})));
+
+        BigDecimal effectiveStock = calculateEffectiveStock(productId, targetDate);
+        BigDecimal availabilityPct = product.getAvailabilityPercentage() != null ? product.getAvailabilityPercentage() : new BigDecimal("100.00");
+
+        BigDecimal availableForUse = effectiveStock.multiply(availabilityPct).divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
+        BigDecimal reservedStock = getReservedStockForProduct(productId);
+        BigDecimal actualAvailable = availableForUse.subtract(reservedStock);
+
         return actualAvailable.compareTo(requiredAmount) >= 0;
     }
 
@@ -83,6 +100,9 @@ public class WeeklyPlanStockReservationService {
     }
 
     public void validateStockForPlanActivation(Long planId) {
+        WeeklyPlan plan = weeklyPlanRepository.findById(planId)
+            .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
+
         List<Object[]> requiredResults = weeklyPlanRepository.calculateRequiredStockForPlan(planId);
         
         Map<Integer, BigDecimal> requiredStockMap = new HashMap<>();
@@ -105,7 +125,7 @@ public class WeeklyPlanStockReservationService {
             Product product = productMap.get(productId);
             if (product == null) continue;
 
-            BigDecimal currentStock = product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO;
+            BigDecimal currentStock = calculateEffectiveStock(productId, plan.getWeekStartDate());
             BigDecimal availabilityPct = product.getAvailabilityPercentage() != null ? product.getAvailabilityPercentage() : new BigDecimal("100.00");
             
             BigDecimal maxAvailable = currentStock.multiply(availabilityPct).divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
@@ -119,7 +139,9 @@ public class WeeklyPlanStockReservationService {
         }
         
         if (!missingProducts.isEmpty()) {
-            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_INSUFFICIENT_STOCK, new Object[]{String.join(", ", missingProducts)}));
+            throw new InvalidOperationException(i18nService.getMessage(
+                    MessageKey.ERROR_WEEKLY_PLAN_STOCK_EXPIRES_BEFORE_PLAN,
+                    new Object[]{String.join(", ", missingProducts)}));
         }
     }
 
@@ -178,7 +200,7 @@ public class WeeklyPlanStockReservationService {
             Product product = productMap.get(productId);
             if (product == null) continue;
 
-            BigDecimal currentStock = product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO;
+            BigDecimal currentStock = calculateEffectiveStock(productId, existingPlan.getWeekStartDate());
             BigDecimal availabilityPct = product.getAvailabilityPercentage() != null ? product.getAvailabilityPercentage() : new BigDecimal("100.00");
             
             BigDecimal maxAvailable = currentStock.multiply(availabilityPct).divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
@@ -192,7 +214,9 @@ public class WeeklyPlanStockReservationService {
         }
         
         if (!missingProducts.isEmpty()) {
-            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_INSUFFICIENT_STOCK, new Object[]{String.join(", ", missingProducts)}));
+            throw new InvalidOperationException(i18nService.getMessage(
+                    MessageKey.ERROR_WEEKLY_PLAN_STOCK_EXPIRES_BEFORE_PLAN,
+                    new Object[]{String.join(", ", missingProducts)}));
         }
     }
 
@@ -200,7 +224,8 @@ public class WeeklyPlanStockReservationService {
         Product product = productRepository.findById(productId)
             .orElseThrow(() -> new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND, new Object[]{productId})));
             
-        BigDecimal currentStock = product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO;
+        BigDecimal currentStock = calculateEffectiveStock(productId, LocalDate.now());
+        // TODO: this only validates the current snapshot; a plan-specific cutoff date is not available here.
         BigDecimal newMaxAvailable = currentStock.multiply(newPercentage).divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
         BigDecimal reservedStock = getReservedStockForProduct(productId);
         
@@ -210,16 +235,23 @@ public class WeeklyPlanStockReservationService {
     }
 
     public List<com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO> getStockRequirements(Long planId) {
+        WeeklyPlan plan = weeklyPlanRepository.findById(planId)
+            .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_NOT_FOUND)));
+
         List<Object[]> requiredResults = weeklyPlanRepository.calculateRequiredStockForPlan(planId);
         Map<Integer, BigDecimal> requiredStockMap = new HashMap<>();
         for (Object[] row : requiredResults) {
             requiredStockMap.put((Integer) row[0], toBigDecimal(row[1]));
         }
         
-        return calculateStockRequirements(requiredStockMap, planId);
+        return calculateStockRequirements(requiredStockMap, planId, plan.getWeekStartDate());
     }
 
     public List<com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO> calculateStockRequirements(Map<Integer, BigDecimal> requiredStockMap, Long excludePlanId) {
+        return calculateStockRequirements(requiredStockMap, excludePlanId, null);
+    }
+
+    private List<com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO> calculateStockRequirements(Map<Integer, BigDecimal> requiredStockMap, Long excludePlanId, LocalDate targetDate) {
         List<com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO> dtos = new ArrayList<>();
         if (requiredStockMap.isEmpty()) return dtos;
 
@@ -228,7 +260,9 @@ public class WeeklyPlanStockReservationService {
         
         for (Product product : products) {
             BigDecimal needed = requiredStockMap.get(product.getId());
-            BigDecimal currentStock = product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO;
+            BigDecimal currentStock = targetDate != null
+                ? calculateEffectiveStock(product.getId(), targetDate)
+                : (product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO);
             BigDecimal availabilityPct = product.getAvailabilityPercentage() != null ? product.getAvailabilityPercentage() : new BigDecimal("100.00");
             
             BigDecimal maxAvailable = currentStock.multiply(availabilityPct).divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
@@ -247,6 +281,21 @@ public class WeeklyPlanStockReservationService {
             BigDecimal grossExpiredStock = batchRepository.sumExpiredRemainingQuantityByProductId(product.getId());
             BigDecimal expiredStock = grossExpiredStock.multiply(availabilityPct).divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
 
+            BigDecimal expiringBeforePlanStock = BigDecimal.ZERO;
+            LocalDate nearestExpirationDate = null;
+            boolean expirationRisk = false;
+
+            if (targetDate != null) {
+                expiringBeforePlanStock = batchRepository.sumExpiringBeforeDate(product.getId(), targetDate);
+                List<ProductBatch> activeBatches = batchRepository.findActiveByProductIdOrderByExpiration(product.getId());
+                for (ProductBatch batch : activeBatches) {
+                    if (batch.getExpirationDate() != null && (nearestExpirationDate == null || batch.getExpirationDate().isBefore(nearestExpirationDate))) {
+                        nearestExpirationDate = batch.getExpirationDate();
+                    }
+                }
+                expirationRisk = expiringBeforePlanStock.compareTo(BigDecimal.ZERO) > 0 && trulyAvailable.compareTo(needed) < 0;
+            }
+
             dtos.add(com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO.builder()
                 .productId(product.getId())
                 .productName(product.getName())
@@ -259,6 +308,9 @@ public class WeeklyPlanStockReservationService {
                 .grossReservedByOtherPlans(grossReservedByOtherPlans)
                 .expiredStock(expiredStock)
                 .grossExpiredStock(grossExpiredStock)
+                .expiringBeforePlanStock(expiringBeforePlanStock)
+                .nearestExpirationDate(nearestExpirationDate)
+                .expirationRisk(expirationRisk)
                 .lotQuantity(product.getLotQuantity())
                 .sufficient(trulyAvailable.compareTo(needed) >= 0)
                 .build());
@@ -266,6 +318,12 @@ public class WeeklyPlanStockReservationService {
         }
         return dtos;
     }
+
+    private BigDecimal calculateEffectiveStock(Integer productId, LocalDate targetDate) {
+        BigDecimal effectiveStock = batchRepository.sumNonExpiredRemainingQuantity(productId, targetDate);
+        return effectiveStock != null ? effectiveStock : BigDecimal.ZERO;
+    }
+
     private BigDecimal toBigDecimal(Object value) {
         if (value == null) return BigDecimal.ZERO;
         BigDecimal bd;

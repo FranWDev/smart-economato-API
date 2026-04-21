@@ -33,6 +33,7 @@ public enum MessageKey {
     ERROR_ORDER_CANNOT_RECEIVE_LESS("error.order.cannot.receive.less"),
     ERROR_ORDER_INVALID_STATE("error.order.invalid.state"),
     ERROR_ORDER_LOTS_SUM_MISMATCH("error.order.lots.sum.mismatch"),
+    ERROR_ORDER_SUPPLIER_IN_CRISIS("error.order.supplier.in.crisis"),
 
     ERROR_OPTIMISTIC_LOCK("error.optimistic.lock"),
     ERROR_PESSIMISTIC_LOCK("error.pessimistic.lock"),
@@ -201,6 +202,7 @@ public enum MessageKey {
     // Weekly Plan keys
     ERROR_WEEKLY_PLAN_CHEF_NOT_FOUND("error.weekly.plan.chef.not.found"),
     ERROR_WEEKLY_PLAN_MUST_START_MONDAY("error.weekly.plan.must.start.monday"),
+    ERROR_WEEKLY_PLAN_PAST_WEEK("error.weekly.plan.past.week"),
     ERROR_WEEKLY_PLAN_ALREADY_EXISTS("error.weekly.plan.already.exists"),
     ERROR_WEEKLY_PLAN_NOT_FOUND("error.weekly.plan.not.found"),
     ERROR_WEEKLY_PLAN_CANNOT_EDIT("error.weekly.plan.cannot.edit"),
@@ -248,6 +250,8 @@ public enum MessageKey {
     ERROR_WEEKLY_PLAN_STUDENT_NOT_CANCELLED("error.weekly.plan.student.not.cancelled"),
     ERROR_WEEKLY_PLAN_NO_CANCELLATIONS_FOR_DAY("error.weekly.plan.no.cancellations.for.day"),
     ERROR_WEEKLY_PLAN_NO_CANCELLED_SLOTS_FOR_DAY("error.weekly.plan.no.cancelled.slots.for.day"),
+    WARNING_WEEKLY_PLAN_STOCK_EXPIRING_BEFORE_PLAN("warning.weekly.plan.stock.expiring.before.plan"),
+    ERROR_WEEKLY_PLAN_STOCK_EXPIRES_BEFORE_PLAN("error.weekly.plan.stock.expires.before.plan"),
     ERROR_USER_TEACHER_TRANSFER_SAME("error.user.teacher.transfer.same"),
     ERROR_USER_STUDENT_NOT_BELONGS_TO_TEACHER("error.user.student.not.belongs.to.teacher"),
     ERROR_USER_STUDENTS_HIDDEN_SUCCESS("error.user.students.hidden.success"),
@@ -258,6 +262,8 @@ public enum MessageKey {
     NOTIFICATION_PLAN_SLOT_CONFIRMED("notification.plan.slot.confirmed"),
     NOTIFICATION_PLAN_DAY_CONFIRMED("notification.plan.day.confirmed"),
     NOTIFICATION_PLAN_COMPLETED("notification.plan.completed"),
+    NOTIFICATION_PLAN_CANCELLED("notification.plan.cancelled"),
+    NOTIFICATION_PLAN_AUTO_CLOSED("notification.plan.auto.closed"),
     NOTIFICATION_CRISIS_ACTIVATED("notification.crisis.activated"),
     NOTIFICATION_CRISIS_LIFTED("notification.crisis.lifted"),
     NOTIFICATION_ROLE_CHANGE_TITLE("notification.role.change.title"),

@@ -21,12 +21,17 @@ import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Order;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.ProductBatch;
+import com.economato.inventory.domain.model.NotificationType;
 import com.economato.inventory.domain.model.RecipeCookingAudit;
 import com.economato.inventory.domain.model.Role;
 import com.economato.inventory.domain.model.StockLedger;
 import com.economato.inventory.domain.model.StockLedgerBatchDetail;
 import com.economato.inventory.domain.model.Supplier;
 import com.economato.inventory.domain.model.User;
+import com.economato.inventory.domain.model.WeeklyPlan;
+import com.economato.inventory.domain.model.WeeklyPlanSlot;
+import com.economato.inventory.domain.model.WeeklyPlanSlotStatus;
+import com.economato.inventory.domain.model.WeeklyPlanStatus;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.CrisisAffectedProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.FoodCrisisRepository;
@@ -37,6 +42,8 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.StockLedgerBatchDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.UserRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.WeeklyPlanRepository;
 import com.economato.inventory.infrastructure.config.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.I18nService;
 import com.economato.inventory.infrastructure.config.web.MessageKey;
@@ -104,6 +111,8 @@ public class TraceabilityService {
         private final MeterRegistry meterRegistry;
         private final FoodCrisisRepository foodCrisisRepository;
         private final CrisisAffectedProductRepository crisisAffectedProductRepository;
+        private final WeeklyPlanRepository weeklyPlanRepository;
+        private final UserRepository userRepository;
         private final ObjectMapper objectMapper;
         private final PersistentNotificationService persistentNotificationService;
 
@@ -199,6 +208,8 @@ public class TraceabilityService {
 
                 productRepository.updateAvailabilityForProducts(request.getProductIds(), BigDecimal.ZERO);
                 crisisAffectedProductRepository.saveAll(affectedProducts);
+
+                cancelAffectedWeeklyPlans(request.getProductIds(), crisisCode);
 
                 if (!markerMovements.isEmpty()) {
                         txs.addAll(ledgerService.recordBatchStockMovements(markerMovements, currentUser, null));
@@ -749,6 +760,70 @@ public class TraceabilityService {
                 }
 
                 persistentNotificationService.notifyCrisis(title, body, code, crisisId);
+        }
+
+        private void cancelAffectedWeeklyPlans(List<Integer> affectedProductIds, String crisisCode) {
+                if (weeklyPlanRepository == null || userRepository == null) {
+                        return;
+                }
+
+                List<WeeklyPlan> activePlans = weeklyPlanRepository.findActivePlansWithPendingSlots();
+                for (WeeklyPlan plan : activePlans) {
+                        boolean affected = false;
+
+                        for (WeeklyPlanSlot slot : plan.getSlots()) {
+                                if (slot.getStatus() != WeeklyPlanSlotStatus.PENDING
+                                                && slot.getStatus() != WeeklyPlanSlotStatus.IN_PROGRESS) {
+                                        continue;
+                                }
+
+                                boolean slotAffected = slot.getRecipe().getComponents().stream()
+                                                .anyMatch(rc -> affectedProductIds.contains(rc.getProduct().getId()));
+                                if (slotAffected) {
+                                        slot.setStatus(WeeklyPlanSlotStatus.CANCELLED);
+                                        affected = true;
+                                }
+                        }
+
+                        if (!affected) {
+                                continue;
+                        }
+
+                        boolean hasConfirmedSlots = plan.getSlots().stream()
+                                        .anyMatch(slot -> slot.getStatus() == WeeklyPlanSlotStatus.CONFIRMED);
+                        boolean hasOpenSlots = plan.getSlots().stream()
+                                        .anyMatch(slot -> slot.getStatus() == WeeklyPlanSlotStatus.PENDING
+                                                        || slot.getStatus() == WeeklyPlanSlotStatus.IN_PROGRESS);
+
+                        if (hasConfirmedSlots && hasOpenSlots) {
+                                plan.setStatus(WeeklyPlanStatus.IN_PROGRESS);
+                        } else if (hasConfirmedSlots) {
+                                plan.setStatus(WeeklyPlanStatus.COMPLETED);
+                        } else if (hasOpenSlots) {
+                                plan.setStatus(WeeklyPlanStatus.ACTIVE);
+                        } else {
+                                plan.setStatus(WeeklyPlanStatus.CANCELLED);
+                        }
+
+                        weeklyPlanRepository.save(plan);
+
+                        List<User> recipients = new ArrayList<>();
+                        recipients.addAll(userRepository.findByRoleAndIsHiddenFalse(Role.ADMIN));
+                        if (plan.getChef() != null) {
+                                recipients.add(plan.getChef());
+                        }
+
+                        List<User> uniqueRecipients = recipients.stream()
+                                        .collect(Collectors.toMap(User::getId, user -> user, (left, right) -> left,
+                                                        java.util.LinkedHashMap::new))
+                                        .values().stream().toList();
+
+                        String chefName = plan.getChef() != null ? plan.getChef().getName() : "N/A";
+                        String title = i18nService.getMessage(MessageKey.NOTIFICATION_PLAN_CANCELLED,
+                                        new Object[] { chefName, plan.getId(), crisisCode });
+                        persistentNotificationService.notifyUsersOfType(NotificationType.WEEKLY_PLAN_CANCELLED,
+                                        title, title, plan.getId(), uniqueRecipients);
+                }
         }
 
         private Map<String, Object> parseDetails(String detailsJson) {

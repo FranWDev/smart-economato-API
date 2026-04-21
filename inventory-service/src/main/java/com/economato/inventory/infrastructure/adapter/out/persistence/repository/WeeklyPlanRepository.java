@@ -30,13 +30,23 @@ public interface WeeklyPlanRepository extends JpaRepository<WeeklyPlan, Long> {
 
     Page<WeeklyPlan> findByChefId(Integer chefId, Pageable pageable);
 
-    @Query("SELECT wp FROM WeeklyPlan wp JOIN FETCH wp.slots s WHERE wp.status = 'ACTIVE' AND s.status IN ('PENDING', 'IN_PROGRESS')")
+   @Query("SELECT DISTINCT wp FROM WeeklyPlan wp JOIN FETCH wp.slots s WHERE wp.status = 'ACTIVE' AND s.status IN ('PENDING', 'IN_PROGRESS')")
     List<WeeklyPlan> findActivePlansWithPendingSlots();
 
     @Query("SELECT wp FROM WeeklyPlan wp JOIN FETCH wp.slots s " +
            "WHERE wp.chef.id = :chefId AND wp.status = 'ACTIVE' " +
            "AND s.status = 'PENDING' AND s.startTime < :currentTime")
     List<WeeklyPlan> findActivePlansWithPastPendingSlots(@Param("chefId") Integer chefId, @Param("currentTime") LocalTime currentTime);
+
+       @EntityGraph(attributePaths = {
+          "slots",
+          "slots.recipe",
+          "slots.recipe.components",
+          "slots.recipe.components.product",
+          "chef"
+       })
+       @Query("SELECT wp FROM WeeklyPlan wp WHERE wp.status IN ('ACTIVE', 'IN_PROGRESS') AND wp.weekEndDate < :today")
+       List<WeeklyPlan> findExpiredActivePlans(@Param("today") LocalDate today);
 
     @Query("SELECT rc.product.id, SUM((rc.quantity / r.portions) * s.quantity) " +
            "FROM WeeklyPlan wp " +

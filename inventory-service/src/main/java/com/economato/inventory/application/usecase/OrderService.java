@@ -43,6 +43,7 @@ import com.economato.inventory.application.dto.response.UserResponseDTO;
 import com.economato.inventory.application.mapper.OrderMapper;
 import com.economato.inventory.domain.OrderAuditable;
 import com.economato.inventory.domain.PredictorTrigger;
+import com.economato.inventory.domain.model.FoodCrisis;
 import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Order;
 import com.economato.inventory.domain.model.OrderDetail;
@@ -53,6 +54,7 @@ import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.in.web.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.OrderReceptionAlreadyProcessedException;
 import com.economato.inventory.infrastructure.adapter.in.web.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.FoodCrisisRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.SupplierRepository;
@@ -73,6 +75,7 @@ public class OrderService {
         private final UserRepository userRepository;
         private final ProductRepository productRepository;
         private final SupplierRepository supplierRepository;
+        private final FoodCrisisRepository foodCrisisRepository;
         private final OrderMapper orderMapper;
         private final StockLedgerService stockLedgerService;
         private final ProductBatchService productBatchService;
@@ -83,6 +86,7 @@ public class OrderService {
                         UserRepository userRepository,
                         ProductRepository productRepository,
                         SupplierRepository supplierRepository,
+                        FoodCrisisRepository foodCrisisRepository,
                         OrderMapper orderMapper,
                         StockLedgerService stockLedgerService,
                         ProductBatchService productBatchService,
@@ -93,6 +97,7 @@ public class OrderService {
                 this.userRepository = userRepository;
                 this.productRepository = productRepository;
                 this.supplierRepository = supplierRepository;
+                this.foodCrisisRepository = foodCrisisRepository;
                 this.orderMapper = orderMapper;
                 this.stockLedgerService = stockLedgerService;
                 this.productBatchService = productBatchService;
@@ -448,6 +453,14 @@ public class OrderService {
                 if (order.getStatus() != OrderStatus.REVIEW) {
                         throw new InvalidOperationException(
                                         i18nService.getMessage(MessageKey.ERROR_ORDER_INVALID_STATE, order.getStatus()));
+                }
+
+                if (foodCrisisRepository != null
+                                && order.getSupplier() != null
+                                && foodCrisisRepository.existsByStatusAndSupplierId(FoodCrisis.CrisisStatus.ACTIVE,
+                                                order.getSupplier().getId())) {
+                        throw new InvalidOperationException(
+                                        i18nService.getMessage(MessageKey.ERROR_ORDER_SUPPLIER_IN_CRISIS));
                 }
 
                 order.setStatus(OrderStatus.REVIEW);

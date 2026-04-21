@@ -1,6 +1,7 @@
 package com.economato.inventory.application.usecase;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -37,6 +38,7 @@ import com.economato.inventory.application.dto.mcp.NestCompletionRequest;
 import com.economato.inventory.application.dto.mcp.ToolCallInfo;
 import com.economato.inventory.application.usecase.smg.SemanticMemoryGraphService;
 import com.economato.inventory.application.usecase.smg.model.CompressedContext;
+import com.economato.inventory.application.usecase.mcp.McpUtilityService;
 import com.economato.inventory.domain.model.AiChat;
 import com.economato.inventory.domain.model.AiChatMessage;
 import com.economato.inventory.domain.model.AiChatStatus;
@@ -80,6 +82,7 @@ public class AiChatService {
     private final AiKeyVaultService aiKeyVaultService;
     private final PlatformTransactionManager transactionManager;
     private final SemanticMemoryGraphService semanticMemoryGraphService;
+    private final McpUtilityService mcpUtilityService;
     private final NestStreamBridgeService nestStreamBridgeService;
     private final AiRateLimitService aiRateLimitService;
     private final SecurityContextHelper securityContextHelper;
@@ -100,6 +103,7 @@ public class AiChatService {
             AiKeyVaultService aiKeyVaultService,
             @Autowired(required = false) PlatformTransactionManager transactionManager,
             SemanticMemoryGraphService semanticMemoryGraphService,
+            McpUtilityService mcpUtilityService,
             NestStreamBridgeService nestStreamBridgeService,
             AiRateLimitService aiRateLimitService,
             SecurityContextHelper securityContextHelper,
@@ -115,6 +119,7 @@ public class AiChatService {
         this.aiKeyVaultService = aiKeyVaultService;
         this.transactionManager = transactionManager;
         this.semanticMemoryGraphService = semanticMemoryGraphService;
+        this.mcpUtilityService = mcpUtilityService;
         this.nestStreamBridgeService = nestStreamBridgeService;
         this.aiRateLimitService = aiRateLimitService;
         this.securityContextHelper = securityContextHelper;
@@ -125,6 +130,26 @@ public class AiChatService {
         this.auditEventProducer = auditEventProducer;
         this.i18nService = i18nService;
         this.jwtUtils = jwtUtils;
+    }
+
+    public AiChatService(AiChatRepository aiChatRepository,
+            AiChatMessageRepository aiChatMessageRepository,
+            AiKeyVaultService aiKeyVaultService,
+            @Autowired(required = false) PlatformTransactionManager transactionManager,
+            SemanticMemoryGraphService semanticMemoryGraphService,
+            NestStreamBridgeService nestStreamBridgeService,
+            AiRateLimitService aiRateLimitService,
+            SecurityContextHelper securityContextHelper,
+            AiChatProperties aiChatProperties,
+            AiProviderProperties aiProviderProperties,
+            AiNestProperties aiNestProperties,
+            MeterRegistry meterRegistry,
+            Optional<AuditEventProducer> auditEventProducer,
+            I18nService i18nService,
+            JwtUtils jwtUtils) {
+        this(aiChatRepository, aiChatMessageRepository, aiKeyVaultService, transactionManager, semanticMemoryGraphService,
+                null, nestStreamBridgeService, aiRateLimitService, securityContextHelper, aiChatProperties,
+                aiProviderProperties, aiNestProperties, meterRegistry, auditEventProducer, i18nService, jwtUtils);
     }
 
     public AiChatService(AiChatRepository aiChatRepository,
@@ -141,7 +166,7 @@ public class AiChatService {
             Optional<AuditEventProducer> auditEventProducer,
             I18nService i18nService) {
         this(aiChatRepository, aiChatMessageRepository, aiKeyVaultService, null, semanticMemoryGraphService,
-                nestStreamBridgeService, aiRateLimitService, securityContextHelper, aiChatProperties,
+                null, nestStreamBridgeService, aiRateLimitService, securityContextHelper, aiChatProperties,
                 aiProviderProperties, aiNestProperties, meterRegistry, auditEventProducer, i18nService, null);
     }
 
@@ -381,10 +406,12 @@ public class AiChatService {
 
         List<AiChatMessage> history = aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(chat.getId());
         CompressedContext compressedContext = semanticMemoryGraphService.compress(history, language);
+        String systemPrompt = buildSystemPrompt(currentUser.getName(), language);
 
         String model = resolveModel(chat.getActiveProvider());
         NestCompletionRequest nestRequest = new NestCompletionRequest(
                 compressedContext.toPromptString(),
+                systemPrompt,
                 apiKey,
                 chat.getActiveProvider().name(),
                 currentUser.getName(),
@@ -695,6 +722,30 @@ public class AiChatService {
 
     private int safeInt(Integer value) {
         return value == null ? 0 : value;
+    }
+
+    private String buildSystemPrompt(String userName, String language) {
+        var systemContext = mcpUtilityService != null ? mcpUtilityService.getSystemContext() : null;
+        String formattedDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+        String normalizedName = userName == null || userName.isBlank() ? "compa" : userName.trim();
+        String normalizedLanguage = language == null || language.isBlank() ? aiChatProperties.getDefaultLanguage()
+                : language.trim();
+
+        long totalProducts = systemContext != null ? systemContext.getTotalProducts() : 0L;
+        long pendingOrders = systemContext != null ? systemContext.getPendingOrdersCount() : 0L;
+        long totalRecipes = systemContext != null ? systemContext.getTotalRecipes() : 0L;
+        long activeAlerts = systemContext != null ? systemContext.getActiveAlertsCount() : 0L;
+
+        return String.format(Locale.ROOT,
+                aiChatProperties.getSystemPromptTemplate(),
+                normalizedName,
+                normalizedName,
+                formattedDate,
+            totalProducts,
+            pendingOrders,
+            totalRecipes,
+            activeAlerts,
+                normalizedLanguage);
     }
 
     private String resolveErrorType(Exception ex) {
