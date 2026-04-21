@@ -256,6 +256,19 @@ public class UserController {
                 return ResponseEntity.ok(teachers);
         }
 
+        @GetMapping("/teachers/{teacherId}/students")
+        @PreAuthorize("hasRole('ADMIN') or (hasRole('CHEF') and #teacherId == @userService.findByUsername(authentication.name).id)")
+        @Operation(summary = "Obtener alumnos de un profesor", description = "Devuelve los alumnos asignados a un profesor específico. [Rol requerido: ADMIN o CHEF (propio)]")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "200", description = "Lista de alumnos del profesor", content = @Content(mediaType = "application/json", schema = @Schema(implementation = UserResponseDTO.class))),
+                        @ApiResponse(responseCode = "403", description = "Acceso denegado"),
+                        @ApiResponse(responseCode = "404", description = "Profesor no encontrado")
+        })
+        public ResponseEntity<List<UserResponseDTO>> getStudentsByTeacher(
+                        @Parameter(description = "ID del profesor", required = true) @PathVariable Integer teacherId) {
+                return ResponseEntity.ok(service.getStudentsByTeacherId(teacherId));
+        }
+
         @GetMapping("/students")
         @PreAuthorize("hasRole('CHEF')")
         @Operation(summary = "Obtener alumnos", description = "Devuelve los usuarios que tienen al profesor actual (CHEF) asignado. [Rol requerido: CHEF]")

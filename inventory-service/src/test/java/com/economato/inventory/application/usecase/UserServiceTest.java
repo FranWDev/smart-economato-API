@@ -1129,4 +1129,46 @@ class UserServiceTest {
         // Act & Assert
         assertThrows(ResourceNotFoundException.class, () -> userService.transferAllStudents(2, 5));
     }
+
+    @Test
+    void getStudentsByTeacherId_Success() {
+        // Arrange
+        User teacher = new User();
+        teacher.setId(2);
+        teacher.setRole(Role.CHEF);
+        when(repository.findById(2)).thenReturn(Optional.of(teacher));
+
+        UserProjection proj = mock(UserProjection.class);
+        when(repository.findProjectedByTeacherIdAndIsHiddenFalse(2)).thenReturn(List.of(proj));
+        when(userMapper.toResponseDTO(any(UserProjection.class))).thenReturn(new UserResponseDTO());
+
+        // Act
+        List<UserResponseDTO> result = userService.getStudentsByTeacherId(2);
+
+        // Assert
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        verify(repository).findProjectedByTeacherIdAndIsHiddenFalse(2);
+    }
+
+    @Test
+    void getStudentsByTeacherId_NotFound() {
+        // Arrange
+        when(repository.findById(99)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        assertThrows(ResourceNotFoundException.class, () -> userService.getStudentsByTeacherId(99));
+    }
+
+    @Test
+    void getStudentsByTeacherId_NotChef() {
+        // Arrange
+        User notChef = new User();
+        notChef.setId(3);
+        notChef.setRole(Role.USER);
+        when(repository.findById(3)).thenReturn(Optional.of(notChef));
+
+        // Act & Assert
+        assertThrows(InvalidOperationException.class, () -> userService.getStudentsByTeacherId(3));
+    }
 }
