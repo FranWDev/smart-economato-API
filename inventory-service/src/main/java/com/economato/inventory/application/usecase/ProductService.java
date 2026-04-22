@@ -244,9 +244,9 @@ public class ProductService {
                         Product saved = repository.save(existing);
                         
                         boolean priceChanged = (oldPrice == null && saved.getUnitPrice() != null) || 
-                                             (oldPrice != null && !oldPrice.equals(saved.getUnitPrice()));
+                                             (oldPrice != null && oldPrice.compareTo(saved.getUnitPrice()) != 0);
                         boolean availabilityChanged = (oldAvailability == null && saved.getAvailabilityPercentage() != null) || 
-                                                   (oldAvailability != null && !oldAvailability.equals(saved.getAvailabilityPercentage()));
+                                                   (oldAvailability != null && oldAvailability.compareTo(saved.getAvailabilityPercentage()) != 0);
                         
                         if (priceChanged || availabilityChanged) {
                             recipeService.recalculateRecipesUsingProduct(id);

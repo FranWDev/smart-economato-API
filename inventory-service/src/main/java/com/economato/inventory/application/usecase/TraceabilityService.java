@@ -343,7 +343,9 @@ public class TraceabilityService {
                 entries.addAll(ledgerRepository.findSalidasByProductIdsAndDateRange(productIds, from, to));
 
                 List<RecipeCookingAudit> cookings = cookingAuditRepository
-                                .findAffectedCookingsByProductIdsAndDateRange(productIds, from, to);
+                                .findByDateRange(from, to).stream()
+                                .filter(c -> containsAnyProduct(c, productIds))
+                                .toList();
 
                 List<ProductBatch> affectedBatches = productBatchRepository
                                 .findByProductIdInOrderByExpirationDateAsc(productIds)
@@ -529,7 +531,7 @@ public class TraceabilityService {
                                 minDate, maxDate);
 
                 List<RecipeCookingAudit> allAffectedCookings = cookingAuditRepository
-                                .findAffectedCookingsByProductIdsAndDateRange(allProductIds, minDate, maxDate);
+                                .findByDateRange(minDate, maxDate);
 
                 List<IntegrityCheckResult> integrityResultsBatch = ledgerService
                                 .verifyChainIntegrityBatch(allProductIds);
@@ -552,7 +554,7 @@ public class TraceabilityService {
 
                         List<RecipeCookingAudit> crisisCookings = allAffectedCookings.stream()
                                         .filter(c -> isWithinDateRange(c.getCookingDate(), crisis.getDateFrom(),
-                                                        crisis.getDateTo()))
+                                                        crisis.getDateTo()) && containsAnyProduct(c, crisisProductIds))
                                         .toList();
 
                         return buildCrisisResponse(crisis, null, associations, crisisOrders, crisisCookings,
@@ -573,8 +575,9 @@ public class TraceabilityService {
                                 crisis.getDateTo());
 
                 List<RecipeCookingAudit> affectedCookings = cookingAuditRepository
-                                .findAffectedCookingsByProductIdsAndDateRange(productIds, crisis.getDateFrom(),
-                                                crisis.getDateTo());
+                                .findByDateRange(crisis.getDateFrom(), crisis.getDateTo()).stream()
+                                .filter(c -> containsAnyProduct(c, productIds))
+                                .toList();
 
                 List<IntegrityCheckResult> batchResults = ledgerService.verifyChainIntegrityBatch(productIds);
                 Map<Integer, Boolean> integrityResults = batchResults.stream()
@@ -837,5 +840,29 @@ public class TraceabilityService {
                         log.warn("Failed to parse audit details JSON: {}", detailsJson);
                         return Collections.emptyMap();
                 }
+        }
+
+        /**
+         * Verifica si un cocinado utilizó alguno de los productos especificados basándose
+         * en el estado de los componentes al momento de cocinar (componentsState).
+         */
+        private boolean containsAnyProduct(RecipeCookingAudit audit, List<Integer> productIds) {
+                String componentsState = audit.getComponentsState();
+                if (componentsState == null || componentsState.isEmpty() || componentsState.equals("{}")) {
+                        return false;
+                }
+
+                Map<String, Object> state = parseDetails(componentsState);
+                if (!state.containsKey("components") || !(state.get("components") instanceof List)) {
+                        return false;
+                }
+
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> components = (List<Map<String, Object>>) state.get("components");
+                return components.stream().anyMatch(comp -> {
+                        Object rawId = comp.get("productId");
+                        Integer pid = rawId instanceof Number ? ((Number) rawId).intValue() : null;
+                        return pid != null && productIds.contains(pid);
+                });
         }
 }

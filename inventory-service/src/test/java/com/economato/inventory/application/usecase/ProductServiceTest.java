@@ -617,4 +617,18 @@ class ProductServiceTest {
             productService.updateStockManually(1, testProductRequestDTO);
         });
     }
+
+    @Test
+    void update_WithPriceScaleChange_ShouldNotTriggerRecalculation() {
+        testProduct.setUnitPrice(new BigDecimal("5.0"));
+        testProductRequestDTO.setUnitPrice(new BigDecimal("5.00")); // Same value, different scale
+
+        when(repository.findByIdWithSupplier(1)).thenReturn(Optional.of(testProduct));
+        when(repository.save(testProduct)).thenReturn(testProduct);
+        when(productMapper.toResponseDTO(testProduct)).thenReturn(testProductResponseDTO);
+
+        productService.update(1, testProductRequestDTO);
+
+        verify(recipeService, never()).recalculateRecipesUsingProduct(1);
+    }
 }
