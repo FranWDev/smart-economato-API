@@ -223,6 +223,15 @@ class NestStreamBridgeServiceTest {
 
                 private String readPayload(SseEventBuilder builder) {
                         try {
+                                StringBuilder payload = new StringBuilder();
+
+                                // Read event name
+                                Field nameField = findField(builder.getClass(), "name");
+                                String name = (String) (nameField != null ? readFieldValue(nameField, builder) : null);
+                                if (name != null) {
+                                        payload.append("event:").append(name).append("\n");
+                                }
+
                                 Field dataField = findField(builder.getClass(), "dataToSend");
                                 if (dataField == null) {
                                         throw new IllegalStateException("Missing dataToSend field in SseEventBuilder");
@@ -230,12 +239,11 @@ class NestStreamBridgeServiceTest {
                                 @SuppressWarnings("unchecked")
                                 LinkedHashSet<Object> dataToSend = (LinkedHashSet<Object>) readFieldValue(dataField, builder);
 
-                                StringBuilder payload = new StringBuilder();
                                 for (Object dataWithMediaType : dataToSend) {
                                         Field rawDataField = findField(dataWithMediaType.getClass(), "data");
                                         Object rawData = rawDataField != null ? readFieldValue(rawDataField, dataWithMediaType) : null;
                                         if (rawData != null) {
-                                                payload.append(rawData);
+                                                payload.append("data:").append(rawData).append("\n");
                                         }
                                 }
 
