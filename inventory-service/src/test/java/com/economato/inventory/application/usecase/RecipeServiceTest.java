@@ -684,4 +684,20 @@ class RecipeServiceTest {
         verify(repository).countWithoutAllergens();
         verify(repository).getAveragePrice();
     }
+
+    @Test
+    void recalculateRecipesUsingProduct_ShouldUpdateCostWhenProductPriceChanges() {
+        // Arrange
+        testProduct.setUnitPrice(new BigDecimal("20.00")); // Change price from 5.0 to 20.0
+        // testRecipe has 2.0 units of testProduct. New cost = 2.0 * 20.0 = 40.00
+        
+        when(repository.findByComponentsProductIdWithDetails(1)).thenReturn(Arrays.asList(testRecipe));
+        
+        // Act
+        recipeService.recalculateRecipesUsingProduct(1);
+        
+        // Assert
+        assertEquals(new BigDecimal("40.00"), testRecipe.getTotalCost());
+        verify(repository).saveAll(Collections.singletonList(testRecipe));
+    }
 }

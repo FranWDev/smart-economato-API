@@ -28,7 +28,7 @@ public interface RecipeMapper {
     @Mapping(source = "projection.name", target = "name")
     @Mapping(source = "projection.elaboration", target = "elaboration")
     @Mapping(source = "projection.presentation", target = "presentation")
-    @Mapping(source = "projection.totalCost", target = "totalCost")
+    @Mapping(source = "projection.", target = "totalCost", qualifiedByName = "calculateTotalCostFromProjection")
     @Mapping(source = "projection.sellingPrice", target = "sellingPrice")
     @Mapping(source = "projection.portions", target = "portions")
 
@@ -60,7 +60,36 @@ public interface RecipeMapper {
 
                     // Cost = (NetQty * 100 / AvailabilityPct) * Price
                     return qty.multiply(new BigDecimal("100"))
-                            .divide(pct, 4, RoundingMode.HALF_UP)
+                            .divide(pct, 10, RoundingMode.HALF_UP)
+                            .multiply(price);
+                })
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    @Named("calculateTotalCostFromProjection")
+    default BigDecimal calculateTotalCostFromProjection(RecipeProjection projection) {
+        if (projection.getComponents() == null || projection.getComponents().isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        return projection.getComponents().stream()
+                .filter(component -> component.getQuantity() != null &&
+                        component.getProduct() != null &&
+                        component.getProduct().getUnitPrice() != null)
+                .map(component -> {
+                    BigDecimal qty = component.getQuantity();
+                    BigDecimal price = component.getProduct().getUnitPrice();
+                    BigDecimal pct = component.getProduct().getAvailabilityPercentage() != null
+                            ? component.getProduct().getAvailabilityPercentage()
+                            : new BigDecimal("100.00");
+
+                    if (pct.compareTo(BigDecimal.ZERO) <= 0) {
+                        return qty.multiply(price);
+                    }
+
+                    return qty.multiply(new BigDecimal("100"))
+                            .divide(pct, 10, RoundingMode.HALF_UP)
                             .multiply(price);
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add)

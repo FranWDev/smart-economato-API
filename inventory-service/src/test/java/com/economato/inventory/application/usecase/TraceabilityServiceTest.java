@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -29,9 +30,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.economato.inventory.application.dto.request.CrisisActivationRequestDTO;
 import com.economato.inventory.application.dto.request.CrisisLiftRequestDTO;
+import com.economato.inventory.application.dto.response.ForwardTraceabilityDTO;
 import com.economato.inventory.application.dto.response.CrisisResponseDTO;
 import com.economato.inventory.application.dto.response.IntegrityCheckResult;
 import com.economato.inventory.application.mapper.OrderMapper;
+import com.economato.inventory.application.mapper.ProductBatchMapper;
 import com.economato.inventory.application.mapper.RecipeCookingAuditMapper;
 import com.economato.inventory.application.mapper.StockLedgerMapper;
 import com.economato.inventory.domain.model.CrisisAffectedProduct;
@@ -40,6 +43,7 @@ import com.economato.inventory.domain.model.MovementType;
 import com.economato.inventory.domain.model.Product;
 import com.economato.inventory.domain.model.ProductBatch;
 import com.economato.inventory.domain.model.StockLedger;
+import com.economato.inventory.domain.model.RecipeCookingAudit;
 import com.economato.inventory.domain.model.Supplier;
 import com.economato.inventory.domain.model.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.CrisisAffectedProductRepository;
@@ -77,6 +81,7 @@ public class TraceabilityServiceTest {
     @Mock private FoodCrisisRepository foodCrisisRepository;
     @Mock private CrisisAffectedProductRepository crisisAffectedProductRepository;
     @Mock private ProductBatchRepository productBatchRepository;
+    @Mock private ProductBatchMapper productBatchMapper;
     @Mock private ObjectMapper objectMapper;
     @Mock private PersistentNotificationService persistentNotificationService;
     @Spy private MeterRegistry meterRegistry = new SimpleMeterRegistry();
@@ -302,6 +307,119 @@ public class TraceabilityServiceTest {
         verify(foodCrisisRepository).save(crisis);
     }
 
+    @Test
+    void getForwardTraceability_ShouldUseSnapshotNotCurrentRecipe() throws Exception {
+        LocalDateTime now = LocalDateTime.now();
+        List<Integer> productIds = List.of(1); // The "crisis" product
+        
+        RecipeCookingAudit matchingAudit = new RecipeCookingAudit();
+        matchingAudit.setId(100L);
+        matchingAudit.setCookingDate(now);
+        matchingAudit.setComponentsState("{\"components\": [{\"productId\": 1}]}");
+
+        RecipeCookingAudit nonMatchingAudit = new RecipeCookingAudit();
+        nonMatchingAudit.setId(101L);
+        nonMatchingAudit.setCookingDate(now);
+        nonMatchingAudit.setComponentsState("{\"components\": [{\"productId\": 2}]}");
+
+        when(supplierRepository.findById(1)).thenReturn(Optional.of(supplier));
+        when(productRepository.findAllById(productIds)).thenReturn(List.of(product));
+        when(cookingAuditRepository.findByDateRange(any(), any())).thenReturn(List.of(matchingAudit, nonMatchingAudit));
+        
+        // Mock JSON parsing
+        Map<String, Object> matchingState = Map.of("components", List.of(Map.of("productId", 1)));
+        Map<String, Object> nonMatchingState = Map.of("components", List.of(Map.of("productId", 2)));
+        
+        when(objectMapper.readValue(eq(matchingAudit.getComponentsState()), any(com.fasterxml.jackson.core.type.TypeReference.class)))
+            .thenReturn(matchingState);
+        when(objectMapper.readValue(eq(nonMatchingAudit.getComponentsState()), any(com.fasterxml.jackson.core.type.TypeReference.class)))
+            .thenReturn(nonMatchingState);
+            
+        // Stub Mappers to avoid NPE
+        lenient().when(cookingAuditMapper.toResponseDTO(matchingAudit))
+            .thenReturn(com.economato.inventory.application.dto.response.RecipeCookingAuditResponseDTO.builder().id(100L).build());
+        lenient().when(orderMapper.toResponseDTO(any(com.economato.inventory.domain.model.Order.class))).thenReturn(null);
+        lenient().when(ledgerMapper.toDTO(any())).thenReturn(null);
+        lenient().when(productBatchMapper.toResponseDTO(any())).thenReturn(null);
+
+        ForwardTraceabilityDTO result = traceabilityService.getForwardTraceability(1, productIds, now.minusDays(1), now.plusDays(1));
+
+        assertNotNull(result);
+        assertEquals(1, result.getAffectedCookings().size());
+        assertEquals(100L, result.getAffectedCookings().get(0).getId());
+    }
+
+    @Test
+    void buildCrisisResponsesBatch_ShouldFilterCookingsBySurgicalProductList() throws Exception {
+        LocalDateTime now = LocalDateTime.now();
+        
+        // Crisis 1: Product 1
+        FoodCrisis crisis1 = new FoodCrisis();
+        crisis1.setId(1L);
+        crisis1.setCrisisCode("C1");
+        crisis1.setSupplier(supplier);
+        crisis1.setDateFrom(now.minusDays(5));
+        crisis1.setDateTo(now.plusDays(5));
+        crisis1.setStatus(FoodCrisis.CrisisStatus.ACTIVE);
+
+        // Crisis 2: Product 2
+        FoodCrisis crisis2 = new FoodCrisis();
+        crisis2.setId(2L);
+        crisis2.setCrisisCode("C2");
+        crisis2.setSupplier(supplier);
+        crisis2.setDateFrom(now.minusDays(5));
+        crisis2.setDateTo(now.plusDays(5));
+        crisis2.setStatus(FoodCrisis.CrisisStatus.ACTIVE);
+
+        Product product1 = new Product(); product1.setId(1); product1.setName("P1");
+        Product product2 = new Product(); product2.setId(2); product2.setName("P2");
+
+        CrisisAffectedProduct ap1 = new CrisisAffectedProduct(); ap1.setFoodCrisis(crisis1); ap1.setProduct(product1);
+        CrisisAffectedProduct ap2 = new CrisisAffectedProduct(); ap2.setFoodCrisis(crisis2); ap2.setProduct(product2);
+
+        when(crisisAffectedProductRepository.findByFoodCrisisIdIn(anyList())).thenReturn(List.of(ap1, ap2));
+        
+        RecipeCookingAudit auditForP1 = new RecipeCookingAudit();
+        auditForP1.setId(10L);
+        auditForP1.setCookingDate(now);
+        auditForP1.setComponentsState("{\"p\": 1}");
+
+        RecipeCookingAudit auditForP2 = new RecipeCookingAudit();
+        auditForP2.setId(20L);
+        auditForP2.setCookingDate(now);
+        auditForP2.setComponentsState("{\"p\": 2}");
+
+        when(foodCrisisRepository.findAllWithSupplier()).thenReturn(List.of(crisis1, crisis2));
+        when(cookingAuditRepository.findByDateRange(any(), any())).thenReturn(List.of(auditForP1, auditForP2));
+        when(orderRepository.findConfirmedOrdersByProductIdsAndDateRange(anyList(), any(), any())).thenReturn(List.of());
+
+        // Mock JSON parsing specifically
+        when(objectMapper.readValue(eq(auditForP1.getComponentsState()), any(com.fasterxml.jackson.core.type.TypeReference.class)))
+            .thenReturn(Map.of("components", List.of(Map.of("productId", 1))));
+        when(objectMapper.readValue(eq(auditForP2.getComponentsState()), any(com.fasterxml.jackson.core.type.TypeReference.class)))
+            .thenReturn(Map.of("components", List.of(Map.of("productId", 2))));
+
+        // Stub Cookings Mapper
+        lenient().when(cookingAuditMapper.toResponseDTO(any(RecipeCookingAudit.class))).thenAnswer(inv -> {
+            RecipeCookingAudit audit = inv.getArgument(0);
+            return com.economato.inventory.application.dto.response.RecipeCookingAuditResponseDTO.builder()
+                .id(audit.getId())
+                .build();
+        });
+
+        List<CrisisResponseDTO> results = traceabilityService.getAllCrises(); // This calls buildCrisisResponsesBatch
+
+        assertEquals(2, results.size());
+        
+        CrisisResponseDTO res1 = results.stream().filter(r -> r.getCrisisCode().equals("C1")).findFirst().get();
+        assertEquals(1, res1.getAffectedCookings().size());
+        assertEquals(10L, res1.getAffectedCookings().get(0).getCookingAuditId());
+
+        CrisisResponseDTO res2 = results.stream().filter(r -> r.getCrisisCode().equals("C2")).findFirst().get();
+        assertEquals(1, res2.getAffectedCookings().size());
+        assertEquals(20L, res2.getAffectedCookings().get(0).getCookingAuditId());
+    }
+
     private CrisisActivationRequestDTO buildActivationRequest(LocalDateTime from, LocalDateTime to) {
         CrisisActivationRequestDTO request = new CrisisActivationRequestDTO();
         request.setSupplierId(1);
@@ -331,9 +449,9 @@ public class TraceabilityServiceTest {
         assoc.setOriginalAvailabilityPercentage(new BigDecimal("100.00"));
         when(crisisAffectedProductRepository.findByFoodCrisisIdWithProduct(crisisId)).thenReturn(List.of(assoc));
 
-        when(orderRepository.findConfirmedOrdersBySupplierAndProductIdsAndDateRange(any(), anyList(), any(), any()))
+        lenient().when(orderRepository.findConfirmedOrdersBySupplierAndProductIdsAndDateRange(any(), anyList(), any(), any()))
                 .thenReturn(List.of());
-        when(cookingAuditRepository.findAffectedCookingsByProductIdsAndDateRange(anyList(), any(), any()))
+        lenient().when(cookingAuditRepository.findByDateRange(any(), any()))
                 .thenReturn(List.of());
         when(ledgerService.verifyChainIntegrityBatch(anyList()))
                 .thenReturn(List.of(new IntegrityCheckResult(1, "Test Product", true, "ok", List.of())));
