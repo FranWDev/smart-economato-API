@@ -8,7 +8,7 @@ services:
     command: |
       postgres 
       -c wal_level=replica 
-      -c max_connections=500
+      -c max_connections=100
       -c hot_standby=on 
       -c max_wal_senders=10 
       -c max_replication_slots=10 
@@ -76,7 +76,7 @@ services:
       fi
       
       echo '4. Iniciando PostgreSQL Replica...'
-      exec su-exec postgres postgres -D /var/lib/postgresql/data -c max_connections=500 -c hot_standby=on
+      exec su-exec postgres postgres -D /var/lib/postgresql/data -c max_connections=100 -c hot_standby=on
       "
     volumes:
       - turing-backend_postgres-replica-data:/var/lib/postgresql/data
@@ -217,7 +217,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 1152M
+          memory: 760M
     volumes:
       - turing-backend_uploads-data:/app/uploads
     networks:
@@ -256,7 +256,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1024M
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 15s
