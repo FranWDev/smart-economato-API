@@ -60,7 +60,7 @@ class CacheWarmupServiceTest {
                 PageRequest.of(0, 10),
                 1));
         when(userService.findAll(any())).thenReturn(new PageImpl<>(
-                List.of(new UserResponseDTO(1, "Admin", "admin", false, false, null, null)),
+                List.of(new UserResponseDTO(1, "Admin", "admin", false, false, null, null, null)),
                 PageRequest.of(0, 10),
                 1));
 

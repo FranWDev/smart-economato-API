@@ -450,7 +450,8 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.name").value(testAdmin.getName()))
                                 .andExpect(jsonPath("$.role").value("ADMIN"))
-                                .andExpect(jsonPath("$.id").value(testAdmin.getId()));
+                                .andExpect(jsonPath("$.id").value(testAdmin.getId()))
+                                .andExpect(jsonPath("$.token").value(jwtToken));
         }
 
         @Test

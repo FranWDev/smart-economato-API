@@ -35,4 +35,7 @@ public class UserResponseDTO {
 
     @Schema(description = "Resumen del profesor asignado al usuario (si lo tuviera)")
     private UserSummaryDTO teacher;
+
+    @Schema(description = "Token JWT del usuario (solo devuelto en /me)", example = "eyJhbGciOiJIUzI1NiJ9...")
+    private String token;
 }

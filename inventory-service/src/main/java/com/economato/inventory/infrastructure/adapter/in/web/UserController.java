@@ -29,6 +29,9 @@ import com.economato.inventory.application.dto.response.BatchTeacherAssignmentRe
 import com.economato.inventory.application.dto.response.UserResponseDTO;
 import com.economato.inventory.application.usecase.UserService;
 import com.economato.inventory.domain.model.Role;
+import com.economato.inventory.infrastructure.config.security.JwtUtils;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -45,9 +48,11 @@ import jakarta.validation.Valid;
 public class UserController {
 
         private final UserService service;
+        private final JwtUtils jwtUtils;
 
-        public UserController(UserService service) {
+        public UserController(UserService service, JwtUtils jwtUtils) {
                 this.service = service;
+                this.jwtUtils = jwtUtils;
         }
 
         @GetMapping("/me")
@@ -57,8 +62,11 @@ public class UserController {
                         @ApiResponse(responseCode = "401", description = "No autenticado")
         })
         public ResponseEntity<UserResponseDTO> getCurrentUser(
-                        Authentication authentication) {
-                return ResponseEntity.ok(service.findCurrentUser(authentication.getName()));
+                        Authentication authentication,
+                        HttpServletRequest request) {
+                UserResponseDTO user = service.findCurrentUser(authentication.getName());
+                user.setToken(jwtUtils.resolveToken(request));
+                return ResponseEntity.ok(user);
         }
 
         @GetMapping
