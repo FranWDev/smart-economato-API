@@ -164,6 +164,39 @@ class NestStreamBridgeServiceTest {
         assertEquals(5, result.inputTokens());
         assertEquals(3, result.outputTokens());
     }
+    @Test
+    void streamCompletion_sseParser_handlesMultilineQuotedTokens() throws Exception {
+        mockCircuitBreakerClosed();
+        mockRequestChain();
+
+        // Simulating a token that contains a JSON-encoded string with literal newlines,
+        // which often breaks standard JSON parsers but should be handled by our robust unquoter.
+        String ssePayload = """
+                event:token
+                data: "¡Chacho, Admin! ¡Claro que sí!
+                data: Te voy a buscar una receta que esté de rechupete."
+
+                event:done
+                data:{"fullResponse":"¡Chacho, Admin! ¡Claro que sí!\\nTe voy a buscar una receta que esté de rechupete.","inputTokens":10,"outputTokens":20}
+
+                """;
+
+        when(requestBodySpec.exchange(any())).thenAnswer(invocation -> {
+            RestClient.RequestHeadersSpec.ExchangeFunction<?> exchangeFunction =
+                    invocation.getArgument(0, RestClient.RequestHeadersSpec.ExchangeFunction.class);
+            RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse clientHttpResponse =
+                    mock(RestClient.RequestHeadersSpec.ConvertibleClientHttpResponse.class);
+            when(clientHttpResponse.getStatusCode()).thenReturn(HttpStatus.OK);
+            when(clientHttpResponse.getBody())
+                    .thenReturn(new ByteArrayInputStream(ssePayload.getBytes(StandardCharsets.UTF_8)));
+            return exchangeFunction.exchange(null, clientHttpResponse);
+        });
+
+        SseEmitter emitter = mock(SseEmitter.class);
+        service.streamCompletion(request(), emitter, "jwt-token");
+
+        verify(emitter, org.mockito.Mockito.atLeastOnce()).send(any(SseEmitter.SseEventBuilder.class));
+    }
 
     private NestCompletionRequest request() {
         return new NestCompletionRequest(

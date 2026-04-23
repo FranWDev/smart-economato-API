@@ -60,8 +60,8 @@ public class NestStreamBridgeService {
     private final I18nService i18nService;
 
     public StreamCompletionResult streamCompletion(NestCompletionRequest request,
-                                                   SseEmitter emitter,
-                                                   String userJwt) {
+            SseEmitter emitter,
+            String userJwt) {
         Timer.Sample timerSample = Timer.start(meterRegistry);
         CircuitBreaker circuitBreaker = circuitBreakerRegistry.circuitBreaker("nest");
         log.info("AI stream started: provider={}, user={}", request.provider(), request.userName());
@@ -105,11 +105,12 @@ public class NestStreamBridgeService {
     }
 
     private StreamCompletionResult handleResponse(ClientHttpResponse response,
-                                                  SseEmitter emitter,
-                                                  NestCompletionRequest request) {
+            SseEmitter emitter,
+            NestCompletionRequest request) {
         try {
             if (response.getStatusCode().isError()) {
-                throw new AiStreamException(i18nService.getMessage(MessageKey.ERROR_AI_STREAM_HTTP_ERROR, response.getStatusCode().value()));
+                throw new AiStreamException(i18nService.getMessage(MessageKey.ERROR_AI_STREAM_HTTP_ERROR,
+                        response.getStatusCode().value()));
             }
 
             String currentEvent = null;
@@ -136,16 +137,18 @@ public class NestStreamBridgeService {
                         }
                         dataBuffer.append(rawData);
                     } else if (line.isBlank()) {
-                        String eventType = (currentEvent != null && !currentEvent.isBlank()) ? currentEvent : EVENT_TOKEN;
-                        
+                        String eventType = (currentEvent != null && !currentEvent.isBlank()) ? currentEvent
+                                : EVENT_TOKEN;
+
                         if (currentEvent != null || dataBuffer.length() > 0) {
                             String rawDataStr = dataBuffer.toString();
                             NestStreamEvent event = parseEvent(eventType, rawDataStr);
-                            
+
                             if (EVENT_TOKEN.equals(event.type())) {
-                                // Important: Forward the raw data received from upstream to avoid double-encoding 
-                                // or stripping issues that break the client.
-                                emitter.send(SseEmitter.event().name(EVENT_TOKEN).data(rawDataStr, MediaType.TEXT_PLAIN));
+                                // Prefer the parsed/unquoted data if available, fallback to raw string if null.
+                                // This solves the "double quotes" issue where JSON-encoded tokens were sent as plain text.
+                                String dataToSend = event.data() != null ? event.data() : rawDataStr;
+                                emitter.send(SseEmitter.event().name(EVENT_TOKEN).data(dataToSend, MediaType.TEXT_PLAIN));
                             } else if (EVENT_DONE.equals(event.type())) {
                                 fullResponse = event.fullResponse();
                                 inputTokens = event.inputTokens();
@@ -162,25 +165,31 @@ public class NestStreamBridgeService {
                                         .toolName(toolName)
                                         .eventTimestamp(LocalDateTime.now())
                                         .build());
-                                log.debug("Nest tool call received: tool={}, provider={}", toolName, request.provider());
+                                log.debug("Nest tool call received: tool={}, provider={}", toolName,
+                                        request.provider());
                                 emitter.send(SseEmitter.event().name("tool_called")
-                                        .data(objectMapper.writeValueAsString(java.util.Map.of("toolName", toolName)), MediaType.APPLICATION_JSON));
+                                        .data(objectMapper.writeValueAsString(java.util.Map.of("toolName", toolName)),
+                                                MediaType.APPLICATION_JSON));
                                 toolCalls.add(new ToolCallInfo(toolName, null, null));
-                            } else if (EVENT_THINKING.equals(event.type()) || EVENT_THINKING_DELTA.equals(event.type())) {
-                                // Preserve DB accumulation but forward raw payload
-                                thinkingBuffer.append(event.data() != null ? event.data() : "");
-                                emitter.send(SseEmitter.event().name("thinking").data(rawDataStr, MediaType.TEXT_PLAIN));
+                            } else if (EVENT_THINKING.equals(event.type())
+                                    || EVENT_THINKING_DELTA.equals(event.type())) {
+                                String content = event.data() != null ? event.data() : "";
+                                thinkingBuffer.append(content);
+                                emitter.send(SseEmitter.event().name("thinking").data(content, MediaType.TEXT_PLAIN));
                                 log.debug("Nest thinking received: provider={}", request.provider());
                                 counter("ai.nest.stream.thinking.events").increment();
                             } else if (EVENT_TOOL_RESULT.equals(event.type())) {
-                                emitter.send(SseEmitter.event().name("tool_result").data(rawDataStr, MediaType.TEXT_PLAIN));
+                                String resultData = event.data() != null ? event.data() : rawDataStr;
+                                emitter.send(SseEmitter.event().name("tool_result").data(resultData, MediaType.TEXT_PLAIN));
                                 if (!toolCalls.isEmpty()) {
                                     int lastIndex = toolCalls.size() - 1;
                                     ToolCallInfo lastTool = toolCalls.get(lastIndex);
-                                    toolCalls.set(lastIndex, new ToolCallInfo(lastTool.toolName(), lastTool.toolCallId(), event.data()));
+                                    toolCalls.set(lastIndex,
+                                            new ToolCallInfo(lastTool.toolName(), lastTool.toolCallId(), event.data()));
                                 }
                             } else if (EVENT_ERROR.equals(event.type())) {
-                                String message = event.data() != null ? event.data() : i18nService.getMessage(MessageKey.ERROR_AI_STREAM_UNKNOWN);
+                                String message = event.data() != null ? event.data()
+                                        : i18nService.getMessage(MessageKey.ERROR_AI_STREAM_UNKNOWN);
                                 emitter.send(SseEmitter.event().name(EVENT_ERROR).data(message, MediaType.TEXT_PLAIN));
                                 emitter.completeWithError(new AiStreamException(message));
                                 throw new AiStreamException(message);
@@ -192,7 +201,8 @@ public class NestStreamBridgeService {
                 }
             }
 
-            return new StreamCompletionResult(fullResponse, inputTokens, outputTokens, thinkingBuffer.toString(), toolCalls);
+            return new StreamCompletionResult(fullResponse, inputTokens, outputTokens, thinkingBuffer.toString(),
+                    toolCalls);
         } catch (AiStreamException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -201,18 +211,44 @@ public class NestStreamBridgeService {
     }
 
     private NestStreamEvent parseEvent(String eventType, String rawData) {
+        if (rawData == null || rawData.isBlank()) {
+            return new NestStreamEvent(eventType, null, null, null, null, null);
+        }
+
+        String trimmed = rawData.trim();
         try {
-            if (rawData != null && rawData.startsWith("{")) {
-                NestStreamEvent parsed = objectMapper.readValue(rawData, NestStreamEvent.class);
-                if (parsed.type() != null) {
-                    return parsed;
-                }
-                return new NestStreamEvent(eventType, parsed.data(), parsed.fullResponse(), parsed.thinkingContent(), parsed.inputTokens(), parsed.outputTokens());
+            // Priority 1: Try to parse as a full JSON object (structured events)
+            if (trimmed.startsWith("{")) {
+                NestStreamEvent parsed = objectMapper.readValue(trimmed, NestStreamEvent.class);
+                String type = (parsed.type() != null) ? parsed.type() : eventType;
+                return new NestStreamEvent(type, parsed.data(), parsed.fullResponse(), parsed.thinkingContent(),
+                        parsed.inputTokens(), parsed.outputTokens());
+            }
+
+            // Priority 2: If it's a quoted string, unquote it manually.
+            // We use manual unquoting because stream chunks often contain literal newlines
+            // or
+            // incomplete escape sequences that break standard JSON parsers.
+            if (trimmed.startsWith("\"") && trimmed.endsWith("\"") && trimmed.length() >= 2) {
+                String unquoted = trimmed.substring(1, trimmed.length() - 1)
+                        .replace("\\\"", "\"")
+                        .replace("\\n", "\n")
+                        .replace("\\r", "\r")
+                        .replace("\\t", "\t")
+                        .replace("\\\\", "\\");
+                return new NestStreamEvent(eventType, unquoted, null, null, null, null);
             }
         } catch (Exception ex) {
-            log.debug("Unable to parse Nest SSE JSON payload, using raw fallback: {}", ex.getMessage());
+            log.debug("Unable to parse Nest SSE payload as JSON object ({}): {}", eventType, ex.getMessage());
         }
-        return new NestStreamEvent(eventType, rawData, null, null, null, null);
+
+        // Fallback: Use raw data but try to strip quotes if they are present but
+        // objectMapper failed
+        String finalData = (trimmed.startsWith("\"") && trimmed.endsWith("\"") && trimmed.length() >= 2)
+                ? trimmed.substring(1, trimmed.length() - 1)
+                : rawData;
+
+        return new NestStreamEvent(eventType, finalData, null, null, null, null);
     }
 
     private void applyHeaders(HttpHeaders headers, String userJwt) {
@@ -262,7 +298,6 @@ public class NestStreamBridgeService {
             Integer inputTokens,
             Integer outputTokens,
             String thinkingContent,
-            List<ToolCallInfo> toolCalls
-    ) {
+            List<ToolCallInfo> toolCalls) {
     }
 }
