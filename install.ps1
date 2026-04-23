@@ -1,19 +1,35 @@
-<#
+﻿<#
 .SYNOPSIS
 Smart Economato - Panel de Control & Instalador para Windows Server
 #>
 
-$ErrorActionPreference = "Stop" # Comportamiento mas estricto para produccion
+$ErrorActionPreference = "Stop" # Comportamiento más estricto para producción
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
-# Forzar colores de terminal (Fondo negro, letras blancas) para estetica profesional
+# Forzar colores de terminal (Fondo negro, letras blancas) para estética profesional
 try {
     $Host.UI.RawUI.BackgroundColor = "Black"
     $Host.UI.RawUI.ForegroundColor = "White"
+    
+    # Ajustar tamaño de ventana para que quepa todo el banner y menú
+    $width = 120
+    $height = 45
+    if ($Host.UI.RawUI.WindowSize.Width -lt $width -or $Host.UI.RawUI.WindowSize.Height -lt $height) {
+        $buffer = $Host.UI.RawUI.BufferSize
+        $buffer.Width = [Math]::Max($width, $buffer.Width)
+        $buffer.Height = [Math]::Max(3000, $buffer.Height) # Buffer grande para scroll
+        $Host.UI.RawUI.BufferSize = $buffer
+        
+        $window = $Host.UI.RawUI.WindowSize
+        $window.Width = $width
+        $window.Height = $height
+        $Host.UI.RawUI.WindowSize = $window
+    }
+    
     Clear-Host
 } catch {}
 
-# Deteccion de OS para compatibilidad con PS 5.1
+# Detección de OS para compatibilidad con PS 5.1
 if ($PSVersionTable.PSVersion.Major -lt 6) {
     $script:IsWindowsOS = $true
 } else {
@@ -28,12 +44,17 @@ if ($script:IsWindowsOS) {
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if (-not $isAdmin) {
         Write-Host "---------------------------------------------------------------" -ForegroundColor Yellow
-        Write-Host " [AVISO] Se requieren permisos de Administrador." -ForegroundColor Yellow
-        Write-Host " Se abrira una nueva ventana para continuar." -ForegroundColor Yellow
-        Write-Host " (Para evitar esto, ejecuta tu terminal como Administrador)" -ForegroundColor Gray
+        Write-Host " [AVISO] Se requieren permisos de administrador." -ForegroundColor Yellow
+        Write-Host " Se abrirá una nueva ventana para continuar." -ForegroundColor Yellow
+        Write-Host " (Para evitar esto, ejecuta tu terminal como administrador)" -ForegroundColor Gray
         Write-Host "---------------------------------------------------------------" -ForegroundColor Yellow
         Start-Sleep -Seconds 2
-        Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
+        try {
+            Start-Process powershell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -Command `"& { try { . '$PSCommandPath' } catch { Write-Host $_; pause } }`"" -Verb RunAs
+        } catch {
+            Write-Error "No se pudo iniciar el proceso elevado: $($_.Exception.Message)"
+            pause
+        }
         exit
     }
 }
@@ -42,49 +63,183 @@ if ($script:IsWindowsOS) {
 # FUNCIONES DE UI Y UTILIDADES
 # =============================================================================
 
+function Write-Centered {
+    param([string]$text, [string]$color = "White", [int]$width = 105)
+    $lines = $text -split "`r?`n"
+    foreach ($line in $lines) {
+        $cleanLine = $line.Trim()
+        if ($cleanLine.Length -eq 0) { Write-Host ""; continue }
+        $padding = [Math]::Max(0, [Math]::Floor(($width - $line.Length) / 2))
+        Write-Host (" " * $padding + $line) -ForegroundColor $color
+    }
+}
+$script:BannerAnimated = $false
 function Write-Header {
+    param([switch]$Fast)
+    
+    # Forzar fondo negro y limpiar pantalla
+    try {
+        $Host.UI.RawUI.BackgroundColor = "Black"
+        $Host.UI.RawUI.ForegroundColor = "White"
+    } catch {}
+    $esc = [char]27
+    $bgBlack = "$esc[40m" # ANSI estándar para fondo negro
+    $reset = "$esc[0m$bgBlack" # Reset + Forzar fondo negro
+    Write-Host "$esc[48;2;0;0;0m" -NoNewline # TrueColor negro
     Clear-Host
-    Write-Host "===============================================================" -ForegroundColor Cyan
-    Write-Host "  SMART ECONOMATO - PANEL DE CONTROL" -ForegroundColor Cyan
-    Write-Host "===============================================================" -ForegroundColor Cyan
-    Write-Host "       Panel de Control y Mantenimiento de Produccion v3.1     " -ForegroundColor White
+    
+    $screenWidth = 105
+    $white = "$esc[38;2;255;255;255m"
+    $customRed = "$esc[38;2;184;75;68m"
+    $cyan = "$esc[36m"
+    $starColor = "$esc[38;2;150;150;150m"
+
+    $shouldAnimate = (-not $Fast) -and (-not $script:BannerAnimated)
+    $delay = if ($shouldAnimate) { 15 } else { 0 }
+
+    # Generar estrellas solo la primera vez para que queden "clavadas"
+    if (-not $script:StaticTaglineMargins) {
+        $stars = ""
+        for ($i=0; $i -lt $screenWidth; $i++) {
+            if ((Get-Random -Maximum 100) -lt 8) {
+                $stars += ("*", ".", "+", "·")[(Get-Random -Maximum 4)]
+            } else { $stars += " " }
+        }
+        $script:StaticTopStars = $stars
+        
+        $script:StaticSmartMargins = @()
+        for ($i=0; $i -lt 8; $i++) {
+            $s1 = if ((Get-Random -Maximum 20) -lt 1) { ("*", "·")[(Get-Random -Maximum 2)] } else { " " }
+            $s2 = if ((Get-Random -Maximum 20) -lt 1) { ("*", "·")[(Get-Random -Maximum 2)] } else { " " }
+            $script:StaticSmartMargins += @{ L=$s1; R=$s2 }
+        }
+        
+        $script:StaticEconMargins = @()
+        for ($i=0; $i -lt 7; $i++) {
+            $s1 = if ((Get-Random -Maximum 20) -lt 1) { ("*", "·")[(Get-Random -Maximum 2)] } else { " " }
+            $s2 = if ((Get-Random -Maximum 20) -lt 1) { ("*", "·")[(Get-Random -Maximum 2)] } else { " " }
+            $script:StaticEconMargins += @{ L=$s1; R=$s2 }
+        }
+        
+        $script:StaticTaglineMargins = @()
+        for ($i=0; $i -lt 5; $i++) {
+            $s1 = if ((Get-Random -Maximum 20) -lt 1) { ("*", "·")[(Get-Random -Maximum 2)] } else { " " }
+            $s2 = if ((Get-Random -Maximum 20) -lt 1) { ("*", "·")[(Get-Random -Maximum 2)] } else { " " }
+            $script:StaticTaglineMargins += @{ L=$s1; R=$s2 }
+        }
+    }
+
+    Write-Host "$starColor$($script:StaticTopStars)$reset"
+
+    Write-Host "$cyan >>=========================================================================================================<<$reset"
+    if ($shouldAnimate) { 
+        Start-Sleep -Milliseconds 50 
+        $script:BannerAnimated = $true
+    }
+
+    $smart = @(
+        "                       ________  _____ ______   ________  ________  _________                            ",
+        "                      |\   ____\|\   _ \  _   \|\   __  \|\   __  \|\___   ___\                          ",
+        "                      \ \  \___|\ \  \\\__\ \  \ \  \|\  \ \  \|\  \ \ \|\  \|                           ",
+        "                       \ \_____  \ \  \\|__| \  \ \   __  \ \   _  _\   \ \  \                           ",
+        "                        \|____|\  \ \  \    \ \  \ \  \ \  \ \  \\  \|   \ \  \                          ",
+        "                          ____\_\  \ \__\    \ \__\ \__\ \__\ \__\\ _\    \ \__\                         ",
+        "                         |\_________\|__|     \|__|\|__|\|__|\|__|\|__|    \|__|                         ",
+        "                         \|_________|                                                                    "
+    )
+    for ($i=0; $i -lt $smart.Count; $i++) {
+        $l = $smart[$i]
+        $s1 = $script:StaticSmartMargins[$i].L
+        $s2 = $script:StaticSmartMargins[$i].R
+        Write-Host "$starColor$s1$reset$cyan||$white$l$cyan||$starColor$s2$reset"
+        if ($delay -gt 0) { Start-Sleep -Milliseconds $delay }
+    }
+
+    # Lineas vacias intermedias
+    for ($i=0; $i -lt 2; $i++) {
+        $s1 = $script:StaticTaglineMargins[$i].L
+        $s2 = $script:StaticTaglineMargins[$i].R
+        Write-Host "$starColor$s1$reset$cyan||$white$(" " * 105)$cyan||$starColor$s2$reset"
+    }
+    
+    $economato = @(
+        "   _______   ________  ________  ________   ________  _____ ______   ________  _________  ________       ",
+        "  |\  ___ \ |\   ____\|\   __  \|\   ___  \|\   __  \|\   _ \  _   \|\   __  \|\___   ___\\   __  \      ",
+        "  \ \   __/|\ \  \___|\ \  \|\  \ \  \\ \  \ \  \|\  \ \  \\\__\ \  \ \  \|\  \|___ \  \_\ \  \|\  \     ",
+        "   \ \  \_|/_\ \  \    \ \  \\\  \ \  \\ \  \ \  \\\  \ \  \\|__| \  \ \   __  \   \ \  \ \ \  \\\  \    ",
+        "    \ \  \_|\ \ \  \____\ \  \\\  \ \  \\ \  \ \  \\\  \ \  \    \ \  \ \  \ \  \   \ \  \ \ \  \\\  \   ",
+        "     \ \_______\ \_______\ \_______\ \__\\ \__\ \_______\ \__\    \ \__\ \__\ \__\   \ \__\ \ \_______\  ",
+        "      \|_______|\|_______|\|_______|\|__| \|__|\|_______|\|__|     \|__|\|__|\|__|    \|__|  \|_______|  "
+    )
+    for ($i=0; $i -lt $economato.Count; $i++) {
+        $l = $economato[$i]
+        $s1 = $script:StaticEconMargins[$i].L
+        $s2 = $script:StaticEconMargins[$i].R
+        Write-Host "$starColor$s1$reset$cyan||$customRed$l$cyan||$starColor$s2$reset"
+        if ($delay -gt 0) { Start-Sleep -Milliseconds $delay }
+    }
+
+    # Tagline y cierre dentro del banner
+    $s1_1 = $script:StaticTaglineMargins[2].L; $s2_1 = $script:StaticTaglineMargins[2].R
+    $s1_2 = $script:StaticTaglineMargins[3].L; $s2_2 = $script:StaticTaglineMargins[3].R
+    $s1_3 = $script:StaticTaglineMargins[4].L; $s2_3 = $script:StaticTaglineMargins[4].R
+
+    Write-Host "$starColor$s1_1$reset$cyan||$white$(" " * 105)$cyan||$starColor$s2_1$reset"
+    $taglineText = "             Proyecto Smart Economato - Panel de Control y Mantenimiento de Producci$([char]0xF3)n v1.0              "
+    Write-Host "$starColor$s1_2$reset$cyan||$customRed$taglineText$cyan||$starColor$s2_2$reset"
+    Write-Host "$starColor$s1_3$reset$cyan||$white$(" " * 105)$cyan||$starColor$s2_3$reset"
+
+    Write-Host "$cyan >>=========================================================================================================<<$reset"
     Write-Host ""
 }
 
 function Write-Typewriter {
-    param([string]$msg, [int]$speed = 10, [string]$color = "White")
+    param([string]$msg, [int]$speed = 10, [string]$color = "White", [switch]$Centered)
+    if ($Centered) {
+        $width = 105
+        $padding = [Math]::Max(0, [Math]::Floor(($width - $msg.Length) / 2))
+        Write-Host (" " * $padding) -NoNewline
+    }
     foreach ($char in $msg.ToCharArray()) {
         Write-Host $char -NoNewline -ForegroundColor $color
-        Start-Sleep -Milliseconds $speed
+        Start-Sleep -Milliseconds (Get-Random -Minimum ($speed/2) -Maximum ($speed*2))
     }
     Write-Host ""
 }
 
 function Show-Spinner {
     param([string]$msg, [scriptblock]$action, [array]$ArgsList = @())
-    $spinner = @('|', '/', '-', '\')
+    $chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
     $job = Start-Job -ScriptBlock $action -ArgumentList @($PWD, $ArgsList)
     
-    Write-Host "[ .... ] $msg " -NoNewline -ForegroundColor Cyan
+    $prefix = "[ .... ] "
+    Write-Host $prefix -NoNewline -ForegroundColor Cyan
+    Write-Host $msg -NoNewline -ForegroundColor White
+    
     $i = 0
     while ($job.State -eq 'Running') {
-        Write-Host ("`b" * 1) -NoNewline
-        Write-Host $spinner[$i % 4] -NoNewline -ForegroundColor Yellow
+        # Devolver el cursor al inicio de la línea (utilizando retorno de carro \r)
+        Write-Host "`r" -NoNewline
+        Write-Host "[" -NoNewline -ForegroundColor Cyan
+        Write-Host " " -NoNewline
+        Write-Host $chars[$i % $chars.Length] -NoNewline -ForegroundColor Yellow
+        Write-Host " " -NoNewline
+        Write-Host " ] " -NoNewline -ForegroundColor Cyan
+        Write-Host $msg -NoNewline -ForegroundColor White
         $i++
-        Start-Sleep -Milliseconds 150
+        Start-Sleep -Milliseconds 80
     }
     
     $result = Receive-Job -Job $job -Wait
     $success = $job.ChildJobs[0].Error.Count -eq 0 -and $null -ne $result -and $result -ne $false
     
-    # Limpiar spinner
-    Write-Host ("`b" * 10) -NoNewline
+    Write-Host "`r" -NoNewline
     if ($success) {
         Write-Host "[  OK  ] " -NoNewline -ForegroundColor Green
     } else {
-        Write-Host "[ERROR ] " -NoNewline -ForegroundColor Red
+        Write-Host "[ FAIL ] " -NoNewline -ForegroundColor Red
     }
-    Write-Host "$msg"
+    Write-Host "$msg               " -ForegroundColor White
     
     Remove-Job $job
     return $result
@@ -110,7 +265,7 @@ function Invoke-Docker {
         $success = ($process.ExitCode -eq 0)
         if (-not $success -and -not $Silent) {
             $err = Get-Content "stderr.tmp" -Raw -ErrorAction SilentlyContinue
-            Write-ErrorMsg "Docker fallo: $err"
+            Write-ErrorMsg "Docker falló: $err"
         }
         return $success
     } catch {
@@ -190,8 +345,9 @@ function Set-EnvSecret($envPath, $key, $length, $isComplex, $forceLetterStart=$f
 
 function Pause-Execution {
     Write-Host ""
-    Write-Typewriter '>> Presiona ENTER para volver al menu principal...' 5 'Cyan'
-    Read-Host
+    $prompt = ">> Presiona ENTER para volver al men$([char]0xFA) principal..."
+    Write-Typewriter $prompt 5 'Cyan' -Centered
+    Read-Host | Out-Null
 }
 
 function Get-FreePort {
@@ -204,6 +360,12 @@ function Get-FreePort {
     } catch {
         return 0 # Puerto ocupado o protegido por SO
     }
+}
+
+function Get-IsRunning {
+    # Verificar si hay contenedores del proyecto en ejecución
+    $running = docker compose ps --filter "status=running" --quiet 2>$null
+    return ($null -ne $running -and $running.Length -gt 0)
 }
 
 # =============================================================================
@@ -221,7 +383,7 @@ function Ensure-WslMemoryLimit {
                 Write-Success "Se ha limitado el uso de RAM de Docker a 8GB para mejorar el rendimiento."
                 Write-Warn "Para que el cambio de RAM sea inmediato, reinicia Docker Desktop."
             } catch {
-                Write-Warn "No se pudo crear automaticamente el archivo .wslconfig en su carpeta de usuario."
+                Write-Warn "No se pudo crear automáticamente el archivo .wslconfig en su carpeta de usuario."
             }
         }
     }
@@ -238,8 +400,8 @@ function Ensure-LocalDns {
             Write-Success "Resolvedor DNS local (smart-economato) configurado."
         }
     } catch {
-        Write-Warn "No se pudo anadir 'smart-economato' al archivo hosts (faltan permisos de Administrador/root)."
-        Write-Warn "Anade manualmente '127.0.0.1 smart-economato' en $hostsPath si deseas usar ese dominio."
+        Write-Warn "No se pudo añadir 'smart-economato' al archivo hosts (faltan permisos de administrador/root)."
+        Write-Warn "Añade manualmente '127.0.0.1 smart-economato' en $hostsPath si deseas usar ese dominio."
     }
 }
 
@@ -263,12 +425,12 @@ function Ensure-Certificates {
     $keyPath = Join-Path $certDir "local.key"
     
     if (-not (Test-Path $crtPath) -or -not (Test-Path $keyPath)) {
-        Write-Info "Generando certificados de seguridad (SSL) via Docker..."
+        Write-Info "Generando certificados de seguridad (SSL) vía Docker..."
         $certCmd = "run --rm -v `"${PWD}/nginx/certs:/certs`" alpine sh -c `"apk add --no-cache openssl && openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout /certs/local.key -out /certs/local.crt -subj '/CN=localhost'`""
         if (Invoke-Docker $certCmd) {
             Write-Success "Certificados SSL generados correctamente."
         } else {
-            Write-ErrorMsg "Fallo la generacion de certificados SSL."
+            Write-ErrorMsg "Falló la generación de certificados SSL."
         }
     }
 }
@@ -302,6 +464,12 @@ function Create-DesktopShortcut {
                 $Shortcut.IconLocation = $iconPath
             }
             $Shortcut.Save()
+            
+            # Forzar ejecución como administrador inyectando el bit 0x20 en el byte 21 del .lnk
+            $bytes = [System.IO.File]::ReadAllBytes($shortcutPath)
+            $bytes[21] = $bytes[21] -bor 0x20
+            [System.IO.File]::WriteAllBytes($shortcutPath, $bytes)
+
             Write-Success "Acceso directo 'Smart Economato' creado en el Escritorio."
         } catch {
             Write-Warn "No se pudo crear el acceso directo en el escritorio: $($_.Exception.Message)"
@@ -316,9 +484,9 @@ function Ensure-DockerService {
             $dockerSvc = Get-Service -Name "docker" -ErrorAction SilentlyContinue
             if ($null -eq $dockerSvc) {
                 # Probablemente Docker Desktop sin el servicio registrado como 'docker' (comun en instalaciones recientes)
-                # Verificamos si el proceso esta corriendo
+                # Verificamos si el proceso está corriendo
                 if (-not (Get-Process "Docker Desktop" -ErrorAction SilentlyContinue)) {
-                    Write-Warn "Docker Desktop no parece estar ejecutandose. Intentando iniciarlo..."
+                    Write-Warn "Docker Desktop no parece estar ejecutándose. Intentando iniciarlo..."
                     $desktopPath = "${env:ProgramFiles}\Docker\Docker\Docker Desktop.exe"
                     if (Test-Path $desktopPath) {
                         Start-Process $desktopPath
@@ -329,7 +497,7 @@ function Ensure-DockerService {
                             $timeout -= 2
                         }
                     } else {
-                        Write-ErrorMsg "No se encontro el ejecutable de Docker Desktop. Por favor, inicialo manualmente."
+                        Write-ErrorMsg "No se encontró el ejecutable de Docker Desktop. Por favor, inícialo manualmente."
                     }
                 }
             } else {
@@ -346,9 +514,9 @@ function Ensure-DockerService {
             Write-Warn "Hubo un problema al intentar gestionar el servicio Docker: $($_.Exception.Message)"
         }
         
-        # Validacion final
+        # Validación final
         if (-not (Invoke-Docker "version" -Silent)) {
-            Write-ErrorMsg "Docker no esta respondiendo. Asegurate de que Docker Desktop esta abierto y configurado correctamente."
+            Write-ErrorMsg "Docker no está respondiendo. Asegúrate de que Docker Desktop está abierto y configurado correctamente."
             return $false
         }
         return $true
@@ -384,15 +552,22 @@ function Export-ManagedVolumes {
 
     foreach ($vol in $script:ManagedVolumes) {
         $archiveName = "$vol.tar.gz"
-        Write-Info "Copiando volumen: $vol"
-        & docker run --rm -v "${vol}:/volume" -v "${targetDir}:/backup" alpine sh -c "tar -C /volume -czf /backup/$archiveName ." 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) {
+        $success = Show-Spinner "Sincronizando volumen: $vol" {
+            param($p, $args)
+            $v = $args[0]; $t = $args[1]; $an = $args[2]
+            & docker run --rm -v "${v}:/volume" -v "${t}:/backup" alpine sh -c "tar -C /volume -czf /backup/$an ." 2>&1 | Out-Null
+            return ($LASTEXITCODE -eq 0)
+        } $vol, $targetDir, $archiveName
+        
+        if (-not $success) {
             Write-ErrorMsg "No se pudo exportar el volumen $vol."
             return $false
         }
     }
 
-    Set-Content -Path (Join-Path $targetDir "manifest.txt") -Value ($script:ManagedVolumes -join [Environment]::NewLine)
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $manifestContent = "Backup Created: $timestamp" + [Environment]::NewLine + [Environment]::NewLine + "Volumes:" + [Environment]::NewLine + ($script:ManagedVolumes -join [Environment]::NewLine)
+    Set-Content -Path (Join-Path $targetDir "manifest.txt") -Value $manifestContent
     return $true
 }
 
@@ -407,9 +582,14 @@ function Import-ManagedVolumes {
             return $false
         }
 
-        Write-Info "Restaurando volumen: $vol"
-        & docker run --rm -v "${vol}:/volume" -v "${sourceDir}:/backup" alpine sh -c "rm -rf /volume/* /volume/.[!.]* /volume/..?* 2>/dev/null; tar -xzf /backup/$archiveName -C /volume" 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) {
+        $success = Show-Spinner "Restaurando volumen: $vol" {
+            param($p, $args)
+            $v = $args[0]; $s = $args[1]; $an = $args[2]
+            & docker run --rm -v "${v}:/volume" -v "${s}:/backup" alpine sh -c "rm -rf /volume/* /volume/.[!.]* /volume/..?* 2>/dev/null; tar -xzf /backup/$an -C /volume" 2>&1 | Out-Null
+            return ($LASTEXITCODE -eq 0)
+        } $vol, $sourceDir, $archiveName
+
+        if (-not $success) {
             Write-ErrorMsg "No se pudo restaurar el volumen $vol."
             return $false
         }
@@ -427,10 +607,10 @@ function Ensure-ManagedVolumes {
 }
 
 function Configure-System {
-    Write-Header
-    Write-Info "Ejecutando Inicializacion y Despliegue de Auto-Configuracion..."
+    Write-Header -Fast
+    Write-Info "Ejecutando inicialización y despliegue de auto-configuración..."
     
-    # 0. Optimizacion de RAM
+    # 0. Optimización de RAM
     Ensure-WslMemoryLimit
 
     # 1. Dependencias (Solo Docker)
@@ -450,25 +630,25 @@ function Configure-System {
     }
 
     if (-not (Select-String -Path $envPath -Pattern "^SEED_ADMIN_NAME=" -Quiet)) {
-        Write-Host "`n--- Configuracion Inicial ---" -ForegroundColor Cyan
+        Write-Host "`n--- Configuración inicial ---" -ForegroundColor Cyan
         Write-Host " Por favor, rellena los siguientes datos para crear el usuario administrador." -ForegroundColor Gray
         do {
-            $adminName = Read-Host " Nombre Completo (Obligatorio, ej: Jefe de Cocina)"
-            if ([string]::IsNullOrWhiteSpace($adminName)) { Write-Warn "El nombre no puede estar vacio." }
+            $adminName = Read-Host " Nombre completo"
+            if ([string]::IsNullOrWhiteSpace($adminName)) { Write-Warn "El nombre no puede estar vacío." }
         } while ([string]::IsNullOrWhiteSpace($adminName))
         $adminName = Sanitize-EnvValue $adminName
         
         do {
-            $adminUser = Read-Host "Nombre de usuario (Obligatorio, ej: jefe_cocina)"
+            $adminUser = Read-Host " Nombre de usuario"
             if ([string]::IsNullOrWhiteSpace($adminUser)) { Write-Warn "El nombre de usuario no puede estar vacio." }
         } while ([string]::IsNullOrWhiteSpace($adminUser))
         $adminUser = Sanitize-EnvValue $adminUser
         
         do {
-            $adminPass = Read-Host -AsSecureString "Contrasena (obligatoria, minimo 8 caracteres)"
+            $adminPass = Read-Host -AsSecureString " Contrase$([char]0xF1)a"
             $adminPassStr = [System.Net.NetworkCredential]::new("", $adminPass).Password
             if ($adminPassStr.Length -lt 8) {
-                Write-Warn "La contrasena debe tener al menos 8 caracteres."
+                Write-Warn "La contraseña debe tener al menos 8 caracteres."
             }
         } while ($adminPassStr.Length -lt 8)
         $adminPassStr = Sanitize-EnvValue $adminPassStr
@@ -477,7 +657,7 @@ function Configure-System {
         Add-Content -Path $envPath -Value "SEED_ADMIN_USER=`"$adminUser`""
         Add-Content -Path $envPath -Value "SEED_ADMIN_PASSWORD=`"$adminPassStr`""
 
-        # Sincronizar Grafana con el Jefe de Cocina (Capa de abstraccion)
+        # Sincronizar Grafana con el Jefe de Cocina (Capa de abstracción)
         Add-Content -Path $envPath -Value "GRAFANA_USER=`"$adminUser`""
         Add-Content -Path $envPath -Value "GRAFANA_PASSWORD=`"$adminPassStr`""
     }
@@ -489,16 +669,16 @@ function Configure-System {
     Set-EnvSecret $envPath "LEDGER_HMAC_SECRET" 128 $true
     if (-not (Select-String -Path $envPath -Pattern "^JWT_EXPIRATION=" -Quiet)) { Add-Content -Path $envPath -Value "JWT_EXPIRATION=`"86400000`"" }
 
-    # Configuracion de IA (AI NEST)
+    # Configuración de IA (AI NEST)
     Set-EnvSecret $envPath "AI_NEST_SERVICE_KEY" 64 $true
     if (-not (Select-String -Path $envPath -Pattern "^AI_NEST_BASE_URL=" -Quiet)) { Add-Content -Path $envPath -Value "AI_NEST_BASE_URL=`"http://localhost:3001`"" }
     if (-not (Select-String -Path $envPath -Pattern "^AI_NEST_ALLOWED_ORIGIN=" -Quiet)) { Add-Content -Path $envPath -Value "AI_NEST_ALLOWED_ORIGIN=`"http://localhost:3000`"" }
 
-    Write-Success "Las llaves de seguridad y contrasenas se han configurado correctamente."
+    Write-Success "Las llaves de seguridad y contraseñas se han configurado correctamente."
 
-    # 3. Volumenes
+    # 3. Volúmenes
     Ensure-ManagedVolumes
-    Write-Success "Volumenes persistentes mapeados."
+    Write-Success "Volúmenes persistentes mapeados."
 
     # 4. Tarea en Background (Arrancar contenedores junto a Windows)
     if ($script:IsWindowsOS) {
@@ -508,16 +688,17 @@ function Configure-System {
             $action = New-ScheduledTaskAction -Execute "docker" -Argument "compose -f `"$projectRoot/docker-compose.yml`" up -d" -WorkingDirectory "$projectRoot"
             $trigger = New-ScheduledTaskTrigger -AtBoot
             $trigger2 = New-ScheduledTaskTrigger -AtLogOn
-            $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+            $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest
             
             Register-ScheduledTask -TaskName "SmartEconomatoBackend" -Action $action -Trigger @($trigger, $trigger2) -Principal $principal -Description "Arranca los servicios docker de Economato." -Force | Out-Null
             Write-Success "Instalada Tarea de Arranque con Windows Task Scheduler."
         } catch {
-            Write-Warn "No se pudo inyectar el Task Scheduler. Asegurate de ejecutar este panel como Administrador en Produccion."
+            Write-Warn "No se pudo inyectar el Task Scheduler: $($_.Exception.Message)"
+            Write-Warn "Aseg$([char]0xFA)rate de ejecutar este panel como Administrador en Producci$([char]0xF3)n."
         }
     }
 
-    Write-Success "La configuracion inicial se ha completado."
+    Write-Success "La configuración inicial se ha completado."
 }
 
 
@@ -526,18 +707,19 @@ function Configure-System {
 # =============================================================================
 
 function Action-Start {
-    Write-Info "Iniciando Smart Economato. Por favor, espera un momento..."
+    Write-Header -Fast
+    Write-Centered "--- Desplegando Smart Economato ---" "Cyan"
     
-    # Asegurar que los volumenes existen antes de arrancar (Docker Compose los marca como externos)
+    if (Get-IsRunning) {
+        Write-Warn "El sistema ya est$([char]0xE1) encendido y funcionando."
+        return
+    }
+    
+    Write-Info "Preparando entorno, certificados y vol$([char]0xFA)menes..."
     Ensure-ManagedVolumes
-    
-    # Asegurar certificados
     Ensure-Certificates
-
-    # Asegurar que los scripts de inicializacion tienen el formato correcto (LF)
     Fix-ShLineEndings (Join-Path $PWD "postgres-init.sh")
-
-    # Deteccion de puertos interactiva
+    # Detección de puertos interactiva
     $envPath = Join-Path $PWD ".env"
     $p80 = Get-FreePort 80
     $p443 = Get-FreePort 443
@@ -553,7 +735,7 @@ function Action-Start {
     if ($p443 -eq 443) { 
         $httpsPort = 443 
     } else {
-        Write-Warn "El puerto 443 esta ocupado."
+        Write-Warn "El puerto 443 está ocupado."
         $httpsPort = Read-Host "Introduce un puerto alternativo para HTTPS (ej: 3443)"
         if ([string]::IsNullOrWhiteSpace($httpsPort)) { $httpsPort = 3443 }
     }
@@ -568,7 +750,7 @@ function Action-Start {
     $realOrigin = if ($httpsPort -eq 443) { "${protocol}://localhost" } else { "${protocol}://localhost:${httpsPort}" }
     Set-EnvValue $envPath "AI_NEST_ALLOWED_ORIGIN" $realOrigin
     
-    # Tambien setear en el proceso actual
+    # También setear en el proceso actual
     $env:PROXY_HTTP_PORT = $httpPort
     $env:PROXY_HTTPS_PORT = $httpsPort
     $env:NGINX_CONF_PATH = "./nginx/reverse-proxy.template"
@@ -610,41 +792,62 @@ function Action-Start {
 }
 
 function Action-Stop {
-    Write-Info "Apagando el sistema..."
-    if (Invoke-Docker "compose down") {
-        Write-Success "Sistema apagado correctamente."
-    } else {
-        Write-ErrorMsg "Error al apagar el sistema."
+    Write-Header -Fast
+    Write-Centered "--- Apagando Smart Economato ---" "Red"
+    
+    if (-not (Get-IsRunning)) {
+        Write-Warn "El sistema ya est$([char]0xE1) apagado."
+        return
+    }
+
+    Show-Spinner "Deteniendo servicios y liberando recursos" {
+        param($p) cd $p; docker compose down 2>$null
     }
 }
 
 function Action-Restart {
-    Write-Info "Reiniciando Sistema..."
-    Action-Stop
-    Action-Start
+    Write-Header -Fast
+    Write-Centered "--- Reiniciando Smart Economato ---" "Yellow"
+
+    if (-not (Get-IsRunning)) {
+        Write-Info "El sistema estaba apagado. Iniciando de cero..."
+        Action-Start
+        return
+    }
+
+    Show-Spinner "Reiniciando servicios del sistema" {
+        param($p) cd $p; docker compose restart 2>$null
+    }
 }
 
 function Action-Health {
-    Write-Info "Revisando que todo funcione bien..."
+    Write-Header -Fast
+    Write-Centered "--- Diagnóstico de Salud del Sistema ---" "Cyan"
     
-    # Revisar contenedores detenidos y levantarlos automaticamente.
-    $exited = docker compose ps --filter "status=exited" --format "{{.Names}}" 2>$null
-    if ([string]::IsNullOrWhiteSpace($exited)) {
-        Write-Success "Todos los servicios están en ejecucion."
-    } else {
+    # Revisar contenedores detenidos y levantarlos automáticamente.
+    Show-Spinner "Verificando estado de los servicios" {
+        param($p) cd $p; return docker compose ps --filter "status=exited" --format "{{.Names}}" 2>$null
+    } | Set-Variable exited
+    
+    if (-not [string]::IsNullOrWhiteSpace($exited)) {
         Write-Warn "Se ha detectado que algunos servicios se detuvieron:"
         Write-Host $exited -ForegroundColor Yellow
-        Write-Info "Intentando recuperación automatica..."
-        Invoke-Docker "compose up -d" | Out-Null
+        Show-Spinner "Intentando recuperación automática" {
+            param($p) cd $p; docker compose up -d 2>$null
+        }
     }
 
     Write-Info "Escaneando registros en busca de errores recientes..."
-    $errorLogs = docker compose logs --tail=50 2>&1 | Select-String "ERROR", "Critical", "Fatal" -Context 0,1
-    if ($errorLogs) {
-        Write-Warn "Se encontraron posibles errores en los registros de los contenedores:"
-        $errorLogs | ForEach-Object { Write-Host " > $($_.Line)" -ForegroundColor Red }
+    $logs = docker compose logs --tail=15 2>&1
+    if ($logs) {
+        Write-Host "`n--- $([char]0xDA)LTIMOS LOGS DEL SISTEMA ---" -ForegroundColor DarkGray
+        $logs | ForEach-Object { 
+            $line = $_.ToString()
+            $c = if ($line -match "ERROR|Fail|Critical") { "Red" } elseif ($line -match "WARN") { "Yellow" } else { "Gray" }
+            Write-Host " > $line" -ForegroundColor $c 
+        }
     } else {
-        Write-Success "No se detectaron errores criticos en los logs recientes."
+        Write-Success "No se detectaron registros en los contenedores."
     }
 
     Write-Host "`n--- ESTADO ACTUAL DEL SISTEMA ---" -ForegroundColor Cyan
@@ -653,19 +856,26 @@ function Action-Health {
 
 
 function Action-Logs {
-    Write-Info "Abriendo el registro de actividad..."
-    Write-Warn "Para salir de aqui y volver al menu, pulsa CTRL+C."
-    try {
-        docker compose logs --tail=100 -f
-    } catch {}
+    Write-Header -Fast
+    Write-Centered "--- Registro de Actividad en Tiempo Real ---" "Magenta"
+    Write-Warn "Presiona CTRL+C para detener el seguimiento y volver al men$([char]0xFA)."
+    Write-Host "---------------------------------------------------------------" -ForegroundColor Gray
+    
+    # El trap evita que el Ctrl+C detenga el script completo al interrumpir docker logs
+    trap { continue }
+    docker compose logs --tail=50 -f
+    
+    Write-Info "Volviendo al men$([char]0xFA)..."
+    Start-Sleep -Milliseconds 800
 }
 
 function Action-RepairBlockchain {
-    Write-Host "`n--- Reparar el Libro de Movimientos ---" -ForegroundColor DarkYellow
+    Write-Header -Fast
+    Write-Centered "--- Reparar Libro de Movimientos y Stock ---" "DarkYellow"
     Write-Host "Necesitamos confirmar que eres el responsable de cocina." -ForegroundColor White
     
-    $username = Read-Host "Usuario"
-    $password = Read-Host -AsSecureString "Contrasena"
+    $username = Read-Host " Usuario"
+    $password = Read-Host -AsSecureString " Contrase$([char]0xF1)a"
     $passwordStr = [System.Net.NetworkCredential]::new("", $password).Password
 
     # Usar la URL detectada por el sistema
@@ -675,7 +885,7 @@ function Action-RepairBlockchain {
     $baseUrl = if ($port -eq 443) { "${protocol}://${hostName}" } else { "${protocol}://${hostName}:$port" }
 
     Write-Info "Conectando a $baseUrl..."
-    Write-Info "Iniciando sesion..."
+    Write-Info "Iniciando sesión..."
     $body = @{
         name = $username
         password = $passwordStr
@@ -706,7 +916,7 @@ function Action-RepairBlockchain {
         }
         Write-Success "Acceso concedido!"
     } catch {
-        Write-ErrorMsg "El nombre de usuario o la contrasena no son correctos."
+        Write-ErrorMsg "El nombre de usuario o la contraseña no son correctos."
         return
     }
 
@@ -722,21 +932,39 @@ function Action-RepairBlockchain {
             Headers = $headers
             ErrorAction = 'Stop'
         }
-        if ($PSVersionTable.PSVersion.Major -ge 7) { $repairParams['SkipCertificateCheck'] = $true }
+        $rebuildRes = Show-Spinner "Enviando solicitud de reparación al servidor" {
+            param($p, $args)
+            $params = $args[0]
+            try {
+                return Invoke-RestMethod @params
+            } catch { return $false }
+        } $repairParams
 
-        $rebuildRes = Invoke-RestMethod @repairParams
-        Write-Success "El libro de movimientos ha sido reparado con exito."
+        if ($rebuildRes) {
+            Write-Success "El libro de movimientos ha sido reparado con éxito."
+        } else {
+            throw "Error en la respuesta del servidor."
+        }
     } catch {
         Write-ErrorMsg "Fallo al intentar reparar el libro de movimientos."
         Write-Warn $_.Exception.Message
         return
     }
 
-    Write-Success "La operacion de mantenimiento ha finalizado correctamente."
+    Write-Success "La operación de mantenimiento ha finalizado correctamente."
 }
 
 function Action-Backup {
-    Write-Info "Creando copia de seguridad de volumenes Docker..."
+    Write-Header -Fast
+    Write-Centered "--- Crear Copia de Seguridad ---" "Cyan"
+    Write-Warn "Esta acción creará una copia de seguridad de todos los volúmenes de datos."
+    $confirm = Read-Host " Confirmar (Escribe SI)"
+    if ($confirm -ne "SI") {
+        Write-Info "Operación cancelada por el usuario."
+        return
+    }
+
+    Write-Info "Iniciando copia de seguridad de volumenes Docker..."
 
     $backupRoot = Get-VolumeBackupRoot
     $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
@@ -751,50 +979,65 @@ function Action-Backup {
 }
 
 function Action-RestoreBackup {
-    Write-Info "Restaurando backup de volumenes Docker..."
+    Write-Header -Fast
+    Write-Centered "--- Restaurar Copia de Seguridad ---" "Cyan"
+    Write-Info "Buscando archivos de respaldo..."
 
     $backupRoot = Get-VolumeBackupRoot
     $backupDirs = Get-ChildItem -Path $backupRoot -Directory | Sort-Object Name -Descending
     if (-not $backupDirs -or $backupDirs.Count -eq 0) {
-        Write-ErrorMsg "No hay backups de volumenes disponibles."
+        Write-ErrorMsg "No hay backups de volúmenes disponibles."
         return
     }
 
-    Write-Host "`n--- Backups de volumenes disponibles ---" -ForegroundColor Cyan
+    Write-Centered "--- Backups de vol$([char]0xFA)menes disponibles ---" "Cyan"
     for ($i = 0; $i -lt $backupDirs.Count; $i++) {
-        Write-Host (" [" + ($i + 1) + "] " + $backupDirs[$i].Name) -ForegroundColor White
+        $date = $backupDirs[$i].CreationTime.ToString("dd/MM/yyyy HH:mm:ss")
+        $line = " [" + ($i + 1) + "] " + $backupDirs[$i].Name + " ($date)"
+        Write-Centered $line "White"
+    }
+    Write-Centered " [ 0 ] Cancelar y volver" "DarkGray"
+    Write-Host ""
+
+    $p = " " * 33
+    Write-Host ($p + "Selecciona el n$([char]0xFA)mero del backup: ") -NoNewline -ForegroundColor Cyan
+    $selection = Read-Host
+    
+    if ($selection -eq "0" -or [string]::IsNullOrWhiteSpace($selection)) {
+        Write-Info "Operaci$([char]0xF3)n cancelada."
+        return
     }
 
-    $selection = Read-Host "Selecciona el numero del backup a restaurar"
     if (-not ($selection -match '^\d+$')) {
-        Write-ErrorMsg "Selección invalida."
+        Write-ErrorMsg "Selecci$([char]0xF3)n inv$([char]0xE1)lida."
         return
     }
 
     $index = [int]$selection - 1
     if ($index -lt 0 -or $index -ge $backupDirs.Count) {
-        Write-ErrorMsg "Selección fuera de rango."
+        Write-ErrorMsg "Selecci$([char]0xF3)n fuera de rango."
         return
     }
 
     $selectedBackup = $backupDirs[$index]
-    Write-Warn "Se guardara una copia del estado actual y luego se reemplazaran los volumenes por el backup elegido."
-    $confirm = Read-Host "Escribe SI para continuar"
+    Write-Warn "Se guardar$([char]0xE1) una copia del estado actual y luego se reemplazar$([char]0xE1)n los vol$([char]0xFA)menes por el backup elegido."
+    Write-Host " >> Confirmar restauraci$([char]0xF3)n (Escribe SI) " -NoNewline -ForegroundColor White
+    $confirm = Read-Host
     if ($confirm -ne "SI") {
-        Write-Info "Operación cancelada por el usuario."
+        Write-Info "Operaci$([char]0xF3)n cancelada por el usuario."
         return
     }
 
-    Write-Info "Deteniendo servicios para restauracion consistente..."
+    Write-Info "Deteniendo servicios para restauración consistente..."
     if (-not (Invoke-Docker "compose down" -Silent)) {
-        Write-Warn "No se pudo detener completamente Docker Compose. Se intentara continuar."
+        Write-Warn "No se pudo detener completamente Docker Compose. Se intentará continuar."
     }
 
     $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
     $safetyBackup = Join-Path $backupRoot "pre_restore_$timestamp"
     New-Item -Path $safetyBackup -ItemType Directory -Force | Out-Null
 
-    Write-Info "Guardando estado actual de volumenes en: $safetyBackup"
+    Write-Info "Guardando estado actual de volúmenes en: $safetyBackup"
     if (-not (Export-ManagedVolumes $safetyBackup)) {
         Write-ErrorMsg "No se pudo crear la copia de seguridad previa. Restauración cancelada para proteger datos."
         return
@@ -803,7 +1046,7 @@ function Action-RestoreBackup {
     if (Import-ManagedVolumes $selectedBackup.FullName) {
         Write-Success "Backup restaurado correctamente desde: $($selectedBackup.Name)"
     } else {
-        Write-ErrorMsg "Fallo la restauracion de volumenes. El backup previo quedo guardado en: $safetyBackup"
+        Write-ErrorMsg "Falló la restauración de volúmenes. El backup previo quedó guardado en: $safetyBackup"
     }
 
     Write-Info "Arrancando servicios nuevamente..."
@@ -815,11 +1058,65 @@ function Action-RestoreBackup {
 }
 
 function Action-Credits {
-    Write-Host "`n--- Creditos ---" -ForegroundColor Cyan
-    Write-Host "Francisco Airam - Backend e Infraestructura" -ForegroundColor White
-    Write-Host "Javier Remedios - Frontend e Integracion de IA" -ForegroundColor White
-    Write-Host "Lorena Fumero - Maquetacion y UI/UX" -ForegroundColor White
-    Write-Host "Javier Pascual - Apoyo emocional" -ForegroundColor White
+    Write-Header -Fast
+    Write-Centered "--- Equipo de Desarrollo - Smart Economato ---" "Cyan"
+    Write-Host ""
+    
+    $esc = [char]27
+    $members = @(
+        @{ 
+            Name = "Francisco Airam"
+            Role = "Backend, Infraestructura y Despliegue"
+            GH = "https://github.com/FranWDev"
+            LI = "https://www.linkedin.com/in/franciscohdezcrosa"
+        },
+        @{ 
+            Name = "Javier Remedios"
+            Role = "Frontend e Integraci$([char]0xF3)n de IA"
+            GH = "https://github.com/user-ijavieh"
+            LI = $null
+        },
+        @{ 
+            Name = "Lorena Fudel"
+            Role = "Maquetaci$([char]0xF3)n y UI/UX"
+            GH = "https://github.com/lorena-fudel"
+            LI = $null
+        },
+        @{ 
+            Name = "Javier Pascual"
+            Role = "Apoyo emocional"
+            GH = "https://github.com/blablabla277"
+            LI = $null
+        }
+    )
+
+    $padding = " " * 18
+    foreach ($m in ($members | Get-Random -Count $members.Count)) {
+        Write-Host ($padding + " $([char]0xBB) ") -NoNewline -ForegroundColor Gray
+        Write-Host ($m.Name.PadRight(18)) -NoNewline -ForegroundColor Green
+        Write-Host " | " -NoNewline -ForegroundColor DarkGray
+        Write-Host $m.Role -ForegroundColor White
+        
+        Write-Host ($padding + "    ") -NoNewline
+        
+        # Link GitHub (Clickable en terminales modernos)
+        $ghLink = "$esc]8;;$($m.GH)$([char]7)GitHub$esc]8;;$([char]7)"
+        Write-Host "[$ghLink]" -NoNewline -ForegroundColor Cyan
+        
+        Write-Host "  " -NoNewline
+        
+        # Link LinkedIn
+        if ($m.LI) {
+            $liLink = "$esc]8;;$($m.LI)$([char]7)LinkedIn$esc]8;;$([char]7)"
+            Write-Host "[$liLink]" -ForegroundColor Blue
+        } else {
+            Write-Host "[LinkedIn: -]" -ForegroundColor DarkGray
+        }
+        Write-Host ""
+    }
+    
+    Write-Centered "---------------------------------------------------------------" "DarkGray"
+    Write-Centered "Hecho con <3 por el Grupo Turing (IES Domingo P$([char]0xE9)rez Minik)" "White"
 }
 
 # =============================================================================
@@ -847,25 +1144,49 @@ if (Should-Run-Config $envCheckPath) {
     Pause-Execution
 }
 
+$firstLoad = $true
 while ($true) {
-    Write-Header
-    Write-Typewriter '  Acceso rapido al Panel de Control Smart Economato' 5 'Gray'
-    Write-Host ' ---------------------------------------------------------------' -ForegroundColor DarkGray
-    Write-Host ' [ 1 ] ( ) Iniciar Smart Economato' -ForegroundColor Green
-    Write-Host ' [ 2 ] (x) Apagar sistema' -ForegroundColor Red
-    Write-Host ' [ 3 ] (*) Reiniciar sistema' -ForegroundColor Yellow
-    Write-Host ' [ 4 ] (+) Auto-reparar sistema' -ForegroundColor Cyan
-    Write-Host ' [ 5 ] (-) Ver actividad (Logs)' -ForegroundColor Magenta
-    Write-Host ' [ 6 ] (S) Crear copia de seguridad' -ForegroundColor Blue
-    Write-Host ' [ 7 ] (L) Cargar copia de seguridad' -ForegroundColor Blue
-    Write-Host ' [ 8 ] (#) Sincronizar Stock' -ForegroundColor DarkYellow
-    Write-Host ' [ 9 ] (?) Ver creditos' -ForegroundColor White
-    Write-Host ' [ 0 ] [E] Salir' -ForegroundColor DarkGray
-    Write-Host ' ---------------------------------------------------------------' -ForegroundColor Cyan
-    Write-Host ' Hecho por el Grupo Turing del IES Domingo Perez Minik' -ForegroundColor White
-    Write-Host ' ---------------------------------------------------------------' -ForegroundColor Cyan
+    Write-Header -Fast:(-not $firstLoad)
+    $menuTitle = "Acceso r$([char]0xE1)pido al Panel de Control Smart Economato"
+    Write-Typewriter $menuTitle 5 'Gray' -Centered
+    Write-Centered '-------------------------------------------------------------------------------------' 'DarkGray'
     
-    $choice = Read-Host ' >> Selecciona una accion'
+    $menuWidth = 40
+    $p = " " * [Math]::Max(0, [Math]::Floor((105 - $menuWidth) / 2))
+    
+    $options = @(
+        @{ t = "[ 1 ]  Iniciar Smart Economato"; c = "Green" },
+        @{ t = "[ 2 ]  Apagar sistema"; c = "Red" },
+        @{ t = "[ 3 ]  Reiniciar sistema"; c = "Yellow" },
+        @{ t = "[ 4 ]  Auto-reparar sistema"; c = "Cyan" },
+        @{ t = "[ 5 ]  Ver actividad (Logs)"; c = "Magenta" },
+        @{ t = "[ 6 ]  Crear copia de seguridad"; c = "Blue" },
+        @{ t = "[ 7 ]  Cargar copia de seguridad"; c = "Blue" },
+        @{ t = "[ 8 ]  Sincronizar stock"; c = "DarkYellow" },
+        @{ t = "[ 9 ]  Ver cr$([char]0xE9)ditos"; c = "White" },
+        @{ t = "[ 0 ]  Salir"; c = "DarkGray" }
+    )
+
+    foreach ($opt in $options) {
+        Write-Host ($p + $opt.t) -ForegroundColor $opt.c
+        if ($firstLoad) { Start-Sleep -Milliseconds 40 }
+    }
+    
+    Write-Centered '-------------------------------------------------------------------------------------' 'Cyan'
+    $footer = "Hecho por el Grupo Turing del IES Domingo P$([char]0xE9)rez Minik"
+    Write-Centered $footer 'White'
+    Write-Centered '-------------------------------------------------------------------------------------' 'Cyan'
+    Write-Host ""
+    
+    $firstLoad = $false
+    $prompt = " >> Selecciona una acci$([char]0xF3)n: "
+    Write-Host $prompt -NoNewline -ForegroundColor White
+    $choice = Read-Host
+    
+    if ($choice -ne "5" -and $choice -ne "0") {
+        # Para cualquier accion que no sea salir o ver logs, forzamos que el banner no re-anime al volver
+        # Pero el usuario dice "al cambiar de seccion", asi que lo seteamos aqui
+    }
     
     switch ($choice) {
         '1' { Action-Start; Pause-Execution }
@@ -877,7 +1198,7 @@ while ($true) {
         '7' { Action-RestoreBackup; Pause-Execution }
         '8' { Action-RepairBlockchain; Pause-Execution }
         '9' { Action-Credits; Pause-Execution }
-        '0' { Write-Host 'Saliendo del Panel de Control... Ciao!'; exit }
-        default { Write-ErrorMsg 'Opcion invalida.' }
+        '0' { Write-Host "Saliendo del Panel de Control... $([char]0xA1)Ciao!"; exit }
+        default { Write-ErrorMsg "Opci$([char]0xF3)n inv$([char]0xE1)lida." }
     }
 }
