@@ -127,7 +127,7 @@ public class NestStreamBridgeService {
                     if (line.startsWith("event:")) {
                         currentEvent = line.substring(6).trim();
                     } else if (line.startsWith("data:")) {
-                        if (!dataBuffer.isEmpty()) {
+                        if (dataBuffer.length() > 0) {
                             dataBuffer.append('\n');
                         }
                         String rawData = line.substring(5);
@@ -136,11 +136,16 @@ public class NestStreamBridgeService {
                         }
                         dataBuffer.append(rawData);
                     } else if (line.isBlank()) {
-                        if (currentEvent != null) {
-                            NestStreamEvent event = parseEvent(currentEvent, dataBuffer.toString());
+                        String eventType = (currentEvent != null && !currentEvent.isBlank()) ? currentEvent : EVENT_TOKEN;
+                        
+                        if (currentEvent != null || dataBuffer.length() > 0) {
+                            String rawDataStr = dataBuffer.toString();
+                            NestStreamEvent event = parseEvent(eventType, rawDataStr);
+                            
                             if (EVENT_TOKEN.equals(event.type())) {
-                                String token = event.data() != null ? event.data() : "";
-                                emitter.send(SseEmitter.event().name(EVENT_TOKEN).data(token, MediaType.TEXT_PLAIN));
+                                // Important: Forward the raw data received from upstream to avoid double-encoding 
+                                // or stripping issues that break the client.
+                                emitter.send(SseEmitter.event().name(EVENT_TOKEN).data(rawDataStr, MediaType.TEXT_PLAIN));
                             } else if (EVENT_DONE.equals(event.type())) {
                                 fullResponse = event.fullResponse();
                                 inputTokens = event.inputTokens();
@@ -158,24 +163,21 @@ public class NestStreamBridgeService {
                                         .eventTimestamp(LocalDateTime.now())
                                         .build());
                                 log.debug("Nest tool call received: tool={}, provider={}", toolName, request.provider());
-                                // Forward tool_called event to frontend
                                 emitter.send(SseEmitter.event().name("tool_called")
                                         .data(objectMapper.writeValueAsString(java.util.Map.of("toolName", toolName)), MediaType.APPLICATION_JSON));
                                 toolCalls.add(new ToolCallInfo(toolName, null, null));
                             } else if (EVENT_THINKING.equals(event.type()) || EVENT_THINKING_DELTA.equals(event.type())) {
-                                String thinkingChunk = event.data() != null ? event.data() : "";
-                                thinkingBuffer.append(thinkingChunk);
-                                emitter.send(SseEmitter.event().name("thinking").data(thinkingChunk, MediaType.TEXT_PLAIN));
+                                // Preserve DB accumulation but forward raw payload
+                                thinkingBuffer.append(event.data() != null ? event.data() : "");
+                                emitter.send(SseEmitter.event().name("thinking").data(rawDataStr, MediaType.TEXT_PLAIN));
                                 log.debug("Nest thinking received: provider={}", request.provider());
                                 counter("ai.nest.stream.thinking.events").increment();
                             } else if (EVENT_TOOL_RESULT.equals(event.type())) {
-                                String resultData = event.data() != null ? event.data() : "";
-                                emitter.send(SseEmitter.event().name("tool_result").data(resultData, MediaType.TEXT_PLAIN));
-                                // Update the last tool call with the result
+                                emitter.send(SseEmitter.event().name("tool_result").data(rawDataStr, MediaType.TEXT_PLAIN));
                                 if (!toolCalls.isEmpty()) {
                                     int lastIndex = toolCalls.size() - 1;
                                     ToolCallInfo lastTool = toolCalls.get(lastIndex);
-                                    toolCalls.set(lastIndex, new ToolCallInfo(lastTool.toolName(), lastTool.toolCallId(), resultData));
+                                    toolCalls.set(lastIndex, new ToolCallInfo(lastTool.toolName(), lastTool.toolCallId(), event.data()));
                                 }
                             } else if (EVENT_ERROR.equals(event.type())) {
                                 String message = event.data() != null ? event.data() : i18nService.getMessage(MessageKey.ERROR_AI_STREAM_UNKNOWN);
