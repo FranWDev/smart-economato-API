@@ -52,7 +52,7 @@ public class RecipeAllergenController {
         return recipeAllergenService.save(recipeAllergen);
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar una relación receta-alérgeno por ID", description = "Elimina la asociación entre una receta y un alérgeno específico. [Rol requerido: ADMIN]")
     @ApiResponses({

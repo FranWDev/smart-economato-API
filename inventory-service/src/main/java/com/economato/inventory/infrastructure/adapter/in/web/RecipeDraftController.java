@@ -34,14 +34,14 @@ public class RecipeDraftController {
 
     private final RecipeDraftService recipeDraftService;
 
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @PostMapping
     @Operation(summary = "Crear borrador de receta")
     public ResponseEntity<RecipeDraftResponseDTO> create(@Valid @RequestBody RecipeDraftRequestDTO request) {
         return ResponseEntity.status(201).body(recipeDraftService.createDraft(request));
     }
 
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @PutMapping("/{id}")
     @Operation(summary = "Actualizar borrador de receta")
     public ResponseEntity<RecipeDraftResponseDTO> update(@PathVariable Integer id,
@@ -49,7 +49,7 @@ public class RecipeDraftController {
         return ResponseEntity.ok(recipeDraftService.updateDraft(id, request));
     }
 
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar borrador de receta")
     public ResponseEntity<Void> delete(@PathVariable Integer id) {
@@ -69,7 +69,7 @@ public class RecipeDraftController {
         return ResponseEntity.ok(recipeDraftService.findAll(pageable));
     }
 
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @GetMapping("/mine")
     @Operation(summary = "Listar mis borradores")
     public ResponseEntity<Page<RecipeDraftResponseDTO>> mine(Pageable pageable) {
@@ -83,14 +83,14 @@ public class RecipeDraftController {
         return ResponseEntity.ok(recipeDraftService.findById(id));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @PatchMapping("/{id}/approve")
     @Operation(summary = "Aprobar borrador de receta")
     public ResponseEntity<RecipeDraftResponseDTO> approve(@PathVariable Integer id) {
         return ResponseEntity.ok(recipeDraftService.approveDraft(id));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
     @PatchMapping("/{id}/reject")
     @Operation(summary = "Rechazar borrador de receta")
     public ResponseEntity<RecipeDraftResponseDTO> reject(

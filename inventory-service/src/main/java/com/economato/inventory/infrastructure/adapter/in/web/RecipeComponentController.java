@@ -104,7 +104,7 @@ public class RecipeComponentController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar componente", description = "Elimina un componente de receta por su ID. [Rol requerido: ADMIN]")
     @ApiResponses({

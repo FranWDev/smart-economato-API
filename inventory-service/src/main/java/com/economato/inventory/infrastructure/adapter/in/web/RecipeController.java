@@ -101,7 +101,7 @@ public class RecipeController {
                                 .orElse(ResponseEntity.notFound().build());
         }
 
-        @PreAuthorize("hasRole('ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @DeleteMapping("/{id}")
         @Deprecated(since = "2026-03", forRemoval = false)
         @Operation(summary = "Eliminar receta", description = "Elimina una receta. [Rol requerido: ADMIN]", deprecated = true)
@@ -119,7 +119,7 @@ public class RecipeController {
                                 .orElse(ResponseEntity.notFound().build());
         }
 
-        @PreAuthorize("hasRole('ADMIN')")
+        @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
         @Operation(summary = "Obtener recetas ocultas", description = "Devuelve las recetas que están ocultas. [Rol requerido: ADMIN]")
         @ApiResponse(responseCode = "200", description = "Lista de recetas encontradas", content = @Content(mediaType = "application/json", schema = @Schema(implementation = RecipeResponseDTO.class)))
         @GetMapping("/hidden")
