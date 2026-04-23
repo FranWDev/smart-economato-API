@@ -3,8 +3,19 @@
 Smart Economato - Panel de Control & Instalador para Windows Server
 #>
 
-$ErrorActionPreference = "Stop" # Comportamiento más estricto para producción
+$ErrorActionPreference = "Continue" # Evitar que avisos menores cierren el script automáticamente 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+# Atrapador de errores global para evitar que la ventana se cierre sin aviso
+trap {
+    Write-Host "`n===============================================================" -ForegroundColor Red
+    Write-Host " [ ERROR FATAL DEL SISTEMA ] " -ForegroundColor Red
+    Write-Host " Mensaje: $($_.Exception.Message)" -ForegroundColor White
+    Write-Host " Línea: $($_.InvocationInfo.ScriptLineNumber)" -ForegroundColor Gray
+    Write-Host "===============================================================`n" -ForegroundColor Red
+    Read-Host "Presiona ENTER para cerrar..."
+    exit 1
+}
 
 # Forzar colores de terminal (Fondo negro, letras blancas) para estética profesional
 try {
@@ -210,9 +221,9 @@ function Write-Typewriter {
 function Show-Spinner {
     param([string]$msg, [scriptblock]$action, [array]$ArgsList = @())
     $chars = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-    $job = Start-Job -ScriptBlock $action -ArgumentList @($PWD, $ArgsList)
+    $job = Start-Job -ScriptBlock $action -ArgumentList (@($PWD) + $ArgsList)
     
-    $prefix = "[ .... ] "
+    $prefix = "[  ....  ] "
     Write-Host $prefix -NoNewline -ForegroundColor Cyan
     Write-Host $msg -NoNewline -ForegroundColor White
     
@@ -220,26 +231,24 @@ function Show-Spinner {
     while ($job.State -eq 'Running') {
         # Devolver el cursor al inicio de la línea (utilizando retorno de carro \r)
         Write-Host "`r" -NoNewline
-        Write-Host "[" -NoNewline -ForegroundColor Cyan
-        Write-Host " " -NoNewline
+        Write-Host "[   " -NoNewline -ForegroundColor Cyan
         Write-Host $chars[$i % $chars.Length] -NoNewline -ForegroundColor Yellow
-        Write-Host " " -NoNewline
-        Write-Host " ] " -NoNewline -ForegroundColor Cyan
+        Write-Host "    ] " -NoNewline -ForegroundColor Cyan
         Write-Host $msg -NoNewline -ForegroundColor White
         $i++
         Start-Sleep -Milliseconds 80
     }
     
     $result = Receive-Job -Job $job -Wait
-    $success = $job.ChildJobs[0].Error.Count -eq 0 -and $null -ne $result -and $result -ne $false
+    $success = ($job.ChildJobs[0].Error.Count -eq 0)
     
     Write-Host "`r" -NoNewline
     if ($success) {
-        Write-Host "[  OK  ] " -NoNewline -ForegroundColor Green
+        Write-Host "[  DONE  ] " -NoNewline -ForegroundColor Green
     } else {
-        Write-Host "[ FAIL ] " -NoNewline -ForegroundColor Red
+        Write-Host "[ ERROR  ] " -NoNewline -ForegroundColor Red
     }
-    Write-Host "$msg               " -ForegroundColor White
+    Write-Host "$msg                   " -ForegroundColor White
     
     Remove-Job $job
     return $result
@@ -249,6 +258,12 @@ $script:LogFile = Join-Path $PWD "smart-economato.log"
 
 function Write-Log {
     param([string]$level, [string]$msg)
+    if (Test-Path $script:LogFile) {
+        $fileInfo = Get-Item $script:LogFile
+        if ($fileInfo.Length -gt 10MB) {
+            Rename-Item -Path $script:LogFile -NewName "$($script:LogFile).old" -Force
+        }
+    }
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Add-Content -Path $script:LogFile -Value "[$timestamp] [$level] $msg" -ErrorAction SilentlyContinue
 }
@@ -363,14 +378,58 @@ function Get-FreePort {
 }
 
 function Get-IsRunning {
-    # Verificar si hay contenedores del proyecto en ejecución
-    $running = docker compose ps --filter "status=running" --quiet 2>$null
-    return ($null -ne $running -and $running.Length -gt 0)
+    try {
+        # Verificar si hay contenedores del proyecto en ejecución
+        $running = docker compose -p smart-economato-api ps --filter "status=running" --quiet 2>$null
+        if ($null -eq $running) { return $false }
+        if ($running -is [array]) { return $running.Count -gt 0 }
+        return ([string]::IsNullOrWhiteSpace($running) -eq $false)
+    } catch {
+        return $false
+    }
 }
 
 # =============================================================================
 # FUNCIONES PRINCIPALES DEL SISTEMA
 # =============================================================================
+
+function Ensure-HardwareRequirements {
+    Write-Info "Verificando requisitos de hardware..."
+    # Memoria RAM
+    if ($script:IsWindowsOS) {
+        try {
+            $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+            $freeRamGB = [math]::Round($os.FreePhysicalMemory / 1024 / 1024, 2)
+            $totalRamGB = [math]::Round($os.TotalVisibleMemorySize / 1024 / 1024, 2)
+            
+            if ($freeRamGB -lt 4) {
+                Write-Warn "Poca memoria RAM libre ($freeRamGB GB). Docker y los contenedores podrían fallar."
+            } elseif ($freeRamGB -lt 8) {
+                Write-Info "RAM libre: $freeRamGB GB / $totalRamGB GB."
+            } else {
+                Write-Success "RAM libre: $freeRamGB GB."
+            }
+        } catch {
+            Write-Warn "No se pudo verificar la memoria RAM."
+        }
+    }
+
+    # Espacio en disco
+    try {
+        $drivePath = (Split-Path -Path $PWD -Qualifier)
+        if (-not $drivePath) { $drivePath = "C:" }
+        $drive = Get-PSDrive -Name $drivePath.Trim(':') -ErrorAction Stop
+        $freeSpaceGB = [math]::Round($drive.Free / 1GB, 2)
+        
+        if ($freeSpaceGB -lt 10) {
+            Write-Warn "Poco espacio en disco ($freeSpaceGB GB disponibles). Asegúrate de tener suficiente para imágenes de Docker y DB."
+        } else {
+            Write-Success "Espacio en disco: $freeSpaceGB GB disponibles."
+        }
+    } catch {
+        Write-Warn "No se pudo verificar el espacio libre en disco."
+    }
+}
 
 function Ensure-WslMemoryLimit {
     if ($script:IsWindowsOS) {
@@ -448,32 +507,30 @@ function Fix-ShLineEndings {
 }
 
 function Create-DesktopShortcut {
-    if ($script:IsWindowsOS) {
-        $desktopPath = [Environment]::GetFolderPath('Desktop')
-        $shortcutPath = Join-Path $desktopPath "Smart Economato.lnk"
-        $iconPath = Join-Path $PWD "frontend-service\src\assets\img\logo-candelaria-new-sin-fondo.png"
+    try {
+        $desktop = [Environment]::GetFolderPath('Desktop')
+        $shortcutPath = Join-Path $desktop "Smart Economato.lnk"
         
-        try {
-            $WshShell = New-Object -ComObject WScript.Shell
-            $Shortcut = $WshShell.CreateShortcut($shortcutPath)
-            $Shortcut.TargetPath = "powershell.exe"
-            $Shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Normal -File `"$PWD\install.ps1`""
-            $Shortcut.WorkingDirectory = $PWD.Path
-            $Shortcut.Description = "Panel de Control de Smart Economato"
-            if (Test-Path $iconPath) {
-                $Shortcut.IconLocation = $iconPath
-            }
-            $Shortcut.Save()
-            
-            # Forzar ejecución como administrador inyectando el bit 0x20 en el byte 21 del .lnk
-            $bytes = [System.IO.File]::ReadAllBytes($shortcutPath)
-            $bytes[21] = $bytes[21] -bor 0x20
-            [System.IO.File]::WriteAllBytes($shortcutPath, $bytes)
-
-            Write-Success "Acceso directo 'Smart Economato' creado en el Escritorio."
-        } catch {
-            Write-Warn "No se pudo crear el acceso directo en el escritorio: $($_.Exception.Message)"
+        # 1. Intentar buscar el favicon del proyecto
+        $iconPath = Join-Path $PWD "frontend\public\favicon.ico"
+        
+        $ws = New-Object -ComObject WScript.Shell
+        $sc = $ws.CreateShortcut($shortcutPath)
+        $sc.TargetPath = "https://smart-economato"
+        $sc.Description = "Acceso r$([char]0xE1)pido a Smart Economato"
+        
+        # 2. Asignar icono (Favicon local o Globo de red del sistema)
+        if (Test-Path $iconPath) {
+            $sc.IconLocation = $iconPath
+        } else {
+            # Icono 13 de shell32.dll es el globo terr$([char]0xE1)queo de red
+            $sc.IconLocation = "shell32.dll, 13"
         }
+        
+        $sc.Save()
+        Write-Success "Acceso directo 'Smart Economato' creado en el escritorio con su logo."
+    } catch {
+        Write-Warn "No se pudo crear el acceso directo en el escritorio."
     }
 }
 
@@ -483,40 +540,34 @@ function Ensure-DockerService {
         try {
             $dockerSvc = Get-Service -Name "docker" -ErrorAction SilentlyContinue
             if ($null -eq $dockerSvc) {
-                # Probablemente Docker Desktop sin el servicio registrado como 'docker' (comun en instalaciones recientes)
-                # Verificamos si el proceso está corriendo
+                # Docker Desktop sin el servicio registrado como 'docker'
                 if (-not (Get-Process "Docker Desktop" -ErrorAction SilentlyContinue)) {
                     Write-Warn "Docker Desktop no parece estar ejecutándose. Intentando iniciarlo..."
                     $desktopPath = "${env:ProgramFiles}\Docker\Docker\Docker Desktop.exe"
                     if (Test-Path $desktopPath) {
                         Start-Process $desktopPath
-                        Write-Info "Esperando a que Docker se inicie (esto puede tardar 1-2 minutos)..."
+                        Write-Info "Esperando a que Docker se inicie..."
                         $timeout = 60
                         while (-not (Invoke-Docker "version" -Silent) -and $timeout -gt 0) {
                             Start-Sleep -Seconds 2
                             $timeout -= 2
                         }
                     } else {
-                        Write-ErrorMsg "No se encontró el ejecutable de Docker Desktop. Por favor, inícialo manualmente."
+                        Write-ErrorMsg "No se encontró el ejecutable de Docker Desktop."
                     }
                 }
             } else {
-                if ($dockerSvc.StartType -ne 'Automatic') {
-                    Set-Service -Name "docker" -StartupType Automatic
-                    Write-Success "Servicio Docker configurado para Auto-Arranque."
-                }
                 if ($dockerSvc.Status -ne 'Running') {
                     Start-Service -Name "docker"
                     Write-Success "Servicio Docker iniciado."
                 }
             }
         } catch {
-            Write-Warn "Hubo un problema al intentar gestionar el servicio Docker: $($_.Exception.Message)"
+            Write-Warn "Problema al gestionar Docker: $($_.Exception.Message)"
         }
         
-        # Validación final
         if (-not (Invoke-Docker "version" -Silent)) {
-            Write-ErrorMsg "Docker no está respondiendo. Asegúrate de que Docker Desktop está abierto y configurado correctamente."
+            Write-ErrorMsg "Docker no está respondiendo correctamente."
             return $false
         }
         return $true
@@ -524,15 +575,17 @@ function Ensure-DockerService {
     return $true
 }
 
+$script:ProjectName = "turing-backend"
+
 $script:ManagedVolumes = @(
-    "turing-backend_postgres-data",
-    "turing-backend_postgres-replica-data",
-    "turing-backend_redis-data",
-    "turing-backend_kafka-data",
-    "turing-backend_prometheus-data",
-    "turing-backend_grafana-data",
-    "turing-backend_predictor-outbox-data",
-    "turing-backend_uploads-data"
+    "${script:ProjectName}_postgres-data",
+    "${script:ProjectName}_postgres-replica-data",
+    "${script:ProjectName}_redis-data",
+    "${script:ProjectName}_kafka-data",
+    "${script:ProjectName}_prometheus-data",
+    "${script:ProjectName}_grafana-data",
+    "${script:ProjectName}_predictor-outbox-data",
+    "${script:ProjectName}_uploads-data"
 )
 
 function Get-VolumeBackupRoot {
@@ -553,11 +606,13 @@ function Export-ManagedVolumes {
     foreach ($vol in $script:ManagedVolumes) {
         $archiveName = "$vol.tar.gz"
         $success = Show-Spinner "Sincronizando volumen: $vol" {
-            param($p, $args)
-            $v = $args[0]; $t = $args[1]; $an = $args[2]
-            & docker run --rm -v "${v}:/volume" -v "${t}:/backup" alpine sh -c "tar -C /volume -czf /backup/$an ." 2>&1 | Out-Null
-            return ($LASTEXITCODE -eq 0)
-        } $vol, $targetDir, $archiveName
+            param($p, $v, $a, $targetPath)
+            $t = $targetPath -replace '\\', '/'
+            
+            $dockerArgs = @("run", "--rm", "-v", "${v}:/source", "-v", "${t}:/backup", "alpine", "tar", "czf", "/backup/${a}", "-C", "/source", ".")
+            $process = Start-Process docker -ArgumentList $dockerArgs -NoNewWindow -Wait -PassThru -ErrorAction SilentlyContinue
+            return ($process.ExitCode -eq 0)
+        } -ArgsList @($vol, $archiveName, $targetDir)
         
         if (-not $success) {
             Write-ErrorMsg "No se pudo exportar el volumen $vol."
@@ -583,11 +638,14 @@ function Import-ManagedVolumes {
         }
 
         $success = Show-Spinner "Restaurando volumen: $vol" {
-            param($p, $args)
-            $v = $args[0]; $s = $args[1]; $an = $args[2]
-            & docker run --rm -v "${v}:/volume" -v "${s}:/backup" alpine sh -c "rm -rf /volume/* /volume/.[!.]* /volume/..?* 2>/dev/null; tar -xzf /backup/$an -C /volume" 2>&1 | Out-Null
-            return ($LASTEXITCODE -eq 0)
-        } $vol, $sourceDir, $archiveName
+            param($p, $v, $sourcePath, $a)
+            $s = ($sourcePath -replace '\\', '/')
+            
+            # Comando directo sin arrays intermedios para evitar problemas de escape
+            $cmd = "run --rm -v ${v}:/dest -v ${s}:/backup alpine sh -c `"rm -rf /dest/* 2>/dev/null; tar xzf /backup/${a} -C /dest`""
+            $process = Start-Process docker -ArgumentList $cmd -NoNewWindow -Wait -PassThru -ErrorAction SilentlyContinue
+            return ($process.ExitCode -eq 0)
+        } -ArgsList @($vol, $sourceDir, $archiveName)
 
         if (-not $success) {
             Write-ErrorMsg "No se pudo restaurar el volumen $vol."
@@ -610,6 +668,8 @@ function Configure-System {
     Write-Header -Fast
     Write-Info "Ejecutando inicialización y despliegue de auto-configuración..."
     
+    Ensure-HardwareRequirements
+
     # 0. Optimización de RAM
     Ensure-WslMemoryLimit
 
@@ -686,7 +746,7 @@ function Configure-System {
             # Se requiere Administrador
             $projectRoot = (Resolve-Path $PSScriptRoot).Path
             $action = New-ScheduledTaskAction -Execute "docker" -Argument "compose -f `"$projectRoot/docker-compose.yml`" up -d" -WorkingDirectory "$projectRoot"
-            $trigger = New-ScheduledTaskTrigger -AtBoot
+            $trigger = New-ScheduledTaskTrigger -AtStartup
             $trigger2 = New-ScheduledTaskTrigger -AtLogOn
             $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest
             
@@ -758,13 +818,63 @@ function Action-Start {
 
     Write-Info "Desplegando contenedores Docker. Esto puede tardar varios minutos..."
     Write-Host "---------------------------------------------------------------" -ForegroundColor Gray
-    & docker compose up -d --build --wait
+    & docker compose -p smart-economato-api up -d --build --wait
     $success = ($LASTEXITCODE -eq 0)
     Write-Host "---------------------------------------------------------------" -ForegroundColor Gray
 
     if ($success) {
         Write-Success "Sistema encendido!"
         
+        # ---------------------------------------------------------
+        # Insercion de productos en el primer despliegue
+        # ---------------------------------------------------------
+        if ((Test-Path "productos.sql") -and -not (Test-Path ".db_initialized")) {
+            Write-Info "Primer despliegue detectado. Esperando inicialización de tablas por el backend..."
+            
+            # Obtener variables del .env de forma robusta
+            $envLines = Get-Content $envPath
+            $dbName = ($envLines | Where-Object { $_ -match "^POSTGRES_DB=" } | Select-Object -First 1)
+            $dbUser = ($envLines | Where-Object { $_ -match "^POSTGRES_USER=" } | Select-Object -First 1)
+
+            if ($dbName -match "=(.*)") { $dbName = $matches[1] -replace '"', '' }
+            if ($dbUser -match "=(.*)") { $dbUser = $matches[1] -replace '"', '' }
+            
+            if ([string]::IsNullOrWhiteSpace($dbName) -or [string]::IsNullOrWhiteSpace($dbUser)) {
+                Write-Warn "No se pudieron extraer las credenciales del .env. Se omitirá la carga de productos."
+            } else {
+                $timeout = 180
+                $tableExists = $false
+                while ($timeout -gt 0 -and -not $tableExists) {
+                    try {
+                        $result = docker exec -i inventory-postgres psql -U $dbUser -d $dbName -tAc "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'product');" 2>$null
+                        if ($result -match "t") {
+                            $tableExists = $true
+                        }
+                    } catch {}
+                    
+                    if (-not $tableExists) {
+                        Start-Sleep -Seconds 5
+                        $timeout -= 5
+                    }
+                }
+
+                if ($tableExists) {
+                    Write-Info "Tablas listas. Insertando catálogo de productos inicial..."
+                    cmd.exe /c "docker exec -i inventory-postgres psql -U $dbUser -d $dbName -q < productos.sql"
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Success "Catálogo de productos insertado correctamente."
+                        New-Item -ItemType File -Path ".db_initialized" -Force | Out-Null
+                    } else {
+                        Write-Warn "No se pudo insertar el SQL (Error de psql). El sistema seguirá funcionando pero sin datos iniciales."
+                    }
+                } else {
+                    Write-Warn "Tiempo agotado esperando al backend. No se cargaron los productos iniciales."
+                }
+            }
+        }
+        # ---------------------------------------------------------
+
+
         $localIp = Get-LocalIP
         
         $localUrl = if ($env:PROXY_HTTPS_PORT -eq 443) { "${protocol}://localhost" } else { "${protocol}://localhost:$($env:PROXY_HTTPS_PORT)" }
@@ -801,7 +911,7 @@ function Action-Stop {
     }
 
     Show-Spinner "Deteniendo servicios y liberando recursos" {
-        param($p) cd $p; docker compose down 2>$null
+        param($p) cd $p; docker compose -p smart-economato-api down 2>$null
     }
 }
 
@@ -816,7 +926,7 @@ function Action-Restart {
     }
 
     Show-Spinner "Reiniciando servicios del sistema" {
-        param($p) cd $p; docker compose restart 2>$null
+        param($p) cd $p; docker compose -p smart-economato-api restart 2>$null
     }
 }
 
@@ -826,19 +936,19 @@ function Action-Health {
     
     # Revisar contenedores detenidos y levantarlos automáticamente.
     Show-Spinner "Verificando estado de los servicios" {
-        param($p) cd $p; return docker compose ps --filter "status=exited" --format "{{.Names}}" 2>$null
+        param($p) cd $p; return docker compose -p smart-economato-api ps --filter "status=exited" --format "{{.Names}}" 2>$null
     } | Set-Variable exited
     
     if (-not [string]::IsNullOrWhiteSpace($exited)) {
         Write-Warn "Se ha detectado que algunos servicios se detuvieron:"
         Write-Host $exited -ForegroundColor Yellow
         Show-Spinner "Intentando recuperación automática" {
-            param($p) cd $p; docker compose up -d 2>$null
+            param($p) cd $p; docker compose -p smart-economato-api up -d 2>$null
         }
     }
 
     Write-Info "Escaneando registros en busca de errores recientes..."
-    $logs = docker compose logs --tail=15 2>&1
+    $logs = docker compose -p smart-economato-api logs --tail=15 2>&1
     if ($logs) {
         Write-Host "`n--- $([char]0xDA)LTIMOS LOGS DEL SISTEMA ---" -ForegroundColor DarkGray
         $logs | ForEach-Object { 
@@ -851,7 +961,41 @@ function Action-Health {
     }
 
     Write-Host "`n--- ESTADO ACTUAL DEL SISTEMA ---" -ForegroundColor Cyan
-    docker compose ps
+    docker compose -p smart-economato-api ps
+    
+    Write-Info "Verificando disponibilidad de la API del Backend (Healthcheck Externo)..."
+    $healthStatus = docker inspect --format='{{.State.Health.Status}}' inventory-backend 2>$null
+    if ($healthStatus -eq "healthy") {
+        Write-Success "El servicio interno (Backend API) responde correctamente."
+    } elseif ($healthStatus -eq "starting") {
+        Write-Info "El servicio interno (Backend API) todavía se está iniciando..."
+    } else {
+        Write-Warn "El contenedor del backend está corriendo pero el servicio interno no reporta salud correcta ($healthStatus)."
+        Write-Warn "Sugerencia: Usa la opción de 'Auto-reparar', 'Reiniciar' o revisa los logs."
+    }
+}
+
+function Action-Panic {
+    Write-Header -Fast
+    Write-Centered "--- Limpieza Profunda de Docker ---" "Red"
+    Write-Warn "Esta acci$([char]0xF3)n detendr$([char]0xE1) el sistema temporalmente para eliminar im$([char]0xE1)genes obsoletas, contenedores parados y cach$([char]0xE9) de compilaci$([char]0xF3)n."
+    Write-Host "Los datos de la base de datos (vol$([char]0xFA)menes persistentes) NO se eliminar$([char]0xE1)n, pero es una operaci$([char]0xF3)n destructiva de entorno." -ForegroundColor Yellow
+    
+    $confirm = Read-Host "`n  $([char]0xBF)Est$([char]0xE1)s seguro de que quieres continuar? (S/N)"
+    if ($confirm -match "^[SsYy]$") {
+        Write-Info "Deteniendo servicios en curso..."
+        docker compose -p smart-economato-api down 2>$null
+        
+        Write-Info "Iniciando purga de Docker (docker system prune -f)..."
+        docker system prune -f
+        
+        Write-Info "Iniciando limpieza de cach$([char]0xE9) de compilaci$([char]0xF3)n (docker builder prune -f)..."
+        docker builder prune -f
+        
+        Write-Success "Limpieza completada."
+    } else {
+        Write-Info "Operaci$([char]0xF3)n cancelada."
+    }
 }
 
 
@@ -863,7 +1007,7 @@ function Action-Logs {
     
     # El trap evita que el Ctrl+C detenga el script completo al interrumpir docker logs
     trap { continue }
-    docker compose logs --tail=50 -f
+    docker compose -p smart-economato-api logs --tail=50 -f
     
     Write-Info "Volviendo al men$([char]0xFA)..."
     Start-Sleep -Milliseconds 800
@@ -930,29 +1074,29 @@ function Action-RepairBlockchain {
             Uri = "$baseUrl/api/admin/blockchain/rebuild-all"
             Method = 'Post'
             Headers = $headers
-            ErrorAction = 'Stop'
         }
-        $rebuildRes = Show-Spinner "Enviando solicitud de reparación al servidor" {
-            param($p, $args)
-            $params = $args[0]
-            try {
-                return Invoke-RestMethod @params
-            } catch { return $false }
-        } $repairParams
+        
+        # Ejecutar directamente sin Spinner para evitar problemas de ambito (scope)
+        Write-Info "Enviando solicitud de reparaci$([char]0xF3)n al servidor..."
+        $rebuildRes = Invoke-RestMethod @repairParams
 
-        if ($rebuildRes) {
-            Write-Success "El libro de movimientos ha sido reparado con éxito."
-        } else {
-            throw "Error en la respuesta del servidor."
-        }
+        Write-Success "¡El libro de movimientos ha sido reparado con $([char]0xE9)xito!"
     } catch {
         Write-ErrorMsg "Fallo al intentar reparar el libro de movimientos."
-        Write-Warn $_.Exception.Message
+        
+        if ($_.Exception.Response) {
+            $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+            $responseBody = $reader.ReadToEnd()
+            Write-Warn "Respuesta del servidor: $responseBody"
+        } else {
+            Write-Warn "Error: $($_.Exception.Message)"
+        }
         return
     }
 
-    Write-Success "La operación de mantenimiento ha finalizado correctamente."
+    Write-Success "La operaci$([char]0xF3)n de mantenimiento ha finalizado correctamente."
 }
+
 
 function Action-Backup {
     Write-Header -Fast
@@ -1050,10 +1194,35 @@ function Action-RestoreBackup {
     }
 
     Write-Info "Arrancando servicios nuevamente..."
-    if (Invoke-Docker "compose up -d") {
+    if (Invoke-Docker "compose -p smart-economato-api up -d") {
         Write-Success "Servicios levantados correctamente."
     } else {
         Write-Warn "No se pudieron iniciar todos los servicios automaticamente."
+    }
+}
+
+function Action-InstallCert {
+    Write-Header -Fast
+    Write-Centered "--- Instalaci$([char]0xF3)n de Certificado SSL de Confianza ---" "Cyan"
+    
+    $certPath = Join-Path $PWD "nginx\certs\local.crt"
+    
+    if (-not (Test-Path $certPath)) {
+        Write-ErrorMsg "No se encuentra el certificado en $certPath. Ejecuta la opci$([char]0xF3)n 1 primero."
+        return
+    }
+    
+    Write-Info "Intentando instalar el certificado en el almac$([char]0xE9)n de Entidades de Confianza..."
+    
+    try {
+        # Importar el certificado al almacen de Raiz del Equipo Local
+        Import-Certificate -FilePath $certPath -CertStoreLocation Cert:\LocalMachine\Root -ErrorAction Stop
+        Write-Success "Certificado instalado correctamente en el almac$([char]0xE9)n de Windows."
+        Write-Success "El navegador ahora deber$([char]0xED)a confiar en https://localhost y smart-economato."
+        Write-Info "Nota: Es posible que debas reiniciar completamente el navegador para ver el cambio."
+    } catch {
+        Write-ErrorMsg "No se pudo instalar el certificado: $($_.Exception.Message)"
+        Write-Warn "Aseg$([char]0xFA)rate de estar ejecutando este panel como Administrador."
     }
 }
 
@@ -1090,8 +1259,13 @@ function Action-Credits {
         }
     )
 
-    $padding = " " * 18
-    foreach ($m in ($members | Get-Random -Count $members.Count)) {
+    # Separar a Pascual para que siempre salga el último
+    $others = $members | Where-Object { $_.Name -ne "Javier Pascual" }
+    $pascual = $members | Where-Object { $_.Name -eq "Javier Pascual" }
+    $finalList = ($others | Get-Random -Count $others.Count) + $pascual
+
+    $padding = " " * 12
+    foreach ($m in $finalList) {
         Write-Host ($padding + " $([char]0xBB) ") -NoNewline -ForegroundColor Gray
         Write-Host ($m.Name.PadRight(18)) -NoNewline -ForegroundColor Green
         Write-Host " | " -NoNewline -ForegroundColor DarkGray
@@ -1099,18 +1273,18 @@ function Action-Credits {
         
         Write-Host ($padding + "    ") -NoNewline
         
-        # Link GitHub (Clickable en terminales modernos)
-        $ghLink = "$esc]8;;$($m.GH)$([char]7)GitHub$esc]8;;$([char]7)"
-        Write-Host "[$ghLink]" -NoNewline -ForegroundColor Cyan
+        # Enlaces (Interactivo + Texto plano para máxima compatibilidad)
+        if ($m.GH) {
+            $ghLink = "$esc]8;;$($m.GH)$([char]7)GitHub$esc]8;;$([char]7)"
+            Write-Host "[$ghLink] " -NoNewline -ForegroundColor Cyan
+            Write-Host "($($m.GH))" -ForegroundColor DarkGray
+        }
         
-        Write-Host "  " -NoNewline
-        
-        # Link LinkedIn
         if ($m.LI) {
+            Write-Host ($padding + "    ") -NoNewline
             $liLink = "$esc]8;;$($m.LI)$([char]7)LinkedIn$esc]8;;$([char]7)"
-            Write-Host "[$liLink]" -ForegroundColor Blue
-        } else {
-            Write-Host "[LinkedIn: -]" -ForegroundColor DarkGray
+            Write-Host "[$liLink] " -NoNewline -ForegroundColor Blue
+            Write-Host "($($m.LI))" -ForegroundColor DarkGray
         }
         Write-Host ""
     }
@@ -1164,6 +1338,8 @@ while ($true) {
         @{ t = "[ 7 ]  Cargar copia de seguridad"; c = "Blue" },
         @{ t = "[ 8 ]  Sincronizar stock"; c = "DarkYellow" },
         @{ t = "[ 9 ]  Ver cr$([char]0xE9)ditos"; c = "White" },
+        @{ t = "[ S ]  Instalar Certificado SSL (Quitar aviso de privacidad)"; c = "Cyan" },
+        @{ t = "[ P ]  Limpieza Profunda (Optimizar Docker)"; c = "Red" },
         @{ t = "[ 0 ]  Salir"; c = "DarkGray" }
     )
 
@@ -1198,6 +1374,10 @@ while ($true) {
         '7' { Action-RestoreBackup; Pause-Execution }
         '8' { Action-RepairBlockchain; Pause-Execution }
         '9' { Action-Credits; Pause-Execution }
+        's' { Action-InstallCert; Pause-Execution }
+        'S' { Action-InstallCert; Pause-Execution }
+        'p' { Action-Panic; Pause-Execution }
+        'P' { Action-Panic; Pause-Execution }
         '0' { Write-Host "Saliendo del Panel de Control... $([char]0xA1)Ciao!"; exit }
         default { Write-ErrorMsg "Opci$([char]0xF3)n inv$([char]0xE1)lida." }
     }

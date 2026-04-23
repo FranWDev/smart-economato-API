@@ -1,15 +1,16 @@
-Write-Host "Deteniendo contenedores y limpiando red..." -ForegroundColor Yellow
-docker compose down -v 2>$null
+Write-Host "Deteniendo contenedores y liberando vol$([char]0xFA)menes..." -ForegroundColor Yellow
+docker compose -p smart-economato-api down -v --remove-orphans 2>$null
 
+$projectPrefix = "turing-backend"
 $vols = @(
-    "turing-backend_postgres-data",
-    "turing-backend_postgres-replica-data",
-    "turing-backend_redis-data",
-    "turing-backend_kafka-data",
-    "turing-backend_prometheus-data",
-    "turing-backend_grafana-data",
-    "turing-backend_predictor-outbox-data",
-    "turing-backend_uploads-data"
+    "${projectPrefix}_postgres-data",
+    "${projectPrefix}_postgres-replica-data",
+    "${projectPrefix}_redis-data",
+    "${projectPrefix}_kafka-data",
+    "${projectPrefix}_prometheus-data",
+    "${projectPrefix}_grafana-data",
+    "${projectPrefix}_predictor-outbox-data",
+    "${projectPrefix}_uploads-data"
 )
 
 Write-Host "Borrando volumenes..." -ForegroundColor Yellow

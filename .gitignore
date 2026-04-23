@@ -40,6 +40,7 @@ predictor-service/.pytest_cache
 predictor-service/tests/__pycache__
 predictor-service/tests/__pycache__
 smart-economato.log
+smart-economato-API\smart-economato.log
 nginx/certs/*
 /backups/*
 *.tmp
