@@ -273,11 +273,23 @@ function Ensure-Certificates {
     }
 }
 
+function Fix-ShLineEndings {
+    param([string]$filePath)
+    if (Test-Path $filePath) {
+        Write-Info "Asegurando formato Linux para script: $(Split-Path $filePath -Leaf)"
+        $content = [System.IO.File]::ReadAllText($filePath)
+        $content = $content.Replace("`r`n", "`n")
+        # Escribir sin BOM y con LF
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($filePath, $content, $utf8NoBom)
+    }
+}
+
 function Create-DesktopShortcut {
     if ($script:IsWindowsOS) {
         $desktopPath = [Environment]::GetFolderPath('Desktop')
         $shortcutPath = Join-Path $desktopPath "Smart Economato.lnk"
-        $iconPath = "c:\Users\PC\Desktop\turing\smart-economato-API\front\src\assets\img\logo-candelaria-new-sin-fondo.png"
+        $iconPath = Join-Path $PWD "frontend-service\src\assets\img\logo-candelaria-new-sin-fondo.png"
         
         try {
             $WshShell = New-Object -ComObject WScript.Shell
@@ -479,7 +491,7 @@ function Configure-System {
 
     # Configuracion de IA (AI NEST)
     Set-EnvSecret $envPath "AI_NEST_SERVICE_KEY" 64 $true
-    if (-not (Select-String -Path $envPath -Pattern "^AI_NEST_BASE_URL=" -Quiet)) { Add-Content -Path $envPath -Value "AI_NEST_BASE_URL=`"http://localhost:3000`"" }
+    if (-not (Select-String -Path $envPath -Pattern "^AI_NEST_BASE_URL=" -Quiet)) { Add-Content -Path $envPath -Value "AI_NEST_BASE_URL=`"http://localhost:3001`"" }
     if (-not (Select-String -Path $envPath -Pattern "^AI_NEST_ALLOWED_ORIGIN=" -Quiet)) { Add-Content -Path $envPath -Value "AI_NEST_ALLOWED_ORIGIN=`"http://localhost:3000`"" }
 
     Write-Success "Las llaves de seguridad y contrasenas se han configurado correctamente."
@@ -518,6 +530,12 @@ function Action-Start {
     
     # Asegurar que los volumenes existen antes de arrancar (Docker Compose los marca como externos)
     Ensure-ManagedVolumes
+    
+    # Asegurar certificados
+    Ensure-Certificates
+
+    # Asegurar que los scripts de inicializacion tienen el formato correcto (LF)
+    Fix-ShLineEndings (Join-Path $PWD "postgres-init.sh")
 
     # Deteccion de puertos interactiva
     $envPath = Join-Path $PWD ".env"
@@ -825,7 +843,6 @@ function Should-Run-Config {
 }
 
 if (Should-Run-Config $envCheckPath) {
-    Ensure-Certificates
     Configure-System
     Pause-Execution
 }

@@ -207,7 +207,7 @@ services:
       SEED_ADMIN_USER: ${SEED_ADMIN_USER:-admin}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin123}
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
-      AI_NEST_BASE_URL: ${AI_NEST_BASE_URL}
+      AI_NEST_BASE_URL: http://inventory-mcp:3000
       AI_NEST_SERVICE_KEY: ${AI_NEST_SERVICE_KEY}
       AI_NEST_ALLOWED_ORIGIN: ${AI_NEST_ALLOWED_ORIGIN}
       AI_NEST_COMPLETION_ENDPOINT: ${AI_NEST_COMPLETION_ENDPOINT:-/api/completion}
@@ -268,11 +268,31 @@ services:
     restart: unless-stopped
 
   # ===================================
+  # MCP Service (NestJS AI Agent)
+  # ===================================
+  mcp-service:
+    build:
+      context: ./mcp-service
+      dockerfile: Dockerfile
+    container_name: inventory-mcp
+    ports:
+      - "3001:3000"
+    environment:
+      - PORT=3000
+      - BACKEND_BASE_URL=http://inventory-backend:8081
+      - SERVICE_KEY=${AI_NEST_SERVICE_KEY}
+    env_file:
+      - .env
+    networks:
+      - inventory-network
+    restart: unless-stopped
+
+  # ===================================
   # Frontend (Angular + Nginx)
   # ===================================
-  frontend:
+  frontend-service:
     build:
-      context: ./front
+      context: ./frontend-service
       dockerfile: Dockerfile
     container_name: inventory-frontend
     depends_on:
@@ -293,7 +313,7 @@ services:
     depends_on:
       backend:
         condition: service_started
-      frontend:
+      frontend-service:
         condition: service_started
       grafana:
         condition: service_started
