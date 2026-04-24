@@ -88,4 +88,15 @@ public class RecipeCookingAuditController {
             @Parameter(description = "Texto a buscar en el nombre de la receta", required = true) @RequestParam String name) {
         return ResponseEntity.ok(service.findByRecipeNameContainingIgnoreCase(name));
     }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/user/search")
+    @Operation(summary = "Obtener auditorías por coincidencia de nombre de usuario", description = "Devuelve todas las auditorías de cocinado realizadas por usuarios cuyo nombre contenga el texto buscado (ignorando mayúsculas/minúsculas). [Rol requerido: ADMIN]")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Lista de auditorías coincidentes", content = @Content(mediaType = "application/json", schema = @Schema(implementation = RecipeCookingAuditResponseDTO.class)))
+    })
+    public ResponseEntity<List<RecipeCookingAuditResponseDTO>> searchByUserName(
+            @Parameter(description = "Texto a buscar en el nombre del usuario", required = true) @RequestParam String name) {
+        return ResponseEntity.ok(service.findByUserNameContainingIgnoreCase(name));
+    }
 }

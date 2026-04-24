@@ -41,6 +41,9 @@ public interface RecipeCookingAuditRepository extends JpaRepository<RecipeCookin
   @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE LOWER(rca.recipe.name) LIKE LOWER(CONCAT('%', :recipeName, '%')) ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findByRecipeNameContainingIgnoreCase(@Param("recipeName") String recipeName);
 
+  @Query("SELECT rca FROM RecipeCookingAudit rca LEFT JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE LOWER(rca.user.name) LIKE LOWER(CONCAT('%', :userName, '%')) ORDER BY rca.cookingDate DESC")
+  List<RecipeCookingAudit> findByUserNameContainingIgnoreCase(@Param("userName") String userName);
+
   @Query("SELECT rca FROM RecipeCookingAudit rca JOIN FETCH rca.recipe LEFT JOIN FETCH rca.user WHERE rca.cookingDate BETWEEN :startDate AND :endDate ORDER BY rca.cookingDate DESC")
   List<RecipeCookingAudit> findByDateRange(
       @Param("startDate") LocalDateTime startDate,

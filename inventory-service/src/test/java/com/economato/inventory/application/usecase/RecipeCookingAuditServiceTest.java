@@ -173,4 +173,29 @@ class RecipeCookingAuditServiceTest {
         verify(repository).findByUserId(1);
         verify(mapper, times(2)).toResponseDTO(any(RecipeCookingAudit.class));
     }
+    @Test
+    void findByUserNameContainingIgnoreCase_ShouldReturnMatchedAudits() {
+        when(repository.findByUserNameContainingIgnoreCase("chef")).thenReturn(Arrays.asList(testAudit));
+        when(mapper.toResponseDTO(testAudit)).thenReturn(testAuditDTO);
+
+        List<RecipeCookingAuditResponseDTO> result = service.findByUserNameContainingIgnoreCase("chef");
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("Test Chef", result.get(0).getUserName());
+        verify(repository).findByUserNameContainingIgnoreCase("chef");
+    }
+
+    @Test
+    void findByRecipeNameContainingIgnoreCase_ShouldReturnMatchedAudits() {
+        when(repository.findByRecipeNameContainingIgnoreCase("pizza")).thenReturn(Arrays.asList(testAudit));
+        when(mapper.toResponseDTO(testAudit)).thenReturn(testAuditDTO);
+
+        List<RecipeCookingAuditResponseDTO> result = service.findByRecipeNameContainingIgnoreCase("pizza");
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("Test Recipe", result.get(0).getRecipeName());
+        verify(repository).findByRecipeNameContainingIgnoreCase("pizza");
+    }
 }

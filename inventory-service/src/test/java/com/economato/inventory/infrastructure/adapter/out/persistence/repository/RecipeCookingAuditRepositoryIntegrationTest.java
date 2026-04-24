@@ -224,4 +224,40 @@ class RecipeCookingAuditRepositoryIntegrationTest extends BaseIntegrationTest {
         // --- Verify ---
         assertThat(topRecipes).hasSizeLessThanOrEqualTo(3);
     }
+
+    @Test
+    @DisplayName("findByUserNameContainingIgnoreCase devuelve lista correcta")
+    void testFindByUserNameContainingIgnoreCase() {
+        RecipeCookingAudit audit = new RecipeCookingAudit();
+        audit.setRecipe(recipe1);
+        audit.setUser(testUser);
+        audit.setQuantityCooked(BigDecimal.valueOf(1));
+        audit.setCookingDate(LocalDateTime.now());
+        cookingAuditRepository.save(audit);
+
+        List<RecipeCookingAudit> result = cookingAuditRepository.findByUserNameContainingIgnoreCase("test user");
+        assertThat(result).isNotEmpty();
+        assertThat(result.get(0).getUser().getName()).isEqualTo("Test User");
+        
+        List<RecipeCookingAudit> resultEmpty = cookingAuditRepository.findByUserNameContainingIgnoreCase("nonexistent");
+        assertThat(resultEmpty).isEmpty();
+    }
+
+    @Test
+    @DisplayName("findByRecipeNameContainingIgnoreCase devuelve lista correcta")
+    void testFindByRecipeNameContainingIgnoreCase() {
+        RecipeCookingAudit audit = new RecipeCookingAudit();
+        audit.setRecipe(recipe1);
+        audit.setUser(testUser);
+        audit.setQuantityCooked(BigDecimal.valueOf(1));
+        audit.setCookingDate(LocalDateTime.now());
+        cookingAuditRepository.save(audit);
+
+        List<RecipeCookingAudit> result = cookingAuditRepository.findByRecipeNameContainingIgnoreCase("piz");
+        assertThat(result).isNotEmpty();
+        assertThat(result.get(0).getRecipe().getName()).isEqualTo("Pizza");
+        
+        List<RecipeCookingAudit> resultEmpty = cookingAuditRepository.findByRecipeNameContainingIgnoreCase("nonexistent");
+        assertThat(resultEmpty).isEmpty();
+    }
 }
