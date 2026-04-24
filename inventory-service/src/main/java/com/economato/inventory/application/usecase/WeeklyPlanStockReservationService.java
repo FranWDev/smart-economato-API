@@ -310,6 +310,7 @@ public class WeeklyPlanStockReservationService {
             dtos.add(com.economato.inventory.application.dto.response.WeeklyPlanStockRequirementDTO.builder()
                 .productId(product.getId())
                 .productName(product.getName())
+                .unit(product.getUnit())
                 .requiredQuantity(needed)
                 .grossRequiredQuantity(grossNeeded)
                 .availabilityPercentage(availabilityPct)

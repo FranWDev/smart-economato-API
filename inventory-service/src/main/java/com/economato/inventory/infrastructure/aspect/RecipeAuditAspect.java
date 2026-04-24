@@ -162,6 +162,7 @@ public class RecipeAuditAspect {
                     .map(c -> Map.of(
                             "productoId", c.getProduct().getId(),
                             "productoNombre", c.getProduct().getName(),
+                            "productoUnidad", c.getProduct().getUnit() != null ? c.getProduct().getUnit() : "",
                             "cantidad", c.getQuantity()))
                     .collect(Collectors.toList()));
             state.put("alergenos", recipe.getAllergens().stream()

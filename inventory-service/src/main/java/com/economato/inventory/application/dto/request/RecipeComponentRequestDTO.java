@@ -25,4 +25,7 @@ public class RecipeComponentRequestDTO {
     @Digits(integer = 10, fraction = 3, message = "{validation.recipeComponentRequestDTO.quantity.digits}")
     @Schema(description = "Cantidad del producto en la receta", example = "2.5")
     private BigDecimal quantity;
+
+    @Schema(description = "Unidad de medida del producto", example = "KG")
+    private String productUnit;
 }

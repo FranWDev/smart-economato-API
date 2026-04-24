@@ -15,6 +15,7 @@ import java.time.LocalDate;
 public class WeeklyPlanStockRequirementDTO {
     private Integer productId;
     private String productName;
+    private String unit;
     private BigDecimal requiredQuantity;
     private BigDecimal grossRequiredQuantity;
     private BigDecimal availabilityPercentage;
