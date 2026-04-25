@@ -44,3 +44,4 @@ smart-economato-API\smart-economato.log
 nginx/certs/*
 /backups/*
 *.tmp
+utils
