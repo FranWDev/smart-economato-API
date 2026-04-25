@@ -8,49 +8,53 @@ El sistema se basa en un **monolito modular con arquitectura hexagonal** (Ports 
 
 ```mermaid
 graph TD
-    subgraph "Frontend"
-        FE["Angular SPA"]
+    User((Usuario / Navegador))
+    
+    subgraph "Reverse Proxy (Gateway)"
+        NG["Nginx 1.27"]
     end
 
-    subgraph "Reverse Proxy"
-        NG["Nginx"]
-    end
-
-    subgraph "Monolito Hexagonal"
-        BE["inventory-service (Spring Boot 4.0 / Java 25)"]
+    subgraph "Capas de Aplicación"
+        FE["Frontend-service (Angular SPA)"]
+        BE["Monolito Hexagonal (inventory-service)"]
     end
 
     subgraph "Servicios Satélite Políglotas"
-        MCP["mcp-service (NestJS)"]
-        PRED["predictor-service (Python / Prophet)"]
+        MCP["mcp-service (NestJS / AI)"]
+        PRED["predictor-service (Python / Sales)"]
     end
 
     subgraph "Datos y Mensajería"
-        PG["PostgreSQL 16 (Primary)"]
-        PGR["PostgreSQL 16 (Replica)"]
-        RD["Redis 7"]
-        KF["Kafka (KRaft)"]
+        PG[(PostgreSQL Primary)]
+        PGR[(PostgreSQL Replica)]
+        RD[(Redis Cache)]
+        KF[(Kafka KRaft)]
     end
 
     subgraph "Observabilidad"
-        PROM["Prometheus"]
-        GRAF["Grafana"]
+        PROM[Prometheus]
+        GRAF[Grafana]
     end
 
-    FE -- "HTTPS" --> NG
-    NG -- "/api/" --> BE
-    NG -- "/" --> FE
-    NG -- "/monitor/" --> GRAF
+    %% Flujos Externos (Vía Proxy)
+    User -- "HTTPS (3443)" --> NG
+    NG -- "/ (Route)" --> FE
+    NG -- "/api/ (Route)" --> BE
+    NG -- "/monitor/ (Route)" --> GRAF
+
+    %% Comunicación Inter-Servicio (Interna)
     BE -- "Write SQL" --> PG
     BE -- "Read SQL" --> PGR
-    PG -- "Replicación WAL" --> PGR
-    BE -- "Cache / JWT Blacklist" --> RD
-    BE -- "Eventos (Outbox)" --> KF
-    KF -- "Predicciones" --> PRED
-    BE -- "HTTP (X-Service-Key)" --> MCP
-    MCP -- "SSE" --> BE
-    PROM -- "Scrape /actuator/prometheus" --> BE
-    GRAF -- "Queries" --> PROM
+    PG -- "Replicación" --> PGR
+    BE -- "Cache" --> RD
+    BE -- "Events / Outbox" --> KF
+    KF -- "Message Stream" --> PRED
+    BE -- "HTTP (Service-Key)" --> MCP
+    MCP -- "SSE Stream" --> BE
+
+    %% Métricas
+    PROM -- "Scrape Actuator" --> BE
+    GRAF -- "Query" --> PROM
 ```
 
 ### Servicios
