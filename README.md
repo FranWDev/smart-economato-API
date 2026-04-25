@@ -272,4 +272,15 @@ El proyecto usa:
 
 ## Licencia
 
-Este proyecto es de uso privado (UNLICENSED).
+Este proyecto se distribuye bajo la licencia **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)**.
+
+Esto significa que puedes:
+- **Compartir:** Copiar y redistribuir el material en cualquier medio o formato.
+- **Adaptar:** Remezclar, transformar y construir sobre el material.
+
+Bajo las siguientes condiciones:
+- **Atribución:** Debe otorgar el crédito correspondiente y proporcionar un enlace a la licencia.
+- **No Comercial:** No puede utilizar el material con fines comerciales sin permiso previo.
+- **Compartir Igual:** Si remezcla, transforma o crea a partir del material, debe distribuir sus contribuciones bajo la misma licencia que el original.
+
+Para usos comerciales, por favor contacta con el autor.
