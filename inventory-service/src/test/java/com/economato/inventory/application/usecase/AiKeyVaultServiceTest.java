@@ -413,4 +413,40 @@ class AiKeyVaultServiceTest {
         verify(userApiKeyRepository, atLeastOnce()).save(any(UserApiKey.class));
         assertTrue(meterRegistry.counter("ai.vault.encryptions.total").count() > 0);
     }
+
+    @Test
+    void saveGlobalKey_returnsMetadata() {
+        when(globalApiKeyRepository.findByProvider(AiProvider.OPENAI)).thenReturn(Optional.empty());
+        when(globalApiKeyRepository.save(any())).thenAnswer(invocation -> {
+            com.economato.inventory.domain.model.GlobalApiKey key = invocation.getArgument(0);
+            key.setId(99L);
+            key.setCreatedAt(LocalDateTime.now());
+            return key;
+        });
+
+        AiKeyVaultService.ApiKeyMetadata metadata = service.saveGlobalKey(AiProvider.OPENAI, "sk-test123456", 1);
+        
+        assertEquals(AiProvider.OPENAI, metadata.provider());
+        assertEquals("****3456", metadata.keyHint());
+        assertTrue(metadata.active());
+    }
+
+    @Test
+    void updateGlobalKey_returnsMetadata() {
+        com.economato.inventory.domain.model.GlobalApiKey existing = new com.economato.inventory.domain.model.GlobalApiKey();
+        existing.setId(99L);
+        existing.setProvider(AiProvider.OPENAI);
+        existing.setEncryptedKey("old-encrypted");
+        existing.setEncryptionKeyVersion(1);
+        existing.setCreatedAt(LocalDateTime.now());
+        
+        when(globalApiKeyRepository.findByProviderAndActiveTrue(AiProvider.OPENAI)).thenReturn(Optional.of(existing));
+        when(globalApiKeyRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AiKeyVaultService.ApiKeyMetadata metadata = service.updateGlobalKey(AiProvider.OPENAI, "sk-test987654", 1);
+        
+        assertEquals(AiProvider.OPENAI, metadata.provider());
+        assertEquals("****7654", metadata.keyHint());
+        assertTrue(metadata.active());
+    }
 }

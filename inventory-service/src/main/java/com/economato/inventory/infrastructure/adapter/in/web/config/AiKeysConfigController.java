@@ -49,8 +49,8 @@ public class AiKeysConfigController {
     public ResponseEntity<GlobalApiKeyResponseDTO> create(@Valid @RequestBody GlobalApiKeyRequestDTO request) {
         Integer adminUserId = currentAdminUserId();
         AiProvider provider = request.providerAsEnum();
-        aiKeyVaultService.saveGlobalKey(provider, request.getApiKey(), adminUserId);
-        return ResponseEntity.ok(findByProvider(provider));
+        AiKeyVaultService.ApiKeyMetadata metadata = aiKeyVaultService.saveGlobalKey(provider, request.getApiKey(), adminUserId);
+        return ResponseEntity.ok(toDto(metadata));
     }
 
     @PutMapping("/")
@@ -58,8 +58,8 @@ public class AiKeysConfigController {
     public ResponseEntity<GlobalApiKeyResponseDTO> update(@Valid @RequestBody GlobalApiKeyRequestDTO request) {
         Integer adminUserId = currentAdminUserId();
         AiProvider provider = request.providerAsEnum();
-        aiKeyVaultService.updateGlobalKey(provider, request.getApiKey(), adminUserId);
-        return ResponseEntity.ok(findByProvider(provider));
+        AiKeyVaultService.ApiKeyMetadata metadata = aiKeyVaultService.updateGlobalKey(provider, request.getApiKey(), adminUserId);
+        return ResponseEntity.ok(toDto(metadata));
     }
 
     @DeleteMapping("/{provider}")
@@ -67,14 +67,6 @@ public class AiKeysConfigController {
     public ResponseEntity<Void> deleteByProvider(@PathVariable String provider) {
         aiKeyVaultService.deleteGlobalKey(AiProvider.valueOf(provider.trim().toUpperCase()), currentAdminUserId());
         return ResponseEntity.noContent().build();
-    }
-
-    private GlobalApiKeyResponseDTO findByProvider(AiProvider provider) {
-        return aiKeyVaultService.listGlobalKeys().stream()
-                .filter(item -> item.provider() == provider)
-                .findFirst()
-                .map(this::toDto)
-                .orElseThrow(() -> new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
     }
 
     private GlobalApiKeyResponseDTO toDto(AiKeyVaultService.ApiKeyMetadata metadata) {

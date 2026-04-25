@@ -146,7 +146,7 @@ public class AiKeyVaultService {
         return decrypt(key.getEncryptedKey());
     }
 
-    public void saveGlobalKey(AiProvider provider, String plainApiKey, Integer adminUserId) {
+    public ApiKeyMetadata saveGlobalKey(AiProvider provider, String plainApiKey, Integer adminUserId) {
         validateInputs(adminUserId, provider, plainApiKey);
         validateProvider(provider, plainApiKey);
 
@@ -165,7 +165,7 @@ public class AiKeyVaultService {
                     .provider(provider.name())
                     .eventTimestamp(LocalDateTime.now())
                     .build());
-            return;
+            return toMetadata(saved);
         }
 
         applyEncryptedKey(existing, plainApiKey);
@@ -179,9 +179,10 @@ public class AiKeyVaultService {
                 .provider(provider.name())
                 .eventTimestamp(LocalDateTime.now())
                 .build());
+        return toMetadata(saved);
     }
 
-    public void updateGlobalKey(AiProvider provider, String plainApiKey, Integer adminUserId) {
+    public ApiKeyMetadata updateGlobalKey(AiProvider provider, String plainApiKey, Integer adminUserId) {
         validateInputs(adminUserId, provider, plainApiKey);
         validateProvider(provider, plainApiKey);
 
@@ -199,6 +200,7 @@ public class AiKeyVaultService {
                 .provider(provider.name())
                 .eventTimestamp(LocalDateTime.now())
                 .build());
+        return toMetadata(saved);
     }
 
     public void deleteGlobalKey(AiProvider provider, Integer adminUserId) {
@@ -445,6 +447,16 @@ public class AiKeyVaultService {
 
     private void publishAudit(AiAuditEvent event) {
         auditEventProducer.ifPresent(producer -> producer.publishAiAudit(event));
+    }
+
+    private ApiKeyMetadata toMetadata(GlobalApiKey key) {
+        return new ApiKeyMetadata(
+                key.getId(),
+                key.getProvider(),
+                key.getKeyHint(),
+                key.isActive(),
+                key.getCreatedAt()
+        );
     }
 
     public record ApiKeyMetadata(

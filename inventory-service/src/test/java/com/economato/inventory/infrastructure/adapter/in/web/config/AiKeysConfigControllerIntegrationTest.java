@@ -57,19 +57,27 @@ class AiKeysConfigControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$[0].provider", is("OPENAI")))
                 .andExpect(jsonPath("$[0].keyHint", is("****test")));
 
+        AiKeyVaultService.ApiKeyMetadata metadataSaved = new AiKeyVaultService.ApiKeyMetadata(1L, AiProvider.OPENAI, "****1234", true, LocalDateTime.now());
+        when(aiKeyVaultService.saveGlobalKey(AiProvider.OPENAI, "sk-test-1234", adminUserId)).thenReturn(metadataSaved);
+
         mockMvc.perform(post("/api/config/ai-keys/")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJsonString(new GlobalApiKeyRequestDTO("OPENAI", "sk-test-1234"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.provider", is("OPENAI")));
+                .andExpect(jsonPath("$.provider", is("OPENAI")))
+                .andExpect(jsonPath("$.keyHint", is("****1234")));
+
+        AiKeyVaultService.ApiKeyMetadata metadataUpdated = new AiKeyVaultService.ApiKeyMetadata(1L, AiProvider.OPENAI, "****5678", true, LocalDateTime.now());
+        when(aiKeyVaultService.updateGlobalKey(AiProvider.OPENAI, "sk-test-5678", adminUserId)).thenReturn(metadataUpdated);
 
         mockMvc.perform(put("/api/config/ai-keys/")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(asJsonString(new GlobalApiKeyRequestDTO("OPENAI", "sk-test-5678"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.provider", is("OPENAI")));
+                .andExpect(jsonPath("$.provider", is("OPENAI")))
+                .andExpect(jsonPath("$.keyHint", is("****5678")));
 
         mockMvc.perform(delete("/api/config/ai-keys/OPENAI")
                         .header("Authorization", "Bearer " + token))
