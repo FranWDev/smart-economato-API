@@ -1243,23 +1243,22 @@ function Action-Credits {
             Name = "Javier Remedios"
             Role = "Frontend e Integraci$([char]0xF3)n de IA"
             GH = "https://github.com/user-ijavieh"
-            LI = $null
+            LI = "https://www.linkedin.com/in/javier-remedios"
         },
         @{ 
             Name = "Lorena Fudel"
             Role = "Maquetaci$([char]0xF3)n y UI/UX"
             GH = "https://github.com/lorena-fudel"
-            LI = $null
+            LI = "https://www.linkedin.com/in/lorenafumerodelgado"
         },
         @{ 
-            Name = "Javier Pascual"
-            Role = "Apoyo emocional"
+            Name = "Daniel Pascual"
+            Role = "Apoyo y corrección de errores"
             GH = "https://github.com/blablabla277"
             LI = $null
         }
     )
 
-    # Separar a Pascual para que siempre salga el último
     $others = $members | Where-Object { $_.Name -ne "Javier Pascual" }
     $pascual = $members | Where-Object { $_.Name -eq "Javier Pascual" }
     $finalList = ($others | Get-Random -Count $others.Count) + $pascual
