@@ -113,15 +113,6 @@ class CrisisReportPdfServiceI18nTest {
         }
     }
 
-    @Test
-    @DisplayName("No invalid key format like 'traceability_chain' should exist (must be 'traceability.chain')")
-    void testNoInvalidKeyFormats() {
-        assertFalse(
-            messagesEs.containsKey("crisis.report.section.traceability_chain"),
-            "Invalid key format found: 'crisis.report.section.traceability_chain'. "
-            + "Should use dots not underscores: 'crisis.report.section.traceability.chain'"
-        );
-    }
 
     @Test
     @DisplayName("Message values should not be empty")

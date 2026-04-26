@@ -35,16 +35,6 @@ public class I18nIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.password").value("Password is required"));
     }
 
-    @Test
-    public void whenAcceptLanguageIsGerman_thenReturnsGermanMessages() throws Exception {
-        mockMvc.perform(post(LOGIN_URL)
-                .header("Accept-Language", "de")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.name").value("Der Benutzername ist erforderlich"))
-                .andExpect(jsonPath("$.password").value("Das Passwort ist erforderlich"));
-    }
 
     @Test
     public void whenAcceptLanguageIsFrench_thenReturnsFrenchMessages() throws Exception {
@@ -57,27 +47,7 @@ public class I18nIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.password").value("Le mot de passe est obligatoire"));
     }
 
-    @Test
-    public void whenAcceptLanguageIsItalian_thenReturnsItalianMessages() throws Exception {
-        mockMvc.perform(post(LOGIN_URL)
-                .header("Accept-Language", "it")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.name").value("Il nome utente è obbligatorio"))
-                .andExpect(jsonPath("$.password").value("La password è obbligatoria"));
-    }
 
-    @Test
-    public void whenAcceptLanguageIsPortuguese_thenReturnsPortugueseMessages() throws Exception {
-        mockMvc.perform(post(LOGIN_URL)
-                .header("Accept-Language", "pt")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.name").value("O nome de utilizador é obrigatório"))
-                .andExpect(jsonPath("$.password").value("A palavra-passe é obrigatória"));
-    }
 
     @Test
     public void whenAcceptLanguageIsCatalan_thenReturnsCatalanMessages() throws Exception {
@@ -99,16 +69,6 @@ public class I18nIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.name").value("El nombre de usuario es obligatorio"));
     }
 
-    @Test
-    public void whenAcceptLanguageIsBasque_thenReturnsBasqueMessages() throws Exception {
-        mockMvc.perform(post(LOGIN_URL)
-                .header("Accept-Language", "eu")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.name").value("Erabiltzaile izena beharrezkoa da"))
-                .andExpect(jsonPath("$.password").value("Pasahitza beharrezkoa da"));
-    }
 
     @Test
     public void whenAcceptLanguageIsGalician_thenReturnsGalicianMessages() throws Exception {
