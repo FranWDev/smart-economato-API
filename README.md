@@ -69,7 +69,7 @@ graph TD
 | **inventory-service** | Spring Boot 4.0, Java 25 | `8081` | **Monolito hexagonal**: todos los dominios de negocio (inventario, pedidos, recetas, planificación, ledger, blockchain, incidencias, usuarios). |
 | **mcp-service** | NestJS 11, TypeScript | `3000` | **Servicio satélite**: Agente IA (Model Context Protocol) — conecta con OpenAI, Anthropic, Google, etc. |
 | **predictor-service** | FastAPI, Python, Prophet | `8000` | **Servicio satélite**: Predicción de demanda con series temporales. |
-| **frontend-service** | Angular + Nginx | `80` | SPA del cliente |
+| **frontend-service** | Angular + Nginx | `80` | SPA del cliente -> [Smart Economato Frontend](https://github.com/user-ijavieh/smart-economato) |
 | **reverse-proxy** | Nginx 1.27 | `80/443` | Terminación SSL, enrutamiento |
 | **postgres** | PostgreSQL 16 Alpine | `5432` | Base de datos primaria (escritura) |
 | **postgres-replica** | PostgreSQL 16 Alpine | `5433` | Réplica de lectura (CQRS) |
@@ -87,7 +87,8 @@ graph TD
 
 ## Instalación y despliegue
 
-El proyecto incluye un **panel de control interactivo** (`install.ps1`) que automatiza toda la configuración:
+1- Clona el repositorio [Smart Economato Frontend](https://github.com/user-ijavieh/smart-economato) y ubica el contenido en el directorio /frontend-service.
+2- El proyecto incluye un **panel de control interactivo** (`install.ps1`) que automatiza toda la configuración:
 
 ```powershell
 # Ejecutar como Administrador
@@ -228,9 +229,7 @@ Con el sistema en ejecución, la documentación interactiva está disponible en:
 
 | Herramienta | URL |
 |---|---|
-| **Scalar** | `https://localhost/scalar` |
-| **Swagger UI** | `https://localhost/swagger-ui.html` |
-| **OpenAPI JSON** | `https://localhost/v3/api-docs` |
+| **Scalar** | `https://localhost/scalar/` |
 
 ## Panel de control (`install.ps1`)
 
@@ -247,12 +246,9 @@ El script ofrece un menú interactivo con las siguientes opciones:
 ## Tests
 
 ```bash
-# Tests unitarios (excluye tests lentos por defecto)
+# Tests unitarios
 cd inventory-service
 mvn test
-
-# Todos los tests (incluye integración con Testcontainers)
-mvn test -P all-tests
 ```
 
 El proyecto usa:
