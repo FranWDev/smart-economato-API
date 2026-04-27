@@ -88,6 +88,7 @@ graph TD
 ## Instalación y despliegue
 
 1- Clona el repositorio [Smart Economato Frontend](https://github.com/user-ijavieh/smart-economato) y ubica el contenido en el directorio /frontend-service.
+
 2- El proyecto incluye un **panel de control interactivo** (`install.ps1`) que automatiza toda la configuración:
 
 ```powershell
