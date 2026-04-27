@@ -1,6 +1,11 @@
-# Smart Economato API
+# Smart Economato Backend
 
 Plataforma de gestión de inventario para escuelas culinarias que automatiza el control de stock, costeo de recetas, aprovisionamiento y planificación semanal de menús. Integra un asistente de IA conversacional y predicción de demanda mediante series temporales.
+
+
+[!IMPORTANT]
+
+Este proyecto requiere [Smart Economato Frontend](https://github.com/user-ijavieh/smart-economato).
 
 ## Arquitectura
 
