@@ -2,6 +2,7 @@
 
 Plataforma de gestión de inventario para escuelas culinarias que automatiza el control de stock, costeo de recetas, aprovisionamiento y planificación semanal de menús. Integra un asistente de IA conversacional y predicción de demanda mediante series temporales.
 
+Si, sobreingenieria por un tubo, no vas a ver muchos principios KISS por aqui, proyecto 100% hecho para aprender patrones avanzados de arquitectura :).
 
 [!IMPORTANT]
 
