@@ -6,6 +6,7 @@ Proyecto final de Grado Superior DAW desarrollado en equipo de 4 personas (nov. 
 
 > **Decisión de diseño consciente:** la arquitectura está intencionadamente sobredimensionada para el caso de uso real. Cada patrón elegido (Hexagonal, CQRS, Kafka, MCP) tiene una justificación técnica y documenta cómo se aplica en un contexto cohesionado. Es un ejercicio de arquitectura, no de productividad mínima.
 
+Encontrarás la documentación en [Google Drive](https://drive.google.com/drive/folders/1BKIk5exbKpMgT00KgKLYW_baRUo81oRp).
 
 [!IMPORTANT]
 
