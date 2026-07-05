@@ -2,7 +2,10 @@
 
 Plataforma de gestión de inventario para escuelas culinarias que automatiza el control de stock, costeo de recetas, aprovisionamiento y planificación semanal de menús. Integra un asistente de IA conversacional y predicción de demanda mediante series temporales.
 
-Si, sobreingenieria por un tubo, no vas a ver muchos principios KISS por aqui, proyecto 100% hecho para aprender patrones avanzados de arquitectura :).
+Proyecto final de Grado Superior DAW desarrollado en equipo de 4 personas (nov. 2025 – may. 2026). Mención honorífica en expediente académico.
+
+> **Decisión de diseño consciente:** la arquitectura está intencionadamente sobredimensionada para el caso de uso real. Cada patrón elegido (Hexagonal, CQRS, Kafka, MCP) tiene una justificación técnica y documenta cómo se aplica en un contexto cohesionado. Es un ejercicio de arquitectura, no de productividad mínima.
+
 
 [!IMPORTANT]
 
@@ -214,11 +217,11 @@ smart-economato-API/
 - Outbox persistente en SQLite
 
 ### Seguridad
-- Autenticación JWT con blacklist en Redis
-- Roles: `ADMIN`, `CHEF`, `STUDENT`
-- Comunicación inter-servicio con `X-Service-Key`
-- Cifrado AES de API keys de IA (AI Vault)
-- Circuit breakers (Resilience4j) para DB, Redis, Kafka y servicio MCP
+- **JWT con blacklist en Redis** — revocación activa de tokens sin necesidad de sesiones server-side; si Redis cae, la blacklist hace failover automático a PostgreSQL
+- **AI Vault** — las API keys de proveedores IA (OpenAI, Anthropic, etc.) se cifran con AES en BD, nunca se exponen en texto plano
+- **X-Service-Key para comunicación inter-servicio** — autenticación de servicio a servicio sin depender del JWT de usuario
+- **Circuit breakers (Resilience4j)** — degradación graceful ante fallos de DB, Redis, Kafka y el servicio MCP; el sistema continúa operativo en modo reducido (ver sección Resiliencia)
+- **RBAC con 3 roles** (`ADMIN`, `CHEF`, `STUDENT`) implementado a nivel de endpoint y reflejado en la UI
 
 ### Observabilidad
 - Métricas Prometheus (JVM, HikariCP, Kafka, caché)
