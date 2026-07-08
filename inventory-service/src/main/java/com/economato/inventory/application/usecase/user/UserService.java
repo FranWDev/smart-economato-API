@@ -58,6 +58,7 @@ public class UserService {
     private final TemporaryRoleEscalationRepository escalationRepository;
     private final RoleNotificationService roleNotificationService;
     private final SystemConfigService systemConfigService;
+    private final UserAccessPolicy userAccessPolicy;
 
     @Autowired
     public UserService(I18nService i18nService, UserRepository repository, PasswordEncoder passwordEncoder,
@@ -67,7 +68,8 @@ public class UserService {
             CustomUserDetailsService customUserDetailsService,
             TemporaryRoleEscalationRepository escalationRepository,
             RoleNotificationService roleNotificationService,
-            @Autowired(required = false) SystemConfigService systemConfigService) {
+            @Autowired(required = false) SystemConfigService systemConfigService,
+            UserAccessPolicy userAccessPolicy) {
         this.i18nService = i18nService;
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
@@ -78,6 +80,7 @@ public class UserService {
         this.escalationRepository = escalationRepository;
         this.roleNotificationService = roleNotificationService;
         this.systemConfigService = systemConfigService;
+        this.userAccessPolicy = userAccessPolicy;
     }
 
     public UserService(I18nService i18nService, UserRepository repository, PasswordEncoder passwordEncoder,
@@ -88,7 +91,8 @@ public class UserService {
             TemporaryRoleEscalationRepository escalationRepository,
             RoleNotificationService roleNotificationService) {
         this(i18nService, repository, passwordEncoder, userMapper, escalationMapper, statsMapper,
-                customUserDetailsService, escalationRepository, roleNotificationService, null);
+                customUserDetailsService, escalationRepository, roleNotificationService, null,
+                new UserAccessPolicy(repository, null, i18nService, passwordEncoder));
     }
 
         @Cacheable(value = "users_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
@@ -160,7 +164,7 @@ public class UserService {
         }
 
         User user = userMapper.toEntity(requestDTO);
-        validatePasswordLength(requestDTO.getPassword());
+        userAccessPolicy.validatePasswordLength(requestDTO.getPassword());
         user.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
         user.setFirstLogin(true);
 
@@ -168,7 +172,7 @@ public class UserService {
             user.setRole(Role.USER);
         }
 
-        validateTeacherAssignment(user.getRole(), requestDTO.getTeacherId());
+        userAccessPolicy.validateTeacherAssignment(user.getRole(), requestDTO.getTeacherId());
 
         User savedUser = repository.save(user);
         return repository.findByName(savedUser.getName())
@@ -207,11 +211,11 @@ public class UserService {
                     userMapper.updateEntity(requestDTO, existing);
 
                     if (requestDTO.getPassword() != null && !requestDTO.getPassword().isEmpty()) {
-                        validatePasswordLength(requestDTO.getPassword());
+                        userAccessPolicy.validatePasswordLength(requestDTO.getPassword());
                         existing.setPassword(passwordEncoder.encode(requestDTO.getPassword()));
                     }
 
-                    validateTeacherAssignment(existing.getRole(), requestDTO.getTeacherId());
+                    userAccessPolicy.validateTeacherAssignment(existing.getRole(), requestDTO.getTeacherId());
 
                         User updatedUser = repository.save(existing);
                     customUserDetailsService.evictUser(updatedUser.getName());
@@ -240,12 +244,7 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { id })));
 
-        if (Role.ADMIN.equals(user.getRole())) {
-            long adminCount = repository.countByRole(Role.ADMIN);
-            if (adminCount <= 1) {
-                throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_DELETE_LAST_ADMIN));
-            }
-        }
+        userAccessPolicy.validateAdminDeletion(user);
 
         customUserDetailsService.evictUser(user.getName());
         customUserDetailsService.evictUser(user.getUser());
@@ -265,10 +264,7 @@ public class UserService {
         // Validación de seguridad: solo un admin puede cambiar firstLogin de false a
         // true
         // Un usuario normal solo puede marcarlo como false (completar primer login)
-        if (!isAdmin && status && !user.isFirstLogin()) {
-            throw new InvalidOperationException(
-                    i18nService.getMessage(MessageKey.ERROR_USER_FIRST_LOGIN_REACTIVATE_DENIED));
-        }
+        userAccessPolicy.validateFirstLoginReactivation(user, status, isAdmin);
 
         user.setFirstLogin(status);
         repository.save(user);
@@ -287,7 +283,7 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { id })));
 
-        validatePasswordLength(request.getNewPassword());
+        userAccessPolicy.validatePasswordLength(request.getNewPassword());
         boolean wasFirstLogin = user.isFirstLogin();
 
         if (isAdmin) {
@@ -299,14 +295,7 @@ public class UserService {
             if (wasFirstLogin) {
                 user.setFirstLogin(false);
             } else {
-                if (request.getOldPassword() == null || request.getOldPassword().isEmpty()) {
-                    throw new InvalidOperationException(
-                            i18nService.getMessage(MessageKey.ERROR_USER_REQUIRE_CURRENT_PASSWORD));
-                }
-                if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
-                    throw new InvalidOperationException(
-                            i18nService.getMessage(MessageKey.ERROR_USER_INVALID_CURRENT_PASSWORD));
-                }
+                userAccessPolicy.validatePasswordChange(user, request, isAdmin);
             }
             user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         }
@@ -349,12 +338,7 @@ public class UserService {
                         i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { id })));
 
         // Validación de seguridad: no se puede ocultar el último admin
-        if (hidden && Role.ADMIN.equals(user.getRole())) {
-            long visibleAdmins = repository.countByRoleAndIsHiddenFalse(Role.ADMIN);
-            if (visibleAdmins <= 1) {
-                throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_HIDE_LAST_ADMIN));
-            }
-        }
+        userAccessPolicy.validateAdminHiding(user, hidden);
 
         user.setHidden(hidden);
         repository.save(user);
@@ -362,24 +346,7 @@ public class UserService {
         customUserDetailsService.evictUser(user.getUser());
     }
 
-    private void validateTeacherAssignment(Role userRole, Integer teacherId) {
-        if (teacherId != null) {
-            // Un usuario con rol CHEF o ADMIN no puede tener un profesor asignado
-            if (Role.CHEF.equals(userRole) || Role.ADMIN.equals(userRole)) {
-                throw new InvalidOperationException(
-                        i18nService.getMessage(MessageKey.ERROR_USER_ADMIN_CANNOT_HAVE_TEACHER));
-            }
-            User teacher = repository.findById(teacherId)
-                    .orElseThrow(
-                            () -> new InvalidOperationException(i18nService
-                                     .getMessage(MessageKey.ERROR_USER_TEACHER_NOT_FOUND, new Object[] { teacherId })));
-            // El profesor debe tener rol CHEF
-            if (!Role.CHEF.equals(teacher.getRole())) {
-                throw new InvalidOperationException(
-                        i18nService.getMessage(MessageKey.ERROR_USER_TEACHER_MUST_BE_ADMIN));
-            }
-        }
-    }
+
 
         @Caching(evict = {
             @CacheEvict(value = "user", key = "#userId"),
@@ -395,7 +362,7 @@ public class UserService {
         if (teacherId == null) {
             user.setTeacher(null);
         } else {
-            validateTeacherAssignment(user.getRole(), teacherId);
+            userAccessPolicy.validateTeacherAssignment(user.getRole(), teacherId);
             User teacher = repository.findById(teacherId)
                     .orElseThrow(() -> new ResourceNotFoundException(i18nService
                             .getMessage(MessageKey.ERROR_USER_TEACHER_NOT_FOUND, new Object[] { teacherId })));
@@ -512,19 +479,7 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND, new Object[] { userId })));
 
-        if (Role.ELEVATED.equals(user.getRole())) {
-            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_ALREADY_ELEVATED));
-        }
-        if (Role.ADMIN.equals(user.getRole())) {
-            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_USER_CANNOT_ESCALATE_ADMIN));
-        }
-
-        int maxEscalationMinutes = resolveMaxEscalationMinutes();
-        if (request.getDurationMinutes() != null && request.getDurationMinutes() > maxEscalationMinutes) {
-            throw new InvalidOperationException(i18nService.getMessage(
-                    MessageKey.ERROR_ESCALATION_DURATION_EXCEEDS_MAX,
-                    new Object[] { maxEscalationMinutes }));
-        }
+        userAccessPolicy.validateRoleEscalation(user, request);
 
         user.setRole(Role.ELEVATED);
         repository.save(user);
@@ -771,34 +726,5 @@ public class UserService {
                 .build();
     }
 
-    private void validatePasswordLength(String password) {
-        int minLength = resolveMinPasswordLength();
-        if (password == null || password.length() < minLength) {
-            throw new InvalidOperationException(i18nService.getMessage(
-                    MessageKey.ERROR_PASSWORD_TOO_SHORT,
-                    new Object[] { minLength }));
-        }
-    }
 
-    private int resolveMinPasswordLength() {
-        if (systemConfigService == null) {
-            return 6;
-        }
-        try {
-            return systemConfigService.getMinPasswordLength();
-        } catch (Exception ignored) {
-            return 6;
-        }
-    }
-
-    private int resolveMaxEscalationMinutes() {
-        if (systemConfigService == null) {
-            return 1440;
-        }
-        try {
-            return systemConfigService.getMaxEscalationMinutes();
-        } catch (Exception ignored) {
-            return 1440;
-        }
-    }
 }

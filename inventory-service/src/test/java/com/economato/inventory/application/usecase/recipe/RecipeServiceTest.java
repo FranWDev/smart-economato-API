@@ -190,6 +190,19 @@ class RecipeServiceTest {
         testUser.setId(1);
         testUser.setName("Test User");
         lenient().when(securityContextHelper.getCurrentUser()).thenReturn(testUser);
+
+        recipeService = new RecipeService(i18nService, repository,
+                productRepository,
+                allergenRepository,
+                recipeMapper,
+                null,
+                statsMapper,
+                stockLedgerService,
+                null,
+                securityContextHelper,
+                null,
+                null,
+                null);
     }
 
     @Test

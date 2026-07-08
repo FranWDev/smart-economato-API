@@ -5,6 +5,7 @@ import com.economato.inventory.application.usecase.notification.UserPresenceServ
 import com.economato.inventory.application.usecase.notification.WebSocketNotificationService;
 import com.economato.inventory.application.usecase.product.ProductBatchService;
 import com.economato.inventory.application.usecase.product.ProductService;
+import com.economato.inventory.application.usecase.product.ProductSkuGuard;
 import com.economato.inventory.application.usecase.product.ValidUnitService;
 import com.economato.inventory.application.usecase.recipe.RecipeService;
 import com.economato.inventory.application.usecase.stock.ScheduledForecastRefreshService;
@@ -193,6 +194,7 @@ class ConfigUsageIntegrationTest {
         SecurityContextHelper securityContextHelper = mock(SecurityContextHelper.class);
         I18nService localI18n = i18nService;
 
+        ProductSkuGuard guard = new ProductSkuGuard(repository, supplierRepository, validUnitService, localI18n);
         ProductService service = new ProductService(
                 localI18n,
                 repository,
@@ -203,9 +205,10 @@ class ConfigUsageIntegrationTest {
                 productStockLedgerService,
                 productBatchService,
                 securityContextHelper,
-                recipeService
+                recipeService,
+                validUnitService,
+                guard
         );
-        setField(service, "validUnitService", validUnitService);
 
         User current = new User();
         current.setId(10);

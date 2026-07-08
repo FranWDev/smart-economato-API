@@ -73,6 +73,7 @@ public class ProductService {
     private final SecurityContextHelper securityContextHelper;
     private final RecipeService recipeService;
     private final ValidUnitService validUnitService;
+    private final ProductSkuGuard productSkuGuard;
 
     @Autowired
     public ProductService(I18nService i18nService,
@@ -85,7 +86,8 @@ public class ProductService {
             ProductBatchService productBatchService,
             SecurityContextHelper securityContextHelper,
             RecipeService recipeService,
-            @Autowired(required = false) ValidUnitService validUnitService) {
+            @Autowired(required = false) ValidUnitService validUnitService,
+            ProductSkuGuard productSkuGuard) {
         this.i18nService = i18nService;
         this.repository = repository;
         this.movementRepository = movementRepository;
@@ -97,6 +99,7 @@ public class ProductService {
         this.securityContextHelper = securityContextHelper;
         this.recipeService = recipeService;
         this.validUnitService = validUnitService;
+        this.productSkuGuard = productSkuGuard;
     }
 
     public ProductService(I18nService i18nService,
@@ -110,7 +113,8 @@ public class ProductService {
             SecurityContextHelper securityContextHelper,
             RecipeService recipeService) {
         this(i18nService, repository, movementRepository, recipeComponentRepository, supplierRepository, productMapper,
-                stockLedgerService, productBatchService, securityContextHelper, recipeService, null);
+                stockLedgerService, productBatchService, securityContextHelper, recipeService, null,
+                new ProductSkuGuard(repository, supplierRepository, null, i18nService));
     }
 
     @Cacheable(value = "products_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
@@ -171,15 +175,10 @@ public class ProductService {
     @ProductAuditable(action = "CREATE_PRODUCT")
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
     public ProductResponseDTO save(ProductRequestDTO requestDTO) {
-        if (repository.existsByName(requestDTO.getName())) {
-            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_ALREADY_EXISTS));
-        }
+        productSkuGuard.validateNameUniqueness(requestDTO.getName());
+        productSkuGuard.validateProductCodeUniqueness(requestDTO.getProductCode());
+        productSkuGuard.validateProductData(requestDTO);
 
-        if (repository.existsByProductCode(requestDTO.getProductCode())) {
-            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_CODE_ALREADY_EXISTS));
-        }
-
-        validateProductData(requestDTO);
 
         BigDecimal initialStock = requestDTO.getCurrentStock();
         // Forzamos 0 stock inicial para que sea el ledger quien lo establezca y cree los lotes necesarios
@@ -223,20 +222,16 @@ public class ProductService {
     public Optional<ProductResponseDTO> update(Integer id, ProductRequestDTO requestDTO) {
         return repository.findByIdWithSupplier(id)
                 .map(existing -> {
-                    if (!existing.getName().equals(requestDTO.getName()) &&
-                            repository.existsByName(requestDTO.getName())) {
-                        throw new InvalidOperationException(
-                                i18nService.getMessage(MessageKey.ERROR_PRODUCT_ALREADY_EXISTS));
+                    if (!existing.getName().equals(requestDTO.getName())) {
+                        productSkuGuard.validateNameUniqueness(requestDTO.getName());
                     }
 
                     if (requestDTO.getProductCode() != null &&
-                            !requestDTO.getProductCode().equals(existing.getProductCode()) &&
-                            repository.existsByProductCode(requestDTO.getProductCode())) {
-                        throw new InvalidOperationException(
-                                i18nService.getMessage(MessageKey.ERROR_PRODUCT_CODE_ALREADY_EXISTS));
+                            !requestDTO.getProductCode().equals(existing.getProductCode())) {
+                        productSkuGuard.validateProductCodeUniqueness(requestDTO.getProductCode());
                     }
 
-                    validateProductData(requestDTO);
+                    productSkuGuard.validateProductData(requestDTO);
                     
                     BigDecimal oldPrice = existing.getUnitPrice();
                     BigDecimal oldAvailability = existing.getAvailabilityPercentage();
@@ -304,19 +299,7 @@ public class ProductService {
                 .toList();
     }
 
-    private void validateProductData(ProductRequestDTO requestDTO) {
-        if (!isValidUnit(requestDTO.getUnit())) {
-            throw new InvalidOperationException(
-                    i18nService.getMessage(MessageKey.ERROR_PRODUCT_INVALID_UNIT));
-        }
 
-        if (requestDTO.getSupplierId() != null) {
-            if (!supplierRepository.existsById(requestDTO.getSupplierId())) {
-                throw new InvalidOperationException(
-                        i18nService.getMessage(MessageKey.ERROR_PRODUCT_SUPPLIER_NOT_FOUND));
-            }
-        }
-    }
 
     @Transactional(readOnly = true)
     public Page<ProductResponseDTO> findHiddenProducts(String name, Pageable pageable) {
@@ -350,29 +333,7 @@ public class ProductService {
         repository.save(product);
     }
 
-    private boolean isValidUnit(String unit) {
-        if (unit == null) {
-            return false;
-        }
-        String normalized = unit.toUpperCase();
-        if (validUnitService == null) {
-            return VALID_UNITS.contains(normalized);
-        }
-        try {
-            List<ValidUnit> activeUnits = validUnitService.getActive();
-            if (activeUnits == null) {
-                activeUnits = Collections.emptyList();
-            }
-            if (activeUnits.isEmpty()) {
-                return VALID_UNITS.contains(normalized);
-            }
-            return activeUnits.stream()
-                    .map(v -> v.getCode().toUpperCase())
-                    .anyMatch(normalized::equals);
-        } catch (Exception ignored) {
-            return VALID_UNITS.contains(normalized);
-        }
-    }
+
 
     /* Por que se limpia TODA la caché?
      * Porque, al usarse normalmente con páginas, alterar un producto provoca que se altere su posición en la página.
@@ -394,12 +355,11 @@ public class ProductService {
                     BigDecimal newStock = requestDTO.getCurrentStock();
                     BigDecimal stockDelta = newStock.subtract(previousStock);
 
-                    if (!existing.getName().equals(requestDTO.getName()) &&
-                            repository.existsByName(requestDTO.getName())) {
-                        throw new InvalidOperationException(
-                                i18nService.getMessage(MessageKey.ERROR_PRODUCT_ALREADY_EXISTS));
+                    if (!existing.getName().equals(requestDTO.getName())) {
+                        productSkuGuard.validateNameUniqueness(requestDTO.getName());
                     }
-                    validateProductData(requestDTO);
+                    productSkuGuard.validateProductData(requestDTO);
+
 
                     existing.setName(requestDTO.getName());
                     existing.setUnit(requestDTO.getUnit());

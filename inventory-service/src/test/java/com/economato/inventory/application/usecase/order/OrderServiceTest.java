@@ -187,6 +187,17 @@ class OrderServiceTest {
         lenient().when(detailSummary.getProduct()).thenReturn(productInfo);
 
         lenient().when(testProjection.getDetails()).thenReturn(Arrays.asList(detailSummary));
+
+        orderService = new OrderService(i18nService, repository,
+                userRepository,
+                productRepository,
+                supplierRepository,
+                null,
+                orderMapper,
+                stockLedgerService,
+                productBatchService,
+                orderReviewLockService,
+                environment);
     }
 
     @Test

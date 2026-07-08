@@ -134,6 +134,16 @@ class ProductServiceTest {
         testUser.setId(1);
         testUser.setName("Test User");
         lenient().when(securityContextHelper.getCurrentUser()).thenReturn(testUser);
+
+        productService = new ProductService(i18nService, repository,
+                movementRepository,
+                recipeComponentRepository,
+                supplierRepository,
+                productMapper,
+                stockLedgerService,
+                productBatchService,
+                securityContextHelper,
+                recipeService);
     }
 
     @Test

@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -83,6 +84,7 @@ public class OrderService {
         private final ProductBatchService productBatchService;
         private final OrderReviewLockService orderReviewLockService;
         private final Environment environment;
+        private final OrderValidator orderValidator;
 
         public OrderService(I18nService i18nService, OrderRepository repository,
                         UserRepository userRepository,
@@ -94,6 +96,23 @@ public class OrderService {
                         ProductBatchService productBatchService,
                         OrderReviewLockService orderReviewLockService,
                         Environment environment) {
+                this(i18nService, repository, userRepository, productRepository, supplierRepository, foodCrisisRepository,
+                        orderMapper, stockLedgerService, productBatchService, orderReviewLockService, environment,
+                        new OrderValidator(i18nService, foodCrisisRepository, orderReviewLockService));
+        }
+
+        @Autowired
+        public OrderService(I18nService i18nService, OrderRepository repository,
+                        UserRepository userRepository,
+                        ProductRepository productRepository,
+                        SupplierRepository supplierRepository,
+                        FoodCrisisRepository foodCrisisRepository,
+                        OrderMapper orderMapper,
+                        StockLedgerService stockLedgerService,
+                        ProductBatchService productBatchService,
+                        OrderReviewLockService orderReviewLockService,
+                        Environment environment,
+                        OrderValidator orderValidator) {
                 this.i18nService = i18nService;
                 this.repository = repository;
                 this.userRepository = userRepository;
@@ -105,6 +124,7 @@ public class OrderService {
                 this.productBatchService = productBatchService;
                 this.orderReviewLockService = orderReviewLockService;
                 this.environment = environment;
+                this.orderValidator = orderValidator;
         }
 
         @Cacheable(value = "orders_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
@@ -287,10 +307,8 @@ public class OrderService {
                         Integer userId,
                         Integer supplierId,
                         Integer orderId) {
-                if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
-                        throw new InvalidOperationException(
-                                        i18nService.getMessage(MessageKey.ERROR_CONSUMPTION_INVALID_DATE_RANGE));
-                }
+                orderValidator.validateDateRange(startDate, endDate);
+
 
                 Specification<Order> spec = (root, query, cb) -> cb.conjunction();
 
@@ -340,17 +358,8 @@ public class OrderService {
 
         @Transactional(readOnly = true)
         public OrdersByProductsResponseDTO findByProducts(OrdersByProductsRequestDTO requestDTO) {
-                if (requestDTO == null || requestDTO.getProductIds() == null || requestDTO.getProductIds().isEmpty()) {
-                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_ORDER_SEARCH_MISSING_PRODUCTS));
-                }
+                final List<Integer> productIds = orderValidator.validateProductsRequest(requestDTO);
 
-                final List<Integer> productIds = requestDTO.getProductIds().stream()
-                                .filter(Objects::nonNull)
-                                .distinct()
-                                .toList();
-                if (productIds.isEmpty()) {
-                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_ORDER_SEARCH_INVALID_IDS));
-                }
 
                 final List<OrderStatus> statuses = (requestDTO.getStatuses() == null || requestDTO.getStatuses().isEmpty())
                                 ? List.of(OrderStatus.CREATED, OrderStatus.PENDING, OrderStatus.REVIEW)
@@ -441,28 +450,12 @@ public class OrderService {
                         RuntimeException.class,
                         Exception.class }, isolation = Isolation.REPEATABLE_READ)
         public OrderResponseDTO receiveOrder(OrderReceptionRequestDTO receptionData) {
-                orderReviewLockService.assertCanProcessReception(receptionData.getOrderId());
-
                 Order order = repository.findByIdWithDetails(receptionData.getOrderId())
                                 .orElseThrow(() -> new ResourceNotFoundException(
                                                 i18nService.getMessage(MessageKey.ERROR_ORDER_NOT_FOUND)));
 
-                if (order.getStatus() == OrderStatus.CONFIRMED || order.getStatus() == OrderStatus.INCOMPLETE) {
-                        throw new OrderReceptionAlreadyProcessedException(order.getId(), order.getStatus());
-                }
+                orderValidator.validateReception(order, receptionData);
 
-                if (order.getStatus() != OrderStatus.REVIEW) {
-                        throw new InvalidOperationException(
-                                        i18nService.getMessage(MessageKey.ERROR_ORDER_INVALID_STATE, order.getStatus()));
-                }
-
-                if (foodCrisisRepository != null
-                                && order.getSupplier() != null
-                                && foodCrisisRepository.existsByStatusAndSupplierId(FoodCrisis.CrisisStatus.ACTIVE,
-                                                order.getSupplier().getId())) {
-                        throw new InvalidOperationException(
-                                        i18nService.getMessage(MessageKey.ERROR_ORDER_SUPPLIER_IN_CRISIS));
-                }
 
                 order.setStatus(OrderStatus.REVIEW);
 
@@ -476,13 +469,8 @@ public class OrderService {
                                                         i18nService.getMessage(
                                                                         MessageKey.ERROR_ORDER_PRODUCT_NOT_FOUND)));
 
-                        BigDecimal lotsSum = receptionItem.getLots().stream()
-                                        .map(LotReceptionRequestDTO::getQuantity)
-                                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-                        if (lotsSum.compareTo(receptionItem.getQuantityReceived()) != 0) {
-                                throw new InvalidOperationException(
-                                                i18nService.getMessage(MessageKey.ERROR_ORDER_LOTS_SUM_MISMATCH));
-                        }
+                        orderValidator.validateLotsSum(detail, receptionItem);
+
 
                         if (receptionItem.getQuantityReceived().compareTo(detail.getQuantity()) < 0) {
                                 isComplete = false;
@@ -602,15 +590,9 @@ public class OrderService {
                         ObjectOptimisticLockingFailureException.class }, maxRetries = 3, delay = 100, multiplier = 2)
         @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
         public Optional<OrderResponseDTO> updateStatus(Integer orderId, OrderStatus newStatus) {
-                orderReviewLockService.assertCanTransitionOrder(orderId, newStatus);
-
                 return repository.findByIdWithDetails(orderId)
                                 .map(order -> {
-                                        if ((order.getStatus() == OrderStatus.CONFIRMED || order.getStatus() == OrderStatus.INCOMPLETE)
-                                                        && (newStatus == OrderStatus.CONFIRMED || newStatus == OrderStatus.INCOMPLETE)) {
-                                                throw new OrderReceptionAlreadyProcessedException(order.getId(), order.getStatus());
-                                        }
-
+                                        orderValidator.validateTransition(order, newStatus);
                                         order.setStatus(newStatus);
                                         Order updatedOrder = repository.save(order);
                                         if (newStatus == OrderStatus.CONFIRMED || newStatus == OrderStatus.CANCELLED
@@ -630,9 +612,8 @@ public class OrderService {
                                 .orElseThrow(() -> new ResourceNotFoundException(
                                                 i18nService.getMessage(MessageKey.ERROR_ORDER_NOT_FOUND)));
 
-                if (!OrderStatus.INCOMPLETE.equals(order.getStatus())) {
-                        throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_ORDER_INCOMPLETE_ONLY_MISSING_ITEMS));
-                }
+                orderValidator.validateMissingItemsStatus(order);
+
 
                 return order.getDetails().stream()
                                 .filter(detail -> {

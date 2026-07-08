@@ -54,6 +54,7 @@ class UserServiceConfigValidationTest {
         lenient().when(systemConfigService.getMinPasswordLength()).thenReturn(6);
         lenient().when(systemConfigService.getMaxEscalationMinutes()).thenReturn(1440);
 
+        UserAccessPolicy policy = new UserAccessPolicy(repository, systemConfigService, i18nService, passwordEncoder);
         service = new UserService(
                 i18nService,
                 repository,
@@ -63,9 +64,10 @@ class UserServiceConfigValidationTest {
                 statsMapper,
                 customUserDetailsService,
                 escalationRepository,
-                roleNotificationService
+                roleNotificationService,
+                systemConfigService,
+                policy
         );
-        setField(service, "systemConfigService", systemConfigService);
     }
 
     @Test

@@ -137,6 +137,14 @@ class UserServiceTest {
         lenient().when(testProjection.getName()).thenReturn("Test User");
         lenient().when(testProjection.getUser()).thenReturn("testUser");
         lenient().when(testProjection.getRole()).thenReturn(Role.USER);
+
+        userService = new UserService(i18nService, repository, passwordEncoder,
+                userMapper,
+                escalationMapper,
+                statsMapper,
+                customUserDetailsService,
+                escalationRepository,
+                roleNotificationService);
     }
 
     @Test

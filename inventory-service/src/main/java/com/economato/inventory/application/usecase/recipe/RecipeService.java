@@ -1,24 +1,23 @@
 package com.economato.inventory.application.usecase.recipe;
+
 import com.economato.inventory.application.usecase.ledger.StockLedgerService;
 import com.economato.inventory.application.usecase.weeklyplan.WeeklyPlanStockReservationService;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.GlobalExceptionHandler;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import com.economato.inventory.application.dto.recipe.request.RecipeQuantityRequestDTO;
 import com.economato.inventory.application.dto.recipe.request.RecipeRequirementsRequestDTO;
 import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanStockRequirementDTO;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -28,7 +27,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.shared.RestPage;
-import com.economato.inventory.application.dto.shared.request.BatchMovementItem;
 import com.economato.inventory.application.dto.recipe.request.RecipeComponentRequestDTO;
 import com.economato.inventory.application.dto.recipe.request.RecipeCookingRequestDTO;
 import com.economato.inventory.application.dto.recipe.request.RecipeRequestDTO;
@@ -40,19 +38,10 @@ import com.economato.inventory.application.dto.recipe.response.RecipeStatsRespon
 import com.economato.inventory.application.mapper.recipe.CookableRecipeMapper;
 import com.economato.inventory.application.mapper.recipe.RecipeMapper;
 import com.economato.inventory.application.mapper.shared.StatsMapper;
-import com.economato.inventory.domain.stock.PredictorTrigger;
 import com.economato.inventory.domain.recipe.RecipeAuditable;
-import com.economato.inventory.domain.recipe.RecipeCookingAuditable;
-import com.economato.inventory.domain.model.shared.MovementType;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.recipe.Recipe;
 import com.economato.inventory.domain.model.recipe.RecipeComponent;
-import com.economato.inventory.domain.model.weeklyplan.StudentSlotStatus;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.domain.model.weeklyplan.WeeklyPlan;
-import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlot;
-import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlotStatus;
-import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanStatus;
 import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.AllergenRepository;
@@ -74,7 +63,6 @@ import lombok.extern.slf4j.Slf4j;
         Exception.class })
 public class RecipeService {
     private final I18nService i18nService;
-
     private final RecipeRepository repository;
     private final ProductRepository productRepository;
     private final AllergenRepository allergenRepository;
@@ -88,6 +76,9 @@ public class RecipeService {
     private final WeeklyPlanSlotRepository weeklyPlanSlotRepository;
     private final WeeklyPlanRepository weeklyPlanRepository;
 
+    private final RecipeCostCalculator recipeCostCalculator;
+    private final RecipeCookingProcessor recipeCookingProcessor;
+
     public RecipeService(I18nService i18nService, RecipeRepository repository,
             ProductRepository productRepository,
             AllergenRepository allergenRepository,
@@ -100,6 +91,30 @@ public class RecipeService {
             RecipeCookingAuditRepository recipeCookingAuditRepository,
             WeeklyPlanSlotRepository weeklyPlanSlotRepository,
             WeeklyPlanRepository weeklyPlanRepository) {
+        this(i18nService, repository, productRepository, allergenRepository, recipeMapper,
+             cookableRecipeMapper, statsMapper, stockLedgerService, weeklyPlanStockReservationService,
+             securityContextHelper, recipeCookingAuditRepository, weeklyPlanSlotRepository, weeklyPlanRepository,
+             new RecipeCostCalculator(repository, statsMapper),
+             new RecipeCookingProcessor(i18nService, repository, productRepository, recipeMapper, stockLedgerService,
+                                        securityContextHelper, recipeCookingAuditRepository, weeklyPlanSlotRepository,
+                                        weeklyPlanRepository));
+    }
+
+    @Autowired
+    public RecipeService(I18nService i18nService, RecipeRepository repository,
+            ProductRepository productRepository,
+            AllergenRepository allergenRepository,
+            RecipeMapper recipeMapper,
+            CookableRecipeMapper cookableRecipeMapper,
+            StatsMapper statsMapper,
+            StockLedgerService stockLedgerService,
+            WeeklyPlanStockReservationService weeklyPlanStockReservationService,
+            SecurityContextHelper securityContextHelper,
+            RecipeCookingAuditRepository recipeCookingAuditRepository,
+            WeeklyPlanSlotRepository weeklyPlanSlotRepository,
+            WeeklyPlanRepository weeklyPlanRepository,
+            RecipeCostCalculator recipeCostCalculator,
+            RecipeCookingProcessor recipeCookingProcessor) {
         this.i18nService = i18nService;
         this.repository = repository;
         this.productRepository = productRepository;
@@ -113,6 +128,8 @@ public class RecipeService {
         this.recipeCookingAuditRepository = recipeCookingAuditRepository;
         this.weeklyPlanSlotRepository = weeklyPlanSlotRepository;
         this.weeklyPlanRepository = weeklyPlanRepository;
+        this.recipeCostCalculator = recipeCostCalculator;
+        this.recipeCookingProcessor = recipeCookingProcessor;
     }
 
     @Cacheable(value = "recipes_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
@@ -130,12 +147,12 @@ public class RecipeService {
         return repository.findProjectedById(id).map(recipeMapper::toResponseDTO);
     }
 
-        @Caching(evict = {
+    @Caching(evict = {
             @CacheEvict(value = "recipes_page", allEntries = true),
             @CacheEvict(value = "recipe_stats", allEntries = true),
             @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
             @CacheEvict(value = "cookable_recipes", allEntries = true)
-        })
+    })
     @RealtimeSync(entityType = "recipe", action = "CREATE",
             affectedDomains = {"recipe", "weekly_plan"})
     @RecipeAuditable(action = "CREATE_RECIPE")
@@ -143,7 +160,7 @@ public class RecipeService {
             RuntimeException.class, Exception.class })
     public RecipeResponseDTO save(RecipeRequestDTO requestDTO) {
         Recipe recipe = toEntity(requestDTO);
-        calculateTotalCost(recipe);
+        recipeCostCalculator.calculateTotalCost(recipe);
         final Recipe savedRecipe = repository.save(recipe);
         final Integer recipeId = savedRecipe.getId();
 
@@ -152,13 +169,13 @@ public class RecipeService {
             .orElseGet(() -> recipeMapper.toResponseDTO(savedRecipe));
     }
 
-        @Caching(evict = {
+    @Caching(evict = {
             @CacheEvict(value = "recipe", key = "#id"),
             @CacheEvict(value = "recipes_page", allEntries = true),
             @CacheEvict(value = "recipe_stats", allEntries = true),
             @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
             @CacheEvict(value = "cookable_recipes", allEntries = true)
-        })
+    })
     @RealtimeSync(entityType = "recipe", action = "UPDATE", idFromArg = 0,
             affectedDomains = {"recipe", "weekly_plan"})
     @RecipeAuditable(action = "UPDATE_RECIPE")
@@ -168,7 +185,7 @@ public class RecipeService {
         return repository.findById(id)
                 .map(existing -> {
                     updateEntity(existing, requestDTO);
-                    calculateTotalCost(existing);
+                    recipeCostCalculator.calculateTotalCost(existing);
                     Recipe saved = repository.save(existing);
                     return repository.findProjectedById(saved.getId())
                         .map(projection -> recipeMapper.toResponseDTO(projection))
@@ -176,13 +193,13 @@ public class RecipeService {
                 });
     }
 
-        @Caching(evict = {
+    @Caching(evict = {
             @CacheEvict(value = "recipe", key = "#id"),
             @CacheEvict(value = "recipes_page", allEntries = true),
             @CacheEvict(value = "recipe_stats", allEntries = true),
             @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
             @CacheEvict(value = "cookable_recipes", allEntries = true)
-        })
+    })
     @Deprecated(since = "2026-03", forRemoval = false)
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
@@ -221,29 +238,28 @@ public class RecipeService {
                 CookableRecipeResponseDTO dto = cookableRecipeMapper.toResponseDTO(recipe);
 
                 if (dto.getComponents() != null) {
-                for (CookableRecipeResponseDTO.CookableRecipeComponentResponseDTO componentDTO : dto.getComponents()) {
-                    BigDecimal currentStock = componentDTO.getAvailableStock() != null ? componentDTO.getAvailableStock() : BigDecimal.ZERO;
-                    BigDecimal reserved = reservedByProduct.getOrDefault(componentDTO.getProductId(), BigDecimal.ZERO);
+                    for (CookableRecipeResponseDTO.CookableRecipeComponentResponseDTO componentDTO : dto.getComponents()) {
+                        BigDecimal currentStock = componentDTO.getAvailableStock() != null ? componentDTO.getAvailableStock() : BigDecimal.ZERO;
+                        BigDecimal reserved = reservedByProduct.getOrDefault(componentDTO.getProductId(), BigDecimal.ZERO);
 
-                    RecipeComponent sourceComponent = recipe.getComponents().stream()
-                        .filter(component -> component.getProduct().getId().equals(componentDTO.getProductId()))
-                        .findFirst()
-                        .orElse(null);
+                        RecipeComponent sourceComponent = recipe.getComponents().stream()
+                            .filter(component -> component.getProduct().getId().equals(componentDTO.getProductId()))
+                            .findFirst()
+                            .orElse(null);
 
-                    BigDecimal availabilityPct = sourceComponent != null
-                        && sourceComponent.getProduct().getAvailabilityPercentage() != null
-                            ? sourceComponent.getProduct().getAvailabilityPercentage()
-                            : new BigDecimal("100.00");
+                        BigDecimal availabilityPct = sourceComponent != null
+                            && sourceComponent.getProduct().getAvailabilityPercentage() != null
+                                ? sourceComponent.getProduct().getAvailabilityPercentage()
+                                : new BigDecimal("100.00");
 
-                    BigDecimal maxAvailable = currentStock.multiply(availabilityPct)
-                        .divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
+                        BigDecimal maxAvailable = currentStock.multiply(availabilityPct)
+                            .divide(new BigDecimal("100"), 3, RoundingMode.HALF_UP);
 
-                    componentDTO.setAvailableStock(maxAvailable);
-                    componentDTO.setGrossAvailableStock(currentStock);
-                    componentDTO.setAvailabilityPercentage(availabilityPct);
-                    componentDTO.setReservedByOtherPlans(reserved);
-
-                }
+                        componentDTO.setAvailableStock(maxAvailable);
+                        componentDTO.setGrossAvailableStock(currentStock);
+                        componentDTO.setAvailabilityPercentage(availabilityPct);
+                        componentDTO.setReservedByOtherPlans(reserved);
+                    }
                 }
 
                 BigDecimal cookableQuantity = calculateCookableQuantity(recipe, reservedByProduct);
@@ -279,12 +295,12 @@ public class RecipeService {
                 page.getTotalElements());
     }
 
-        @Caching(evict = {
+    @Caching(evict = {
             @CacheEvict(value = "recipe", key = "#id"),
             @CacheEvict(value = "recipes_page", allEntries = true),
             @CacheEvict(value = "weekly_plan_requirements", allEntries = true),
             @CacheEvict(value = "cookable_recipes", allEntries = true)
-        })
+    })
     @RealtimeSync(entityType = "recipe", action = "UPDATE", idFromArg = 0,
             affectedDomains = {"recipe", "weekly_plan"})
     @RecipeAuditable(action = "TOGGLE_HIDDEN")
@@ -316,14 +332,13 @@ public class RecipeService {
         }
 
         for (Recipe recipe : affectedRecipes) {
-            calculateTotalCost(recipe);
+            recipeCostCalculator.calculateTotalCost(recipe);
         }
         repository.saveAll(affectedRecipes);
         log.info("Se han actualizado {} recetas debido al cambio en el producto {}", affectedRecipes.size(), productId);
     }
 
     private Recipe toEntity(RecipeRequestDTO requestDTO) {
-
         Recipe recipe = recipeMapper.toEntity(requestDTO);
         updateEntityCollections(recipe, requestDTO);
         return recipe;
@@ -335,7 +350,6 @@ public class RecipeService {
     }
 
     private void updateEntityCollections(Recipe recipe, RecipeRequestDTO requestDTO) {
-
         if (recipe.getComponents() == null) {
             recipe.setComponents(new HashSet<>());
         }
@@ -344,7 +358,6 @@ public class RecipeService {
         }
 
         if (requestDTO.getComponents() != null && !requestDTO.getComponents().isEmpty()) {
-
             List<RecipeComponentRequestDTO> mergedComponents = requestDTO.getComponents().stream()
                     .collect(Collectors.groupingBy(RecipeComponentRequestDTO::getProductId))
                     .values().stream()
@@ -393,7 +406,6 @@ public class RecipeService {
                 }
             }
         } else {
-
             recipe.getComponents().clear();
         }
 
@@ -407,58 +419,26 @@ public class RecipeService {
     @Cacheable(value = "recipe_stats", key = "'global'")
     @Transactional(readOnly = true)
     public RecipeStatsResponseDTO getRecipeStats() {
-        long total = repository.countByIsHiddenFalse();
-        long withAllergens = repository.countWithAllergens();
-        long withoutAllergens = repository.countWithoutAllergens();
-        BigDecimal averagePrice = repository.getAveragePrice();
-
-        return statsMapper.toRecipeStatsDTO(total, withAllergens, withoutAllergens, averagePrice);
+        return recipeCostCalculator.getRecipeStats();
     }
 
     @Cacheable(value = "recipe_stats", key = "'withAllergens'")
     @Transactional(readOnly = true)
     public RecipeCountResponseDTO getRecipesWithAllergensCount() {
-        return statsMapper.toRecipeCountDTO(repository.countWithAllergens());
+        return recipeCostCalculator.getRecipesWithAllergensCount();
     }
 
     @Cacheable(value = "recipe_stats", key = "'withoutAllergens'")
     @Transactional(readOnly = true)
     public RecipeCountResponseDTO getRecipesWithoutAllergensCount() {
-        return statsMapper.toRecipeCountDTO(repository.countWithoutAllergens());
+        return recipeCostCalculator.getRecipesWithoutAllergensCount();
     }
 
     @Cacheable(value = "recipe_stats", key = "'averageCost'")
     @Transactional(readOnly = true)
     public RecipeAverageCostResponseDTO getRecipesAverageCost() {
-        return statsMapper.toRecipeAverageCostDTO(repository.getAveragePrice());
+        return recipeCostCalculator.getRecipesAverageCost();
     }
-
-    private void calculateTotalCost(Recipe recipe) {
-        BigDecimal totalCost = recipe.getComponents().stream()
-                .filter(component -> component.getQuantity() != null &&
-                        component.getProduct() != null &&
-                        component.getProduct().getUnitPrice() != null)
-                .map(component -> {
-                    BigDecimal qty = component.getQuantity();
-                    BigDecimal price = component.getProduct().getUnitPrice();
-                    BigDecimal pct = component.getProduct().getAvailabilityPercentage() != null
-                            ? component.getProduct().getAvailabilityPercentage()
-                            : new BigDecimal("100.00");
-
-                    if (pct.compareTo(BigDecimal.ZERO) <= 0) {
-                        return qty.multiply(price);
-                    }
-
-                    // Cost = (NetQty * 100 / AvailabilityPct) * Price
-                    return qty.multiply(new BigDecimal("100"))
-                            .divide(pct, 10, RoundingMode.HALF_UP)
-                            .multiply(price);
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
-        recipe.setTotalCost(totalCost);
-    }
-
 
     private BigDecimal calculateCookableQuantity(Recipe recipe, Map<Integer, BigDecimal> reservedByProduct) {
         if (recipe.getComponents() == null || recipe.getComponents().isEmpty()) {
@@ -472,20 +452,20 @@ public class RecipeService {
                 return BigDecimal.ZERO;
             }
 
-                BigDecimal currentStock = component.getProduct().getCurrentStock() != null
-                    ? component.getProduct().getCurrentStock()
-                    : BigDecimal.ZERO;
+            BigDecimal currentStock = component.getProduct().getCurrentStock() != null
+                ? component.getProduct().getCurrentStock()
+                : BigDecimal.ZERO;
 
-                BigDecimal availabilityPct = component.getProduct().getAvailabilityPercentage() != null
-                    ? component.getProduct().getAvailabilityPercentage()
-                    : BigDecimal.valueOf(100.00);
+            BigDecimal availabilityPct = component.getProduct().getAvailabilityPercentage() != null
+                ? component.getProduct().getAvailabilityPercentage()
+                : BigDecimal.valueOf(100.00);
 
-                BigDecimal maxAvailable = currentStock
-                    .multiply(availabilityPct)
-                    .divide(BigDecimal.valueOf(100), 3, RoundingMode.DOWN);
+            BigDecimal maxAvailable = currentStock
+                .multiply(availabilityPct)
+                .divide(BigDecimal.valueOf(100), 3, RoundingMode.DOWN);
 
-                BigDecimal reserved = reservedByProduct.getOrDefault(component.getProduct().getId(), BigDecimal.ZERO);
-                BigDecimal available = maxAvailable.subtract(reserved).max(BigDecimal.ZERO);
+            BigDecimal reserved = reservedByProduct.getOrDefault(component.getProduct().getId(), BigDecimal.ZERO);
+            BigDecimal available = maxAvailable.subtract(reserved).max(BigDecimal.ZERO);
 
             BigDecimal cookableByComponent = available
                     .divide(component.getQuantity(), 3, RoundingMode.DOWN);
@@ -498,166 +478,11 @@ public class RecipeService {
         return (minCookable == null ? BigDecimal.ZERO : minCookable).setScale(3, RoundingMode.DOWN);
     }
 
-    @RealtimeSync(entityType = "recipe", action = "CONFIRM", idFromArg = -2,
-            affectedDomains = {"recipe", "ledger", "product", "weekly_plan", "stock_alerts"},
-            idsFromResult = "recipeProductIds")
-    @PredictorTrigger(action = "COOK_RECIPE")
-    @RecipeCookingAuditable(action = "COOK_RECIPE")
-    @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
-            RuntimeException.class, Exception.class })
     public RecipeResponseDTO cookRecipe(RecipeCookingRequestDTO cookingRequest) {
-        String correlationId = UUID.randomUUID().toString();
-        cookingRequest.setCorrelationId(correlationId);
-
-        log.info("Iniciando proceso de cocinado de receta: recipeId={}, cantidad={}, correlationId={}",
-                cookingRequest.getRecipeId(), cookingRequest.getQuantity(), correlationId);
-
-        Recipe recipe = repository.findByIdWithDetails(cookingRequest.getRecipeId())
-                .orElseThrow(
-                        () -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RECIPE_NOT_FOUND,
-                                new Object[] { cookingRequest.getRecipeId() })));
-
-        if (recipe.getComponents() == null || recipe.getComponents().isEmpty()) {
-            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_RECIPE_NO_COMPONENTS));
-        }
-
-        User currentUser = securityContextHelper.getCurrentUser();
-
-        List<Integer> componentProductIds = recipe.getComponents().stream()
-                .map(c -> c.getProduct().getId())
-                .toList();
-        Map<Integer, Product> productsById = productRepository.findAllById(componentProductIds).stream()
-                .collect(Collectors.toMap(Product::getId, p -> p));
-        if (productsById.size() != componentProductIds.size()) {
-            throw new ResourceNotFoundException(
-                    i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND, new Object[] { "multiple" }));
-        }
-
-        List<BatchMovementItem> movements = new java.util.ArrayList<>();
-        for (RecipeComponent component : recipe.getComponents()) {
-            Product product = productsById.get(component.getProduct().getId());
-
-            BigDecimal requiredQuantity = component.getQuantity().multiply(cookingRequest.getQuantity());
-
-            // Calcular stock utilizable considerando el porcentaje de disponibilidad
-            BigDecimal availabilityPercent = product.getAvailabilityPercentage() != null
-                    ? product.getAvailabilityPercentage()
-                    : BigDecimal.valueOf(100.00);
-
-            BigDecimal usableStock = product.getCurrentStock()
-                    .multiply(availabilityPercent)
-                    .divide(BigDecimal.valueOf(100), 3, RoundingMode.DOWN);
-
-            if (usableStock.compareTo(requiredQuantity) < 0) {
-                throw new InvalidOperationException(
-                        i18nService.getMessage(MessageKey.ERROR_RECIPE_STOCK_INSUFFICIENT,
-                                new Object[] { product.getName(), requiredQuantity, usableStock }));
-            }
-
-            BigDecimal grossQuantity = availabilityPercent.compareTo(BigDecimal.ZERO) > 0
-                    ? requiredQuantity.multiply(BigDecimal.valueOf(100)).divide(availabilityPercent, 3, RoundingMode.HALF_UP)
-                    : requiredQuantity;
-
-                movements.add(new BatchMovementItem(
-                    product.getId(),
-                    grossQuantity.negate(),
-                    MovementType.SALIDA,
-                    i18nService.getMessage(MessageKey.LEDGER_DESCRIPTION_COOKING,
-                            new Object[] { recipe.getName(), cookingRequest.getQuantity() }),
-                    null,
-                    correlationId));
-
-            log.info("Stock Bruto descontado del ledger: producto={}, neto={}, bruto={}",
-                    product.getName(), requiredQuantity, grossQuantity);
-
-        }
-
-        stockLedgerService.recordBatchStockMovements(movements, currentUser, null);
-
-        log.info("Receta cocinada exitosamente: receta={}, cantidad={}, usuario={}",
-                recipe.getName(), cookingRequest.getQuantity(),
-                currentUser != null ? currentUser.getName() : "Sistema");
-
-        return repository.findProjectedById(recipe.getId())
-            .map(projection -> recipeMapper.toResponseDTO(projection))
-            .orElseGet(() -> recipeMapper.toResponseDTO(recipe));
+        return recipeCookingProcessor.cookRecipe(cookingRequest);
     }
 
-    /**
-     * Revierte un cocinado de receta específico.
-     */
-    @RealtimeSync(entityType = "recipe", action = "REVERT", idFromArg = -2,
-            affectedDomains = {"recipe", "ledger", "product", "weekly_plan", "stock_alerts"},
-            idsFromResult = "recipeProductIds")
-    @PredictorTrigger(action = "REVERT_COOKING")
-    @Transactional(rollbackFor = Exception.class)
     public List<Integer> revertCooking(Long auditId, String reason) {
-        log.info("Iniciando reversión de cocinado: auditId={}, motivo={}", auditId, reason);
-
-        try {
-            var audit = recipeCookingAuditRepository.findById(auditId)
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
-
-            if (audit.getCorrelationId() == null) {
-                log.warn("Intento de revertir auditoría sin correlationId: auditId={}", auditId);
-                throw new InvalidOperationException(
-                        i18nService.getMessage(MessageKey.ERROR_INTERNAL_SERVER_ERROR));
-            }
-
-            String correlationId = audit.getCorrelationId();
-
-            stockLedgerService.revertMovement(correlationId, "Deshacer cocinado: " + reason);
-            syncWeeklyPlanSlotAfterExternalRevert(correlationId);
-            
-                List<Integer> affectedProductIds = recipeCookingAuditRepository.findProductIdsByAuditId(auditId);
-
-            // Eliminar la auditoría: si se revierte es que nunca ocurrió
-            recipeCookingAuditRepository.delete(audit);
-            
-            log.info("Cocinado revertido y auditoría eliminada exitosamente: auditId={}, correlationId={}", auditId, audit.getCorrelationId());
-            return affectedProductIds;
-        } catch (ResourceNotFoundException | InvalidOperationException e) {
-            log.warn("Error validado al revertir cocinado: {}", e.getMessage());
-            throw e;
-        } catch (Exception e) {
-            log.error("Error inesperado al revertir cocinado: {}", e.getMessage(), e);
-            throw e; // Permitir que ruede hasta el GlobalExceptionHandler
-        }
-    }
-
-    private void syncWeeklyPlanSlotAfterExternalRevert(String correlationId) {
-        weeklyPlanSlotRepository.findByCorrelationId(correlationId).ifPresent(slot -> {
-            WeeklyPlan plan = slot.getWeeklyPlan();
-            if (!isRuntimePlanStatus(plan.getStatus()) || slot.getStatus() != WeeklyPlanSlotStatus.CONFIRMED) {
-                return;
-            }
-
-            slot.setStatus(WeeklyPlanSlotStatus.PENDING);
-            slot.setConfirmedAt(null);
-            slot.setConfirmedBy(null);
-            slot.setCorrelationId(null);
-
-            slot.getStudents().forEach(studentSlot -> {
-                if (studentSlot.getStatus() == StudentSlotStatus.CONFIRMED) {
-                    studentSlot.setStatus(StudentSlotStatus.ASSIGNED);
-                }
-            });
-
-            boolean hasConfirmed = plan.getSlots().stream().anyMatch(s -> s.getStatus() == WeeklyPlanSlotStatus.CONFIRMED);
-            if (hasConfirmed) {
-                plan.setStatus(WeeklyPlanStatus.IN_PROGRESS);
-            } else if (plan.getStatus() == WeeklyPlanStatus.IN_PROGRESS) {
-                plan.setStatus(WeeklyPlanStatus.ACTIVE);
-            }
-
-            weeklyPlanRepository.saveAndFlush(plan);
-            weeklyPlanSlotRepository.saveAndFlush(slot);
-            log.info("Slot de plan semanal sincronizado tras reversión externa: slotId={}, planId={}", slot.getId(), plan.getId());
-        });
-    }
-
-    private boolean isRuntimePlanStatus(WeeklyPlanStatus status) {
-        return status == WeeklyPlanStatus.ACTIVE || status == WeeklyPlanStatus.IN_PROGRESS;
+        return recipeCookingProcessor.revertCooking(auditId, reason);
     }
 }
