@@ -1,0 +1,184 @@
+package com.economato.inventory.infrastructure.adapter.in.web.shared;
+import com.economato.inventory.domain.model.product.Product;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.cache.CacheManager;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.web.servlet.LocaleResolver;
+
+import com.economato.inventory.application.dto.shared.RestPage;
+import com.economato.inventory.application.dto.shared.response.InventoryMovementResponseDTO;
+import com.economato.inventory.application.usecase.shared.InventoryAuditService;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityConfig;
+import com.economato.inventory.infrastructure.config.shared.security.JwtUtils;
+import com.economato.inventory.application.usecase.user.TokenBlacklistService;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import java.math.BigDecimal;
+
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(InventoryAuditController.class)
+@ActiveProfiles("test")
+@Import(SecurityConfig.class)
+class InventoryAuditControllerIntegrationTest {
+        @Autowired
+        private MockMvc mockMvc;
+
+        @MockitoBean
+        private InventoryAuditService inventoryAuditService;
+
+        @MockitoBean
+        private JwtUtils jwtUtils;
+
+        @MockitoBean
+        private UserDetailsService userDetailsService;
+
+        @MockitoBean
+        private TokenBlacklistService tokenBlacklistService;
+
+        @MockitoBean
+        private I18nService i18nService;
+
+        @MockitoBean
+        private LocaleResolver localeResolver;
+
+        @MockitoBean
+        private CacheManager cacheManager;
+
+    private InventoryMovementResponseDTO testMovement;
+    private List<InventoryMovementResponseDTO> testMovements;
+
+    @BeforeEach
+    void setUp() {
+        testMovement = new InventoryMovementResponseDTO();
+        testMovement.setId(1);
+        testMovement.setProductId(1);
+        testMovement.setProductName("Test Product");
+        testMovement.setMovementType("ENTRADA");
+        testMovement.setQuantity(new BigDecimal("50"));
+        testMovement.setMovementDate(LocalDateTime.now());
+
+        testMovements = Arrays.asList(testMovement);
+    }
+
+    @Test
+    void getAllMovements_ShouldReturnList() throws Exception {
+        when(inventoryAuditService.findFiltered(any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(new RestPage<>(testMovements));
+
+        mockMvc.perform(get("/api/inventory-audits").with(user("admin").roles("ADMIN"))
+                .param("page", "0")
+                .param("size", "10")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content[0].id").value(1))
+                .andExpect(jsonPath("$.content[0].movementType").value("ENTRADA"))
+                .andExpect(jsonPath("$.content[0].quantity").value(50));
+    }
+
+    @Test
+    void getAllMovements_WithAdminRole_ShouldReturnList() throws Exception {
+        when(inventoryAuditService.findFiltered(any(), any(), any(), any(), any(Pageable.class)))
+                .thenReturn(new RestPage<>(testMovements));
+
+        mockMvc.perform(get("/api/inventory-audits").with(user("admin").roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray());
+    }
+
+    @Test
+    
+    void getAllMovements_WithUserRole_ShouldReturnForbidden() throws Exception {
+        // Este test debería retornar 403 pero retorna 500 debido a interacción entre
+        // @MockBean y Spring Security
+        mockMvc.perform(get("/api/inventory-audits").with(user("user").roles("USER"))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    
+    void getMovementById_WhenExists_ShouldReturnMovement() throws Exception {
+
+        when(inventoryAuditService.findById(1)).thenReturn(Optional.of(testMovement));
+
+        mockMvc.perform(get("/api/inventory-audits/1").with(user("admin").roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1))
+                .andExpect(jsonPath("$.productId").value(1))
+                .andExpect(jsonPath("$.movementType").value("ENTRADA"));
+    }
+
+    @Test
+    
+    void getMovementById_WhenNotExists_ShouldReturn404() throws Exception {
+
+        when(inventoryAuditService.findById(anyInt())).thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/inventory-audits/999").with(user("admin").roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    
+    void getMovementsByType_ShouldReturnList() throws Exception {
+
+        when(inventoryAuditService.findByMovementType("ENTRADA")).thenReturn(testMovements);
+
+        mockMvc.perform(get("/api/inventory-audits/type/ENTRADA").with(user("admin").roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].movementType").value("ENTRADA"));
+    }
+
+    @Test
+    
+    void getMovementsByType_WithAdminRole_ShouldReturnList() throws Exception {
+
+        when(inventoryAuditService.findByMovementType(anyString())).thenReturn(testMovements);
+
+        mockMvc.perform(get("/api/inventory-audits/type/SALIDA").with(user("admin").roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    
+    void getMovementsByDateRange_ShouldReturnList() throws Exception {
+
+        when(inventoryAuditService.findByMovementDateBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(testMovements);
+
+        mockMvc.perform(get("/api/inventory-audits/by-date-range").with(user("admin").roles("ADMIN"))
+                .param("start", "2026-01-01T00:00:00")
+                .param("end", "2026-02-01T23:59:59")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$[0].id").value(1));
+    }
+}

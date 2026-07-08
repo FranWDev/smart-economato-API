@@ -1,0 +1,46 @@
+package com.economato.inventory.application.dto.order.response;
+import com.economato.inventory.application.dto.shared.response.LotReceptionResponseDTO;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.math.BigDecimal;
+import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Schema(description = "Detalle de pedido con información del producto, cantidades y totales")
+public class OrderDetailResponseDTO {
+
+    @Schema(description = "ID del pedido", example = "10")
+    private Integer orderId;
+
+    @Schema(description = "Identificador del producto", example = "42")
+    private Integer productId;
+
+    @Schema(description = "Nombre del producto", example = "Tomate triturado 500g")
+    private String productName;
+
+    @Schema(description = "Unidad de medida del producto", example = "KG")
+    private String unit;
+
+    @Schema(description = "Cantidad del producto en el pedido", example = "3.5")
+    private BigDecimal quantity;
+
+    @Schema(description = "Cantidad recibida del producto", example = "3.5")
+    private BigDecimal quantityReceived;
+
+    @Schema(description = "Precio unitario del producto en el pedido", example = "1.20")
+    private BigDecimal unitPrice;
+
+    @Schema(description = "Subtotal del detalle (cantidad × precio unitario)", example = "4.20")
+    private BigDecimal subtotal;
+
+    @Schema(description = "Cantidad por lote de compra del producto", example = "5.00")
+    private BigDecimal lotQuantity;
+
+    @Schema(description = "Lista de lotes recibidos con sus cantidades y fechas de caducidad")
+    private List<LotReceptionResponseDTO> lots;
+}

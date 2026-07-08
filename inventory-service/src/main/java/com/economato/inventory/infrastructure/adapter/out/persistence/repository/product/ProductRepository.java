@@ -1,0 +1,117 @@
+package com.economato.inventory.infrastructure.adapter.out.persistence.repository.product;
+import com.economato.inventory.domain.model.ledger.StockLedger;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.economato.inventory.application.dto.product.projection.ProductProjection;
+import com.economato.inventory.domain.model.product.Product;
+
+import jakarta.persistence.LockModeType;
+import java.math.BigDecimal;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+
+public interface ProductRepository extends JpaRepository<Product, Integer> {
+
+        boolean existsByName(String name);
+        boolean existsByProductCode(String productCode);
+
+        @Query("SELECT p FROM Product p LEFT JOIN FETCH p.supplier WHERE p.isHidden = false")
+        List<Product> findAllActive();
+
+        boolean existsByUnitIgnoreCaseAndIsHiddenFalse(String unit);
+
+
+        List<Product> findByNameContainingIgnoreCase(String namePart);
+
+        Page<Product> findByNameContainingIgnoreCase(String namePart, Pageable pageable);
+
+
+        List<Product> findByUnitPriceBetween(BigDecimal min, BigDecimal max);
+
+        Optional<Product> findByProductCode(String productCode);
+
+        @Query("SELECT p FROM Product p WHERE p.id = :id")
+        Optional<Product> findByIdOptimized(@Param("id") Integer id);
+
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        @Query("SELECT p FROM Product p WHERE p.id = :id")
+        Optional<Product> findByIdForUpdate(@Param("id") Integer id);
+
+        @Query("SELECT p FROM Product p LEFT JOIN FETCH p.supplier WHERE p.id = :id")
+        Optional<Product> findByIdWithSupplier(@Param("id") Integer id);
+
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        @Query("SELECT p FROM Product p WHERE p.id IN :ids")
+        List<Product> findByIdsForUpdate(@Param("ids") Collection<Integer> ids);
+
+        @Query("SELECT p FROM Product p LEFT JOIN FETCH p.supplier WHERE p.id IN :ids")
+        List<Product> findAllByIdWithSupplier(@Param("ids") Collection<Integer> ids);
+
+        List<Product> findBySupplierId(Integer supplierId);
+
+        @Lock(LockModeType.PESSIMISTIC_READ)
+        @Query("SELECT p FROM Product p WHERE p.id = :id")
+        Optional<Product> findByIdForRead(@Param("id") Integer id);
+
+        boolean existsBySupplierId(Integer supplierId);
+
+        Page<ProductProjection> findByIsHiddenFalse(Pageable pageable);
+
+        Page<ProductProjection> findByIsHiddenTrue(Pageable pageable);
+
+        List<ProductProjection> findByIsHiddenFalse(Sort sort);
+
+        Optional<ProductProjection> findProjectedById(Integer id);
+
+        Optional<ProductProjection> findProjectedByProductCode(String productCode);
+
+        Page<ProductProjection> findByNameContainingIgnoreCaseAndIsHiddenFalse(String namePart,
+                        Pageable pageable);
+
+        Page<ProductProjection> findByNameContainingIgnoreCaseAndIsHiddenTrue(String namePart,
+                        Pageable pageable);
+
+        List<ProductProjection> findByNameContainingIgnoreCaseAndIsHiddenFalse(String namePart);
+
+
+
+        List<ProductProjection> findByUnitPriceBetweenAndIsHiddenFalse(BigDecimal min,
+                        BigDecimal max);
+
+        @Query(value = "SELECT p FROM Product p LEFT JOIN FETCH p.supplier WHERE p.isHidden = false " +
+                        "AND EXISTS (SELECT 1 FROM StockLedger l WHERE l.product.id = p.id)",
+                countQuery = "SELECT COUNT(p) FROM Product p WHERE p.isHidden = false " +
+                             "AND EXISTS (SELECT 1 FROM StockLedger l WHERE l.product.id = p.id)")
+        Page<Product> findProductsWithLedger(Pageable pageable);
+
+        @Query(value = "SELECT p FROM Product p LEFT JOIN FETCH p.supplier WHERE p.isHidden = false " +
+                        "AND EXISTS (SELECT 1 FROM StockLedger l WHERE l.product.id = p.id) " +
+                        "AND LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))",
+                countQuery = "SELECT COUNT(p) FROM Product p WHERE p.isHidden = false " +
+                             "AND EXISTS (SELECT 1 FROM StockLedger l WHERE l.product.id = p.id) " +
+                             "AND LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))")
+        Page<Product> findProductsWithLedgerByName(@Param("name") String name, Pageable pageable);
+
+        @Query("SELECT COUNT(p) FROM Product p WHERE p.isHidden = false")
+        long countTotalProducts();
+
+        @Query("SELECT COALESCE(SUM(p.unitPrice * p.currentStock), 0) FROM Product p WHERE p.isHidden = false")
+        BigDecimal calculateTotalInventoryValue();
+
+        @Query("SELECT COALESCE(AVG(p.unitPrice), 0) FROM Product p WHERE p.isHidden = false")
+        BigDecimal calculateAveragePrice();
+        @Modifying
+        @Transactional
+        @Query("UPDATE Product p SET p.availabilityPercentage = :percentage WHERE p.id IN :ids")
+        void updateAvailabilityForProducts(@Param("ids") List<Integer> ids, @Param("percentage") BigDecimal percentage);
+}

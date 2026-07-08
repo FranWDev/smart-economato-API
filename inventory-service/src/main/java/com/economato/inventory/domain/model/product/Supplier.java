@@ -1,0 +1,40 @@
+package com.economato.inventory.domain.model.product;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
+import java.util.List;
+
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Entity
+@Builder
+@Table(name = "supplier", indexes = {
+        @Index(name = "idx_supplier_name", columnList = "name", unique = true)
+}, uniqueConstraints = {
+        @UniqueConstraint(name = "uk_supplier_name", columnNames = "name")
+})
+public class Supplier {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "supplier_id")
+    private Integer id;
+
+    @NotBlank(message = "{validation.supplier.name.notBlank}")
+    @Size(min = 2, max = 100, message = "{validation.supplier.name.size}")
+    @Column(name = "name", nullable = false, unique = true, length = 100)
+    private String name;
+
+    @Column(name = "email", length = 100)
+    private String email;
+
+    @Column(name = "phone", length = 20)
+    private String phone;
+
+    @OneToMany(mappedBy = "supplier")
+    private List<Product> products;
+}
