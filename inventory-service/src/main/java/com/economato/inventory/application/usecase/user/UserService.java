@@ -60,16 +60,13 @@ public class UserService {
     private final SystemConfigService systemConfigService;
     private final UserAccessPolicy userAccessPolicy;
 
-    @Autowired
     public UserService(I18nService i18nService, UserRepository repository, PasswordEncoder passwordEncoder,
             UserMapper userMapper,
             TemporaryRoleEscalationMapper escalationMapper,
             StatsMapper statsMapper,
             CustomUserDetailsService customUserDetailsService,
             TemporaryRoleEscalationRepository escalationRepository,
-            RoleNotificationService roleNotificationService,
-            @Autowired(required = false) SystemConfigService systemConfigService,
-            UserAccessPolicy userAccessPolicy) {
+            RoleNotificationService roleNotificationService) {
         this.i18nService = i18nService;
         this.repository = repository;
         this.passwordEncoder = passwordEncoder;
@@ -79,20 +76,8 @@ public class UserService {
         this.customUserDetailsService = customUserDetailsService;
         this.escalationRepository = escalationRepository;
         this.roleNotificationService = roleNotificationService;
-        this.systemConfigService = systemConfigService;
-        this.userAccessPolicy = userAccessPolicy;
-    }
-
-    public UserService(I18nService i18nService, UserRepository repository, PasswordEncoder passwordEncoder,
-            UserMapper userMapper,
-            TemporaryRoleEscalationMapper escalationMapper,
-            StatsMapper statsMapper,
-            CustomUserDetailsService customUserDetailsService,
-            TemporaryRoleEscalationRepository escalationRepository,
-            RoleNotificationService roleNotificationService) {
-        this(i18nService, repository, passwordEncoder, userMapper, escalationMapper, statsMapper,
-                customUserDetailsService, escalationRepository, roleNotificationService, null,
-                new UserAccessPolicy(repository, null, i18nService, passwordEncoder));
+        this.systemConfigService = null;
+        this.userAccessPolicy = new UserAccessPolicy(repository, null, i18nService, passwordEncoder);
     }
 
         @Cacheable(value = "users_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize")

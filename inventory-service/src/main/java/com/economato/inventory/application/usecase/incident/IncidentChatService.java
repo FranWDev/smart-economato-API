@@ -58,33 +58,6 @@ public class IncidentChatService {
     private final I18nService i18nService;
     private final SystemConfigService systemConfigService;
 
-    @Autowired
-    public IncidentChatService(IncidentRepository incidentRepository,
-            IncidentChatMessageRepository incidentChatMessageRepository,
-            IncidentChatReadReceiptRepository readReceiptRepository,
-            SecurityContextHelper securityContextHelper,
-            IncidentParticipantService incidentParticipantService,
-            IncidentChatMessageMapper incidentChatMessageMapper,
-            IncidentChatReadReceiptMapper readReceiptMapper,
-            FileStorageService fileStorageService,
-            PersistentNotificationService persistentNotificationService,
-            SimpMessagingTemplate messagingTemplate,
-            I18nService i18nService,
-            @Autowired(required = false) SystemConfigService systemConfigService) {
-        this.incidentRepository = incidentRepository;
-        this.incidentChatMessageRepository = incidentChatMessageRepository;
-        this.readReceiptRepository = readReceiptRepository;
-        this.securityContextHelper = securityContextHelper;
-        this.incidentParticipantService = incidentParticipantService;
-        this.incidentChatMessageMapper = incidentChatMessageMapper;
-        this.readReceiptMapper = readReceiptMapper;
-        this.fileStorageService = fileStorageService;
-        this.persistentNotificationService = persistentNotificationService;
-        this.messagingTemplate = messagingTemplate;
-        this.i18nService = i18nService;
-        this.systemConfigService = systemConfigService;
-    }
-
     public IncidentChatService(IncidentRepository incidentRepository,
             IncidentChatMessageRepository incidentChatMessageRepository,
             IncidentChatReadReceiptRepository readReceiptRepository,
@@ -96,10 +69,20 @@ public class IncidentChatService {
             PersistentNotificationService persistentNotificationService,
             SimpMessagingTemplate messagingTemplate,
             I18nService i18nService) {
-        this(incidentRepository, incidentChatMessageRepository, readReceiptRepository, securityContextHelper,
-                incidentParticipantService, incidentChatMessageMapper, readReceiptMapper, fileStorageService,
-                persistentNotificationService, messagingTemplate, i18nService, null);
+        this.incidentRepository = incidentRepository;
+        this.incidentChatMessageRepository = incidentChatMessageRepository;
+        this.readReceiptRepository = readReceiptRepository;
+        this.securityContextHelper = securityContextHelper;
+        this.incidentParticipantService = incidentParticipantService;
+        this.incidentChatMessageMapper = incidentChatMessageMapper;
+        this.readReceiptMapper = readReceiptMapper;
+        this.fileStorageService = fileStorageService;
+        this.persistentNotificationService = persistentNotificationService;
+        this.messagingTemplate = messagingTemplate;
+        this.i18nService = i18nService;
+        this.systemConfigService = null;
     }
+
 
     public IncidentChatMessageResponseDTO sendMessage(Long incidentId, String content, MultipartFile file) {
         Incident incident = getIncidentOrThrow(incidentId);

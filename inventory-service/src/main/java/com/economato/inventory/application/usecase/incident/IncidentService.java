@@ -58,93 +58,28 @@ import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 public class IncidentService {
 
     private final IncidentRepository incidentRepository;
-    private final IncidentTypeRepository incidentTypeRepository;
     private final IncidentAuditAttachmentRepository incidentAuditAttachmentRepository;
     private final IncidentChatMessageRepository incidentChatMessageRepository;
-    private final RecipeCookingAuditRepository recipeCookingAuditRepository;
     private final IncidentMapper incidentMapper;
-    private final RecipeCookingAuditMapper recipeCookingAuditMapper;
     private final SecurityContextHelper securityContextHelper;
-    private final IncidentParticipantService incidentParticipantService;
-    private final PersistentNotificationService persistentNotificationService;
-    private final RecipeService recipeService;
     private final I18nService i18nService;
-    private final SystemConfigService systemConfigService;
-
     private final IncidentWorkflowManager incidentWorkflowManager;
     private final IncidentAttachmentService incidentAttachmentService;
 
     public IncidentService(IncidentRepository incidentRepository,
-            IncidentTypeRepository incidentTypeRepository,
             IncidentAuditAttachmentRepository incidentAuditAttachmentRepository,
             IncidentChatMessageRepository incidentChatMessageRepository,
-            RecipeCookingAuditRepository recipeCookingAuditRepository,
             IncidentMapper incidentMapper,
-            RecipeCookingAuditMapper recipeCookingAuditMapper,
             SecurityContextHelper securityContextHelper,
-            IncidentParticipantService incidentParticipantService,
-            PersistentNotificationService persistentNotificationService,
-            RecipeService recipeService,
-            I18nService i18nService) {
-        this(incidentRepository, incidentTypeRepository, incidentAuditAttachmentRepository, incidentChatMessageRepository,
-                recipeCookingAuditRepository, incidentMapper, recipeCookingAuditMapper, securityContextHelper,
-                incidentParticipantService, persistentNotificationService, recipeService, i18nService, null);
-    }
-
-    public IncidentService(IncidentRepository incidentRepository,
-            IncidentTypeRepository incidentTypeRepository,
-            IncidentAuditAttachmentRepository incidentAuditAttachmentRepository,
-            IncidentChatMessageRepository incidentChatMessageRepository,
-            RecipeCookingAuditRepository recipeCookingAuditRepository,
-            IncidentMapper incidentMapper,
-            RecipeCookingAuditMapper recipeCookingAuditMapper,
-            SecurityContextHelper securityContextHelper,
-            IncidentParticipantService incidentParticipantService,
-            PersistentNotificationService persistentNotificationService,
-            RecipeService recipeService,
             I18nService i18nService,
-            SystemConfigService systemConfigService) {
-        this(incidentRepository, incidentTypeRepository, incidentAuditAttachmentRepository, incidentChatMessageRepository,
-                recipeCookingAuditRepository, incidentMapper, recipeCookingAuditMapper, securityContextHelper,
-                incidentParticipantService, persistentNotificationService, recipeService, i18nService, systemConfigService,
-                new IncidentWorkflowManager(incidentRepository, incidentTypeRepository, persistentNotificationService,
-                        incidentParticipantService, new IncidentAttachmentService(incidentAuditAttachmentRepository,
-                                recipeCookingAuditRepository, incidentMapper, recipeCookingAuditMapper,
-                                securityContextHelper, incidentParticipantService, recipeService, i18nService, systemConfigService), i18nService),
-                new IncidentAttachmentService(incidentAuditAttachmentRepository, recipeCookingAuditRepository,
-                        incidentMapper, recipeCookingAuditMapper, securityContextHelper, incidentParticipantService,
-                        recipeService, i18nService, systemConfigService));
-    }
-
-    @Autowired
-    public IncidentService(IncidentRepository incidentRepository,
-            IncidentTypeRepository incidentTypeRepository,
-            IncidentAuditAttachmentRepository incidentAuditAttachmentRepository,
-            IncidentChatMessageRepository incidentChatMessageRepository,
-            RecipeCookingAuditRepository recipeCookingAuditRepository,
-            IncidentMapper incidentMapper,
-            RecipeCookingAuditMapper recipeCookingAuditMapper,
-            SecurityContextHelper securityContextHelper,
-            IncidentParticipantService incidentParticipantService,
-            PersistentNotificationService persistentNotificationService,
-            RecipeService recipeService,
-            I18nService i18nService,
-            SystemConfigService systemConfigService,
             IncidentWorkflowManager incidentWorkflowManager,
             IncidentAttachmentService incidentAttachmentService) {
         this.incidentRepository = incidentRepository;
-        this.incidentTypeRepository = incidentTypeRepository;
         this.incidentAuditAttachmentRepository = incidentAuditAttachmentRepository;
         this.incidentChatMessageRepository = incidentChatMessageRepository;
-        this.recipeCookingAuditRepository = recipeCookingAuditRepository;
         this.incidentMapper = incidentMapper;
-        this.recipeCookingAuditMapper = recipeCookingAuditMapper;
         this.securityContextHelper = securityContextHelper;
-        this.incidentParticipantService = incidentParticipantService;
-        this.persistentNotificationService = persistentNotificationService;
-        this.recipeService = recipeService;
         this.i18nService = i18nService;
-        this.systemConfigService = systemConfigService;
         this.incidentWorkflowManager = incidentWorkflowManager;
         this.incidentAttachmentService = incidentAttachmentService;
     }

@@ -62,31 +62,19 @@ public class SystemConfigService {
     private final I18nService i18nService;
     private final DynamicSchedulerConfig dynamicSchedulerConfig;
 
-    @Autowired
-    public SystemConfigService(SystemConfigRepository systemConfigRepository,
-            SystemConfigAuditLogRepository auditLogRepository,
-            UserRepository userRepository,
-            UserActivityLogRepository userActivityLogRepository,
-            NotificationRepository notificationRepository,
-            I18nService i18nService,
-            @Lazy @Autowired(required = false) DynamicSchedulerConfig dynamicSchedulerConfig) {
-        this.systemConfigRepository = systemConfigRepository;
-        this.auditLogRepository = auditLogRepository;
-        this.userRepository = userRepository;
-        this.userActivityLogRepository = userActivityLogRepository;
-        this.notificationRepository = notificationRepository;
-        this.i18nService = i18nService;
-        this.dynamicSchedulerConfig = dynamicSchedulerConfig;
-    }
-
     public SystemConfigService(SystemConfigRepository systemConfigRepository,
             SystemConfigAuditLogRepository auditLogRepository,
             UserRepository userRepository,
             UserActivityLogRepository userActivityLogRepository,
             NotificationRepository notificationRepository,
             I18nService i18nService) {
-        this(systemConfigRepository, auditLogRepository, userRepository, userActivityLogRepository,
-                notificationRepository, i18nService, null);
+        this.systemConfigRepository = systemConfigRepository;
+        this.auditLogRepository = auditLogRepository;
+        this.userRepository = userRepository;
+        this.userActivityLogRepository = userActivityLogRepository;
+        this.notificationRepository = notificationRepository;
+        this.i18nService = i18nService;
+        this.dynamicSchedulerConfig = null;
     }
 
     @Cacheable("system_config")

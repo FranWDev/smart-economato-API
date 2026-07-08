@@ -45,21 +45,12 @@ public class UserPresenceService {
 
     private final ConcurrentHashMap<String, ConcurrentHashMap<String, UserSessionInfo>> sessionsByUser = new ConcurrentHashMap<>();
 
-    @Autowired
-    public UserPresenceService(SimpMessagingTemplate messagingTemplate,
-            UserRepository userRepository,
-            @Autowired(required = false) AuditEventProducer auditEventProducer,
-            @Lazy @Autowired(required = false) SystemConfigService systemConfigService,
-            @Autowired(required = false) OrderReviewLockService orderReviewLockService) {
-        this.messagingTemplate = messagingTemplate;
-        this.auditEventProducer = auditEventProducer;
-        this.systemConfigService = systemConfigService;
-        this.userRepository = userRepository;
-        this.orderReviewLockService = orderReviewLockService;
-    }
-
     public UserPresenceService(SimpMessagingTemplate messagingTemplate, UserRepository userRepository) {
-        this(messagingTemplate, userRepository, null, null, null);
+        this.messagingTemplate = messagingTemplate;
+        this.userRepository = userRepository;
+        this.auditEventProducer = null;
+        this.systemConfigService = null;
+        this.orderReviewLockService = null;
     }
 
     public void userConnected(String username, String sessionId, Role role, Integer userId, Integer teacherId, String displayName) {
