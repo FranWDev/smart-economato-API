@@ -1,42 +1,7 @@
 package com.economato.inventory.application.usecase.stock;
-import com.economato.inventory.application.usecase.product.ProductBatchService;
-import com.economato.inventory.application.usecase.shared.SystemConfigService;
-import com.economato.inventory.domain.model.order.Order;
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.stock.event.ForecastResultType;
-import com.economato.inventory.application.dto.product.projection.PendingProductQuantity;
-import com.economato.inventory.application.dto.shared.projection.WeeklyIngredientConsumption;
-import com.economato.inventory.application.dto.stock.response.AlertResolution;
 import com.economato.inventory.application.dto.stock.response.AlertSeverity;
-import com.economato.inventory.application.dto.stock.response.AlertType;
 import com.economato.inventory.application.dto.stock.response.DailyForecastResponseDTO;
 import com.economato.inventory.application.dto.product.response.ProductBatchResponseDTO;
 import com.economato.inventory.application.dto.stock.response.StockAlertDTO;
@@ -44,122 +9,128 @@ import com.economato.inventory.application.dto.stock.response.StockPredictionRes
 import com.economato.inventory.application.dto.shared.response.WeeklyConsumptionResponseDTO;
 import com.economato.inventory.application.mapper.stock.StockDailyForecastMapper;
 import com.economato.inventory.application.mapper.stock.StockWeeklyConsumptionHistoryMapper;
+import com.economato.inventory.application.usecase.product.ProductBatchService;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.product.ProductBatch;
-import com.economato.inventory.domain.model.recipe.Recipe;
 import com.economato.inventory.domain.model.stock.StockDailyForecast;
 import com.economato.inventory.domain.model.stock.StockPrediction;
 import com.economato.inventory.domain.model.stock.StockWeeklyConsumptionHistory;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.out.external.stock.prediction.HoltWintersForecaster;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.order.OrderDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeCookingAuditRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockDailyForecastRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockPredictionRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockWeeklyConsumptionHistoryRepository;
 import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
- * Genera alertas predictivas de stock bajo combinando:
- * Predicciones oficiales recibidas desde el predictor de IA (Kafka).
- * Cantidades pendientes de recibir en pedidos activos (CREATED / PENDING /
- * REVIEW).
+ * Facade y despachador de alertas de stock.
+ * Delega cálculos específicos a StockThresholdEvaluator y BatchExpirationMonitor.
  */
 @Slf4j
 @Service
 public class StockAlertService {
 
-    private static final int DEFAULT_HISTORY_WEEKS = 12;
-
-    private static final int DEFAULT_HORIZON_DAYS = 14;
-
-    private static final int SEASON_PERIOD = 1;
-
-    private final RecipeCookingAuditRepository cookingAuditRepository;
-    private final OrderDetailRepository orderDetailRepository;
     private final ProductRepository productRepository;
-    private final RecipeRepository recipeRepository;
     private final StockPredictionRepository predictionRepository;
     private final StockDailyForecastRepository dailyForecastRepository;
     private final StockWeeklyConsumptionHistoryRepository weeklyHistoryRepository;
     private final StockDailyForecastMapper stockDailyForecastMapper;
     private final StockWeeklyConsumptionHistoryMapper stockWeeklyConsumptionHistoryMapper;
-    private final HoltWintersForecaster forecaster;
-    private final I18nService i18nService;
     private final ProductBatchService productBatchService;
-    private final SystemConfigService systemConfigService;
+    private final I18nService i18nService;
+
+    private final StockThresholdEvaluator stockThresholdEvaluator;
+    private final BatchExpirationMonitor batchExpirationMonitor;
 
     @Autowired
-    public StockAlertService(RecipeCookingAuditRepository cookingAuditRepository,
-            OrderDetailRepository orderDetailRepository,
+    public StockAlertService(
             ProductRepository productRepository,
-            RecipeRepository recipeRepository,
             StockPredictionRepository predictionRepository,
             StockDailyForecastRepository dailyForecastRepository,
             StockWeeklyConsumptionHistoryRepository weeklyHistoryRepository,
             StockDailyForecastMapper stockDailyForecastMapper,
             StockWeeklyConsumptionHistoryMapper stockWeeklyConsumptionHistoryMapper,
-            HoltWintersForecaster forecaster,
-            I18nService i18nService,
             ProductBatchService productBatchService,
-            @Autowired(required = false) SystemConfigService systemConfigService) {
-        this.cookingAuditRepository = cookingAuditRepository;
-        this.orderDetailRepository = orderDetailRepository;
+            I18nService i18nService,
+            StockThresholdEvaluator stockThresholdEvaluator,
+            BatchExpirationMonitor batchExpirationMonitor) {
         this.productRepository = productRepository;
-        this.recipeRepository = recipeRepository;
         this.predictionRepository = predictionRepository;
         this.dailyForecastRepository = dailyForecastRepository;
         this.weeklyHistoryRepository = weeklyHistoryRepository;
         this.stockDailyForecastMapper = stockDailyForecastMapper;
         this.stockWeeklyConsumptionHistoryMapper = stockWeeklyConsumptionHistoryMapper;
-        this.forecaster = forecaster;
-        this.i18nService = i18nService;
         this.productBatchService = productBatchService;
-        this.systemConfigService = systemConfigService;
+        this.i18nService = i18nService;
+        this.stockThresholdEvaluator = stockThresholdEvaluator;
+        this.batchExpirationMonitor = batchExpirationMonitor;
     }
 
-    public StockAlertService(RecipeCookingAuditRepository cookingAuditRepository,
-            OrderDetailRepository orderDetailRepository,
+    // Overloaded secondary constructor for backwards compatibility with tests (12 args).
+    public StockAlertService(
+            com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeCookingAuditRepository cookingAuditRepository,
+            com.economato.inventory.infrastructure.adapter.out.persistence.repository.order.OrderDetailRepository orderDetailRepository,
             ProductRepository productRepository,
-            RecipeRepository recipeRepository,
+            com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository recipeRepository,
             StockPredictionRepository predictionRepository,
             StockDailyForecastRepository dailyForecastRepository,
             StockWeeklyConsumptionHistoryRepository weeklyHistoryRepository,
             StockDailyForecastMapper stockDailyForecastMapper,
             StockWeeklyConsumptionHistoryMapper stockWeeklyConsumptionHistoryMapper,
-            HoltWintersForecaster forecaster,
+            com.economato.inventory.infrastructure.adapter.out.external.stock.prediction.HoltWintersForecaster forecaster,
             I18nService i18nService,
             ProductBatchService productBatchService) {
-        this(cookingAuditRepository, orderDetailRepository, productRepository, recipeRepository, predictionRepository,
-                dailyForecastRepository, weeklyHistoryRepository, stockDailyForecastMapper,
-                stockWeeklyConsumptionHistoryMapper, forecaster, i18nService, productBatchService, null);
+        this(
+                productRepository,
+                predictionRepository,
+                dailyForecastRepository,
+                weeklyHistoryRepository,
+                stockDailyForecastMapper,
+                stockWeeklyConsumptionHistoryMapper,
+                productBatchService,
+                i18nService,
+                new StockThresholdEvaluator(
+                        cookingAuditRepository,
+                        orderDetailRepository,
+                        productRepository,
+                        recipeRepository,
+                        predictionRepository,
+                        i18nService,
+                        productBatchService,
+                        null,
+                        new BatchExpirationMonitor(productBatchService, i18nService, null)
+                ),
+                new BatchExpirationMonitor(productBatchService, i18nService, null)
+        );
     }
 
-    /**
-     * Calcula y devuelve todas las alertas predictivas activas
-     * (es decir, severidad distinta de {@code OK}).
-     *
-     * @return lista de alertas ordenada por severidad descendente (CRITICAL
-     *         primero)
-     */
     @Cacheable(value = "stock_alerts", key = "'active'")
     @Transactional(readOnly = true)
     public List<StockAlertDTO> getActiveAlerts() {
-        return computeAlerts().stream()
+        return stockThresholdEvaluator.computeAlerts().stream()
                 .filter(a -> a.getSeverity() != AlertSeverity.OK)
                 .sorted(Comparator.comparing(StockAlertDTO::getSeverity).reversed())
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Devuelve las alertas filtradas por nivel de severidad mínimo.
-     */
     @Cacheable(value = "stock_alerts", key = "'severity:' + #minSeverity.name()")
     @Transactional(readOnly = true)
     public List<StockAlertDTO> getAlertsBySeverity(AlertSeverity minSeverity) {
@@ -168,42 +139,27 @@ public class StockAlertService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Devuelve la alerta predictiva para un producto específico, si existe.
-     */
     @Cacheable(value = "stock_alerts", key = "'product:' + #productId", unless = "#result == null")
     @Transactional(readOnly = true)
     public Optional<StockAlertDTO> getAlertByProductId(Integer productId) {
-        return computeAlerts(Set.of(productId)).stream().findFirst();
+        return stockThresholdEvaluator.computeAlerts(Set.of(productId)).stream().findFirst();
     }
 
-    /**
-     * Devuelve las alertas predictivas para una lista específica de productos.
-     */
     @Transactional(readOnly = true)
     public List<StockAlertDTO> getAlertsByProductIds(Collection<Integer> productIds) {
         if (productIds == null || productIds.isEmpty()) {
             return List.of();
         }
-        return computeAlerts(new HashSet<>(productIds));
+        return stockThresholdEvaluator.computeAlerts(new HashSet<>(productIds));
     }
 
-    // -------------------------------------------------------------------------
-    // Lógica de cálculo
-    // -------------------------------------------------------------------------
-
-    /**
-     * Devuelve una lista paginada de todas las predicciones almacenadas.
-     */
     @Cacheable(value = "stock_predictions", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
     @Transactional(readOnly = true)
     public Page<StockPredictionResponseDTO> getAllPredictions(Pageable pageable) {
-        // Filtrar productos con lotes próximos a caducar para excluir del tipo COMBINED
         Set<Integer> expiringProductIds = productBatchService.getExpiringBatches(7).stream()
                 .map(batch -> batch.getProduct().getId())
                 .collect(Collectors.toSet());
 
-        // Obtener predicciones para productos no ocultos y filtrar las que no tienen caducidad (tipo PREDICTION puro)
         List<StockPredictionResponseDTO> allValidPredictions = predictionRepository.findAllActive().stream()
                 .filter(p -> !expiringProductIds.contains(p.getId()))
                 .map(prediction -> StockPredictionResponseDTO.builder()
@@ -213,12 +169,11 @@ public class StockAlertService {
                         .projectedConsumptionUnit(prediction.getProduct().getUnit())
                         .currentStock(prediction.getProduct().getCurrentStock())
                         .lotQuantity(prediction.getProduct().getLotQuantity())
-                        .alertType(AlertType.PREDICTION)
+                        .alertType(com.economato.inventory.application.dto.stock.response.AlertType.PREDICTION)
                         .updatedAt(prediction.getUpdatedAt())
                         .build())
                 .collect(Collectors.toList());
 
-        // Aplicar ordenación manual ya que el repositorio no puede ordenar el filtro en memoria
         if (pageable.getSort().isSorted()) {
             allValidPredictions.sort((p1, p2) -> {
                 for (Sort.Order order : pageable.getSort()) {
@@ -242,11 +197,6 @@ public class StockAlertService {
         return new PageImpl<>(pageContent, pageable, allValidPredictions.size());
     }
 
-    /**
-     * Devuelve el historial semanal de consumo para un producto concreto
-     * (si se indica {@code productId}) o para todos los productos con historial
-     * (si {@code productId} es {@code null}).
-     */
     @Cacheable(value = "weekly_consumption", key = "#productId != null ? #productId : 'all'")
     @Transactional(readOnly = true)
     public List<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistory(Integer productId) {
@@ -254,15 +204,11 @@ public class StockAlertService {
             return getWeeklyConsumptionHistoryAll();
         }
         return weeklyHistoryRepository.findOneById(productId)
-            .map(stockWeeklyConsumptionHistoryMapper::toDTO)
-            .map(List::of)
-            .orElseGet(List::of);
+                .map(stockWeeklyConsumptionHistoryMapper::toDTO)
+                .map(List::of)
+                .orElseGet(List::of);
     }
 
-    /**
-     * Devuelve el historial semanal de consumo para todos los productos con
-     * historial en el período analizado.
-     */
     @Transactional(readOnly = true)
     public List<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistoryAll() {
         return weeklyHistoryRepository.findAll().stream()
@@ -271,55 +217,40 @@ public class StockAlertService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Devuelve el historial semanal de consumo para todos los productos en formato
-     * paginado.
-     */
     @Transactional(readOnly = true)
     public Page<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistoryAll(Pageable pageable) {
         return weeklyHistoryRepository.findAll(pageable)
                 .map(stockWeeklyConsumptionHistoryMapper::toDTO);
     }
 
-        /**
-         * Devuelve la proyección diaria de consumo para un producto concreto,
-         * incluidos los lotes activos (no agotados) ordenados por fecha de caducidad.
-         * Evita N+1 cargando los batches de una sola consulta.
-         */
     @Cacheable(value = "daily_forecast", key = "#productId")
     @Transactional(readOnly = true)
     public Optional<DailyForecastResponseDTO> getDailyForecast(Integer productId) {
         return dailyForecastRepository.findOneById(productId)
                 .map(forecast -> {
                     DailyForecastResponseDTO dto = stockDailyForecastMapper.toDTO(forecast);
-                    // Cargar lotes activos sin disparar N+1
                     List<ProductBatch> activeBatches = productBatchService.getActiveBatches(productId);
-                    // Mapear batches a DTOs usando el mapper existente
                     dto.setActiveBatches(activeBatches.stream()
                             .map(batch -> new ProductBatchResponseDTO(
-                                batch.getId(),
-                                batch.getProduct().getId(),
-                                batch.getProduct().getName(),
-                                batch.getExpirationDate(),
-                                batch.getInitialQuantity(),
-                                batch.getRemainingQuantity(),
-                                batch.getReceivedAt(),
-                                batch.getBatchCode(),
-                                batch.isDepleted(),
-                                batch.getExpirationDate() != null && batch.getExpirationDate().isBefore(LocalDate.now()),
-                                batch.getExpirationDate() != null 
-                                    ? (int) Math.max(0, ChronoUnit.DAYS.between(LocalDate.now(), batch.getExpirationDate()))
-                                    : 0
+                                    batch.getId(),
+                                    batch.getProduct().getId(),
+                                    batch.getProduct().getName(),
+                                    batch.getExpirationDate(),
+                                    batch.getInitialQuantity(),
+                                    batch.getRemainingQuantity(),
+                                    batch.getReceivedAt(),
+                                    batch.getBatchCode(),
+                                    batch.isDepleted(),
+                                    batch.getExpirationDate() != null && batch.getExpirationDate().isBefore(LocalDate.now()),
+                                    batch.getExpirationDate() != null 
+                                            ? (int) Math.max(0, ChronoUnit.DAYS.between(LocalDate.now(), batch.getExpirationDate()))
+                                            : 0
                             ))
                             .collect(Collectors.toList()));
                     return dto;
                 });
     }
 
-            /**
-             * Devuelve la proyección diaria de consumo para todos los productos con
-             * historial en el período analizado.
-             */
     @Cacheable(value = "daily_forecast", key = "'all'")
     @Transactional(readOnly = true)
     public List<DailyForecastResponseDTO> getDailyForecastAll() {
@@ -329,9 +260,6 @@ public class StockAlertService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Devuelve la proyección diaria de consumo en formato paginado.
-     */
     @Cacheable(value = "daily_forecast", key = "'page:' + #pageable.pageNumber + '-' + #pageable.pageSize")
     @Transactional(readOnly = true)
     public Page<DailyForecastResponseDTO> getDailyForecastAll(Pageable pageable) {
@@ -339,616 +267,27 @@ public class StockAlertService {
                 .map(stockDailyForecastMapper::toDTO);
     }
 
-    private List<StockAlertDTO> computeAlerts() {
-        return computeAlerts(null);
-    }
-
-    private List<StockAlertDTO> computeAlerts(Set<Integer> filterIds) {
-        LocalDateTime since = LocalDateTime.now().minusWeeks(getForecastHistoryWeeks());
-        Map<Integer, BigDecimal> persistedPredictions = buildPredictionMap();
-
-        if (filterIds != null && !filterIds.isEmpty()) {
-            persistedPredictions.keySet().retainAll(filterIds);
-        }
-
-        Map<Integer, Product> productsById = buildProductMap();
-        if (persistedPredictions.isEmpty()) {
-            return mergeExpirationAlerts(List.of(), filterIds, productsById);
-        }
-
-        Map<Integer, BigDecimal> pendingByProduct = buildPendingMap();
-        Map<Integer, List<ProductBatch>> activeBatchesByProduct = buildActiveBatchesMap();
-
-        List<Integer> productIdsToProcess = new ArrayList<>(persistedPredictions.keySet());
-        List<Object[]> topRecipesData = cookingAuditRepository.findTopConsumingRecipesByProducts(productIdsToProcess, since);
-        Map<Integer, List<String>> topRecipesByProduct = new HashMap<>();
-        for (Object[] row : topRecipesData) {
-            Integer pId = (Integer) row[0];
-            String rName = (String) row[1];
-            topRecipesByProduct.computeIfAbsent(pId, k -> new ArrayList<>()).add(rName);
-        }
-
-        List<StockAlertDTO> alerts = new ArrayList<>();
-        for (Map.Entry<Integer, BigDecimal> entry : persistedPredictions.entrySet()) {
-            Integer productId = entry.getKey();
-            BigDecimal projected = entry.getValue();
-
-            Product product = productsById.get(productId);
-            if (product == null) continue;
-
-            BigDecimal currentStock = product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO;
-            BigDecimal pending = pendingByProduct.getOrDefault(productId, BigDecimal.ZERO);
-
-            List<String> topRecipes = topRecipesByProduct.getOrDefault(productId, List.of());
-            if (topRecipes.size() > 3) topRecipes = topRecipes.subList(0, 3);
-
-            StockAlertDTO alert = buildAlert(productId, currentStock, pending, projected, activeBatchesByProduct, productsById, topRecipes);
-            if (alert != null) {
-                alerts.add(alert);
-            }
-        }
-
-            return mergeExpirationAlerts(alerts, filterIds, productsById);
-    }
-
-            private List<StockAlertDTO> mergeExpirationAlerts(List<StockAlertDTO> baseAlerts, Set<Integer> filterIds, Map<Integer, Product> productsById) {
-            List<ProductBatch> expiringBatches = productBatchService.getExpiringBatches(7);
-            if (filterIds != null && !filterIds.isEmpty()) {
-                expiringBatches = expiringBatches.stream()
-                    .filter(batch -> filterIds.contains(batch.getProduct().getId()))
-                    .toList();
-            }
-
-            if (expiringBatches.isEmpty()) {
-                return baseAlerts;
-            }
-
-            Map<Integer, List<ProductBatch>> expiringByProduct = expiringBatches.stream()
-                .collect(Collectors.groupingBy(batch -> batch.getProduct().getId()));
-
-            Map<Integer, StockAlertDTO> alertsByProduct = baseAlerts.stream()
-                .collect(Collectors.toMap(StockAlertDTO::getProductId, alert -> alert, (left, right) -> left));
-
-            for (Map.Entry<Integer, List<ProductBatch>> entry : expiringByProduct.entrySet()) {
-                Integer productId = entry.getKey();
-                List<ProductBatch> batches = entry.getValue();
-
-                LocalDate nearestExpiration = batches.stream()
-                    .map(ProductBatch::getExpirationDate)
-                    .filter(Objects::nonNull)
-                    .min(LocalDate::compareTo)
-                    .orElse(null);
-
-                if (nearestExpiration == null) {
-                continue;
-                }
-
-                BigDecimal expiringQuantity = batches.stream()
-                    .map(ProductBatch::getRemainingQuantity)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                long daysToExpire = ChronoUnit.DAYS.between(LocalDate.now(), nearestExpiration);
-                AlertSeverity expirationSeverity = classifyExpirationSeverity(daysToExpire);
-
-                String expiringMessage = i18nService.getMessage(
-                    MessageKey.STOCK_ALERT_MESSAGE_EXPIRING,
-                    new Object[] { nearestExpiration, expiringQuantity.setScale(3, RoundingMode.HALF_UP) });
-
-                StockAlertDTO existing = alertsByProduct.get(productId);
-                if (existing == null) {
-                Product product = productsById.get(productId);
-                if (product == null) {
-                    continue;
-                }
-
-                StockAlertDTO expirationOnly = StockAlertDTO.builder()
-                    .productId(productId)
-                    .productName(product.getName())
-                    .unit(product.getUnit())
-                    .lotQuantity(product.getLotQuantity())
-                    .currentStock(product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO)
-                    .pendingOrderQuantity(BigDecimal.ZERO)
-                    .projectedConsumption(BigDecimal.ZERO)
-                    .effectiveGap(BigDecimal.ZERO)
-                    .estimatedDaysRemaining(Math.max((int) daysToExpire, 0))
-                    .severity(expirationSeverity)
-                    .resolution(AlertResolution.EXPIRING)
-                    .alertType(AlertType.EXPIRATION)
-                    .message(expiringMessage)
-                    .nearestExpirationDate(nearestExpiration)
-                    .expiringQuantity(expiringQuantity)
-                    .topConsumingRecipes(List.of())
-                    .build();
-                alertsByProduct.put(productId, expirationOnly);
-                continue;
-                }
-
-                AlertSeverity mergedSeverity = expirationSeverity.ordinal() > existing.getSeverity().ordinal()
-                    ? expirationSeverity
-                    : existing.getSeverity();
-
-                StockAlertDTO merged = StockAlertDTO.builder()
-                    .productId(existing.getProductId())
-                    .productName(existing.getProductName())
-                    .unit(existing.getUnit())
-                    .lotQuantity(existing.getLotQuantity())
-                    .currentStock(existing.getCurrentStock())
-                    .pendingOrderQuantity(existing.getPendingOrderQuantity())
-                    .projectedConsumption(existing.getProjectedConsumption())
-                    .effectiveGap(existing.getEffectiveGap())
-                    .estimatedDaysRemaining(existing.getEstimatedDaysRemaining())
-                    .severity(mergedSeverity)
-                    .resolution(existing.getResolution())
-                    .alertType(AlertType.COMBINED)
-                    .message(existing.getMessage() + " " + expiringMessage)
-                    .nearestExpirationDate(nearestExpiration)
-                    .expiringQuantity(expiringQuantity)
-                    .topConsumingRecipes(existing.getTopConsumingRecipes())
-                    .build();
-
-                alertsByProduct.put(productId, merged);
-            }
-
-            return new ArrayList<>(alertsByProduct.values());
-            }
-
-    /**
-     * Actualiza la predicción oficial de un producto basándose en el resultado del
-     * predictor externo de IA (Python/Prophet).
-     */
     @CacheEvict(value = { "stock_alerts", "stock_predictions", "daily_forecast", "weekly_consumption" }, allEntries = true)
-    @RealtimeSync(entityType = "stock_alerts", action = "UPDATE", idFromArg = 0,
-            affectedDomains = {"stock_alerts"})
+    @RealtimeSync(entityType = "stock_alerts", action = "UPDATE", idFromArg = 0, affectedDomains = {"stock_alerts"})
     @Transactional
     public void updatePredictionFromForecast(Integer productId, BigDecimal projectedConsumption) {
-        updatePredictionFromForecast(productId, projectedConsumption, LocalDateTime.now());
+        stockThresholdEvaluator.updatePredictionFromForecast(productId, projectedConsumption, LocalDateTime.now());
     }
 
-    /**
-     * Actualiza la predicción oficial de un producto usando el timestamp recibido
-     * por Kafka cuando esté disponible.
-     */
     @CacheEvict(value = { "stock_alerts", "stock_predictions", "daily_forecast", "weekly_consumption" }, allEntries = true)
     @Transactional
-    public void updatePredictionFromForecast(Integer productId,
-            BigDecimal projectedConsumption,
-            LocalDateTime calculatedAt) {
-        log.info("Actualizando predicción desde predictor externo para producto ID: {}. Nuevo valor: {}", 
-            productId, projectedConsumption);
-        
-        Product product = productRepository.findById(productId)
-            .orElseThrow(() -> new IllegalArgumentException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND)));
-
-        StockPrediction prediction = predictionRepository.findById(productId)
-            .orElseGet(() -> StockPrediction.builder()
-                .product(product)
-                .build());
-
-        prediction.setProjectedConsumption(projectedConsumption);
-        prediction.setUpdatedAt(calculatedAt != null ? calculatedAt : LocalDateTime.now());
-        predictionRepository.save(prediction);
-        
-        log.debug("Predicción actualizada con éxito para producto {}", productId);
+    public void updatePredictionFromForecast(Integer productId, BigDecimal projectedConsumption, LocalDateTime calculatedAt) {
+        stockThresholdEvaluator.updatePredictionFromForecast(productId, projectedConsumption, calculatedAt);
     }
 
-    /**
-     * Regla de negocio para clasificar una predicción recibida por Kafka:
-     * - ALERT: el consumo proyectado a 14 días agota el stock actual en < 14 días
-     * - PREDICTION: no agota el stock en ese horizonte
-     */
     @Transactional(readOnly = true)
     public ForecastResultType classifyForecastResult(Integer productId, BigDecimal projectedConsumption) {
-        if (productId == null || projectedConsumption == null || projectedConsumption.signum() < 0) {
-            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_INVALID_OPERATION));
-        }
-
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException(i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND)));
-
-        BigDecimal currentStock = product.getCurrentStock() != null ? product.getCurrentStock() : BigDecimal.ZERO;
-        if (projectedConsumption.signum() == 0) {
-            return ForecastResultType.PREDICTION;
-        }
-
-        // Consumo proyectado representa 14 días. Si projected > stock actual,
-        // el stock se agotará en menos de 14 días.
-        return projectedConsumption.compareTo(currentStock) > 0
-                ? ForecastResultType.ALERT
-                : ForecastResultType.PREDICTION;
+        return stockThresholdEvaluator.classifyForecastResult(productId, projectedConsumption);
     }
 
-    /**
-     * @deprecated Holt-Winters ya no participa en el flujo activo de predicción.
-     *             Las predicciones oficiales se calculan exclusivamente mediante el
-     *             predictor de IA y llegan por Kafka en {@code forecast-updates}.
-     *             Se conserva solo por compatibilidad y referencia histórica.
-     */
     @Deprecated
     public void updatePredictionsForRecipe(Integer recipeId) {
-        log.warn(
-            "[Deprecated] Recalculo Holt-Winters solicitado para receta ID: {}. " +
-            "La ruta legacy está deshabilitada y las predicciones oficiales provienen exclusivamente de IA.",
-            recipeId);
-    }
-
-    /**
-     * @deprecated Implementación legacy conservada únicamente como referencia.
-     *             No debe invocarse en producción porque sobrescribe predicciones
-     *             generadas por IA.
-     */
-    @Deprecated
-    @SuppressWarnings("unused")
-    @Async
-    @Transactional
-    void runLegacyHoltWintersForecastForRecipe(Integer recipeId) {
-        log.info("[Async] Iniciando recálculo de predicciones para receta ID: {}", recipeId);
-
-        var recipeOpt = recipeRepository.findByIdWithDetails(recipeId);
-        if (recipeOpt.isEmpty()) {
-            log.warn("[Async] Receta no encontrada: {}", recipeId);
-            return;
-        }
-
-        Recipe recipe = recipeOpt.get();
-        Set<Integer> productIds = recipe.getComponents().stream()
-                .map(c -> c.getProduct().getId())
-                .collect(Collectors.toSet());
-
-        if (productIds.isEmpty()) {
-            return;
-        }
-
-        LocalDateTime since = LocalDateTime.now().minusWeeks(getForecastHistoryWeeks());
-        List<WeeklyIngredientConsumption> weeklyData = cookingAuditRepository.findWeeklyConsumptionPerIngredient(since,
-                since);
-
-        Map<Integer, List<Double>> consumptionByProduct = groupByProduct(weeklyData);
-        LocalDateTime calculatedAt = LocalDateTime.now();
-
-        for (Integer productId : productIds) {
-            List<Double> consumption = consumptionByProduct.get(productId);
-            if (consumption == null || consumption.isEmpty())
-                continue;
-
-            Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                    i18nService.getMessage(MessageKey.ERROR_PRODUCT_NOT_FOUND) + ": " + productId));
-
-            List<BigDecimal> weeklySeries = consumption.stream()
-                .map(value -> BigDecimal.valueOf(value).setScale(3, RoundingMode.HALF_UP))
-                .collect(Collectors.toList());
-
-            List<BigDecimal> dailySeries = forecaster.forecastDaily(consumption, SEASON_PERIOD, getForecastHorizonDays()).stream()
-                .map(value -> BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP))
-                .collect(Collectors.toList());
-
-            StockWeeklyConsumptionHistory weeklyHistory = weeklyHistoryRepository.findById(productId)
-                .orElseGet(() -> StockWeeklyConsumptionHistory.builder()
-                    .product(product)
-                    .build());
-            weeklyHistory.setWeeklyConsumption(weeklySeries);
-            weeklyHistory.setWeeksOfHistory(getForecastHistoryWeeks());
-            weeklyHistory.setCalculatedAt(calculatedAt);
-            weeklyHistoryRepository.save(weeklyHistory);
-
-            StockDailyForecast dailyForecast = dailyForecastRepository.findById(productId)
-                .orElseGet(() -> StockDailyForecast.builder()
-                    .product(product)
-                    .build());
-            dailyForecast.setDailyForecast(dailySeries);
-            dailyForecast.setHorizonDays(getForecastHorizonDays());
-            dailyForecast.setCalculatedAt(calculatedAt);
-            dailyForecastRepository.save(dailyForecast);
-
-            double projectedRaw = forecaster.forecast(consumption, SEASON_PERIOD, getForecastHorizonDays());
-            BigDecimal projected = BigDecimal.valueOf(projectedRaw).setScale(4, RoundingMode.HALF_UP);
-
-            StockPrediction prediction = predictionRepository.findById(productId)
-                .orElseGet(() -> StockPrediction.builder()
-                    .product(product)
-                    .build());
-
-            prediction.setProjectedConsumption(projected);
-            predictionRepository.save(prediction);
-            log.debug("[Async] Predicción actualizada para producto {}: {}", productId, projected);
-        }
-
-        log.info("[Async] Recálculo completado para receta ID: {}", recipeId);
-    }
-
-    private StockAlertDTO buildAlert(Integer productId,
-            BigDecimal currentStock,
-            BigDecimal pending,
-            BigDecimal projected,
-            Map<Integer, List<ProductBatch>> activeBatchesByProduct,
-            Map<Integer, Product> productsById,
-            List<String> topRecipes) {
-
-        Product product = productsById.get(productId);
-        if (product == null)
-            return null;
-
-        BigDecimal effective = currentStock.add(pending);
-        BigDecimal gap = projected.subtract(effective).setScale(3, RoundingMode.HALF_UP);
-
-        int daysRemaining;
-        if (projected.compareTo(BigDecimal.ZERO) <= 0) {
-            daysRemaining = Integer.MAX_VALUE; 
-        } else {
-            BigDecimal dailyRate = projected.divide(BigDecimal.valueOf(getForecastHorizonDays()), 6, RoundingMode.HALF_UP);
-            if (dailyRate.compareTo(BigDecimal.ZERO) == 0) {
-                daysRemaining = Integer.MAX_VALUE;
-            } else {
-                List<ProductBatch> batches = activeBatchesByProduct.getOrDefault(productId, List.of());
-                daysRemaining = calculateDaysRemainingWithExpiration(dailyRate, batches, pending);
-            }
-        }
-
-        AlertSeverity severity = classifySeverity(daysRemaining);
-        if (severity == AlertSeverity.OK)
-            return null; // sin alerta
-
-        AlertResolution resolution = classifyResolution(gap, pending);
-        String message = buildMessage(product.getName(), currentStock, pending, projected, gap,
-                resolution, product.getUnit());
-
-
-        return StockAlertDTO.builder()
-                .productId(productId)
-                .productName(product.getName())
-                .unit(product.getUnit())
-                .lotQuantity(product.getLotQuantity())
-                .currentStock(currentStock)
-                .pendingOrderQuantity(pending)
-                .projectedConsumption(projected)
-                .effectiveGap(gap)
-                .estimatedDaysRemaining(Math.min(daysRemaining, 999))
-                .severity(severity)
-                .alertType(AlertType.PREDICTION)
-                .resolution(resolution)
-                .message(message)
-                .nearestExpirationDate(null)
-                .expiringQuantity(BigDecimal.ZERO)
-                .topConsumingRecipes(topRecipes)
-                .build();
-    }
-
-    // -------------------------------------------------------------------------
-    // Clasificación
-    // -------------------------------------------------------------------------
-
-    private AlertSeverity classifySeverity(int days) {
-        Thresholds t = getAlertThresholdsOrDefault();
-        if (days >= t.alertThresholdOkDays())
-            return AlertSeverity.OK;
-        if (days >= t.alertThresholdLowDays())
-            return AlertSeverity.LOW;
-        if (days >= t.alertThresholdMediumDays())
-            return AlertSeverity.MEDIUM;
-        if (days >= t.alertThresholdHighDays())
-            return AlertSeverity.HIGH;
-        return AlertSeverity.CRITICAL;
-    }
-
-    private AlertSeverity classifyExpirationSeverity(long daysToExpire) {
-        Thresholds t = getAlertThresholdsOrDefault();
-        if (daysToExpire < t.expirationCriticalDays()) {
-            return AlertSeverity.CRITICAL;
-        }
-        if (daysToExpire < t.expirationHighDays()) {
-            return AlertSeverity.HIGH;
-        }
-        if (daysToExpire < t.expirationMediumDays()) {
-            return AlertSeverity.MEDIUM;
-        }
-        return AlertSeverity.LOW;
-    }
-
-    private AlertResolution classifyResolution(BigDecimal gap, BigDecimal pending) {
-        if (gap.compareTo(BigDecimal.ZERO) <= 0) {
-            return AlertResolution.OK; // sin déficit — no debería llegar aquí, pero por seguridad
-        }
-        if (pending.compareTo(BigDecimal.ZERO) <= 0) {
-            return AlertResolution.UNCOVERED;
-        }
-        // El gap ya descuenta el pending en la fórmula, así que si hay pending y gap >
-        // 0
-        // es una cobertura parcial
-        return AlertResolution.PARTIALLY_COVERED;
-    }
-
-    // -------------------------------------------------------------------------
-    // Generación de mensaje
-    // -------------------------------------------------------------------------
-
-    private String buildMessage(String name, BigDecimal stock, BigDecimal pending,
-            BigDecimal projected, BigDecimal gap,
-            AlertResolution resolution, String unit) {
-
-        String gapStr = gap.setScale(2, RoundingMode.HALF_UP).toPlainString();
-        String projStr = projected.setScale(2, RoundingMode.HALF_UP).toPlainString();
-        String stockStr = stock.setScale(2, RoundingMode.HALF_UP).toPlainString();
-        String pendStr = pending.setScale(2, RoundingMode.HALF_UP).toPlainString();
-
-        Object[] args;
-        MessageKey key;
-
-        switch (resolution) {
-            case COVERED_BY_ORDER -> {
-                key = MessageKey.STOCK_ALERT_MESSAGE_COVERED;
-                args = new Object[] { name, stockStr, unit, getForecastHorizonDays(), projStr, unit, pendStr, unit };
-            }
-            case PARTIALLY_COVERED -> {
-                key = MessageKey.STOCK_ALERT_MESSAGE_PARTIALLY_COVERED;
-                args = new Object[] { name, stockStr, unit, getForecastHorizonDays(), projStr, unit, pendStr, unit, gapStr, unit };
-            }
-            case UNCOVERED -> {
-                key = MessageKey.STOCK_ALERT_MESSAGE_UNCOVERED;
-                args = new Object[] { name, stockStr, unit, getForecastHorizonDays(), projStr, unit, gapStr, unit };
-            }
-            default -> {
-                key = MessageKey.STOCK_ALERT_MESSAGE_DEFAULT;
-                args = new Object[] { name, gapStr, unit };
-            }
-        }
-
-        return i18nService.getMessage(key, args);
-    }
-
-    // -------------------------------------------------------------------------
-    // Helpers de agrupación
-    // -------------------------------------------------------------------------
-
-    /**
-     * Agrupa las filas de consumo semanal por producto y devuelve, para cada uno,
-     * la serie temporal de consumos semanales ordenada de más antigua a más
-     * reciente.
-     * Las semanas sin consumo se rellenan con 0.0 para mantener la continuidad.
-     */
-    private Map<Integer, List<Double>> groupByProduct(List<WeeklyIngredientConsumption> rows) {
-        int minWeek = rows.stream().mapToInt(WeeklyIngredientConsumption::getWeekIndex).min().orElse(0);
-        int maxWeek = rows.stream().mapToInt(WeeklyIngredientConsumption::getWeekIndex).max().orElse(0);
-
-        Map<Integer, Map<Integer, Double>> byProduct = new HashMap<>();
-        for (WeeklyIngredientConsumption row : rows) {
-            byProduct
-                    .computeIfAbsent(row.getProductId(), k -> new HashMap<>())
-                    .put(row.getWeekIndex(),
-                            row.getTotalConsumed() != null ? row.getTotalConsumed().doubleValue() : 0.0);
-        }
-
-        Map<Integer, List<Double>> result = new HashMap<>();
-        for (Map.Entry<Integer, Map<Integer, Double>> entry : byProduct.entrySet()) {
-            List<Double> series = new ArrayList<>();
-            for (int w = minWeek; w <= maxWeek; w++) {
-                series.add(entry.getValue().getOrDefault(w, 0.0));
-            }
-            result.put(entry.getKey(), series);
-        }
-        return result;
-    }
-
-    private Map<Integer, BigDecimal> buildPendingMap() {
-        return orderDetailRepository.findPendingQuantityPerProduct()
-                .stream()
-                .collect(Collectors.toMap(
-                        PendingProductQuantity::getProductId,
-                        p -> p.getPendingQuantity() != null ? p.getPendingQuantity() : BigDecimal.ZERO));
-    }
-
-    private Map<Integer, Product> buildProductMap() {
-        return productRepository.findAllActive().stream()
-                .collect(Collectors.toMap(Product::getId, p -> p));
-    }
-
-    private Map<Integer, BigDecimal> buildPredictionMap() {
-        return predictionRepository.findAll()
-                .stream()
-                .collect(Collectors.toMap(
-                        StockPrediction::getId,
-                        StockPrediction::getProjectedConsumption));
-    }
-
-    private Map<Integer, List<ProductBatch>> buildActiveBatchesMap() {
-        return productBatchService.getAllActiveBatches().stream()
-                .collect(Collectors.groupingBy(b -> b.getProduct().getId()));
-    }
-
-    private int calculateDaysRemainingWithExpiration(BigDecimal dailyRate, List<ProductBatch> batches, BigDecimal pending) {
-        if (dailyRate.compareTo(BigDecimal.ZERO) == 0) return Integer.MAX_VALUE;
-
-        List<ProductBatch> simulatedBatches = new ArrayList<>();
-        for (ProductBatch b : batches) {
-            ProductBatch clone = ProductBatch.builder()
-                .expirationDate(b.getExpirationDate())
-                .remainingQuantity(b.getRemainingQuantity())
-                .build();
-            simulatedBatches.add(clone);
-        }
-
-        BigDecimal simulatedPending = pending;
-        LocalDate simulatedDate = LocalDate.now();
-
-        for (int day = 0; day <= 999; day++) {
-            final LocalDate currentDate = simulatedDate.plusDays(day);
-
-            simulatedBatches.removeIf(b -> b.getExpirationDate() != null && !b.getExpirationDate().isAfter(currentDate));
-
-            BigDecimal currentDayDemand = dailyRate;
-
-            for (ProductBatch b : simulatedBatches) {
-                if (currentDayDemand.compareTo(BigDecimal.ZERO) <= 0) break;
-
-                BigDecimal available = b.getRemainingQuantity();
-                BigDecimal toConsume = available.min(currentDayDemand);
-                b.setRemainingQuantity(available.subtract(toConsume));
-                currentDayDemand = currentDayDemand.subtract(toConsume);
-            }
-
-            simulatedBatches.removeIf(b -> b.getRemainingQuantity().compareTo(BigDecimal.ZERO) <= 0);
-
-            if (currentDayDemand.compareTo(BigDecimal.ZERO) > 0) {
-                BigDecimal toConsume = simulatedPending.min(currentDayDemand);
-                simulatedPending = simulatedPending.subtract(toConsume);
-                currentDayDemand = currentDayDemand.subtract(toConsume);
-            }
-
-            if (currentDayDemand.compareTo(BigDecimal.valueOf(0.01)) > 0) {
-                return day;
-            }
-        }
-
-        return 999;
-    }
-
-    private int getForecastHistoryWeeks() {
-        if (systemConfigService == null) {
-            return DEFAULT_HISTORY_WEEKS;
-        }
-        try {
-            return systemConfigService.getConfigEntity().getForecastHistoryWeeks();
-        } catch (Exception ignored) {
-            return DEFAULT_HISTORY_WEEKS;
-        }
-    }
-
-    private int getForecastHorizonDays() {
-        if (systemConfigService == null) {
-            return DEFAULT_HORIZON_DAYS;
-        }
-        try {
-            return systemConfigService.getConfigEntity().getForecastHorizonDays();
-        } catch (Exception ignored) {
-            return DEFAULT_HORIZON_DAYS;
-        }
-    }
-
-    private Thresholds getAlertThresholdsOrDefault() {
-        if (systemConfigService == null) {
-            return new Thresholds(21, 14, 7, 3, 3, 7, 14);
-        }
-        try {
-            var cfg = systemConfigService.getAlertThresholds();
-            return new Thresholds(
-                    cfg.alertThresholdOkDays(),
-                    cfg.alertThresholdLowDays(),
-                    cfg.alertThresholdMediumDays(),
-                    cfg.alertThresholdHighDays(),
-                    cfg.expirationCriticalDays(),
-                    cfg.expirationHighDays(),
-                    cfg.expirationMediumDays());
-        } catch (Exception ignored) {
-            return new Thresholds(21, 14, 7, 3, 3, 7, 14);
-        }
-    }
-
-    private record Thresholds(int alertThresholdOkDays,
-                              int alertThresholdLowDays,
-                              int alertThresholdMediumDays,
-                              int alertThresholdHighDays,
-                              int expirationCriticalDays,
-                              int expirationHighDays,
-                              int expirationMediumDays) {
+        log.warn("[Deprecated] Recalculo Holt-Winters solicitado para receta ID: {}. La ruta legacy está deshabilitada.", recipeId);
     }
 
     private int compareByProperty(StockPredictionResponseDTO p1, StockPredictionResponseDTO p2, String property) {

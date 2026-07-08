@@ -106,6 +106,23 @@ class AiChatServiceTest {
         AiNestProperties nestProperties = new AiNestProperties();
         nestProperties.setStreamTimeoutMs(120000L);
 
+        AiChatHistoryService historyService = new AiChatHistoryService(
+                aiChatRepository,
+                aiChatMessageRepository,
+                aiKeyVaultService,
+                securityContextHelper,
+                chatProperties,
+                providerProperties,
+                aiRateLimitService,
+                Optional.empty(),
+                i18nService
+        );
+        AiPromptBuilder promptBuilder = new AiPromptBuilder(
+                null,
+                chatProperties
+        );
+        AiIntentDispatcher intentDispatcher = new AiIntentDispatcher();
+
         service = new AiChatService(
                 aiChatRepository,
                 aiChatMessageRepository,
@@ -119,9 +136,12 @@ class AiChatServiceTest {
                 providerProperties,
                 nestProperties,
                 new SimpleMeterRegistry(),
-                Optional.<AuditEventProducer>empty(),
+                Optional.empty(),
                 i18nService,
-                jwtUtils
+                jwtUtils,
+                historyService,
+                promptBuilder,
+                intentDispatcher
         );
 
         currentUser = new User();

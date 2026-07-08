@@ -1,31 +1,9 @@
 package com.economato.inventory.application.usecase.ai;
-import com.economato.inventory.application.usecase.shared.NestStreamBridgeService;
-
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.security.core.context.SecurityContext;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.economato.inventory.application.dto.shared.RestPage;
+import com.economato.inventory.application.usecase.shared.NestStreamBridgeService;
+import com.economato.inventory.application.usecase.smg.shared.SemanticMemoryGraphService;
+import com.economato.inventory.application.usecase.smg.model.shared.CompressedContext;
 import com.economato.inventory.application.dto.ai.event.AiAuditEvent;
 import com.economato.inventory.application.dto.user.mcp.McpApiKeyRequest;
 import com.economato.inventory.application.dto.user.mcp.McpApiKeyResponseDto;
@@ -37,9 +15,6 @@ import com.economato.inventory.application.dto.mcp.mcp.McpChatResponseDto;
 import com.economato.inventory.application.dto.mcp.mcp.McpChatUpdateRequest;
 import com.economato.inventory.application.dto.shared.mcp.NestCompletionRequest;
 import com.economato.inventory.application.dto.shared.mcp.ToolCallInfo;
-import com.economato.inventory.application.usecase.smg.shared.SemanticMemoryGraphService;
-import com.economato.inventory.application.usecase.smg.model.shared.CompressedContext;
-import com.economato.inventory.application.usecase.mcp.mcp.McpUtilityService;
 import com.economato.inventory.domain.model.ai.AiChat;
 import com.economato.inventory.domain.model.ai.AiChatMessage;
 import com.economato.inventory.domain.model.ai.AiChatStatus;
@@ -48,12 +23,10 @@ import com.economato.inventory.domain.model.user.MessageRole;
 import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
-import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiChatLimitReachedException;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiChatNotFoundException;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiConcurrentStreamException;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiKeyNotFoundException;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiMaxMessagesReachedException;
-import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiProviderDisabledException;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiRateLimitExceededException;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiStreamException;
 import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
@@ -66,13 +39,30 @@ import com.economato.inventory.infrastructure.config.shared.security.JwtUtils;
 import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * Facade y controlador de Streams HTTP de IA Chat.
+ */
 @Slf4j
 @Service
 @Transactional
@@ -83,7 +73,6 @@ public class AiChatService {
     private final AiKeyVaultService aiKeyVaultService;
     private final PlatformTransactionManager transactionManager;
     private final SemanticMemoryGraphService semanticMemoryGraphService;
-    private final McpUtilityService mcpUtilityService;
     private final NestStreamBridgeService nestStreamBridgeService;
     private final AiRateLimitService aiRateLimitService;
     private final SecurityContextHelper securityContextHelper;
@@ -93,18 +82,22 @@ public class AiChatService {
     private final MeterRegistry meterRegistry;
     private final Optional<AuditEventProducer> auditEventProducer;
     private final I18nService i18nService;
+    private final JwtUtils jwtUtils;
+
+    private final AiChatHistoryService aiChatHistoryService;
+    private final AiPromptBuilder aiPromptBuilder;
+    private final AiIntentDispatcher aiIntentDispatcher;
 
     private final ConcurrentHashMap<Integer, AtomicInteger> activeStreamsByUser = new ConcurrentHashMap<>();
     private final AtomicInteger activeStreamsGlobal = new AtomicInteger(0);
-    private final JwtUtils jwtUtils;
 
     @Autowired
-    public AiChatService(AiChatRepository aiChatRepository,
+    public AiChatService(
+            AiChatRepository aiChatRepository,
             AiChatMessageRepository aiChatMessageRepository,
             AiKeyVaultService aiKeyVaultService,
-            @Autowired(required = false) PlatformTransactionManager transactionManager,
+            PlatformTransactionManager transactionManager,
             SemanticMemoryGraphService semanticMemoryGraphService,
-            McpUtilityService mcpUtilityService,
             NestStreamBridgeService nestStreamBridgeService,
             AiRateLimitService aiRateLimitService,
             SecurityContextHelper securityContextHelper,
@@ -114,13 +107,15 @@ public class AiChatService {
             MeterRegistry meterRegistry,
             Optional<AuditEventProducer> auditEventProducer,
             I18nService i18nService,
-            JwtUtils jwtUtils) {
+            JwtUtils jwtUtils,
+            AiChatHistoryService aiChatHistoryService,
+            AiPromptBuilder aiPromptBuilder,
+            AiIntentDispatcher aiIntentDispatcher) {
         this.aiChatRepository = aiChatRepository;
         this.aiChatMessageRepository = aiChatMessageRepository;
         this.aiKeyVaultService = aiKeyVaultService;
         this.transactionManager = transactionManager;
         this.semanticMemoryGraphService = semanticMemoryGraphService;
-        this.mcpUtilityService = mcpUtilityService;
         this.nestStreamBridgeService = nestStreamBridgeService;
         this.aiRateLimitService = aiRateLimitService;
         this.securityContextHelper = securityContextHelper;
@@ -131,12 +126,17 @@ public class AiChatService {
         this.auditEventProducer = auditEventProducer;
         this.i18nService = i18nService;
         this.jwtUtils = jwtUtils;
+        this.aiChatHistoryService = aiChatHistoryService;
+        this.aiPromptBuilder = aiPromptBuilder;
+        this.aiIntentDispatcher = aiIntentDispatcher;
     }
 
-    public AiChatService(AiChatRepository aiChatRepository,
+    // Overloaded secondary constructor for backwards compatibility with tests (15 args).
+    public AiChatService(
+            AiChatRepository aiChatRepository,
             AiChatMessageRepository aiChatMessageRepository,
             AiKeyVaultService aiKeyVaultService,
-            @Autowired(required = false) PlatformTransactionManager transactionManager,
+            PlatformTransactionManager transactionManager,
             SemanticMemoryGraphService semanticMemoryGraphService,
             NestStreamBridgeService nestStreamBridgeService,
             AiRateLimitService aiRateLimitService,
@@ -148,12 +148,44 @@ public class AiChatService {
             Optional<AuditEventProducer> auditEventProducer,
             I18nService i18nService,
             JwtUtils jwtUtils) {
-        this(aiChatRepository, aiChatMessageRepository, aiKeyVaultService, transactionManager, semanticMemoryGraphService,
-                null, nestStreamBridgeService, aiRateLimitService, securityContextHelper, aiChatProperties,
-                aiProviderProperties, aiNestProperties, meterRegistry, auditEventProducer, i18nService, jwtUtils);
+        this(
+                aiChatRepository,
+                aiChatMessageRepository,
+                aiKeyVaultService,
+                transactionManager,
+                semanticMemoryGraphService,
+                nestStreamBridgeService,
+                aiRateLimitService,
+                securityContextHelper,
+                aiChatProperties,
+                aiProviderProperties,
+                aiNestProperties,
+                meterRegistry,
+                auditEventProducer,
+                i18nService,
+                jwtUtils,
+                new AiChatHistoryService(
+                        aiChatRepository,
+                        aiChatMessageRepository,
+                        aiKeyVaultService,
+                        securityContextHelper,
+                        aiChatProperties,
+                        aiProviderProperties,
+                        aiRateLimitService,
+                        auditEventProducer,
+                        i18nService
+                ),
+                new AiPromptBuilder(
+                        null,
+                        aiChatProperties
+                ),
+                new AiIntentDispatcher()
+        );
     }
 
-    public AiChatService(AiChatRepository aiChatRepository,
+    // Overloaded tertiary constructor for backwards compatibility with tests (13 args).
+    public AiChatService(
+            AiChatRepository aiChatRepository,
             AiChatMessageRepository aiChatMessageRepository,
             AiKeyVaultService aiKeyVaultService,
             SemanticMemoryGraphService semanticMemoryGraphService,
@@ -166,166 +198,60 @@ public class AiChatService {
             MeterRegistry meterRegistry,
             Optional<AuditEventProducer> auditEventProducer,
             I18nService i18nService) {
-        this(aiChatRepository, aiChatMessageRepository, aiKeyVaultService, null, semanticMemoryGraphService,
-                null, nestStreamBridgeService, aiRateLimitService, securityContextHelper, aiChatProperties,
-                aiProviderProperties, aiNestProperties, meterRegistry, auditEventProducer, i18nService, null);
-    }
-
-    @PostConstruct
-    @SuppressWarnings("unused")
-    void registerGauges() {
-        meterRegistry.gauge("ai.chat.active-streams", activeStreamsGlobal);
+        this(
+                aiChatRepository,
+                aiChatMessageRepository,
+                aiKeyVaultService,
+                null,
+                semanticMemoryGraphService,
+                nestStreamBridgeService,
+                aiRateLimitService,
+                securityContextHelper,
+                aiChatProperties,
+                aiProviderProperties,
+                aiNestProperties,
+                meterRegistry,
+                auditEventProducer,
+                i18nService,
+                null
+        );
     }
 
     @Transactional(readOnly = true)
     public List<McpChatResponseDto> listChats() {
-        User currentUser = requireCurrentUser();
-        return aiChatRepository.findByUserIdAndStatusOrderByLastMessageAtDesc(currentUser.getId(), AiChatStatus.ACTIVE)
-                .stream()
-                .map(this::toChatResponse)
-                .toList();
+        return aiChatHistoryService.listChats();
     }
 
     @Transactional(readOnly = true)
     public List<McpChatMessageResponseDto> getChatHistory(Long chatId) {
-        User currentUser = requireCurrentUser();
-        AiChat chat = getOwnedChat(chatId, currentUser.getId());
-        return aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(chat.getId())
-                .stream()
-                .map(this::toMessageResponse)
-                .toList();
+        return aiChatHistoryService.getChatHistory(chatId);
     }
 
     @Transactional(readOnly = true)
     public Page<McpChatMessageResponseDto> getChatHistory(Long chatId, Pageable pageable) {
-        User currentUser = requireCurrentUser();
-        AiChat chat = getOwnedChat(chatId, currentUser.getId());
-
-        Pageable normalized = pageable == null || pageable.isUnpaged()
-                ? PageRequest.of(0, 30,
-                        Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")))
-                : PageRequest.of(
-                        pageable.getPageNumber(),
-                        pageable.getPageSize(),
-                        Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id")));
-
-        Page<McpChatMessageResponseDto> page = aiChatMessageRepository.findByChatId(chat.getId(), normalized)
-                .map(this::toMessageResponse);
-
-        return new RestPage<>(page.getContent(), page.getPageable(), page.getTotalElements());
+        return aiChatHistoryService.getChatHistory(chatId, pageable);
     }
 
     public McpChatResponseDto updateChat(Long chatId, McpChatUpdateRequest request) {
-        User currentUser = requireCurrentUser();
-        AiChat chat = getOwnedChat(chatId, currentUser.getId());
-
-        String normalizedTitle = normalizeTitle(request != null ? request.title() : null);
-        if (normalizedTitle == null) {
-            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_CHAT_TITLE_REQUIRED));
-        }
-
-        chat.setTitle(normalizedTitle);
-        AiChat saved = aiChatRepository.save(chat);
-
-        publishAudit(AiAuditEvent.builder()
-                .eventType("AI_CHAT_UPDATED")
-                .userId(currentUser.getId())
-                .userName(currentUser.getName())
-                .chatId(saved.getId())
-                .provider(saved.getActiveProvider().name())
-                .userLanguage(saved.getUserLanguage())
-                .eventTimestamp(LocalDateTime.now())
-                .build());
-
-        return toChatResponse(saved);
+        return aiChatHistoryService.updateChat(chatId, request);
     }
 
     public McpChatResponseDto createChat(McpChatCreateRequest request) {
-        User currentUser = requireCurrentUser();
-
-        if (!aiRateLimitService.canCreateChat(currentUser.getId())) {
-            publishAudit(AiAuditEvent.builder()
-                    .eventType("AI_RATE_LIMITED")
-                    .userId(currentUser.getId())
-                    .userName(currentUser.getName())
-                    .errorType("max_chats")
-                    .eventTimestamp(LocalDateTime.now())
-                    .build());
-            throw new AiChatLimitReachedException(i18nService.getMessage(MessageKey.ERROR_AI_CHAT_MAX_ACTIVE_REACHED));
-        }
-
-        AiProvider provider = resolveProvider(request != null ? request.provider() : null, true);
-        String title = normalizeTitle(request != null ? request.title() : null);
-
-        AiChat chat = AiChat.builder()
-                .user(currentUser)
-                .title(title)
-                .status(AiChatStatus.ACTIVE)
-                .activeProvider(provider)
-                .userLanguage(aiChatProperties.getDefaultLanguage())
-                .lastMessageAt(LocalDateTime.now())
-                .build();
-
-        AiChat created = aiChatRepository.save(chat);
-        log.info("AI chat created: chatId={}, userId={}, provider={}", created.getId(), currentUser.getId(), provider);
-        publishAudit(AiAuditEvent.builder()
-                .eventType("AI_CHAT_CREATED")
-                .userId(currentUser.getId())
-                .userName(currentUser.getName())
-                .chatId(created.getId())
-                .provider(created.getActiveProvider().name())
-                .userLanguage(created.getUserLanguage())
-                .eventTimestamp(LocalDateTime.now())
-                .build());
-        return toChatResponse(created);
+        return aiChatHistoryService.createChat(request);
     }
 
     public McpChatResponseDto changeProvider(Long chatId, McpChangeProviderRequest request) {
-        User currentUser = requireCurrentUser();
-        AiChat chat = getOwnedChat(chatId, currentUser.getId());
-
-        AiProvider provider = resolveProvider(request != null ? request.provider() : null, true);
-        boolean hasKey = aiKeyVaultService.listGlobalKeys().stream()
-                .anyMatch(key -> key.provider() == provider && key.active());
-        if (!hasKey) {
-            throw new AiKeyNotFoundException(i18nService.getMessage(MessageKey.ERROR_AI_NO_GLOBAL_KEY, provider));
-        }
-
-        chat.setActiveProvider(provider);
-        AiChat saved = aiChatRepository.save(chat);
-        publishAudit(AiAuditEvent.builder()
-                .eventType("AI_PROVIDER_CHANGED")
-                .userId(currentUser.getId())
-                .userName(currentUser.getName())
-                .chatId(saved.getId())
-                .provider(saved.getActiveProvider().name())
-                .userLanguage(saved.getUserLanguage())
-                .eventTimestamp(LocalDateTime.now())
-                .build());
-        return toChatResponse(saved);
+        return aiChatHistoryService.changeProvider(chatId, request);
     }
 
     public void archiveChat(Long chatId) {
-        User currentUser = requireCurrentUser();
-        AiChat chat = getOwnedChat(chatId, currentUser.getId());
-        chat.setStatus(AiChatStatus.ARCHIVED);
-        aiChatRepository.save(chat);
-        publishAudit(AiAuditEvent.builder()
-                .eventType("AI_CHAT_ARCHIVED")
-                .userId(currentUser.getId())
-                .userName(currentUser.getName())
-                .chatId(chat.getId())
-                .provider(chat.getActiveProvider().name())
-                .userLanguage(chat.getUserLanguage())
-                .eventTimestamp(LocalDateTime.now())
-                .build());
+        aiChatHistoryService.archiveChat(chatId);
     }
 
     public SseEmitter sendMessage(Long chatId, McpChatMessageRequest request, String userJwt) {
-        User currentUser = requireCurrentUser();
-        AiChat chat = getOwnedChat(chatId, currentUser.getId());
+        User currentUser = aiChatHistoryService.requireCurrentUser();
+        AiChat chat = aiChatHistoryService.getOwnedChat(chatId, currentUser.getId());
 
-        // Validate JWT early before returning SseEmitter to detect authorization issues before streaming starts.
         if (jwtUtils != null && userJwt != null && !userJwt.isBlank()) {
             String username = jwtUtils.validateAndExtractUsername(userJwt);
             if (username == null) {
@@ -407,7 +333,7 @@ public class AiChatService {
 
         List<AiChatMessage> history = aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(chat.getId());
         CompressedContext compressedContext = semanticMemoryGraphService.compress(history, language);
-        String systemPrompt = buildSystemPrompt(currentUser.getName(), language);
+        String systemPrompt = aiPromptBuilder.buildSystemPrompt(currentUser.getName(), language);
 
         String model = resolveModel(chat.getActiveProvider());
         NestCompletionRequest nestRequest = new NestCompletionRequest(
@@ -421,14 +347,11 @@ public class AiChatService {
 
         SseEmitter emitter = new SseEmitter(aiNestProperties.getStreamTimeoutMs());
         StreamLease lease = acquireStreamLease(currentUser.getId());
-        // Capture current security context to propagate to virtual thread.
         SecurityContext securityContext = SecurityContextHolder.getContext();
-
 
         Thread.startVirtualThread(() -> {
             Timer.Sample sample = Timer.start(meterRegistry);
             long streamStart = System.nanoTime();
-            // Restore security context in virtual thread.
             SecurityContextHolder.setContext(securityContext);
             try {
                 NestStreamBridgeService.StreamCompletionResult result = nestStreamBridgeService
@@ -459,7 +382,6 @@ public class AiChatService {
                 try {
                     emitter.completeWithError(ex);
                 } catch (Exception ignored) {
-                    // Ignore emitter completion race.
                 }
             } finally {
                 releaseStreamLease(currentUser.getId(), lease);
@@ -471,16 +393,37 @@ public class AiChatService {
         return emitter;
     }
 
+    public McpApiKeyResponseDto saveApiKey(McpApiKeyRequest request) {
+        return aiChatHistoryService.saveApiKey(request);
+    }
+
+    public McpApiKeyResponseDto updateApiKey(McpApiKeyRequest request) {
+        return aiChatHistoryService.updateApiKey(request);
+    }
+
+    public List<McpApiKeyResponseDto> listApiKeys() {
+        return aiChatHistoryService.listApiKeys();
+    }
+
+    public void deleteApiKey(Long keyId) {
+        aiChatHistoryService.deleteApiKey(keyId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, String>> listEnabledProviders() {
+        return aiChatHistoryService.listEnabledProviders();
+    }
+
     private void executeAssistantCompletion(AiChat chat,
-            User currentUser,
-            String language,
-            String assistantContent,
-            String thinkingContent,
-            java.util.List<ToolCallInfo> toolCalls,
-            int inputTokens,
-            int outputTokens,
-            CompressedContext compressedContext,
-            long streamStart) {
+                                            User currentUser,
+                                            String language,
+                                            String assistantContent,
+                                            String thinkingContent,
+                                            List<ToolCallInfo> toolCalls,
+                                            int inputTokens,
+                                            int outputTokens,
+                                            CompressedContext compressedContext,
+                                            long streamStart) {
         Runnable completionWork = () -> {
             AiChat managedChat = aiChatRepository.findByIdAndUserId(chat.getId(), currentUser.getId())
                     .orElseThrow(() -> new AiChatNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
@@ -495,7 +438,6 @@ public class AiChatService {
                     .build();
             aiChatMessageRepository.save(assistantMessage);
 
-            // Persist tool calls as separate TOOL messages
             if (toolCalls != null) {
                 List<AiChatMessage> toolMessages = new ArrayList<>(toolCalls.size());
                 for (ToolCallInfo tc : toolCalls) {
@@ -554,77 +496,6 @@ public class AiChatService {
         });
     }
 
-    public McpApiKeyResponseDto saveApiKey(McpApiKeyRequest request) {
-        User currentUser = requireCurrentUser();
-        AiProvider provider = resolveProvider(request != null ? request.provider() : null, false);
-        String apiKey = request != null ? request.apiKey() : null;
-        aiKeyVaultService.saveKey(currentUser.getId(), provider, apiKey);
-        return aiKeyVaultService.listKeys(currentUser.getId()).stream()
-                .filter(key -> key.provider() == provider)
-                .findFirst()
-                .map(this::toApiKeyResponse)
-                .orElseThrow(() -> new AiKeyNotFoundException(i18nService.getMessage(MessageKey.ERROR_AI_KEY_NOT_FOUND)));
-    }
-
-    public McpApiKeyResponseDto updateApiKey(McpApiKeyRequest request) {
-        User currentUser = requireCurrentUser();
-        AiProvider provider = resolveProvider(request != null ? request.provider() : null, false);
-        String apiKey = request != null ? request.apiKey() : null;
-        aiKeyVaultService.updateKey(currentUser.getId(), provider, apiKey);
-        return aiKeyVaultService.listKeys(currentUser.getId()).stream()
-                .filter(key -> key.provider() == provider)
-                .findFirst()
-                .map(this::toApiKeyResponse)
-                .orElseThrow(() -> new AiKeyNotFoundException(i18nService.getMessage(MessageKey.ERROR_AI_KEY_NOT_FOUND)));
-    }
-
-    public List<McpApiKeyResponseDto> listApiKeys() {
-        User currentUser = requireCurrentUser();
-        return aiKeyVaultService.listKeys(currentUser.getId()).stream()
-                .map(this::toApiKeyResponse)
-                .toList();
-    }
-
-    public void deleteApiKey(Long keyId) {
-        User currentUser = requireCurrentUser();
-        aiKeyVaultService.deleteKey(currentUser.getId(), keyId);
-    }
-
-    @Transactional(readOnly = true)
-    public List<Map<String, String>> listEnabledProviders() {
-        return aiProviderProperties.getConfigs().entrySet().stream()
-                .filter(entry -> !Boolean.FALSE.equals(entry.getValue().getEnabled()))
-                .map(entry -> Map.of(
-                        "name", entry.getKey(),
-                        "displayName", defaultText(entry.getValue().getDisplayName()),
-                        "modelDefault", defaultText(entry.getValue().getModelDefault())))
-                .toList();
-    }
-
-    private AiProvider resolveProvider(String providerValue, boolean allowDefault) {
-        String raw = providerValue;
-        if ((raw == null || raw.isBlank()) && allowDefault) {
-            raw = aiChatProperties.getDefaultProvider();
-        }
-        if (raw == null || raw.isBlank()) {
-            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AI_PROVIDER_REQUIRED));
-        }
-
-        final AiProvider provider;
-        try {
-            provider = AiProvider.valueOf(raw.trim().toUpperCase(Locale.ROOT));
-        } catch (Exception ex) {
-            throw new AiProviderDisabledException(i18nService.getMessage(MessageKey.ERROR_AI_PROVIDER_DISABLED, raw));
-        }
-
-        AiProviderProperties.ProviderConfig providerConfig = aiProviderProperties.getConfigs().get(provider.name());
-        if (providerConfig == null || Boolean.FALSE.equals(providerConfig.getEnabled())) {
-            throw new AiProviderDisabledException(i18nService.getMessage(MessageKey.ERROR_AI_PROVIDER_DISABLED, provider.name()));
-        }
-
-        return provider;
-    }
-
     private String resolveModel(AiProvider provider) {
         AiProviderProperties.ProviderConfig providerConfig = aiProviderProperties.getConfigs().get(provider.name());
         if (providerConfig == null || providerConfig.getModelDefault() == null
@@ -647,33 +518,6 @@ public class AiChatService {
             return chatLanguage;
         }
         return aiChatProperties.getDefaultLanguage();
-    }
-
-    private String normalizeTitle(String title) {
-        if (title == null) {
-            return null;
-        }
-        String trimmed = title.trim();
-        if (trimmed.isEmpty()) {
-            return null;
-        }
-        if (trimmed.length() > aiChatProperties.getTitleMaxLength()) {
-            return trimmed.substring(0, aiChatProperties.getTitleMaxLength());
-        }
-        return trimmed;
-    }
-
-    private AiChat getOwnedChat(Long chatId, Integer userId) {
-        return aiChatRepository.findByIdAndUserId(chatId, userId)
-                .orElseThrow(() -> new AiChatNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
-    }
-
-    private User requireCurrentUser() {
-        User currentUser = securityContextHelper.getCurrentUser();
-        if (currentUser == null) {
-            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AUTH_USER_REQUIRED));
-        }
-        return currentUser;
     }
 
     private void countMessage(MessageRole role, AiProvider provider) {
@@ -713,7 +557,6 @@ public class AiChatService {
                 return null;
             });
         } catch (Exception ignored) {
-            // Ignore secondary persistence failures in error path.
         }
     }
 
@@ -723,30 +566,6 @@ public class AiChatService {
 
     private int safeInt(Integer value) {
         return value == null ? 0 : value;
-    }
-
-    private String buildSystemPrompt(String userName, String language) {
-        var systemContext = mcpUtilityService != null ? mcpUtilityService.getSystemContext() : null;
-        String formattedDate = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-        String normalizedName = userName == null || userName.isBlank() ? "compa" : userName.trim();
-        String normalizedLanguage = language == null || language.isBlank() ? aiChatProperties.getDefaultLanguage()
-                : language.trim();
-
-        long totalProducts = systemContext != null ? systemContext.getTotalProducts() : 0L;
-        long pendingOrders = systemContext != null ? systemContext.getPendingOrdersCount() : 0L;
-        long totalRecipes = systemContext != null ? systemContext.getTotalRecipes() : 0L;
-        long activeAlerts = systemContext != null ? systemContext.getActiveAlertsCount() : 0L;
-
-        return String.format(Locale.ROOT,
-                aiChatProperties.getSystemPromptTemplate(),
-                normalizedName,
-                normalizedName,
-                formattedDate,
-            totalProducts,
-            pendingOrders,
-            totalRecipes,
-            activeAlerts,
-                normalizedLanguage);
     }
 
     private String resolveErrorType(Exception ex) {
@@ -772,45 +591,6 @@ public class AiChatService {
 
     private void publishAudit(AiAuditEvent event) {
         auditEventProducer.ifPresent(producer -> producer.publishAiAudit(event));
-    }
-
-    private String defaultText(String value) {
-        return value == null ? "" : value;
-    }
-
-    private McpChatResponseDto toChatResponse(AiChat chat) {
-        return new McpChatResponseDto(
-                chat.getId(),
-                chat.getTitle(),
-                chat.getStatus().name(),
-                chat.getActiveProvider().name(),
-                chat.getUserLanguage(),
-                chat.getCreatedAt(),
-                chat.getLastMessageAt(),
-                chat.getMessageCount());
-    }
-
-    private McpChatMessageResponseDto toMessageResponse(AiChatMessage message) {
-        return new McpChatMessageResponseDto(
-                message.getId(),
-                message.getRole().name(),
-                message.getContent(),
-                message.getToolName(),
-                message.getToolCallId(),
-                message.getToolResult(),
-                message.getThinkingContent(),
-                message.getInputTokens(),
-                message.getOutputTokens(),
-                message.getCreatedAt());
-    }
-
-    private McpApiKeyResponseDto toApiKeyResponse(AiKeyVaultService.ApiKeyMetadata metadata) {
-        return new McpApiKeyResponseDto(
-                metadata.id(),
-                metadata.provider().name(),
-                metadata.keyHint(),
-                metadata.active(),
-                metadata.createdAt());
     }
 
     private StreamLease acquireStreamLease(Integer userId) {

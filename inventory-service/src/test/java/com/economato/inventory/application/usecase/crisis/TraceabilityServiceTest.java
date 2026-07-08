@@ -93,7 +93,6 @@ public class TraceabilityServiceTest {
     @Mock private PersistentNotificationService persistentNotificationService;
     @Spy private MeterRegistry meterRegistry = new SimpleMeterRegistry();
 
-    @InjectMocks
     private TraceabilityService traceabilityService;
 
     private Product product;
@@ -119,6 +118,21 @@ public class TraceabilityServiceTest {
             .thenAnswer(invocation -> invocation.getArgument(0, MessageKey.class).getKey());
         lenient().when(i18nService.getMessage(any(MessageKey.class), any(Object[].class)))
             .thenAnswer(invocation -> invocation.getArgument(0, MessageKey.class).getKey());
+
+        TraceabilityNotificationService notificationServ = new TraceabilityNotificationService(
+            notificationService, persistentNotificationService, null, null, i18nService
+        );
+        CrisisContainmentService containmentService = new CrisisContainmentService(
+            productRepository, orderRepository, ledgerRepository, cookingAuditRepository, supplierRepository,
+            ledgerService, productBatchRepository, foodCrisisRepository, crisisAffectedProductRepository,
+            notificationServ, securityContextHelper, i18nService, meterRegistry, objectMapper
+        );
+        TraceabilityQueryService queryService = new TraceabilityQueryService(
+            productRepository, orderRepository, ledgerRepository, cookingAuditRepository, supplierRepository,
+            productBatchRepository, null, orderMapper, cookingAuditMapper, ledgerMapper, productBatchMapper,
+            objectMapper, i18nService
+        );
+        traceabilityService = new TraceabilityService(containmentService, queryService);
     }
 
     @Test

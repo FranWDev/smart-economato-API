@@ -79,8 +79,23 @@ class McpToolReadServiceTest {
     @Mock
     private AiAnalysisProperties aiAnalysisProperties;
 
-    @InjectMocks
     private McpToolReadService service;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        McpProductReader productReader = new McpProductReader(
+            productRepository, supplierRepository, orderRepository, stockPredictionRepository,
+            stockDailyForecastRepository, stockWeeklyConsumptionHistoryRepository, foodCrisisRepository,
+            productBatchService, stockAlertService, aiAnalysisProperties, null
+        );
+        McpLedgerReader ledgerReader = new McpLedgerReader(
+            stockLedgerRepository, foodCrisisRepository
+        );
+        McpOrderReader orderReader = new McpOrderReader(
+            recipeRepository, recipeCookingAuditRepository, null, weeklyPlanService, null
+        );
+        service = new McpToolReadService(productReader, ledgerReader, orderReader);
+    }
 
     @Test
     void getDefaultReorderHorizonDays_ShouldReadConfigValue() {
