@@ -16,6 +16,8 @@ Este proyecto requiere [Smart Economato Frontend](https://github.com/user-ijavie
 
 El sistema se basa en un **monolito modular con arquitectura hexagonal** (Ports & Adapters) como núcleo central (`inventory-service`), complementado por **servicios satélite políglotas** para capacidades que requieren ecosistemas específicos.
 
+Dentro del `inventory-service`, los casos de uso complejos siguen el **patrón Facade**: cada servicio de aplicación delega responsabilidades específicas en sub-servicios especializados (`*Calculator`, `*Processor`, `*Manager`, `*Recorder`, `*Guard`, `*Policy`), lo que mantiene cada clase con una única responsabilidad y facilita el testing unitario.
+
 ```mermaid
 graph TD
     User((Usuario / Navegador))
@@ -163,6 +165,13 @@ smart-economato-API/
 │       ├── domain/model/          # Núcleo: entidades de dominio puras
 │       ├── application/           # Puertos: casos de uso, DTOs, mappers
 │       │   ├── usecase/
+│       │   │   ├── *Service.java      # Facades: orquestan sub-servicios
+│       │   │   ├── *Calculator.java   # Lógica de cálculo y coste
+│       │   │   ├── *Processor.java    # Ejecución y reversión de operaciones
+│       │   │   ├── *Manager.java      # Gestión de workflows y transiciones
+│       │   │   ├── *Recorder.java     # Registro en ledger inmutable
+│       │   │   ├── *Guard.java        # Validaciones de dominio (SKU, unicidad)
+│       │   │   └── *Policy.java       # Políticas de acceso y reglas de negocio
 │       │   ├── dto/
 │       │   └── mapper/
 │       └── infrastructure/        # Adaptadores
@@ -194,6 +203,7 @@ smart-economato-API/
 ### Gestión de inventario
 - CRUD de productos con control de lotes y fechas de caducidad (FEFO)
 - Trazabilidad completa con **ledger inmutable** protegido por HMAC
+- **Verificación de integridad por hash chain** (`LedgerChainVerificationService`) con complejidad O(N)
 - **Blockchain** para sellado de bloques de movimientos de stock
 
 ### Recetas y planificación
