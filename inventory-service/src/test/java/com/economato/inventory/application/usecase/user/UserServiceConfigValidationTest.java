@@ -18,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.lang.reflect.Field;
 import java.util.Optional;
@@ -64,10 +65,10 @@ class UserServiceConfigValidationTest {
                 statsMapper,
                 customUserDetailsService,
                 escalationRepository,
-                roleNotificationService,
-                systemConfigService,
-                policy
+                roleNotificationService
         );
+        ReflectionTestUtils.setField(service, "systemConfigService", systemConfigService);
+        ReflectionTestUtils.setField(service, "userAccessPolicy", policy);
     }
 
     @Test

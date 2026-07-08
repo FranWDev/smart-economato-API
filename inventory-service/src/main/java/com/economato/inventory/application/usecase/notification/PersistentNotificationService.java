@@ -56,31 +56,19 @@ public class PersistentNotificationService {
     private final I18nService i18nService;
     private final SystemConfigService systemConfigService;
 
-    @Autowired
-    public PersistentNotificationService(NotificationRepository notificationRepository,
-                                        NotificationMapper notificationMapper,
-                                        UserRepository userRepository,
-                                        SecurityContextHelper securityContextHelper,
-                                        RoleNotificationService roleNotificationService,
-                                        I18nService i18nService,
-                                        @Autowired(required = false) SystemConfigService systemConfigService) {
-        this.notificationRepository = notificationRepository;
-        this.notificationMapper = notificationMapper;
-        this.userRepository = userRepository;
-        this.securityContextHelper = securityContextHelper;
-        this.roleNotificationService = roleNotificationService;
-        this.i18nService = i18nService;
-        this.systemConfigService = systemConfigService;
-    }
-
     public PersistentNotificationService(NotificationRepository notificationRepository,
                                         NotificationMapper notificationMapper,
                                         UserRepository userRepository,
                                         SecurityContextHelper securityContextHelper,
                                         RoleNotificationService roleNotificationService,
                                         I18nService i18nService) {
-        this(notificationRepository, notificationMapper, userRepository, securityContextHelper,
-                roleNotificationService, i18nService, null);
+        this.notificationRepository = notificationRepository;
+        this.notificationMapper = notificationMapper;
+        this.userRepository = userRepository;
+        this.securityContextHelper = securityContextHelper;
+        this.roleNotificationService = roleNotificationService;
+        this.i18nService = i18nService;
+        this.systemConfigService = null;
     }
 
     public Notification createNotification(User recipient,

@@ -34,12 +34,10 @@ public class FileStorageService {
     private final I18nService i18nService;
     private final SystemConfigService systemConfigService;
 
-    @Autowired
     public FileStorageService(@Value("${app.uploads.base-path:uploads}") String basePath,
                               @Value("${app.uploads.max-file-size:10485760}") long maxFileSize,
                               @Value("${app.uploads.allowed-types:image/jpeg,image/png,image/gif,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet}") String allowedTypes,
-                      I18nService i18nService,
-                      @Autowired(required = false) SystemConfigService systemConfigService) {
+                              I18nService i18nService) {
         this.basePath = Paths.get(basePath).toAbsolutePath().normalize();
         this.maxFileSize = maxFileSize;
         this.allowedTypes = Arrays.stream(allowedTypes.split(","))
@@ -47,20 +45,13 @@ public class FileStorageService {
                 .filter(s -> !s.isEmpty())
                 .collect(Collectors.toSet());
         this.i18nService = i18nService;
-        this.systemConfigService = systemConfigService;
+        this.systemConfigService = null;
 
         try {
             Files.createDirectories(this.basePath);
         } catch (IOException e) {
             throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_FILE_STORAGE_INIT), e);
         }
-    }
-
-    public FileStorageService(String basePath,
-                              long maxFileSize,
-                              String allowedTypes,
-                              I18nService i18nService) {
-        this(basePath, maxFileSize, allowedTypes, i18nService, null);
     }
 
     public String store(Long incidentId, Long messageId, MultipartFile file) {

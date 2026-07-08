@@ -103,19 +103,32 @@ class IncidentServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new IncidentService(
-                incidentRepository,
-                incidentTypeRepository,
+        IncidentAttachmentService attachmentService = new IncidentAttachmentService(
                 incidentAuditAttachmentRepository,
-                incidentChatMessageRepository,
                 recipeCookingAuditRepository,
                 new IncidentMapper(new IncidentTypeMapper()),
                 new RecipeCookingAuditMapper(),
                 securityContextHelper,
                 incidentParticipantService,
-                persistentNotificationService,
                 recipeService,
-                i18nService
+                i18nService,
+                null);
+        IncidentWorkflowManager workflowManager = new IncidentWorkflowManager(
+                incidentRepository,
+                incidentTypeRepository,
+                persistentNotificationService,
+                incidentParticipantService,
+                attachmentService,
+                i18nService);
+        service = new IncidentService(
+                incidentRepository,
+                incidentAuditAttachmentRepository,
+                incidentChatMessageRepository,
+                new IncidentMapper(new IncidentTypeMapper()),
+                securityContextHelper,
+                i18nService,
+                workflowManager,
+                attachmentService
         );
 
         admin = user(1, "Admin", "admin", Role.ADMIN, null);
