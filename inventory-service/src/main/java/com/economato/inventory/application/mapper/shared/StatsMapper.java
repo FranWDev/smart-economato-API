@@ -1,0 +1,51 @@
+package com.economato.inventory.application.mapper.shared;
+
+import com.economato.inventory.application.dto.user.projection.RoleCountProjection;
+import com.economato.inventory.application.dto.recipe.response.RecipeAverageCostResponseDTO;
+import com.economato.inventory.application.dto.recipe.response.RecipeCountResponseDTO;
+import com.economato.inventory.application.dto.recipe.response.RecipeStatsResponseDTO;
+import com.economato.inventory.application.dto.user.response.UserStatsResponseDTO;
+import org.mapstruct.Mapper;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@Mapper(componentModel = "spring")
+public interface StatsMapper {
+
+    default RecipeStatsResponseDTO toRecipeStatsDTO(long total, long withAllergens, long withoutAllergens,
+            BigDecimal averagePrice) {
+        return RecipeStatsResponseDTO.builder()
+                .totalRecipes(total)
+                .recipesWithAllergens(withAllergens)
+                .recipesWithoutAllergens(withoutAllergens)
+                .averagePrice(averagePrice != null ? averagePrice : BigDecimal.ZERO)
+                .build();
+    }
+
+        default RecipeCountResponseDTO toRecipeCountDTO(long count) {
+                return RecipeCountResponseDTO.builder()
+                                .count(count)
+                                .build();
+        }
+
+        default RecipeAverageCostResponseDTO toRecipeAverageCostDTO(BigDecimal averageCost) {
+                return RecipeAverageCostResponseDTO.builder()
+                                .averageCost(averageCost != null ? averageCost : BigDecimal.ZERO)
+                                .build();
+        }
+
+    default UserStatsResponseDTO toUserStatsDTO(long total, List<RoleCountProjection> counts) {
+        Map<String, Long> usersByRole = counts.stream()
+                .collect(Collectors.toMap(
+                        p -> p.getRole().name(),
+                        RoleCountProjection::getCount));
+
+        return UserStatsResponseDTO.builder()
+                .totalUsers(total)
+                .usersByRole(usersByRole)
+                .build();
+    }
+}

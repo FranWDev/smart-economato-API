@@ -1,0 +1,47 @@
+package com.economato.inventory.application.mapper.shared;
+
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.NullValuePropertyMappingStrategy;
+
+import com.economato.inventory.application.dto.shared.projection.InventoryAuditProjection;
+import com.economato.inventory.application.dto.shared.response.InventoryMovementResponseDTO;
+import com.economato.inventory.domain.model.shared.InventoryAudit;
+
+import java.math.BigDecimal;
+
+@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+public interface InventoryMovementMapper {
+
+    @Mapping(source = "projection.id", target = "id")
+    @Mapping(source = "projection.product.id", target = "productId")
+    @Mapping(source = "projection.product.name", target = "productName")
+    @Mapping(source = "projection.user.id", target = "userId")
+    @Mapping(source = "projection.user.name", target = "userName")
+    @Mapping(source = "projection.product.currentStock", target = "previousStock")
+    @Mapping(source = "projection.product.currentStock", target = "currentStock")
+    @Mapping(source = "projection.actionDescription", target = "actionDescription")
+    @Mapping(source = "projection.previousState", target = "previousState")
+    @Mapping(source = "projection.newState", target = "newState")
+    InventoryMovementResponseDTO toResponseDTO(InventoryAuditProjection projection);
+
+    @Mapping(source = "audit.id", target = "id")
+    @Mapping(source = "audit.product.id", target = "productId")
+    @Mapping(source = "audit.product.name", target = "productName")
+    @Mapping(source = "audit.user.id", target = "userId")
+    @Mapping(source = "audit.user.name", target = "userName")
+    @Mapping(source = "audit.quantity", target = "quantity")
+    @Mapping(source = "audit.movementType", target = "movementType")
+    @Mapping(source = "audit.movementDate", target = "movementDate")
+    @Mapping(source = "previousStock", target = "previousStock")
+    @Mapping(source = "audit.product.currentStock", target = "currentStock")
+    InventoryMovementResponseDTO toResponseDTO(InventoryAudit audit, BigDecimal previousStock);
+
+    @Mapping(source = "product.id", target = "productId")
+    @Mapping(source = "product.name", target = "productName")
+    @Mapping(source = "user.id", target = "userId")
+    @Mapping(source = "user.name", target = "userName")
+    @Mapping(source = "product.currentStock", target = "previousStock")
+    @Mapping(source = "product.currentStock", target = "currentStock")
+    InventoryMovementResponseDTO toResponseDTO(InventoryAudit audit);
+}

@@ -1,0 +1,145 @@
+package com.economato.inventory.application.usecase.recipe;
+import com.economato.inventory.application.usecase.ledger.StockLedgerService;
+import com.economato.inventory.application.usecase.product.ProductBatchService;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import com.economato.inventory.application.dto.recipe.request.RecipeCookingRequestDTO;
+import com.economato.inventory.application.dto.recipe.response.RecipeResponseDTO;
+import com.economato.inventory.domain.model.shared.MovementType;
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.domain.model.product.ProductBatch;
+import com.economato.inventory.domain.model.recipe.Recipe;
+import com.economato.inventory.domain.model.recipe.RecipeComponent;
+import com.economato.inventory.domain.model.user.Role;
+import com.economato.inventory.domain.model.ledger.StockLedger;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockSnapshotRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
+import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.annotation.Transactional;
+
+@SpringBootTest
+@ActiveProfiles("test")
+@Transactional
+class RecipeServiceFefoIntegrationTest extends BaseIntegrationTest {
+
+    @Autowired
+    private RecipeService recipeService;
+
+    @Autowired
+    private StockLedgerService stockLedgerService;
+
+    @Autowired
+    private ProductBatchService productBatchService;
+
+    @Autowired
+    private ProductBatchRepository productBatchRepository;
+
+    @Autowired
+    private ProductRepository productRepository;
+
+    @Autowired
+    private RecipeRepository recipeRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private StockLedgerRepository stockLedgerRepository;
+
+    @Autowired
+    private StockSnapshotRepository stockSnapshotRepository;
+
+    private Product product;
+    private Recipe recipe;
+    private User user;
+
+    @BeforeEach
+    void setUp() {
+        clearDatabase();
+
+        user = new User();
+        user.setName("fefo-user");
+        user.setUser("fefo-login");
+        user.setPassword("secret");
+        user.setRole(Role.ADMIN);
+        user = userRepository.saveAndFlush(user);
+
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(user.getName(), null, List.of()));
+
+        product = new Product();
+        product.setName("Harina FEFO");
+        product.setUnit("KG");
+        product.setUnitPrice(new BigDecimal("1.00"));
+        product.setProductCode("FEFO-ING-1");
+        product.setCurrentStock(BigDecimal.ZERO);
+        product = productRepository.saveAndFlush(product);
+
+        recipe = new Recipe();
+        recipe.setName("Receta FEFO");
+        recipe.setPresentation("presentacion");
+        recipe.setElaboration("elaboracion");
+        recipe.setTotalCost(new BigDecimal("1.00"));
+
+        RecipeComponent component = new RecipeComponent();
+        component.setProduct(product);
+        component.setQuantity(new BigDecimal("4.000"));
+        recipe.addComponent(component);
+
+        recipe = recipeRepository.saveAndFlush(recipe);
+    }
+
+    @Test
+    @DisplayName("Debe consumir primero el lote con caducidad más próxima al cocinar")
+    void cookRecipe_shouldConsumeUsingFefo() {
+        StockLedger tx1 = stockLedgerService.recordStockMovement(
+                product.getId(),
+                new BigDecimal("10.000"),
+                MovementType.ENTRADA,
+                "Entrada lote cercano",
+                user,
+                null,
+                LocalDate.now().plusDays(2));
+
+        StockLedger tx2 = stockLedgerService.recordStockMovement(
+                product.getId(),
+                new BigDecimal("10.000"),
+                MovementType.ENTRADA,
+                "Entrada lote lejano",
+                user,
+                null,
+                LocalDate.now().plusDays(10));
+
+        RecipeCookingRequestDTO request = new RecipeCookingRequestDTO();
+        request.setRecipeId(recipe.getId());
+        request.setQuantity(new BigDecimal("3.000"));
+
+        RecipeResponseDTO response = recipeService.cookRecipe(request);
+        assertNotNull(response);
+
+        List<ProductBatch> active = productBatchRepository.findActiveByProductIdOrderByExpiration(product.getId());
+        assertEquals(1, active.size());
+        assertEquals(LocalDate.now().plusDays(10), active.get(0).getExpirationDate());
+        assertEquals(new BigDecimal("8.000"), active.get(0).getRemainingQuantity());
+    }
+}

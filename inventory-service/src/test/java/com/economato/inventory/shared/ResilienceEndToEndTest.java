@@ -1,0 +1,206 @@
+package com.economato.inventory.shared;
+
+import com.economato.inventory.infrastructure.config.shared.database.EmbeddedRedisTestConfig;
+import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditOutboxProcessor;
+import com.economato.inventory.infrastructure.config.shared.security.JwtUtils;
+import com.economato.inventory.application.usecase.user.CustomUserDetailsService;
+import com.economato.inventory.application.usecase.product.ProductService;
+import com.economato.inventory.application.usecase.stock.AlertMessage;
+import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.redis.RedisConnectionFailureException;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import com.economato.inventory.infrastructure.shared.CircuitBreakerHealthChecker;
+import org.apache.kafka.common.errors.TimeoutException;
+import org.hibernate.exception.JDBCConnectionException;
+import java.sql.SQLException;
+
+import java.util.concurrent.TimeUnit;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+@SpringBootTest
+@ActiveProfiles("resilience-test")
+@Import(EmbeddedRedisTestConfig.class)
+@Tag("slow")
+public class ResilienceEndToEndTest {
+
+    @Autowired
+    private CircuitBreakerRegistry registry;
+
+    @Autowired
+    private ProductService productService;
+
+    @MockitoBean
+    private SimpMessagingTemplate messagingTemplate;
+
+    @MockitoBean
+    private JwtUtils jwtUtils;
+
+    @MockitoBean
+    private CustomUserDetailsService userDetailsService;
+
+    @MockitoBean
+    private AuditOutboxProcessor outboxProcessor;
+
+    @MockitoBean
+    private CircuitBreakerHealthChecker healthChecker;
+
+    @MockitoBean
+    private AuditEventProducer auditEventProducer;
+
+    @BeforeEach
+    void resetCircuitBreakers() {
+        registry.getAllCircuitBreakers().forEach(cb -> {
+            cb.transitionToClosedState();
+            cb.reset();
+        });
+        reset(messagingTemplate);
+    }
+
+    @Nested
+    @DisplayName("Redis Resilience: @Cacheable methods must work when Redis is down")
+    class RedisResilienceTests {
+
+        @Test
+        @DisplayName("BUG: @Cacheable service should NOT throw when Redis CB is OPEN")
+        void cacheableShouldWorkWhenRedisCbIsOpen() {
+            CircuitBreaker redisCb = registry.circuitBreaker("redis");
+            redisCb.onError(0, TimeUnit.MILLISECONDS, new RedisConnectionFailureException("Redis down"));
+            assertThat(redisCb.getState()).isEqualTo(CircuitBreaker.State.OPEN);
+
+            assertThatCode(() -> productService.findAll(PageRequest.of(0, 10)))
+                    .as("@Cacheable method should degrade gracefully when Redis CB is OPEN")
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("@Cacheable should work normally when Redis is healthy")
+        void cacheableShouldWorkWhenRedisIsHealthy() {
+            CircuitBreaker redisCb = registry.circuitBreaker("redis");
+            assertThat(redisCb.getState()).isEqualTo(CircuitBreaker.State.CLOSED);
+
+            assertThatCode(() -> productService.findAll(PageRequest.of(0, 10)))
+                    .doesNotThrowAnyException();
+        }
+    }
+
+    @Nested
+    @DisplayName("Kafka Resilience: Outbox processor should respect circuit breaker")
+    class KafkaResilienceTests {
+
+        @Test
+        @DisplayName("BUG: Kafka CB OPEN should prevent outbox processing")
+        void kafkaCbOpenShouldPreventOutboxProcessing() {
+            CircuitBreaker kafkaCb = registry.circuitBreaker("kafka");
+
+            kafkaCb.onError(0, TimeUnit.MILLISECONDS,
+                    new TimeoutException("Kafka unreachable"));
+            assertThat(kafkaCb.getState()).isEqualTo(CircuitBreaker.State.OPEN);
+
+            verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                    eq("/topic/alerts"),
+                    argThat((AlertMessage msg) -> "KAFKA_FAILURE".equals(msg.getCode())));
+        }
+    }
+
+    @Nested
+    @DisplayName("Recovery: Circuit breaker CLOSED should send recovery alerts")
+    class RecoveryAlertTests {
+
+        @Test
+        @DisplayName("DB recovery sends DB_RECOVERED alert")
+        void dbRecoverySendsAlert() {
+            CircuitBreaker dbCb = registry.circuitBreaker("db");
+
+            dbCb.onError(0, TimeUnit.MILLISECONDS,
+                    new JDBCConnectionException("down", new SQLException()));
+            assertThat(dbCb.getState()).isEqualTo(CircuitBreaker.State.OPEN);
+            reset(messagingTemplate);
+
+            dbCb.transitionToClosedState();
+
+            verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                    eq("/topic/alerts"),
+                    argThat((AlertMessage msg) -> "DB_RECOVERED".equals(msg.getCode())));
+        }
+
+        @Test
+        @DisplayName("Redis recovery sends REDIS_RECOVERED alert")
+        void redisRecoverySendsAlert() {
+            CircuitBreaker redisCb = registry.circuitBreaker("redis");
+
+            redisCb.onError(0, TimeUnit.MILLISECONDS, new RedisConnectionFailureException("down"));
+            assertThat(redisCb.getState()).isEqualTo(CircuitBreaker.State.OPEN);
+            reset(messagingTemplate);
+
+            redisCb.transitionToClosedState();
+
+            verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                    eq("/topic/alerts"),
+                    argThat((AlertMessage msg) -> "REDIS_RECOVERED".equals(msg.getCode())));
+        }
+
+        @Test
+        @DisplayName("Kafka recovery sends KAFKA_RECOVERED alert")
+        void kafkaRecoverySendsAlert() {
+            CircuitBreaker kafkaCb = registry.circuitBreaker("kafka");
+
+            kafkaCb.onError(0, TimeUnit.MILLISECONDS,
+                    new TimeoutException("down"));
+            assertThat(kafkaCb.getState()).isEqualTo(CircuitBreaker.State.OPEN);
+            reset(messagingTemplate);
+
+            kafkaCb.transitionToClosedState();
+
+            verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                    eq("/topic/alerts"),
+                    argThat((AlertMessage msg) -> "KAFKA_RECOVERED".equals(msg.getCode())));
+        }
+    }
+
+    @Nested
+    @DisplayName("Multi-failure: App should survive multiple infrastructure failures")
+    class MultiFailureTests {
+
+        @Test
+        @DisplayName("App survives Redis + Kafka both down simultaneously")
+        void appSurvivesRedisAndKafkaDown() {
+
+            CircuitBreaker redisCb = registry.circuitBreaker("redis");
+            redisCb.onError(0, TimeUnit.MILLISECONDS, new RedisConnectionFailureException("Redis down"));
+
+            CircuitBreaker kafkaCb = registry.circuitBreaker("kafka");
+            kafkaCb.onError(0, TimeUnit.MILLISECONDS,
+                    new TimeoutException("Kafka down"));
+
+            assertThat(redisCb.getState()).isEqualTo(CircuitBreaker.State.OPEN);
+            assertThat(kafkaCb.getState()).isEqualTo(CircuitBreaker.State.OPEN);
+
+            assertThatCode(() -> productService.findAll(PageRequest.of(0, 10)))
+                    .as("App should survive Redis + Kafka both down")
+                    .doesNotThrowAnyException();
+
+            verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                    eq("/topic/alerts"),
+                    argThat((AlertMessage msg) -> "REDIS_FAILURE".equals(msg.getCode())));
+            verify(messagingTemplate, atLeastOnce()).convertAndSend(
+                    eq("/topic/alerts"),
+                    argThat((AlertMessage msg) -> "KAFKA_FAILURE".equals(msg.getCode())));
+        }
+    }
+}

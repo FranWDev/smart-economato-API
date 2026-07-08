@@ -1,0 +1,75 @@
+package com.economato.inventory.infrastructure.config.ai.ai;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
+import org.springframework.validation.annotation.Validated;
+
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import lombok.Getter;
+import lombok.Setter;
+
+@Getter
+@Setter
+@Validated
+@Component
+@ConfigurationProperties(prefix = "ai.smg")
+public class AiSmgProperties {
+
+    @NotNull
+    @Min(1000)
+    private Integer tokenBudget = 7000;
+
+    @NotNull
+    private Double workingMemoryWeight = 0.60;
+
+    @NotNull
+    private Double entityMemoryWeight = 0.22;
+
+    @NotNull
+    private Double topicMemoryWeight = 0.08;
+
+    @NotNull
+    private Double intentMemoryWeight = 0.03;
+
+    @NotNull
+    private Double systemContextWeight = 0.07;
+
+    @NotNull
+    @Positive
+    private Double decayLambda = 3.0;
+
+    @NotNull
+    private Double decayFullThreshold = 0.7;
+
+    @NotNull
+    private Double decayOnelinerThreshold = 0.3;
+
+    @NotNull
+    @Min(1)
+    private Integer topicSplitGapMinutes = 5;
+
+    @NotNull
+    private Double topicEntityChangeThreshold = 0.7;
+
+    @NotNull
+    @Min(1)
+    private Integer entityCacheTtlSeconds = 30;
+
+    @NotNull
+    @Min(1)
+    private Integer catalogCacheTtlSeconds = 300;
+
+    @NotNull
+    @Min(10)
+    private Integer maxWorkingMemoryMessages = 30;
+
+    @NotNull
+    @Min(50)
+    private Integer toolResultMaxChars = 500;
+
+    @NotNull
+    @Min(4)
+    private Integer tokenEstimationDivisor = 4;
+}
