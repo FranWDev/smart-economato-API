@@ -92,7 +92,7 @@ class StockLedgerServiceLedgerMethodsTest {
         private BlockchainProperties blockchainProperties;
 
         @Mock
-        private LedgerMerkleVerificationService ledgerMerkleVerificationService;
+        private LedgerChainVerificationService ledgerChainVerificationService;
 
         @Mock
         private ApplicationEventPublisher applicationEventPublisher;
@@ -145,7 +145,7 @@ class StockLedgerServiceLedgerMethodsTest {
                         i18nService,
                         productRepository,
                         ledgerRepository,
-                        ledgerMerkleVerificationService,
+                        ledgerChainVerificationService,
                         stockMovementRecorder,
                         snapshotRepository,
                         batchRepository
@@ -282,9 +282,9 @@ class StockLedgerServiceLedgerMethodsTest {
         }
 
         @Test
-        void verifyChainIntegrity_WhenMerkleEnabled_DelegatesToMerkleService() {
+        void verifyChainIntegrity_WhenChainEnabled_DelegatesToChainService() {
                 when(productRepository.findById(1)).thenReturn(Optional.of(testProduct1));
-                when(ledgerMerkleVerificationService.verifyLedgerChainIntegrityMerkle(1))
+                when(ledgerChainVerificationService.verifyLedgerChainIntegrity(1))
                         .thenReturn(List.of());
                 when(ledgerRepository.findByProductIdOrderBySequenceNumber(1))
                         .thenReturn(ledgerEntries1);
@@ -294,14 +294,14 @@ class StockLedgerServiceLedgerMethodsTest {
                 IntegrityCheckResult result = stockLedgerService.verifyChainIntegrity(1);
 
                 assertTrue(result.isValid());
-                verify(ledgerMerkleVerificationService, times(1)).verifyLedgerChainIntegrityMerkle(1);
+                verify(ledgerChainVerificationService, times(1)).verifyLedgerChainIntegrity(1);
                 verify(ledgerRepository, times(1)).findByProductIdOrderBySequenceNumber(1);
         }
 
         @Test
-        void verifyChainIntegrity_WhenMerkleReturnsErrors_ReturnsInvalid() {
+        void verifyChainIntegrity_WhenChainReturnsErrors_ReturnsInvalid() {
                 when(productRepository.findById(1)).thenReturn(Optional.of(testProduct1));
-                when(ledgerMerkleVerificationService.verifyLedgerChainIntegrityMerkle(1))
+                when(ledgerChainVerificationService.verifyLedgerChainIntegrity(1))
                         .thenReturn(List.of("Hash corruption at sequence 1"));
                 when(ledgerRepository.findByProductIdOrderBySequenceNumber(1))
                         .thenReturn(ledgerEntries1);
@@ -311,7 +311,7 @@ class StockLedgerServiceLedgerMethodsTest {
                 IntegrityCheckResult result = stockLedgerService.verifyChainIntegrity(1);
 
                 assertFalse(result.isValid());
-                verify(ledgerMerkleVerificationService, times(1)).verifyLedgerChainIntegrityMerkle(1);
+                verify(ledgerChainVerificationService, times(1)).verifyLedgerChainIntegrity(1);
                 verify(ledgerRepository, times(1)).findByProductIdOrderBySequenceNumber(1);
         }
 }

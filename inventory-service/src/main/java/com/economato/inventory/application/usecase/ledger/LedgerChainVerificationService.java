@@ -27,18 +27,18 @@ import java.util.HexFormat;
 
 @Slf4j
 @Service
-public class LedgerMerkleVerificationService {
+public class LedgerChainVerificationService {
 
     private final StockLedgerRepository ledgerRepository;
     private final ProductRepository productRepository;
     private final MerkleTreeService merkleTreeService;
     private final I18nService i18nService;
     private final LedgerProperties ledgerProperties;
-    private final Timer merkleVerificationTimer;
+    private final Timer chainVerificationTimer;
 
     private static final String GENESIS_HASH = "GENESIS";
 
-    public LedgerMerkleVerificationService(
+    public LedgerChainVerificationService(
             StockLedgerRepository ledgerRepository,
             ProductRepository productRepository,
             MerkleTreeService merkleTreeService,
@@ -50,17 +50,17 @@ public class LedgerMerkleVerificationService {
         this.merkleTreeService = merkleTreeService;
         this.i18nService = i18nService;
         this.ledgerProperties = ledgerProperties;
-        this.merkleVerificationTimer = Timer.builder("blockchain.ledger.merkle.verification.duration")
-                .description("Merkle-based ledger verification latency")
+        this.chainVerificationTimer = Timer.builder("blockchain.ledger.chain.verification.duration")
+                .description("Chain-based ledger verification latency")
                 .register(meterRegistry);
     }
 
-    public List<String> verifyLedgerChainIntegrityMerkle(Integer productId) {
-        return merkleVerificationTimer.record(() -> {
+    public List<String> verifyLedgerChainIntegrity(Integer productId) {
+        return chainVerificationTimer.record(() -> {
             List<StockLedger> chain = ledgerRepository.findByProductIdOrderBySequenceNumber(productId);
 
             if (chain.isEmpty()) {
-                log.debug("Merkle ledger verification for product {}: no transactions", productId);
+                log.debug("Chain ledger verification for product {}: no transactions", productId);
                 return new ArrayList<>();
             }
 
@@ -106,11 +106,11 @@ public class LedgerMerkleVerificationService {
             }
 
             if (errors.isEmpty()) {
-                log.info("Merkle ledger verification for product {}: {} transactions verified in O(log n)", 
+                log.info("Chain ledger verification for product {}: {} transactions verified in O(n)", 
                         productId, chain.size());
             } else {
-                errors.forEach(error -> log.error("Merkle ledger verification error for product {}: {}", productId, error));
-                log.warn("Merkle ledger verification for product {}: {} errors found",
+                errors.forEach(error -> log.error("Chain ledger verification error for product {}: {}", productId, error));
+                log.warn("Chain ledger verification for product {}: {} errors found",
                         productId, errors.size());
             }
 
@@ -118,8 +118,8 @@ public class LedgerMerkleVerificationService {
         });
     }
 
-    public List<String> verifyLedgerTransactionViaMerkleProof(Integer productId, long sequenceNumber) {
-        return merkleVerificationTimer.record(() -> {
+    public List<String> verifyLedgerTransactionViaChain(Integer productId, long sequenceNumber) {
+        return chainVerificationTimer.record(() -> {
             List<String> errors = new ArrayList<>();
 
             List<StockLedger> chain = ledgerRepository.findByProductIdOrderBySequenceNumber(productId);
@@ -153,14 +153,14 @@ public class LedgerMerkleVerificationService {
                 }
             }
 
-            log.debug("Merkle verification for transaction {} in product {}: {} errors", 
+            log.debug("Chain verification for transaction {} in product {}: {} errors", 
                     sequenceNumber, productId, errors.size());
             return errors;
         });
     }
 
-    public List<String> verifyLedgerRangeViaMerkleProof(Integer productId, long fromSequence, long toSequence) {
-        return merkleVerificationTimer.record(() -> {
+    public List<String> verifyLedgerRangeViaChain(Integer productId, long fromSequence, long toSequence) {
+        return chainVerificationTimer.record(() -> {
             List<String> errors = new ArrayList<>();
 
             if (fromSequence > toSequence) {
@@ -207,7 +207,7 @@ public class LedgerMerkleVerificationService {
             }
 
             if (errors.isEmpty()) {
-                log.info("Merkle range verification for product {}: sequences [{}, {}] verified in O(log n * range)",
+                log.info("Chain range verification for product {}: sequences [{}, {}] verified in O(n)",
                         productId, fromSequence, toSequence);
             }
 
@@ -216,7 +216,7 @@ public class LedgerMerkleVerificationService {
     }
 
     public List<String> spotCheckLedger(Integer productId, int sampleSize) {
-        return merkleVerificationTimer.record(() -> {
+        return chainVerificationTimer.record(() -> {
             List<String> errors = new ArrayList<>();
             List<StockLedger> chain = ledgerRepository.findByProductIdOrderBySequenceNumber(productId);
 
@@ -252,7 +252,7 @@ public class LedgerMerkleVerificationService {
 
                         if (!sampled.getPreviousHash().equals(previous.getCurrentHash())) {
                             errors.add(i18nService.getMessage(MessageKey.LEDGER_VERIFICATION_LINK_BROKEN,
-                                    new Object[]{sampled.getSequenceNumber(), productId}));
+                                     new Object[]{sampled.getSequenceNumber(), productId}));
                         }
                     }
                 }
@@ -267,18 +267,18 @@ public class LedgerMerkleVerificationService {
         });
     }
 
-    public List<Integer> verifyMultipleLedgersViaMerkleProof(List<Integer> productIds) {
-        return merkleVerificationTimer.record(() -> {
+    public List<Integer> verifyMultipleLedgersViaChain(List<Integer> productIds) {
+        return chainVerificationTimer.record(() -> {
             List<Integer> productsWithErrors = new ArrayList<>();
 
             for (Integer productId : productIds) {
-                List<String> errors = verifyLedgerChainIntegrityMerkle(productId);
+                List<String> errors = verifyLedgerChainIntegrity(productId);
                 if (!errors.isEmpty()) {
                     productsWithErrors.add(productId);
                 }
             }
 
-            log.info("Batch merkle ledger verification: {} products checked, {} with errors",
+            log.info("Batch chain ledger verification: {} products checked, {} with errors",
                     productIds.size(), productsWithErrors.size());
             return productsWithErrors;
         });

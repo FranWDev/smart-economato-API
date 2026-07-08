@@ -38,7 +38,7 @@ public class StockLedgerIntegrityVerifier {
     private final I18nService i18nService;
     private final ProductRepository productRepository;
     private final StockLedgerRepository ledgerRepository;
-    private final LedgerMerkleVerificationService ledgerMerkleVerificationService;
+    private final LedgerChainVerificationService ledgerChainVerificationService;
     private final StockMovementRecorder stockMovementRecorder;
     private final StockSnapshotRepository snapshotRepository;
     private final ProductBatchRepository batchRepository;
@@ -49,14 +49,14 @@ public class StockLedgerIntegrityVerifier {
             I18nService i18nService,
             ProductRepository productRepository,
             StockLedgerRepository ledgerRepository,
-            LedgerMerkleVerificationService ledgerMerkleVerificationService,
+            LedgerChainVerificationService ledgerChainVerificationService,
             StockMovementRecorder stockMovementRecorder,
             StockSnapshotRepository snapshotRepository,
             ProductBatchRepository batchRepository) {
         this.i18nService = i18nService;
         this.productRepository = productRepository;
         this.ledgerRepository = ledgerRepository;
-        this.ledgerMerkleVerificationService = ledgerMerkleVerificationService;
+        this.ledgerChainVerificationService = ledgerChainVerificationService;
         this.stockMovementRecorder = stockMovementRecorder;
         this.snapshotRepository = snapshotRepository;
         this.batchRepository = batchRepository;
@@ -69,7 +69,7 @@ public class StockLedgerIntegrityVerifier {
                 .map(Product::getName)
                 .orElse("Desconocido");
 
-        List<String> merkleErrors = ledgerMerkleVerificationService.verifyLedgerChainIntegrityMerkle(productId);
+        List<String> merkleErrors = ledgerChainVerificationService.verifyLedgerChainIntegrity(productId);
         List<StockLedger> chain = ledgerRepository.findByProductIdOrderBySequenceNumber(productId);
 
         if (merkleErrors.isEmpty()) {

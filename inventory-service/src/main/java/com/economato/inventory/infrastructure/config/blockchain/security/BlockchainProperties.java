@@ -30,5 +30,5 @@ public class BlockchainProperties {
 
     private Boolean merkleVerificationEnabled = true;
 
-    private Boolean ledgerMerkleVerificationEnabled = true;
+    private Boolean ledgerChainVerificationEnabled = true;
 }
