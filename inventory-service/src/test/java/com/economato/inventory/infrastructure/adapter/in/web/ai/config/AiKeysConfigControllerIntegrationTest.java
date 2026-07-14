@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -21,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.economato.inventory.application.dto.user.request.GlobalApiKeyRequestDTO;
+import com.economato.inventory.application.dto.user.response.GlobalApiKeyResponseDTO;
 import com.economato.inventory.application.usecase.ai.AiKeyVaultService;
 import com.economato.inventory.domain.model.ai.AiProvider;
 import com.economato.inventory.infrastructure.shared.TestDataUtil;
@@ -47,8 +49,8 @@ class AiKeysConfigControllerIntegrationTest extends BaseIntegrationTest {
     @Test
     void adminCanListCreateUpdateAndDeleteGlobalKeys() throws Exception {
         String token = loginAsAdmin();
-        when(aiKeyVaultService.listGlobalKeys()).thenReturn(List.of(
-                new AiKeyVaultService.ApiKeyMetadata(1L, AiProvider.OPENAI, "****test", true, LocalDateTime.now())
+        when(aiKeyVaultService.listGlobalKeysDto()).thenReturn(List.of(
+                new GlobalApiKeyResponseDTO("OPENAI", "****test", true, LocalDateTime.now())
         ));
 
         mockMvc.perform(get("/api/config/ai-keys/")
@@ -58,8 +60,8 @@ class AiKeysConfigControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$[0].provider", is("OPENAI")))
                 .andExpect(jsonPath("$[0].keyHint", is("****test")));
 
-        AiKeyVaultService.ApiKeyMetadata metadataSaved = new AiKeyVaultService.ApiKeyMetadata(1L, AiProvider.OPENAI, "****1234", true, LocalDateTime.now());
-        when(aiKeyVaultService.saveGlobalKey(AiProvider.OPENAI, "sk-test-1234", adminUserId)).thenReturn(metadataSaved);
+        GlobalApiKeyResponseDTO responseSaved = new GlobalApiKeyResponseDTO("OPENAI", "****1234", true, LocalDateTime.now());
+        when(aiKeyVaultService.saveGlobalKeyDto(any(GlobalApiKeyRequestDTO.class))).thenReturn(responseSaved);
 
         mockMvc.perform(post("/api/config/ai-keys/")
                         .header("Authorization", "Bearer " + token)
@@ -69,8 +71,8 @@ class AiKeysConfigControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.provider", is("OPENAI")))
                 .andExpect(jsonPath("$.keyHint", is("****1234")));
 
-        AiKeyVaultService.ApiKeyMetadata metadataUpdated = new AiKeyVaultService.ApiKeyMetadata(1L, AiProvider.OPENAI, "****5678", true, LocalDateTime.now());
-        when(aiKeyVaultService.updateGlobalKey(AiProvider.OPENAI, "sk-test-5678", adminUserId)).thenReturn(metadataUpdated);
+        GlobalApiKeyResponseDTO responseUpdated = new GlobalApiKeyResponseDTO("OPENAI", "****5678", true, LocalDateTime.now());
+        when(aiKeyVaultService.updateGlobalKeyDto(any(GlobalApiKeyRequestDTO.class))).thenReturn(responseUpdated);
 
         mockMvc.perform(put("/api/config/ai-keys/")
                         .header("Authorization", "Bearer " + token)
@@ -84,9 +86,9 @@ class AiKeysConfigControllerIntegrationTest extends BaseIntegrationTest {
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isNoContent());
 
-                verify(aiKeyVaultService).saveGlobalKey(AiProvider.OPENAI, "sk-test-1234", adminUserId);
-                verify(aiKeyVaultService).updateGlobalKey(AiProvider.OPENAI, "sk-test-5678", adminUserId);
-                verify(aiKeyVaultService).deleteGlobalKey(AiProvider.OPENAI, adminUserId);
+        verify(aiKeyVaultService).saveGlobalKeyDto(any(GlobalApiKeyRequestDTO.class));
+        verify(aiKeyVaultService).updateGlobalKeyDto(any(GlobalApiKeyRequestDTO.class));
+        verify(aiKeyVaultService).deleteGlobalKeyDto("OPENAI");
     }
 
     @Test

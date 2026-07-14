@@ -7,7 +7,6 @@ import com.economato.inventory.application.dto.crisis.response.CrisisResponseDTO
 import com.economato.inventory.application.dto.crisis.response.ForwardTraceabilityDTO;
 import com.economato.inventory.application.dto.crisis.response.ReverseTraceabilityDTO;
 import com.economato.inventory.application.usecase.crisis.TraceabilityService;
-import com.economato.inventory.infrastructure.adapter.out.external.crisis.reports.CrisisReportPdfService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,7 +38,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class TraceabilityController {
 
     private final TraceabilityService traceabilityService;
-    private final CrisisReportPdfService crisisReportPdfService;
 
     @PostMapping("/crisis/activate")
     @PreAuthorize("hasRole('ADMIN')")
@@ -52,8 +50,7 @@ public class TraceabilityController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Levantar una cuarentena alimentaria", description = "Levanta la crisis por ID, restaura disponibilidad y registra la acción en el ledger.")
     public ResponseEntity<Void> liftCrisis(@Valid @RequestBody CrisisLiftRequestDTO request) {
-        traceabilityService.liftCrisis(request);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(204).body(traceabilityService.liftCrisis(request));
     }
 
     @GetMapping("/crisis")
@@ -104,14 +101,13 @@ public class TraceabilityController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Descargar reporte de crisis en PDF")
     public ResponseEntity<byte[]> downloadCrisisReport(@PathVariable Long crisisId) {
-        CrisisResponseDTO crisisData = traceabilityService.getCrisisById(crisisId);
-        byte[] pdf = crisisReportPdfService.generateCrisisReport(crisisData);
+        TraceabilityService.CrisisReportFile report = traceabilityService.getCrisisReportFile(crisisId);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
-        headers.setContentDispositionFormData("attachment", "crisis_report_" + crisisData.getCrisisCode() + ".pdf");
+        headers.setContentDispositionFormData("attachment", "crisis_report_" + report.crisisCode() + ".pdf");
 
-        return ResponseEntity.ok().headers(headers).body(pdf);
+        return ResponseEntity.ok().headers(headers).body(report.content());
     }
 
     @GetMapping("/batch/{batchId}/cookings")

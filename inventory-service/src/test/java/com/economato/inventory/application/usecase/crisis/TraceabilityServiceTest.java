@@ -22,6 +22,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import static org.mockito.Mockito.mock;
+import com.economato.inventory.infrastructure.adapter.out.external.crisis.reports.CrisisReportPdfService;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
@@ -132,7 +134,7 @@ public class TraceabilityServiceTest {
             productBatchRepository, null, orderMapper, cookingAuditMapper, ledgerMapper, productBatchMapper,
             objectMapper, i18nService
         );
-        traceabilityService = new TraceabilityService(containmentService, queryService);
+        traceabilityService = new TraceabilityService(containmentService, queryService, mock(CrisisReportPdfService.class));
     }
 
     @Test

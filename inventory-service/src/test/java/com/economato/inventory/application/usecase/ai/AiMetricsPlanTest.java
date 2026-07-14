@@ -23,6 +23,8 @@ import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import static org.mockito.Mockito.mock;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
 import org.springframework.http.MediaType;
@@ -280,11 +282,12 @@ class AiMetricsPlanTest {
                 vaultProperties,
                 providerProperties,
                 userApiKeyRepository,
-            globalApiKeyRepository,
+                globalApiKeyRepository,
                 rateLimitProperties,
                 meterRegistry,
                 Optional.of(auditEventProducer),
-                i18nService
+                i18nService,
+                mock(SecurityContextHelper.class)
         );
     }
 

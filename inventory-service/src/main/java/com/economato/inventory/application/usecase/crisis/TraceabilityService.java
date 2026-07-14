@@ -7,6 +7,7 @@ import com.economato.inventory.application.dto.crisis.response.ForwardTraceabili
 import com.economato.inventory.application.dto.crisis.response.ReverseTraceabilityDTO;
 import com.economato.inventory.application.dto.recipe.response.RecipeCookingAuditResponseDTO;
 import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
+import com.economato.inventory.infrastructure.adapter.out.external.crisis.reports.CrisisReportPdfService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -32,6 +33,16 @@ public class TraceabilityService {
 
     private final CrisisContainmentService crisisContainmentService;
     private final TraceabilityQueryService traceabilityQueryService;
+    private final CrisisReportPdfService crisisReportPdfService;
+
+    public record CrisisReportFile(byte[] content, String crisisCode) {}
+
+    @Transactional(readOnly = true)
+    public CrisisReportFile getCrisisReportFile(Long crisisId) {
+        CrisisResponseDTO crisisData = getCrisisById(crisisId);
+        byte[] pdf = crisisReportPdfService.generateCrisisReport(crisisData);
+        return new CrisisReportFile(pdf, crisisData.getCrisisCode());
+    }
 
     @Caching(evict = {
         @CacheEvict(value = "products_page", allEntries = true),
@@ -59,8 +70,9 @@ public class TraceabilityService {
     @RealtimeSync(entityType = "crisis", action = "UPDATE",
             affectedDomains = {"crisis", "product", "stock_alerts", "weekly_plan"})
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
-    public void liftCrisis(CrisisLiftRequestDTO request) {
+    public Void liftCrisis(CrisisLiftRequestDTO request) {
         crisisContainmentService.liftCrisis(request);
+        return null;
     }
 
     @Transactional(readOnly = true)

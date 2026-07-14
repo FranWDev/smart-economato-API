@@ -23,6 +23,8 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
+import static org.mockito.Mockito.mock;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.web.client.RestClient;
@@ -150,7 +152,8 @@ class AiAuditEventTest {
                 rateLimitProperties,
                 new SimpleMeterRegistry(),
                 Optional.of(auditEventProducer),
-                i18nService
+                i18nService,
+                mock(SecurityContextHelper.class)
         );
 
         aiKeyVaultServiceMock = org.mockito.Mockito.mock(AiKeyVaultService.class);
