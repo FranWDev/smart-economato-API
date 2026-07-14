@@ -36,6 +36,7 @@ import com.economato.inventory.infrastructure.config.ledger.cache.event.NewLedge
 import com.economato.inventory.infrastructure.config.blockchain.security.BlockchainProperties;
 import com.economato.inventory.infrastructure.config.ledger.security.LedgerProperties;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.application.mapper.ledger.StockLedgerMapper;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -50,6 +51,7 @@ class BlockchainServiceTest {
     @Mock private MerkleTreeService merkleTreeService;
     @Mock private BlockchainMerkleVerificationService merkleVerificationService;
     @Mock private I18nService i18nService;
+    @Mock private StockLedgerMapper stockLedgerMapper;
     private final LedgerProperties ledgerProperties = new LedgerProperties();
     private final BlockchainProperties blockchainProperties = new BlockchainProperties();
     private final Optional<AuditEventProducer> auditEventProducer = Optional.empty();
@@ -70,7 +72,7 @@ class BlockchainServiceTest {
         service = new BlockchainService(
             blockRepository, ledgerRepository, snapshotRepository,
             blockSealingService, merkleTreeService, merkleVerificationService, ledgerProperties,
-            blockchainProperties, txManager, meterRegistry, i18nService, auditEventProducer
+            blockchainProperties, txManager, meterRegistry, i18nService, stockLedgerMapper, auditEventProducer
         );
     }
 
