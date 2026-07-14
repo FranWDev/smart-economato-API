@@ -39,7 +39,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-
+import org.springframework.beans.factory.ObjectProvider;
+import com.economato.inventory.application.usecase.shared.SystemConfigService;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -59,6 +60,8 @@ class PersistentNotificationServiceTest {
     private RoleNotificationService roleNotificationService;
     @Mock
     private I18nService i18nService;
+    @Mock
+    private ObjectProvider<SystemConfigService> systemConfigServiceProvider;
 
     @InjectMocks
     private PersistentNotificationService service;

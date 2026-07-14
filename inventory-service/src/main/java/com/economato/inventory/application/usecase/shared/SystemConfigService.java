@@ -9,10 +9,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,11 +19,16 @@ import com.economato.inventory.application.dto.shared.request.AdvancedConfigRequ
 import com.economato.inventory.application.dto.stock.request.AlertsConfigRequestDTO;
 import com.economato.inventory.application.dto.incident.request.IncidentsConfigRequestDTO;
 import com.economato.inventory.application.dto.notification.request.NotificationsConfigRequestDTO;
+import com.economato.inventory.application.dto.notification.request.NotificationPurgeRequestDTO;
 import com.economato.inventory.application.dto.shared.request.PredictionsConfigRequestDTO;
 import com.economato.inventory.application.dto.notification.request.PresenceConfigRequestDTO;
+import com.economato.inventory.application.dto.shared.request.ActivityLogPurgeRequestDTO;
 import com.economato.inventory.application.dto.shared.request.SecurityConfigRequestDTO;
 import com.economato.inventory.application.dto.shared.request.SessionsConfigRequestDTO;
 import com.economato.inventory.application.dto.shared.response.ConfigAuditLogResponseDTO;
+import com.economato.inventory.application.dto.notification.response.NotificationsConfigResponseDTO;
+import com.economato.inventory.application.dto.notification.response.PresenceConfigResponseDTO;
+import com.economato.inventory.application.dto.shared.response.PurgeResultResponseDTO;
 import com.economato.inventory.domain.model.notification.NotificationType;
 import com.economato.inventory.domain.model.shared.SystemConfig;
 import com.economato.inventory.domain.model.shared.SystemConfigAuditLog;
@@ -39,10 +43,12 @@ import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeS
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class SystemConfigService {
 
     private static final String CATEGORY_PRESENCE = "PRESENCE";
@@ -60,22 +66,7 @@ public class SystemConfigService {
     private final UserActivityLogRepository userActivityLogRepository;
     private final NotificationRepository notificationRepository;
     private final I18nService i18nService;
-    private final DynamicSchedulerConfig dynamicSchedulerConfig;
-
-    public SystemConfigService(SystemConfigRepository systemConfigRepository,
-            SystemConfigAuditLogRepository auditLogRepository,
-            UserRepository userRepository,
-            UserActivityLogRepository userActivityLogRepository,
-            NotificationRepository notificationRepository,
-            I18nService i18nService) {
-        this.systemConfigRepository = systemConfigRepository;
-        this.auditLogRepository = auditLogRepository;
-        this.userRepository = userRepository;
-        this.userActivityLogRepository = userActivityLogRepository;
-        this.notificationRepository = notificationRepository;
-        this.i18nService = i18nService;
-        this.dynamicSchedulerConfig = null;
-    }
+    private final ObjectProvider<DynamicSchedulerConfig> dynamicSchedulerConfigProvider;
 
     @Cacheable("system_config")
     @Transactional(readOnly = true)
@@ -266,8 +257,9 @@ public class SystemConfigService {
         if (!logs.isEmpty()) {
             auditLogRepository.saveAll(logs);
         }
-        if (dynamicSchedulerConfig != null && oldInterval != dto.getPredictionRefreshIntervalHours()) {
-            dynamicSchedulerConfig.reschedule("forecast");
+        DynamicSchedulerConfig scheduler = dynamicSchedulerConfigProvider.getIfAvailable();
+        if (scheduler != null && oldInterval != dto.getPredictionRefreshIntervalHours()) {
+            scheduler.reschedule("forecast");
         }
         return saved;
     }
@@ -373,8 +365,9 @@ public class SystemConfigService {
         if (!logs.isEmpty()) {
             auditLogRepository.saveAll(logs);
         }
-        if (dynamicSchedulerConfig != null && oldInterval != dto.getOutboxProcessingIntervalMs()) {
-            dynamicSchedulerConfig.reschedule("outbox");
+        DynamicSchedulerConfig scheduler = dynamicSchedulerConfigProvider.getIfAvailable();
+        if (scheduler != null && oldInterval != dto.getOutboxProcessingIntervalMs()) {
+            scheduler.reschedule("outbox");
         }
         return saved;
     }
@@ -458,6 +451,76 @@ public class SystemConfigService {
                     .newValue(newValue == null ? null : String.valueOf(newValue))
                     .build());
         }
+    }
+
+    @Transactional(readOnly = true)
+    public NotificationsConfigResponseDTO getNotificationsConfigDto() {
+        SystemConfig c = getConfigEntity();
+        return toNotificationsConfigResponseDto(c);
+    }
+
+    @Transactional
+    public NotificationsConfigResponseDTO updateNotificationsConfigDto(NotificationsConfigRequestDTO request, String adminUsername) {
+        SystemConfig c = updateNotificationsConfig(request, adminUsername);
+        return toNotificationsConfigResponseDto(c);
+    }
+
+    private NotificationsConfigResponseDTO toNotificationsConfigResponseDto(SystemConfig c) {
+        return NotificationsConfigResponseDTO.builder()
+                .notifyWeeklyPlanCreated(c.isNotifyWeeklyPlanCreated())
+                .notifyWeeklyPlanActivated(c.isNotifyWeeklyPlanActivated())
+                .notifyWeeklyPlanSlotConfirmed(c.isNotifyWeeklyPlanSlotConfirmed())
+                .notifyWeeklyPlanDayConfirmed(c.isNotifyWeeklyPlanDayConfirmed())
+                .notifyWeeklyPlanCompleted(c.isNotifyWeeklyPlanCompleted())
+                .notifyWeeklyPlanCancelled(c.isNotifyWeeklyPlanCancelled())
+                .notifyFoodCrisisActivated(c.isNotifyFoodCrisisActivated())
+                .notifyFoodCrisisLifted(c.isNotifyFoodCrisisLifted())
+                .notifyStockPredictionTriggered(c.isNotifyStockPredictionTriggered())
+                .notifyIncidentCreated(c.isNotifyIncidentCreated())
+                .notifyIncidentOpened(c.isNotifyIncidentOpened())
+                .notifyIncidentClosed(c.isNotifyIncidentClosed())
+                .notifyIncidentChatMessage(c.isNotifyIncidentChatMessage())
+                .notificationRetentionDays(c.getNotificationRetentionDays())
+                .notificationAutoCleanupEnabled(c.isNotificationAutoCleanupEnabled())
+                .totalNotificationCount(notificationRepository.count())
+                .build();
+    }
+
+    @Transactional
+    public PurgeResultResponseDTO purgeReadNotificationsDto(NotificationPurgeRequestDTO request) {
+        LocalDateTime from = request == null ? null : request.getFrom();
+        LocalDateTime to = request == null ? null : request.getTo();
+        int deleted = purgeReadNotifications(from, to);
+        return PurgeResultResponseDTO.builder().deletedCount(deleted).build();
+    }
+
+    @Transactional(readOnly = true)
+    public PresenceConfigResponseDTO getPresenceConfigDto() {
+        SystemConfig c = getConfigEntity();
+        return toPresenceConfigResponseDto(c);
+    }
+
+    @Transactional
+    public PresenceConfigResponseDTO updatePresenceConfigDto(PresenceConfigRequestDTO request, String adminUsername) {
+        SystemConfig c = updatePresenceConfig(request, adminUsername);
+        return toPresenceConfigResponseDto(c);
+    }
+
+    private PresenceConfigResponseDTO toPresenceConfigResponseDto(SystemConfig c) {
+        return PresenceConfigResponseDTO.builder()
+                .presenceAuditEnabled(c.isPresenceAuditEnabled())
+                .presenceAutoCleanupEnabled(c.isPresenceAutoCleanupEnabled())
+                .presenceAutoCleanupDays(c.getPresenceAutoCleanupDays())
+                .totalLogCount(userActivityLogRepository.count())
+                .build();
+    }
+
+    @Transactional
+    public PurgeResultResponseDTO purgeActivityLogsDto(ActivityLogPurgeRequestDTO request) {
+        LocalDateTime from = request == null ? null : request.getFrom();
+        LocalDateTime to = request == null ? null : request.getTo();
+        int deleted = purgeActivityLogs(from, to);
+        return PurgeResultResponseDTO.builder().deletedCount(deleted).build();
     }
 
     public record AlertThresholds(int alertThresholdOkDays,

@@ -17,6 +17,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import com.economato.inventory.infrastructure.scheduler.shared.DynamicSchedulerConfig;
+import org.springframework.beans.factory.ObjectProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,6 +46,7 @@ class SystemConfigServiceTest {
     @Mock private UserActivityLogRepository userActivityLogRepository;
     @Mock private NotificationRepository notificationRepository;
     @Mock private I18nService i18nService;
+    @Mock private ObjectProvider<DynamicSchedulerConfig> dynamicSchedulerConfigProvider;
     @Mock private DynamicSchedulerConfig dynamicSchedulerConfig;
 
     private SystemConfigService service;
@@ -54,6 +56,7 @@ class SystemConfigServiceTest {
         lenient().when(i18nService.getMessage(any(MessageKey.class))).thenAnswer(inv -> inv.getArgument(0, MessageKey.class).getKey());
         lenient().when(i18nService.getMessage(any(MessageKey.class), any(Object[].class)))
                 .thenAnswer(inv -> inv.getArgument(0, MessageKey.class).getKey());
+        lenient().when(dynamicSchedulerConfigProvider.getIfAvailable()).thenReturn(dynamicSchedulerConfig);
 
         service = new SystemConfigService(
                 systemConfigRepository,
@@ -61,9 +64,9 @@ class SystemConfigServiceTest {
                 userRepository,
                 userActivityLogRepository,
                 notificationRepository,
-                i18nService
+                i18nService,
+                dynamicSchedulerConfigProvider
         );
-        setField(service, "dynamicSchedulerConfig", dynamicSchedulerConfig);
     }
 
     @Test

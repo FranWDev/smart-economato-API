@@ -6,7 +6,6 @@ import com.economato.inventory.application.dto.shared.response.ConfigAuditLogRes
 import com.economato.inventory.application.dto.notification.response.PresenceConfigResponseDTO;
 import com.economato.inventory.application.dto.shared.response.PurgeResultResponseDTO;
 import com.economato.inventory.application.usecase.shared.SystemConfigService;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserActivityLogRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -25,19 +24,12 @@ import org.springframework.web.bind.annotation.*;
 public class PresenceConfigController {
 
     private final SystemConfigService systemConfigService;
-    private final UserActivityLogRepository userActivityLogRepository;
 
     @GetMapping("/")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Obtener configuración de presencia")
     public ResponseEntity<PresenceConfigResponseDTO> getPresenceConfig() {
-        var c = systemConfigService.getConfigEntity();
-        return ResponseEntity.ok(PresenceConfigResponseDTO.builder()
-                .presenceAuditEnabled(c.isPresenceAuditEnabled())
-                .presenceAutoCleanupEnabled(c.isPresenceAutoCleanupEnabled())
-                .presenceAutoCleanupDays(c.getPresenceAutoCleanupDays())
-                .totalLogCount(userActivityLogRepository.count())
-                .build());
+        return ResponseEntity.ok(systemConfigService.getPresenceConfigDto());
     }
 
     @PutMapping("/")
@@ -45,13 +37,7 @@ public class PresenceConfigController {
     @Operation(summary = "Actualizar configuración de presencia")
     public ResponseEntity<PresenceConfigResponseDTO> updatePresenceConfig(@Valid @RequestBody PresenceConfigRequestDTO request,
                                                                           Authentication authentication) {
-        var c = systemConfigService.updatePresenceConfig(request, authentication.getName());
-        return ResponseEntity.ok(PresenceConfigResponseDTO.builder()
-                .presenceAuditEnabled(c.isPresenceAuditEnabled())
-                .presenceAutoCleanupEnabled(c.isPresenceAutoCleanupEnabled())
-                .presenceAutoCleanupDays(c.getPresenceAutoCleanupDays())
-                .totalLogCount(userActivityLogRepository.count())
-                .build());
+        return ResponseEntity.ok(systemConfigService.updatePresenceConfigDto(request, authentication.getName()));
     }
 
     @DeleteMapping("/logs")
@@ -59,15 +45,13 @@ public class PresenceConfigController {
     @Operation(summary = "Purgar logs de actividad")
     public ResponseEntity<PurgeResultResponseDTO> purgeActivityLogs(@RequestBody(required = false) ActivityLogPurgeRequestDTO request,
                                                                     Authentication authentication) {
-        int deleted = systemConfigService.purgeActivityLogs(request == null ? null : request.getFrom(), request == null ? null : request.getTo());
-        return ResponseEntity.ok(PurgeResultResponseDTO.builder().deletedCount(deleted).build());
+        return ResponseEntity.ok(systemConfigService.purgeActivityLogsDto(request));
     }
 
     @GetMapping("/audit-log")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Historial de cambios de presencia")
     public ResponseEntity<Page<ConfigAuditLogResponseDTO>> auditLog(Pageable pageable) {
-        Page<ConfigAuditLogResponseDTO> page = systemConfigService.getAuditByCategoryDto("PRESENCE", pageable);
-        return ResponseEntity.ok(page);
+        return ResponseEntity.ok(systemConfigService.getAuditByCategoryDto("PRESENCE", pageable));
     }
 }

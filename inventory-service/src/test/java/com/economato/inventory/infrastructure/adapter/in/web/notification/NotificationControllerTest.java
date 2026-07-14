@@ -16,6 +16,8 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import org.springframework.beans.factory.ObjectProvider;
+import com.economato.inventory.application.usecase.shared.SystemConfigService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -61,6 +63,9 @@ class NotificationControllerTest {
     @Mock
     private I18nService i18nService;
 
+    @Mock
+    private ObjectProvider<SystemConfigService> systemConfigServiceProvider;
+
     private PersistentNotificationService persistentNotificationService;
     private NotificationController controller;
 
@@ -75,9 +80,10 @@ class NotificationControllerTest {
                 userRepository,
                 securityContextHelper,
                 roleNotificationService,
-                i18nService
+                i18nService,
+                systemConfigServiceProvider
         );
-        controller = new NotificationController(persistentNotificationService, userRepository, i18nService);
+        controller = new NotificationController(persistentNotificationService);
 
         currentUser = new User();
         currentUser.setId(1);
