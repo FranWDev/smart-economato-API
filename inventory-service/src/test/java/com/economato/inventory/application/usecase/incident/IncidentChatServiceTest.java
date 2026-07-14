@@ -1,7 +1,9 @@
 package com.economato.inventory.application.usecase.incident;
 import com.economato.inventory.application.usecase.notification.PersistentNotificationService;
 import com.economato.inventory.application.usecase.shared.FileStorageService;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
+import com.economato.inventory.application.usecase.shared.SystemConfigService;
+import static org.mockito.Mockito.mock;
 
 import com.economato.inventory.application.dto.incident.response.IncidentChatMessageResponseDTO;
 import com.economato.inventory.application.dto.shared.response.ChatReadReceiptBroadcastDTO;
@@ -15,7 +17,7 @@ import com.economato.inventory.domain.model.incident.IncidentStatus;
 import com.economato.inventory.domain.model.incident.IncidentType;
 import com.economato.inventory.domain.model.user.Role;
 import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentChatMessageRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentChatReadReceiptRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentRepository;
@@ -91,7 +93,8 @@ class IncidentChatServiceTest {
                 fileStorageService,
                 persistentNotificationService,
                 messagingTemplate,
-                i18nService
+                i18nService,
+                null
         );
 
         admin = user(1, "Admin", "admin", Role.ADMIN, null);

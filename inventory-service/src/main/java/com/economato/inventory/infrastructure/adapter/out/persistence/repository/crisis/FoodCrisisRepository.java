@@ -1,19 +1,18 @@
 package com.economato.inventory.infrastructure.adapter.out.persistence.repository.crisis;
 
+import com.economato.inventory.domain.model.crisis.FoodCrisis;
+import java.util.List;
 import java.util.Optional;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import com.economato.inventory.domain.model.crisis.FoodCrisis;
-
 public interface FoodCrisisRepository extends JpaRepository<FoodCrisis, Long> {
     Optional<FoodCrisis> findByCrisisCode(String crisisCode);
 
-       java.util.List<FoodCrisis> findByStatus(FoodCrisis.CrisisStatus status);
+       List<FoodCrisis> findByStatus(FoodCrisis.CrisisStatus status);
 
        boolean existsByStatusAndSupplierId(FoodCrisis.CrisisStatus status, Integer supplierId);
 
@@ -27,7 +26,7 @@ public interface FoodCrisisRepository extends JpaRepository<FoodCrisis, Long> {
     Optional<FoodCrisis> findByIdWithDetails(@Param("id") Long id);
 
     @Query("SELECT DISTINCT f FROM FoodCrisis f LEFT JOIN FETCH f.supplier")
-    java.util.List<FoodCrisis> findAllWithSupplier();
+    List<FoodCrisis> findAllWithSupplier();
 
     @Query("SELECT DISTINCT f FROM FoodCrisis f " +
            "LEFT JOIN FETCH f.supplier " +
@@ -36,7 +35,7 @@ public interface FoodCrisisRepository extends JpaRepository<FoodCrisis, Long> {
            "LEFT JOIN FETCH f.activatedBy " +
            "LEFT JOIN FETCH f.liftedBy " +
            "WHERE f.status = :status")
-    java.util.List<FoodCrisis> findByStatusWithDetails(@org.springframework.data.repository.query.Param("status") FoodCrisis.CrisisStatus status);
+    List<FoodCrisis> findByStatusWithDetails(@Param("status") FoodCrisis.CrisisStatus status);
 
     @Query(value = "SELECT f FROM FoodCrisis f LEFT JOIN FETCH f.supplier WHERE f.status = 'LIFTED' AND " +
            "(:searchTerm IS NULL OR :searchTerm = '' OR " +

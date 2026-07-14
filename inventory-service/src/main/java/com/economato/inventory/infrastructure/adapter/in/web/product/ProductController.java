@@ -1,30 +1,15 @@
 package com.economato.inventory.infrastructure.adapter.in.web.product;
 
-import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
-
-import java.util.List;
-
-
-import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
-import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.ledger.response.LedgerPdfResponseDTO;
+import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
 import com.economato.inventory.application.dto.product.response.ProductResponseDTO;
+import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
+import com.economato.inventory.application.usecase.ledger.StockLedgerService;
 import com.economato.inventory.application.usecase.product.ProductService;
-import com.economato.inventory.infrastructure.adapter.out.external.product.reports.ProductExcelService;
 import com.economato.inventory.infrastructure.adapter.out.external.ledger.reports.StockLedgerPdfService;
+import com.economato.inventory.infrastructure.adapter.out.external.product.reports.ProductExcelService;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-import com.economato.inventory.application.usecase.ledger.StockLedgerService;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -32,27 +17,28 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @RestController
 @RequestMapping("/api/products")
+@RequiredArgsConstructor
 @Tag(name = "Productos", description = "Operaciones relacionadas con los productos")
 public class ProductController {
 
         private final ProductService productService;
-        private final ProductExcelService productExcelService;
-        private final StockLedgerPdfService stockLedgerPdfService;
         private final StockLedgerService stockLedgerService;
-        private final I18nService i18nService;
-
-        public ProductController(ProductService productService, ProductExcelService productExcelService,
-                StockLedgerPdfService stockLedgerPdfService, StockLedgerService stockLedgerService,
-                I18nService i18nService) {
-                this.productService = productService;
-                this.productExcelService = productExcelService;
-                this.stockLedgerPdfService = stockLedgerPdfService;
-                this.stockLedgerService = stockLedgerService;
-                this.i18nService = i18nService;
-        }
 
         @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @Operation(summary = "Obtener todos los productos", description = "Devuelve una lista paginada de todos los productos registrados en el sistema. [Rol requerido: USER]")
@@ -70,18 +56,10 @@ public class ProductController {
         })
         @GetMapping("/export/excel")
         public ResponseEntity<StreamingResponseBody> downloadProductsExcel() {
-                StreamingResponseBody stream = out -> productExcelService.streamProductsExcel(out);
-
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.parseMediaType(
-                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
-                headers.setContentDisposition(ContentDisposition.attachment()
-                                .filename("productos.xlsx")
-                                .build());
-
                 return ResponseEntity.ok()
-                                .headers(headers)
-                                .body(stream);
+                                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"productos.xlsx\"")
+                                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                                .body(productService.getProductsExcelStream());
         }
 
         @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
@@ -131,7 +109,7 @@ public class ProductController {
         @PostMapping
         public ResponseEntity<ProductResponseDTO> createProduct(
                         @Valid @RequestBody ProductRequestDTO productRequest) {
-                return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                return ResponseEntity.status(HttpStatus.CREATED)
                                 .body(productService.save(productRequest));
         }
 
@@ -253,42 +231,18 @@ public class ProductController {
         @GetMapping("/{id}/ledger/pdf")
         public ResponseEntity<byte[]> downloadStockLedgerPdf(
                 @Parameter(description = "ID del producto", required = true) @PathVariable Integer id) {
-            return productService.findById(id)
-                    .map(product -> {
-                        LedgerPdfResponseDTO pdfResponse = stockLedgerPdfService.generateStockLedgerPdfWithIntegrity(id);
-                        
-                        HttpHeaders headers = new HttpHeaders();
-                        headers.setContentType(MediaType.APPLICATION_PDF);
-                        headers.setContentDisposition(ContentDisposition.attachment()
-                                .filename("ledger_stock_" + sanitizeFilename(product.getName()) + ".pdf")
-                                .build());
-                        headers.setContentLength(pdfResponse.getPdfContent().length);
-                        
-                        // Añadir información de integridad en headers custom
-                        headers.add("X-Ledger-Integrity-Valid", String.valueOf(pdfResponse.isIntegrityValid()));
-                        headers.add("X-Ledger-Integrity-Message", pdfResponse.getIntegrityMessage());
-                        
-                        if (!pdfResponse.isIntegrityValid() && pdfResponse.getIntegrityErrors() != null) {
-                            // Añadir primer error como referencia
-                            headers.add("X-Ledger-Integrity-Error", 
-                                       pdfResponse.getIntegrityErrors().isEmpty() ? i18nService.getMessage(MessageKey.ERROR_INTERNAL_SERVER_ERROR) 
-                                                                                   : pdfResponse.getIntegrityErrors().get(0));
+            return productService.getStockLedgerPdfDownload(id)
+                    .map(dto -> {
+                        var builder = ResponseEntity.ok()
+                                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + dto.getFilename())
+                                .contentType(MediaType.APPLICATION_PDF)
+                                .header("X-Ledger-Integrity-Valid", String.valueOf(dto.isIntegrityValid()))
+                                .header("X-Ledger-Integrity-Message", dto.getIntegrityMessage());
+                        if (dto.getIntegrityError() != null) {
+                            builder.header("X-Ledger-Integrity-Error", dto.getIntegrityError());
                         }
-                        
-                        return ResponseEntity.ok().headers(headers).body(pdfResponse.getPdfContent());
+                        return builder.body(dto.getPdfContent());
                     })
-                    .orElse(ResponseEntity.notFound().build());
-        }
-
-        private String sanitizeFilename(String filename) {
-            if (filename == null || filename.isBlank()) {
-                return "producto";
-            }
-            String cleaned = filename.replaceAll("[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\\s-]", "_")
-                    .replaceAll("\\s", "_");
-            if (cleaned.isBlank()) {
-                return "producto";
-            }
-            return cleaned.substring(0, Math.min(cleaned.length(), 50));
+                    .orElseGet(() -> ResponseEntity.notFound().build());
         }
 }

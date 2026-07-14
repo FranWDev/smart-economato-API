@@ -11,8 +11,8 @@ import com.economato.inventory.application.dto.notification.response.Notificatio
 import com.economato.inventory.application.dto.notification.response.NotificationUnreadCountDTO;
 import com.economato.inventory.application.mapper.notification.NotificationMapper;
 
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.notification.NotificationRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
 import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
@@ -39,7 +39,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-
+import org.springframework.beans.factory.ObjectProvider;
+import com.economato.inventory.application.usecase.shared.SystemConfigService;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -59,6 +60,8 @@ class PersistentNotificationServiceTest {
     private RoleNotificationService roleNotificationService;
     @Mock
     private I18nService i18nService;
+    @Mock
+    private ObjectProvider<SystemConfigService> systemConfigServiceProvider;
 
     @InjectMocks
     private PersistentNotificationService service;

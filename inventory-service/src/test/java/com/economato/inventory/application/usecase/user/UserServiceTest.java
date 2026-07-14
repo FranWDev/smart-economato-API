@@ -1,38 +1,58 @@
 package com.economato.inventory.application.usecase.user;
-import com.economato.inventory.application.usecase.notification.RoleNotificationMessage;
-import com.economato.inventory.application.usecase.notification.RoleNotificationService;
-import com.economato.inventory.application.usecase.stock.AlertCode;
-
-import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Mockito;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import com.economato.inventory.application.dto.shared.request.ChangePasswordRequestDTO;
+import com.economato.inventory.application.dto.user.projection.RoleCountProjection;
+import com.economato.inventory.application.dto.user.projection.UserProjection;
+import com.economato.inventory.application.dto.user.request.RoleEscalationRequestDTO;
+import com.economato.inventory.application.dto.user.request.UserRequestDTO;
+import com.economato.inventory.application.dto.user.response.UserResponseDTO;
+import com.economato.inventory.application.dto.user.response.UserStatsResponseDTO;
+import com.economato.inventory.application.dto.weeklyplan.request.TransferStudentsRequestDTO;
+import com.economato.inventory.application.mapper.shared.StatsMapper;
+import com.economato.inventory.application.mapper.user.TemporaryRoleEscalationMapper;
+import com.economato.inventory.application.mapper.user.UserMapper;
+import com.economato.inventory.application.usecase.notification.RoleNotificationMessage;
+import com.economato.inventory.application.usecase.notification.RoleNotificationService;
+import com.economato.inventory.application.usecase.stock.AlertCode;
+import com.economato.inventory.domain.model.user.Role;
+import com.economato.inventory.domain.model.user.TemporaryRoleEscalation;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.TemporaryRoleEscalationRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -41,27 +61,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
-
-import com.economato.inventory.application.dto.user.projection.RoleCountProjection;
-import com.economato.inventory.application.dto.user.projection.UserProjection;
-import com.economato.inventory.application.dto.shared.request.ChangePasswordRequestDTO;
-import com.economato.inventory.application.dto.user.request.RoleEscalationRequestDTO;
-import com.economato.inventory.application.dto.weeklyplan.request.TransferStudentsRequestDTO;
-import com.economato.inventory.application.dto.user.request.UserRequestDTO;
-import com.economato.inventory.application.dto.user.response.UserResponseDTO;
-import com.economato.inventory.application.dto.user.response.UserStatsResponseDTO;
-import com.economato.inventory.application.mapper.shared.StatsMapper;
-import com.economato.inventory.application.mapper.user.TemporaryRoleEscalationMapper;
-import com.economato.inventory.application.mapper.user.UserMapper;
-import com.economato.inventory.domain.model.user.Role;
-import com.economato.inventory.domain.model.user.TemporaryRoleEscalation;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.TemporaryRoleEscalationRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
@@ -110,7 +109,7 @@ class UserServiceTest {
         Mockito.lenient().when(i18nService.getMessage(any(MessageKey.class), any(Object[].class)))
             .thenAnswer(invocation -> {
                 Object arg = invocation.getArgument(1);
-                String argsStr = arg instanceof Object[] ? java.util.Arrays.toString((Object[]) arg) : String.valueOf(arg);
+                String argsStr = arg instanceof Object[] ? Arrays.toString((Object[]) arg) : String.valueOf(arg);
                 return ((MessageKey) invocation.getArgument(0)).name() + " " + (argsStr != null ? argsStr : "[]");
             });
         testUser = new User();
@@ -936,7 +935,7 @@ class UserServiceTest {
 
         UserStatsResponseDTO expected = UserStatsResponseDTO.builder()
                 .totalUsers(10L)
-                .usersByRole(java.util.Map.of("ADMIN", 1L))
+                .usersByRole(Map.of("ADMIN", 1L))
                 .build();
 
         when(statsMapper.toUserStatsDTO(anyLong(), anyList())).thenReturn(expected);

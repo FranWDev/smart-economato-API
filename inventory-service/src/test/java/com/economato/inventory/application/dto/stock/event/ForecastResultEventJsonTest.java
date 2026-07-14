@@ -1,15 +1,15 @@
 package com.economato.inventory.application.dto.stock.event;
 
-import java.math.BigDecimal;
-import java.time.OffsetDateTime;
-
 import static org.assertj.core.api.Assertions.assertThat;
-import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import org.junit.jupiter.api.Test;
 
 public class ForecastResultEventJsonTest {
 
@@ -48,7 +48,7 @@ public class ForecastResultEventJsonTest {
             .build();
 
         String out = mapper.writeValueAsString(evt);
-        com.fasterxml.jackson.databind.JsonNode node = mapper.readTree(out);
+        JsonNode node = mapper.readTree(out);
         String ts = node.get("calculatedAt").asText();
         assertThat(OffsetDateTime.parse(ts)).isEqualTo(evt.getCalculatedAt());
     }

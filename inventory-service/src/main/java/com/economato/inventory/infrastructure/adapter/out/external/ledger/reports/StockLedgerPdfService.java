@@ -1,18 +1,18 @@
 package com.economato.inventory.infrastructure.adapter.out.external.ledger.reports;
 
-import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.ledger.response.LedgerPdfResponseDTO;
+import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
 import com.economato.inventory.application.usecase.ledger.StockLedgerService;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import com.economato.inventory.domain.model.ledger.LedgerBlock;
-import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.ledger.StockLedger;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.LedgerBlockRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
 import com.economato.inventory.infrastructure.config.ledger.security.LedgerProperties;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.colors.DeviceRgb;
 import com.itextpdf.kernel.events.Event;
@@ -25,26 +25,21 @@ import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.layout.Canvas;
 import com.itextpdf.layout.Document;
-import com.itextpdf.layout.element.AreaBreak;
 import com.itextpdf.layout.borders.SolidBorder;
+import com.itextpdf.layout.element.AreaBreak;
 import com.itextpdf.layout.element.Cell;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
+import com.itextpdf.layout.element.Text;
 import com.itextpdf.layout.properties.AreaBreakType;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.layout.properties.VerticalAlignment;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.io.ByteArrayOutputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashSet;
@@ -53,6 +48,11 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -372,7 +372,7 @@ public class StockLedgerPdfService {
                         .setFont(boldFont)
                         .setFontSize(10)
                         .setFontColor(TEXT_DARK)
-                        .add(new com.itextpdf.layout.element.Text(chainValid ? "✓ " + i18nService.getMessage(MessageKey.STATUS_INTEGRAL) : "⚠ " + i18nService.getMessage(MessageKey.STATUS_CORRUPT))
+                        .add(new Text(chainValid ? "✓ " + i18nService.getMessage(MessageKey.STATUS_INTEGRAL) : "⚠ " + i18nService.getMessage(MessageKey.STATUS_CORRUPT))
                                 .setFontColor(chainValid ? VERIFIED_COLOR : UNVERIFIED_COLOR)
                                 .setFont(boldFont)))
                 .setPadding(12)
@@ -392,7 +392,7 @@ public class StockLedgerPdfService {
                         .setFont(boldFont)
                         .setFontSize(9)
                         .setFontColor(TEXT_GRAY)
-                        .add(new com.itextpdf.layout.element.Text(corruptedSummary)
+                        .add(new Text(corruptedSummary)
                                 .setFont(chainValid ? regularFont : boldFont)
                                 .setFontColor(chainValid ? TEXT_DARK : UNVERIFIED_COLOR)))
                 .setPadding(8)
@@ -425,7 +425,7 @@ public class StockLedgerPdfService {
 
         Cell timestampCell = new Cell()
                 .add(new Paragraph(i18nService.getMessage(MessageKey.REPORT_LABEL_GENERATED)).setFont(boldFont).setFontSize(9).setFontColor(TEXT_GRAY)
-                        .add(new com.itextpdf.layout.element.Text(formattedTimestamp).setFont(regularFont)))
+                        .add(new Text(formattedTimestamp).setFont(regularFont)))
                 .setPadding(8)
                 .setBorder(new SolidBorder(BORDER_COLOR, 1))
                 .setBackgroundColor(SIGNATURE_BG);
@@ -436,7 +436,7 @@ public class StockLedgerPdfService {
                         .setFont(boldFont)
                         .setFontSize(8)
                         .setFontColor(TEXT_GRAY)
-                        .add(new com.itextpdf.layout.element.Text(lastEntry.getCurrentHash())
+                        .add(new Text(lastEntry.getCurrentHash())
                                 .setFont(boldFont)
                                 .setFontSize(7)))
                 .setPadding(8)
@@ -510,7 +510,7 @@ public class StockLedgerPdfService {
             PdfDocument pdfDoc = docEvent.getDocument();
 
             Rectangle pageSize = page.getPageSize();
-            Canvas canvas = new Canvas(new com.itextpdf.kernel.pdf.canvas.PdfCanvas(page), pageSize);
+            Canvas canvas = new Canvas(new PdfCanvas(page), pageSize);
 
             int pageNum = pdfDoc.getPageNumber(page);
             String footer = i18nService.getMessage(MessageKey.REPORT_FOOTER_PAGE, new Object[] { pageNum }) + " | " + i18nService.getMessage(MessageKey.REPORT_FOOTER_CONFIDENTIAL);

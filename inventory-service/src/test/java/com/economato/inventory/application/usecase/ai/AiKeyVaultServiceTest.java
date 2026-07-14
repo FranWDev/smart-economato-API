@@ -23,6 +23,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import org.mockito.Mock;
 import org.mockito.stubbing.Answer;
 import static org.mockito.Mockito.atLeastOnce;
@@ -32,8 +34,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.economato.inventory.domain.model.ai.AiProvider;
 import com.economato.inventory.domain.model.user.UserApiKey;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.GlobalApiKeyRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserApiKeyRepository;
 import com.economato.inventory.infrastructure.config.ai.ai.AiProviderProperties;
@@ -117,7 +119,8 @@ class AiKeyVaultServiceTest {
                 aiRateLimitProperties,
                 meterRegistry,
                 Optional.empty(),
-                i18nService
+                i18nService,
+                mock(SecurityContextHelper.class)
         );
 
     }

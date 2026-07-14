@@ -1,51 +1,51 @@
 package com.economato.inventory.application.usecase.mcp.mcp;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.PageImpl;
 
-import com.economato.inventory.application.dto.mcp.mcp.McpExpiringBatchDto;
 import com.economato.inventory.application.dto.ledger.mcp.McpLedgerEntryDto;
+import com.economato.inventory.application.dto.mcp.mcp.McpExpiringBatchDto;
 import com.economato.inventory.application.dto.product.mcp.McpSupplierDeepDto;
 import com.economato.inventory.application.usecase.product.ProductBatchService;
 import com.economato.inventory.application.usecase.stock.StockAlertService;
 import com.economato.inventory.application.usecase.weeklyplan.WeeklyPlanService;
 import com.economato.inventory.domain.model.crisis.FoodCrisis;
-import com.economato.inventory.domain.model.shared.MovementType;
+import com.economato.inventory.domain.model.ledger.StockLedger;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.product.ProductBatch;
-import com.economato.inventory.domain.model.stock.StockDailyForecast;
-import com.economato.inventory.domain.model.ledger.StockLedger;
-import com.economato.inventory.domain.model.stock.StockWeeklyConsumptionHistory;
 import com.economato.inventory.domain.model.product.Supplier;
+import com.economato.inventory.domain.model.shared.MovementType;
+import com.economato.inventory.domain.model.stock.StockDailyForecast;
+import com.economato.inventory.domain.model.stock.StockWeeklyConsumptionHistory;
 import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.crisis.FoodCrisisRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.order.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.SupplierRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockDailyForecastRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockPredictionRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockWeeklyConsumptionHistoryRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.SupplierRepository;
 import com.economato.inventory.infrastructure.config.ai.ai.AiAnalysisProperties;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
 
 @ExtendWith(MockitoExtension.class)
 class McpToolReadServiceTest {
@@ -81,7 +81,7 @@ class McpToolReadServiceTest {
 
     private McpToolReadService service;
 
-    @org.junit.jupiter.api.BeforeEach
+    @BeforeEach
     void setUp() {
         McpProductReader productReader = new McpProductReader(
             productRepository, supplierRepository, orderRepository, stockPredictionRepository,

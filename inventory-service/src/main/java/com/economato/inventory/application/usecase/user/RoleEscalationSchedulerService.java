@@ -1,13 +1,12 @@
 package com.economato.inventory.application.usecase.user;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
-
 import com.economato.inventory.domain.model.user.TemporaryRoleEscalation;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.TemporaryRoleEscalationRepository;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Objects;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
 
 @Service
 public class RoleEscalationSchedulerService {
@@ -29,7 +28,7 @@ public class RoleEscalationSchedulerService {
 
         List<Integer> userIds = expired.stream()
                 .map(TemporaryRoleEscalation::getUser)
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .map(user -> user.getId())
                 .toList();
 

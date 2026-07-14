@@ -1,39 +1,39 @@
 package com.economato.inventory.application.usecase.ledger;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
-import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.ledger.response.LedgerPdfResponseDTO;
-import com.economato.inventory.domain.model.shared.MovementType;
-import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
 import com.economato.inventory.domain.model.ledger.StockLedger;
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.domain.model.shared.MovementType;
 import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.infrastructure.adapter.out.external.ledger.reports.StockLedgerPdfService;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.LedgerBlockRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.config.ledger.security.LedgerProperties;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-import com.economato.inventory.infrastructure.config.ledger.security.LedgerProperties;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class StockLedgerPdfServiceTest {
@@ -104,7 +104,7 @@ class StockLedgerPdfServiceTest {
                 lenient().when(ledgerProperties.getHmacSecretForVersion(1))
                                 .thenReturn("test-hmac-secret-for-ledger-integrity-verification");
                 lenient().when(ledgerBlockRepository.findTopByOrderByBlockNumberDesc())
-                                .thenReturn(java.util.Optional.empty());
+                                .thenReturn(Optional.empty());
         }
 
         private List<StockLedger> createTestLedgerEntries() {
@@ -143,7 +143,7 @@ class StockLedgerPdfServiceTest {
 
         @Test
         void generateStockLedgerPdf_ShouldReturnNonEmptyByteArray() {
-                when(productRepository.findById(1)).thenReturn(java.util.Optional.of(testProduct));
+                when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
                 when(stockLedgerRepository.findByProductIdOrderBySequenceNumber(1))
                         .thenReturn(testLedgerEntries);
 
@@ -157,7 +157,7 @@ class StockLedgerPdfServiceTest {
 
         @Test
         void generateStockLedgerPdf_WithNonExistentProduct_ShouldThrowException() {
-                when(productRepository.findById(999)).thenReturn(java.util.Optional.empty());
+                when(productRepository.findById(999)).thenReturn(Optional.empty());
 
                 assertThrows(RuntimeException.class, () -> {
                         stockLedgerPdfService.generateStockLedgerPdf(999);
@@ -166,7 +166,7 @@ class StockLedgerPdfServiceTest {
 
         @Test
         void generateStockLedgerPdf_WithEmptyLedger_ShouldThrowException() {
-                when(productRepository.findById(1)).thenReturn(java.util.Optional.of(testProduct));
+                when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
                 when(stockLedgerRepository.findByProductIdOrderBySequenceNumber(1))
                         .thenReturn(Arrays.asList());
 
@@ -177,7 +177,7 @@ class StockLedgerPdfServiceTest {
 
         @Test
         void verifyLedgerIntegrity_WithCorrectHash_ShouldReturnTrue() {
-                when(productRepository.findById(1)).thenReturn(java.util.Optional.of(testProduct));
+                when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
                 when(stockLedgerRepository.findByProductIdOrderBySequenceNumber(1))
                         .thenReturn(testLedgerEntries);
 
@@ -212,7 +212,7 @@ class StockLedgerPdfServiceTest {
 
         @Test
         void generateStockLedgerPdf_ShouldIncludeAllLedgerData() {
-                when(productRepository.findById(1)).thenReturn(java.util.Optional.of(testProduct));
+                when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
                 when(stockLedgerRepository.findByProductIdOrderBySequenceNumber(1))
                         .thenReturn(testLedgerEntries);
 
@@ -225,7 +225,7 @@ class StockLedgerPdfServiceTest {
 
         @Test
         void generateStockLedgerPdf_ShouldIncludeProductDetails() {
-                when(productRepository.findById(1)).thenReturn(java.util.Optional.of(testProduct));
+                when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
                 when(stockLedgerRepository.findByProductIdOrderBySequenceNumber(1))
                         .thenReturn(testLedgerEntries);
 
@@ -250,7 +250,7 @@ class StockLedgerPdfServiceTest {
 
         @Test
         void generateStockLedgerPdfWithIntegrity_ShouldReturnPdfWithIntegrityInfo() {
-                when(productRepository.findById(1)).thenReturn(java.util.Optional.of(testProduct));
+                when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
                 when(stockLedgerRepository.findByProductIdOrderBySequenceNumber(1))
                         .thenReturn(testLedgerEntries);
                 
@@ -272,12 +272,12 @@ class StockLedgerPdfServiceTest {
 
         @Test
         void generateStockLedgerPdfWithIntegrity_WhenCorrupted_ShouldReturnErrorInfo() {
-                when(productRepository.findById(1)).thenReturn(java.util.Optional.of(testProduct));
+                when(productRepository.findById(1)).thenReturn(Optional.of(testProduct));
                 when(stockLedgerRepository.findByProductIdOrderBySequenceNumber(1))
                         .thenReturn(testLedgerEntries);
                 
                 // Mock IntegrityCheckResult with corruption
-                java.util.List<String> errors = java.util.Arrays.asList("Error 1", "Error 2");
+                List<String> errors = Arrays.asList("Error 1", "Error 2");
                 IntegrityCheckResult integrityResult = 
                         new IntegrityCheckResult(
                                 1, "Test Product", false, "Cadena corrupta", errors);

@@ -1,48 +1,47 @@
 package com.economato.inventory.application.usecase.user;
+import com.economato.inventory.application.dto.shared.RestPage;
+import com.economato.inventory.application.dto.shared.request.ChangePasswordRequestDTO;
+import com.economato.inventory.application.dto.user.projection.UserProjection;
+import com.economato.inventory.application.dto.user.request.RoleEscalationRequestDTO;
+import com.economato.inventory.application.dto.user.request.UserRequestDTO;
+import com.economato.inventory.application.dto.user.response.UserResponseDTO;
+import com.economato.inventory.application.dto.user.response.UserStatsResponseDTO;
+import com.economato.inventory.application.dto.weeklyplan.request.BatchTeacherAssignmentRequestDTO;
+import com.economato.inventory.application.dto.weeklyplan.request.TransferStudentsRequestDTO;
+import com.economato.inventory.application.dto.weeklyplan.response.BatchTeacherAssignmentResponseDTO;
+import com.economato.inventory.application.mapper.shared.StatsMapper;
+import com.economato.inventory.application.mapper.user.TemporaryRoleEscalationMapper;
+import com.economato.inventory.application.mapper.user.UserMapper;
 import com.economato.inventory.application.usecase.notification.RoleNotificationMessage;
 import com.economato.inventory.application.usecase.notification.RoleNotificationService;
 import com.economato.inventory.application.usecase.shared.SystemConfigService;
 import com.economato.inventory.application.usecase.stock.AlertCode;
-
+import com.economato.inventory.domain.model.user.Role;
+import com.economato.inventory.domain.model.user.TemporaryRoleEscalation;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.TemporaryRoleEscalationRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
+import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.economato.inventory.application.dto.shared.RestPage;
-import com.economato.inventory.application.dto.user.projection.UserProjection;
-import com.economato.inventory.application.dto.weeklyplan.request.BatchTeacherAssignmentRequestDTO;
-import com.economato.inventory.application.dto.shared.request.ChangePasswordRequestDTO;
-import com.economato.inventory.application.dto.user.request.RoleEscalationRequestDTO;
-import com.economato.inventory.application.dto.weeklyplan.request.TransferStudentsRequestDTO;
-import com.economato.inventory.application.dto.user.request.UserRequestDTO;
-import com.economato.inventory.application.dto.weeklyplan.response.BatchTeacherAssignmentResponseDTO;
-import com.economato.inventory.application.dto.user.response.UserResponseDTO;
-import com.economato.inventory.application.dto.user.response.UserStatsResponseDTO;
-import com.economato.inventory.application.mapper.shared.StatsMapper;
-import com.economato.inventory.application.mapper.user.TemporaryRoleEscalationMapper;
-import com.economato.inventory.application.mapper.user.UserMapper;
-import com.economato.inventory.domain.model.user.Role;
-import com.economato.inventory.domain.model.user.TemporaryRoleEscalation;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.TemporaryRoleEscalationRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
-import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 
 @Service
 @Transactional(rollbackFor = { RuntimeException.class, Exception.class })
@@ -129,6 +128,13 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserResponseDTO findCurrentUser(String username) {
         return userMapper.toResponseDTO(findByUsername(username));
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponseDTO findCurrentUserWithToken(String username, String token) {
+        UserResponseDTO user = findCurrentUser(username);
+        user.setToken(token);
+        return user;
     }
 
         @Caching(evict = {
@@ -257,6 +263,12 @@ public class UserService {
         customUserDetailsService.evictUser(user.getUser());
     }
 
+    public void updateFirstLoginStatusByActor(Integer id, boolean status, Authentication authentication) {
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        updateFirstLoginStatus(id, status, isAdmin);
+    }
+
         @Caching(evict = {
             @CacheEvict(value = "user", key = "#id"),
             @CacheEvict(value = "userByEmail", allEntries = true)
@@ -288,6 +300,19 @@ public class UserService {
         repository.save(user);
         customUserDetailsService.evictUser(user.getName());
         customUserDetailsService.evictUser(user.getUser());
+    }
+
+    public void changePasswordByActor(Integer id, ChangePasswordRequestDTO request, Authentication authentication) {
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isSelf = false;
+        if (authentication != null && authentication.getName() != null) {
+            try {
+                isSelf = id.equals(findByUsername(authentication.getName()).getId());
+            } catch (Exception ignored) {
+            }
+        }
+        changePassword(id, request, isAdmin, isSelf);
     }
 
     @Cacheable(value = "users_by_role", key = "#role.name()")
@@ -538,7 +563,7 @@ public class UserService {
             return;
         }
 
-        List<Integer> uniqueUserIds = userIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        List<Integer> uniqueUserIds = userIds.stream().filter(Objects::nonNull).distinct().toList();
         if (uniqueUserIds.isEmpty()) {
             return;
         }

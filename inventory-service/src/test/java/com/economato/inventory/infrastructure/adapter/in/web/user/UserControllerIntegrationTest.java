@@ -1,8 +1,4 @@
 package com.economato.inventory.infrastructure.adapter.in.web.user;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
-
-import java.util.List;
-
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.greaterThan;
@@ -12,10 +8,6 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -24,18 +16,25 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.economato.inventory.application.dto.weeklyplan.request.BatchTeacherAssignmentRequestDTO;
 import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
+import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
 import com.economato.inventory.application.dto.user.request.RoleEscalationRequestDTO;
+import com.economato.inventory.application.dto.user.request.UserRequestDTO;
+import com.economato.inventory.application.dto.user.response.UserResponseDTO;
+import com.economato.inventory.application.dto.weeklyplan.request.BatchTeacherAssignmentRequestDTO;
 import com.economato.inventory.application.dto.weeklyplan.request.TeacherAssignmentRequestDTO;
 import com.economato.inventory.application.dto.weeklyplan.request.TransferStudentsRequestDTO;
-import com.economato.inventory.application.dto.user.request.UserRequestDTO;
-import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
-import com.economato.inventory.application.dto.user.response.UserResponseDTO;
 import com.economato.inventory.domain.model.user.Role;
 import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.shared.TestDataUtil;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
+import com.economato.inventory.infrastructure.shared.TestDataUtil;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 
 class UserControllerIntegrationTest extends BaseIntegrationTest {
 
@@ -652,7 +651,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andReturn().getResponse().getContentAsString();
 
-                com.fasterxml.jackson.databind.JsonNode beforeNode = objectMapper.readTree(beforeResponse);
+                JsonNode beforeNode = objectMapper.readTree(beforeResponse);
                 int countBefore = beforeNode.get("content").size();
 
                 // Ocultar usuario
@@ -668,7 +667,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andReturn().getResponse().getContentAsString();
 
-                com.fasterxml.jackson.databind.JsonNode afterNode = objectMapper.readTree(afterResponse);
+                JsonNode afterNode = objectMapper.readTree(afterResponse);
                 int countAfter = afterNode.get("content").size();
 
                 assert countAfter == countBefore - 1 : "El usuario oculto no debe aparecer en la lista";
@@ -937,7 +936,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
                 // Asignación batch
                 BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
-                                chef.getId(), java.util.List.of(student1Id, student2Id));
+                                chef.getId(), List.of(student1Id, student2Id));
 
                 mockMvc.perform(patch(BASE_URL + "/batch/teacher")
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -1003,7 +1002,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
                 // Desasignar en batch (teacherId = null)
                 BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
-                                null, java.util.List.of(student1Id, student2Id));
+                                null, List.of(student1Id, student2Id));
 
                 mockMvc.perform(patch(BASE_URL + "/batch/teacher")
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -1032,7 +1031,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                 userRepository.saveAndFlush(chef);
 
                 BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
-                                chef.getId(), java.util.List.of(99999));
+                                chef.getId(), List.of(99999));
 
                 mockMvc.perform(patch(BASE_URL + "/batch/teacher")
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -1060,7 +1059,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                                 UserResponseDTO.class).getId();
 
                 BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
-                                99999, java.util.List.of(studentId));
+                                99999, List.of(studentId));
 
                 mockMvc.perform(patch(BASE_URL + "/batch/teacher")
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -1078,7 +1077,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                 userRepository.saveAndFlush(chef2);
 
                 BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
-                                chef.getId(), java.util.List.of(chef2.getId()));
+                                chef.getId(), List.of(chef2.getId()));
 
                 mockMvc.perform(patch(BASE_URL + "/batch/teacher")
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -1107,7 +1106,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
 
                 // Intentar usar un USER como profesor
                 BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
-                                studentId, java.util.List.of(studentId));
+                                studentId, List.of(studentId));
 
                 mockMvc.perform(patch(BASE_URL + "/batch/teacher")
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -1122,7 +1121,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                 userRepository.saveAndFlush(chef);
 
                 BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
-                                chef.getId(), java.util.List.of());
+                                chef.getId(), List.of());
 
                 mockMvc.perform(patch(BASE_URL + "/batch/teacher")
                                 .header("Authorization", "Bearer " + jwtToken)
@@ -1162,7 +1161,7 @@ class UserControllerIntegrationTest extends BaseIntegrationTest {
                 userRepository.saveAndFlush(chef);
 
                 BatchTeacherAssignmentRequestDTO batchRequest = new BatchTeacherAssignmentRequestDTO(
-                                chef.getId(), java.util.List.of(1));
+                                chef.getId(), List.of(1));
 
                 mockMvc.perform(patch(BASE_URL + "/batch/teacher")
                                 .header("Authorization", "Bearer " + userToken)

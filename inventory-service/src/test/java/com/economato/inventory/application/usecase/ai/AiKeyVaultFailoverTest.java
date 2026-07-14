@@ -17,10 +17,12 @@ import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import static org.mockito.Mockito.mock;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 
 import com.economato.inventory.domain.model.ai.AiProvider;
 import com.economato.inventory.domain.model.user.UserApiKey;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.GlobalApiKeyRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserApiKeyRepository;
 import com.economato.inventory.infrastructure.config.ai.ai.AiProviderProperties;
@@ -69,11 +71,12 @@ class AiKeyVaultFailoverTest {
                 aiVaultProperties,
                 aiProviderProperties,
                 userApiKeyRepository,
-            globalApiKeyRepository,
+                globalApiKeyRepository,
                 aiRateLimitProperties,
                 new SimpleMeterRegistry(),
                 Optional.empty(),
-                i18nService
+                i18nService,
+                mock(SecurityContextHelper.class)
         );
     }
 

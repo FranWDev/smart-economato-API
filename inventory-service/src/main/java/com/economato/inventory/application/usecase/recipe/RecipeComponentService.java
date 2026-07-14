@@ -20,8 +20,8 @@ import com.economato.inventory.application.mapper.recipe.RecipeComponentMapper;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.recipe.Recipe;
 import com.economato.inventory.domain.model.recipe.RecipeComponent;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeComponentRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
@@ -106,6 +106,9 @@ public class RecipeComponentService {
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
+        if (!repository.existsById(id)) {
+            throw new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND));
+        }
         repository.deleteById(id);
     }
 
@@ -116,6 +119,16 @@ public class RecipeComponentService {
             throw new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RECIPE_ID_NOT_PROVIDED));
         }
         return repository.findProjectedByParentRecipeId(recipeDTO.getId()).stream()
+                .map(recipeComponentMapper::toResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<RecipeComponentResponseDTO> findByParentRecipeId(Integer recipeId) {
+        if (!recipeRepository.existsById(recipeId)) {
+            throw new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RECIPE_NOT_FOUND));
+        }
+        return repository.findProjectedByParentRecipeId(recipeId).stream()
                 .map(recipeComponentMapper::toResponseDTO)
                 .collect(Collectors.toList());
     }

@@ -1,9 +1,15 @@
-package com.economato.inventory.infrastructure.adapter.in.web.shared;
-import com.economato.inventory.infrastructure.adapter.in.web.order.OrderCollaborationFieldLockedException;
-import com.economato.inventory.infrastructure.adapter.in.web.order.OrderReceptionAlreadyProcessedException;
-import com.economato.inventory.infrastructure.adapter.in.web.order.OrderReviewLockedException;
-import com.economato.inventory.infrastructure.adapter.in.web.stock.InsufficientStockException;
-import com.economato.inventory.infrastructure.adapter.in.web.stock.StockLockException;
+package com.economato.inventory.infrastructure.adapter.in.web.shared.exception;
+import com.economato.inventory.infrastructure.adapter.in.web.order.exception.OrderCollaborationFieldLockedException;
+import com.economato.inventory.infrastructure.adapter.in.web.order.exception.OrderReceptionAlreadyProcessedException;
+import com.economato.inventory.infrastructure.adapter.in.web.order.exception.OrderReviewLockedException;
+import com.economato.inventory.infrastructure.adapter.in.web.stock.exception.InsufficientStockException;
+import com.economato.inventory.infrastructure.adapter.in.web.stock.exception.StockLockException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ConcurrencyException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.BatchMovementException;
+
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ErrorResponse;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
@@ -26,6 +32,7 @@ import jakarta.persistence.OptimisticLockException;
 import jakarta.validation.ConstraintViolationException;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import com.economato.inventory.application.dto.stock.response.BatchStockMovementResponseDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -244,5 +251,11 @@ public class GlobalExceptionHandler {
                         "status", 401,
                         "message", i18nService.getMessage(MessageKey.ERROR_AUTH_JWT_MISSING),
                         "timestamp", Instant.now().toString()));
+    }
+
+    @ExceptionHandler(BatchMovementException.class)
+    public ResponseEntity<BatchStockMovementResponseDTO> handleBatchMovementException(BatchMovementException ex) {
+        log.error("Batch stock movement error: {}", ex.getMessage());
+        return new ResponseEntity<>(ex.getErrorResponse(), HttpStatus.BAD_REQUEST);
     }
 }

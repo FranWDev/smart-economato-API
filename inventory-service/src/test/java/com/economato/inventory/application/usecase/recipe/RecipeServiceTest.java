@@ -55,8 +55,8 @@ import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.recipe.Recipe;
 import com.economato.inventory.domain.model.recipe.RecipeComponent;
 import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.AllergenRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
@@ -381,6 +381,7 @@ class RecipeServiceTest {
     @Test
     void deleteById_ShouldCallRepository() {
 
+        when(repository.existsById(1)).thenReturn(true);
         doNothing().when(repository).deleteById(1);
 
         recipeService.deleteById(1);

@@ -12,15 +12,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
 
 import com.economato.inventory.application.dto.user.request.GlobalApiKeyRequestDTO;
 import com.economato.inventory.application.dto.user.response.GlobalApiKeyResponseDTO;
 import com.economato.inventory.application.usecase.ai.AiKeyVaultService;
-import com.economato.inventory.domain.model.ai.AiProvider;
-import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,54 +30,28 @@ import lombok.RequiredArgsConstructor;
 public class AiKeysConfigController {
 
     private final AiKeyVaultService aiKeyVaultService;
-    private final SecurityContextHelper securityContextHelper;
-    private final I18nService i18nService;
 
     @GetMapping("/")
     @Operation(summary = "Listar API keys globales")
     public ResponseEntity<List<GlobalApiKeyResponseDTO>> list() {
-        return ResponseEntity.ok(aiKeyVaultService.listGlobalKeys().stream().map(this::toDto).toList());
+        return ResponseEntity.ok(aiKeyVaultService.listGlobalKeysDto());
     }
 
     @PostMapping("/")
     @Operation(summary = "Crear API key global")
     public ResponseEntity<GlobalApiKeyResponseDTO> create(@Valid @RequestBody GlobalApiKeyRequestDTO request) {
-        Integer adminUserId = currentAdminUserId();
-        AiProvider provider = request.providerAsEnum();
-        AiKeyVaultService.ApiKeyMetadata metadata = aiKeyVaultService.saveGlobalKey(provider, request.getApiKey(), adminUserId);
-        return ResponseEntity.ok(toDto(metadata));
+        return ResponseEntity.ok(aiKeyVaultService.saveGlobalKeyDto(request));
     }
 
     @PutMapping("/")
     @Operation(summary = "Actualizar API key global")
     public ResponseEntity<GlobalApiKeyResponseDTO> update(@Valid @RequestBody GlobalApiKeyRequestDTO request) {
-        Integer adminUserId = currentAdminUserId();
-        AiProvider provider = request.providerAsEnum();
-        AiKeyVaultService.ApiKeyMetadata metadata = aiKeyVaultService.updateGlobalKey(provider, request.getApiKey(), adminUserId);
-        return ResponseEntity.ok(toDto(metadata));
+        return ResponseEntity.ok(aiKeyVaultService.updateGlobalKeyDto(request));
     }
 
     @DeleteMapping("/{provider}")
     @Operation(summary = "Eliminar API key global")
     public ResponseEntity<Void> deleteByProvider(@PathVariable String provider) {
-        aiKeyVaultService.deleteGlobalKey(AiProvider.valueOf(provider.trim().toUpperCase()), currentAdminUserId());
-        return ResponseEntity.noContent().build();
-    }
-
-    private GlobalApiKeyResponseDTO toDto(AiKeyVaultService.ApiKeyMetadata metadata) {
-        return GlobalApiKeyResponseDTO.builder()
-                .provider(metadata.provider().name())
-                .keyHint(metadata.keyHint())
-                .active(metadata.active())
-                .createdAt(metadata.createdAt())
-                .build();
-    }
-
-    private Integer currentAdminUserId() {
-        var currentUser = securityContextHelper.getCurrentUser();
-        if (currentUser == null || currentUser.getId() == null) {
-            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AUTH_ADMIN_NOT_FOUND));
-        }
-        return currentUser.getId();
+        return ResponseEntity.status(204).body(aiKeyVaultService.deleteGlobalKeyDto(provider));
     }
 }

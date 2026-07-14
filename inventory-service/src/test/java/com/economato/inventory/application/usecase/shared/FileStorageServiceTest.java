@@ -1,6 +1,6 @@
 package com.economato.inventory.application.usecase.shared;
 
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import org.junit.jupiter.api.BeforeEach;

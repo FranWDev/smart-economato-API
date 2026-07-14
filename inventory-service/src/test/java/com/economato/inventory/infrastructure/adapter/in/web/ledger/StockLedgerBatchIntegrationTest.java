@@ -1,37 +1,35 @@
 package com.economato.inventory.infrastructure.adapter.in.web.ledger;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
-
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
+import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
+import com.economato.inventory.application.dto.stock.request.BatchStockMovementRequestDTO;
+import com.economato.inventory.application.dto.stock.request.StockMovementItemDTO;
+import com.economato.inventory.domain.model.ledger.StockLedger;
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.domain.model.product.ProductBatch;
+import com.economato.inventory.domain.model.shared.MovementType;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
+import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
+import com.economato.inventory.infrastructure.shared.TestDataUtil;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-
-import com.economato.inventory.application.dto.stock.request.BatchStockMovementRequestDTO;
-import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
-import com.economato.inventory.application.dto.stock.request.StockMovementItemDTO;
-import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
-import com.economato.inventory.domain.model.shared.MovementType;
-import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.domain.model.ledger.StockLedger;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
-import com.economato.inventory.domain.model.product.ProductBatch;
-import com.economato.inventory.infrastructure.shared.TestDataUtil;
-import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
-import java.time.LocalDate;
 
 class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
 
@@ -99,7 +97,7 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
         b.setInitialQuantity(p.getCurrentStock());
         b.setRemainingQuantity(p.getCurrentStock());
         b.setExpirationDate(LocalDate.now().plusYears(1));
-        b.setReceivedAt(java.time.LocalDateTime.now());
+        b.setReceivedAt(LocalDateTime.now());
         b.setDepleted(false);
         return b;
     }
@@ -116,7 +114,7 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
         movement1.setProductId(product1.getId());
         movement1.setQuantityDelta(new BigDecimal("10.0"));
         movement1.setMovementType(MovementType.MODIFICACION);
-        movement1.setExpirationDate(java.time.LocalDate.now().plusDays(30));
+        movement1.setExpirationDate(LocalDate.now().plusDays(30));
         movement1.setDescription("Devolver harina");
         movements.add(movement1);
 
@@ -124,7 +122,7 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
         movement2.setProductId(product2.getId());
         movement2.setQuantityDelta(new BigDecimal("5.0"));
         movement2.setMovementType(MovementType.MODIFICACION);
-        movement2.setExpirationDate(java.time.LocalDate.now().plusDays(30));
+        movement2.setExpirationDate(LocalDate.now().plusDays(30));
         movement2.setDescription("Devolver azúcar");
         movements.add(movement2);
 
@@ -132,7 +130,7 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
         movement3.setProductId(product3.getId());
         movement3.setQuantityDelta(new BigDecimal("20.0"));
         movement3.setMovementType(MovementType.MODIFICACION);
-        movement3.setExpirationDate(java.time.LocalDate.now().plusDays(30));
+        movement3.setExpirationDate(LocalDate.now().plusDays(30));
         movement3.setDescription("Devolver huevos");
         movements.add(movement3);
 
@@ -174,14 +172,14 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
         movement1.setProductId(product1.getId());
         movement1.setQuantityDelta(new BigDecimal("10.0"));
         movement1.setMovementType(MovementType.ENTRADA);
-        movement1.setExpirationDate(java.time.LocalDate.now().plusDays(30));
+        movement1.setExpirationDate(LocalDate.now().plusDays(30));
         movements.add(movement1);
 
         StockMovementItemDTO movement2 = new StockMovementItemDTO();
         movement2.setProductId(product2.getId());
         movement2.setQuantityDelta(new BigDecimal("-1000.0"));
         movement2.setMovementType(MovementType.SALIDA);
-        movement2.setExpirationDate(java.time.LocalDate.now().plusDays(30));
+        movement2.setExpirationDate(LocalDate.now().plusDays(30));
         movements.add(movement2);
 
         batchRequest.setMovements(movements);
@@ -233,14 +231,14 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
         movement1.setProductId(product1.getId());
         movement1.setQuantityDelta(new BigDecimal("5.0"));
         movement1.setMovementType(MovementType.MODIFICACION);
-        movement1.setExpirationDate(java.time.LocalDate.now().plusDays(30));
+        movement1.setExpirationDate(LocalDate.now().plusDays(30));
         movements.add(movement1);
 
         StockMovementItemDTO movement2 = new StockMovementItemDTO();
         movement2.setProductId(product2.getId());
         movement2.setQuantityDelta(new BigDecimal("-3.0"));
         movement2.setMovementType(MovementType.MODIFICACION);
-        movement2.setExpirationDate(java.time.LocalDate.now().plusDays(30));
+        movement2.setExpirationDate(LocalDate.now().plusDays(30));
         movements.add(movement2);
 
         batchRequest.setMovements(movements);

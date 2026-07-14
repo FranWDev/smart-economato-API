@@ -1,27 +1,26 @@
 package com.economato.inventory.application.usecase.weeklyplan;
-import com.economato.inventory.application.usecase.notification.PersistentNotificationService;
-
-import com.economato.inventory.domain.model.weeklyplan.WeeklyPlan;
-import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlot;
-import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlotStatus;
-import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanStatus;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanRepository;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.LocalDate;
-import java.util.Collections;
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import com.economato.inventory.application.usecase.notification.PersistentNotificationService;
+import com.economato.inventory.domain.model.weeklyplan.WeeklyPlan;
+import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlot;
+import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlotStatus;
+import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanStatus;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanRepository;
+import java.time.LocalDate;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class WeeklyPlanExpirationSchedulerServiceTest {
@@ -86,7 +85,7 @@ class WeeklyPlanExpirationSchedulerServiceTest {
         plan.setStatus(status);
         plan.setWeekStartDate(LocalDate.now().minusWeeks(1));
         plan.setWeekEndDate(LocalDate.now().minusDays(1));
-        plan.setSlots(new java.util.HashSet<>(slots));
+        plan.setSlots(new HashSet<>(slots));
 
         for (WeeklyPlanSlot slot : slots) {
             slot.setWeeklyPlan(plan);
@@ -98,7 +97,7 @@ class WeeklyPlanExpirationSchedulerServiceTest {
     private WeeklyPlanSlot createSlot(WeeklyPlanSlotStatus status) {
         WeeklyPlanSlot slot = new WeeklyPlanSlot();
         slot.setStatus(status);
-        slot.setStudents(new java.util.HashSet<>());
+        slot.setStudents(new HashSet<>());
         return slot;
     }
 }

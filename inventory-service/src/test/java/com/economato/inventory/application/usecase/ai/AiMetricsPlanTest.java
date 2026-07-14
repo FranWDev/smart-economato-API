@@ -1,48 +1,27 @@
 package com.economato.inventory.application.usecase.ai;
-import com.economato.inventory.application.usecase.shared.NestStreamBridgeService;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.GlobalApiKeyRepository;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-import java.util.function.BooleanSupplier;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import org.mockito.Mock;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ZSetOperations;
-import org.springframework.http.MediaType;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.economato.inventory.application.dto.mcp.mcp.McpChatMessageRequest;
 import com.economato.inventory.application.dto.mcp.mcp.McpSystemContextDto;
 import com.economato.inventory.application.dto.shared.mcp.NestCompletionRequest;
 import com.economato.inventory.application.dto.shared.mcp.ToolCallInfo;
 import com.economato.inventory.application.usecase.mcp.mcp.McpUtilityService;
+import com.economato.inventory.application.usecase.shared.NestStreamBridgeService;
+import com.economato.inventory.application.usecase.smg.model.shared.EntityMemory;
 import com.economato.inventory.application.usecase.smg.shared.DecayFunction;
 import com.economato.inventory.application.usecase.smg.shared.EntityEnricher;
 import com.economato.inventory.application.usecase.smg.shared.EntityExtractor;
 import com.economato.inventory.application.usecase.smg.shared.IntentDetector;
 import com.economato.inventory.application.usecase.smg.shared.SemanticMemoryGraphService;
-import com.economato.inventory.application.usecase.smg.user.TokenEstimator;
 import com.economato.inventory.application.usecase.smg.shared.ToolResultCompressor;
 import com.economato.inventory.application.usecase.smg.shared.TopicClusterer;
-import com.economato.inventory.application.usecase.smg.model.shared.EntityMemory;
+import com.economato.inventory.application.usecase.smg.user.TokenEstimator;
 import com.economato.inventory.domain.model.ai.AiChat;
 import com.economato.inventory.domain.model.ai.AiChatMessage;
 import com.economato.inventory.domain.model.ai.AiChatStatus;
@@ -51,10 +30,11 @@ import com.economato.inventory.domain.model.user.GlobalApiKey;
 import com.economato.inventory.domain.model.user.MessageRole;
 import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.domain.model.user.UserApiKey;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ai.AiChatMessageRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ai.AiChatRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.GlobalApiKeyRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserApiKeyRepository;
 import com.economato.inventory.infrastructure.config.ai.ai.AiChatProperties;
 import com.economato.inventory.infrastructure.config.ai.ai.AiIntentProperties;
@@ -66,10 +46,30 @@ import com.economato.inventory.infrastructure.config.ai.ai.AiVaultProperties;
 import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.http.MediaType;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -142,7 +142,7 @@ class AiMetricsPlanTest {
     @Test
     void vaultDecryption_incrementsCounter() {
         AiKeyVaultService vaultService = vaultService();
-        java.util.concurrent.atomic.AtomicReference<GlobalApiKey> saved = new java.util.concurrent.atomic.AtomicReference<>();
+        AtomicReference<GlobalApiKey> saved = new AtomicReference<>();
         when(globalApiKeyRepository.findByProvider(AiProvider.OPENAI)).thenReturn(Optional.empty());
         when(globalApiKeyRepository.save(any(GlobalApiKey.class))).thenAnswer(i -> {
             GlobalApiKey value = i.getArgument(0);
@@ -280,28 +280,29 @@ class AiMetricsPlanTest {
                 vaultProperties,
                 providerProperties,
                 userApiKeyRepository,
-            globalApiKeyRepository,
+                globalApiKeyRepository,
                 rateLimitProperties,
                 meterRegistry,
                 Optional.of(auditEventProducer),
-                i18nService
+                i18nService,
+                mock(SecurityContextHelper.class)
         );
     }
 
     private AiKeyVaultService vaultServiceWithDecryptedKey() {
-        AiKeyVaultService vaultService = org.mockito.Mockito.mock(AiKeyVaultService.class);
+        AiKeyVaultService vaultService = Mockito.mock(AiKeyVaultService.class);
         when(vaultService.getDecryptedKey(AiProvider.OPENAI)).thenReturn("sk-test");
         return vaultService;
     }
 
     private AiKeyVaultService vaultServiceMissingKey() {
-        AiKeyVaultService vaultService = org.mockito.Mockito.mock(AiKeyVaultService.class);
+        AiKeyVaultService vaultService = Mockito.mock(AiKeyVaultService.class);
         when(vaultService.getDecryptedKey(AiProvider.OPENAI)).thenThrow(new ResourceNotFoundException("missing"));
         return vaultService;
     }
 
     private NestStreamBridgeService nestBridgeSuccess() {
-        NestStreamBridgeService bridge = org.mockito.Mockito.mock(NestStreamBridgeService.class);
+        NestStreamBridgeService bridge = Mockito.mock(NestStreamBridgeService.class);
         when(bridge.streamCompletion(any(NestCompletionRequest.class), any(SseEmitter.class), any(String.class)))
                 .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 2, 8, null, new ArrayList<ToolCallInfo>()));
         return bridge;
@@ -353,11 +354,11 @@ class AiMetricsPlanTest {
         props.setTokenBudget(1200);
         props.setMaxWorkingMemoryMessages(10);
 
-        EntityExtractor extractor = org.mockito.Mockito.mock(EntityExtractor.class);
-        EntityEnricher enricher = org.mockito.Mockito.mock(EntityEnricher.class);
+        EntityExtractor extractor = Mockito.mock(EntityExtractor.class);
+        EntityEnricher enricher = Mockito.mock(EntityEnricher.class);
         TopicClusterer topicClusterer = new TopicClusterer(props);
         IntentDetector intentDetector = new IntentDetector(new AiIntentProperties());
-        McpUtilityService mcpUtilityService = org.mockito.Mockito.mock(McpUtilityService.class);
+        McpUtilityService mcpUtilityService = Mockito.mock(McpUtilityService.class);
 
         when(extractor.extract(any())).thenReturn(extractedMemory);
         when(mcpUtilityService.getSystemContext()).thenReturn(McpSystemContextDto.builder().totalProducts(10).build());

@@ -33,6 +33,9 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.economato.inventory.application.dto.shared.response.PdfReportResponseDTO;
+import com.economato.inventory.infrastructure.adapter.out.external.shared.reports.KitchenReportPdfService;
+
 @Slf4j
 @Service
 public class KitchenReportService {
@@ -43,15 +46,26 @@ public class KitchenReportService {
     private final KitchenReportMapper mapper;
     private final StockLedgerRepository ledgerRepository;
     private final ObjectMapper objectMapper;
+    private final KitchenReportPdfService pdfService;
 
     public KitchenReportService(I18nService i18nService, RecipeCookingAuditRepository auditRepository, 
-            ProductRepository productRepository, KitchenReportMapper mapper, StockLedgerRepository ledgerRepository) {
+            ProductRepository productRepository, KitchenReportMapper mapper, StockLedgerRepository ledgerRepository,
+            KitchenReportPdfService pdfService) {
         this.i18nService = i18nService;
         this.auditRepository = auditRepository;
         this.productRepository = productRepository;
         this.mapper = mapper;
         this.ledgerRepository = ledgerRepository;
+        this.pdfService = pdfService;
         this.objectMapper = new ObjectMapper();
+    }
+
+    @Transactional(readOnly = true)
+    public PdfReportResponseDTO generateKitchenReportPdfResponse(ReportRange range, LocalDate startDate, LocalDate endDate) {
+        KitchenReportResponseDTO report = generateReport(range, startDate, endDate);
+        byte[] pdfBytes = pdfService.generateKitchenReportPdf(report);
+        String filename = pdfService.generateFilename(report);
+        return new PdfReportResponseDTO(pdfBytes, filename);
     }
 
     @Cacheable(

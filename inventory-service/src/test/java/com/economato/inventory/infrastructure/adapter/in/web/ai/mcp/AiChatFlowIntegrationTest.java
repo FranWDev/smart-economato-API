@@ -1,28 +1,18 @@
 package com.economato.inventory.infrastructure.adapter.in.web.ai.mcp;
 
-import java.time.LocalDateTime;
-import java.util.List;
-
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.economato.inventory.application.dto.mcp.mcp.McpChangeProviderRequest;
 import com.economato.inventory.application.dto.mcp.mcp.McpChatCreateRequest;
@@ -30,9 +20,19 @@ import com.economato.inventory.application.dto.mcp.mcp.McpChatMessageRequest;
 import com.economato.inventory.application.dto.mcp.mcp.McpChatMessageResponseDto;
 import com.economato.inventory.application.dto.mcp.mcp.McpChatResponseDto;
 import com.economato.inventory.application.usecase.ai.AiChatService;
-import com.economato.inventory.infrastructure.shared.TestDataUtil;
 import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
+import com.economato.inventory.infrastructure.shared.TestDataUtil;
+import java.time.LocalDateTime;
+import java.util.List;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 class AiChatFlowIntegrationTest extends BaseIntegrationTest {
 
@@ -136,7 +136,7 @@ class AiChatFlowIntegrationTest extends BaseIntegrationTest {
         ArgumentCaptor<McpChatMessageRequest> requestCaptor = ArgumentCaptor.forClass(McpChatMessageRequest.class);
         verify(aiChatService, times(2)).sendMessage(eq(100L), requestCaptor.capture(), any());
         List<String> languages = requestCaptor.getAllValues().stream().map(McpChatMessageRequest::language).toList();
-        org.junit.jupiter.api.Assertions.assertEquals(List.of("en", "fr"), languages);
+        Assertions.assertEquals(List.of("en", "fr"), languages);
     }
 
 }

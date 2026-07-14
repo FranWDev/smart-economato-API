@@ -1,73 +1,73 @@
 package com.economato.inventory.application.usecase.crisis;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.economato.inventory.application.dto.crisis.request.CrisisActivationRequestDTO;
+import com.economato.inventory.application.dto.crisis.request.CrisisLiftRequestDTO;
+import com.economato.inventory.application.dto.crisis.response.CrisisResponseDTO;
+import com.economato.inventory.application.dto.crisis.response.ForwardTraceabilityDTO;
+import com.economato.inventory.application.dto.recipe.response.RecipeCookingAuditResponseDTO;
+import com.economato.inventory.application.dto.shared.request.BatchMovementItem;
+import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
+import com.economato.inventory.application.mapper.ledger.StockLedgerMapper;
+import com.economato.inventory.application.mapper.order.OrderMapper;
+import com.economato.inventory.application.mapper.product.ProductBatchMapper;
+import com.economato.inventory.application.mapper.recipe.RecipeCookingAuditMapper;
 import com.economato.inventory.application.usecase.ledger.StockLedgerService;
 import com.economato.inventory.application.usecase.notification.PersistentNotificationService;
 import com.economato.inventory.application.usecase.notification.RoleNotificationService;
 import com.economato.inventory.application.usecase.product.ProductBatchService;
-import com.economato.inventory.application.dto.recipe.response.RecipeCookingAuditResponseDTO;
-import com.economato.inventory.application.dto.shared.request.BatchMovementItem;
+import com.economato.inventory.domain.model.crisis.CrisisAffectedProduct;
+import com.economato.inventory.domain.model.crisis.FoodCrisis;
+import com.economato.inventory.domain.model.ledger.StockLedger;
 import com.economato.inventory.domain.model.order.Order;
-
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.domain.model.product.ProductBatch;
+import com.economato.inventory.domain.model.product.Supplier;
+import com.economato.inventory.domain.model.recipe.RecipeCookingAudit;
+import com.economato.inventory.domain.model.shared.MovementType;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.adapter.out.external.crisis.reports.CrisisReportPdfService;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.crisis.CrisisAffectedProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.crisis.FoodCrisisRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.order.OrderRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.SupplierRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeCookingAuditRepository;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import com.economato.inventory.application.dto.crisis.request.CrisisActivationRequestDTO;
-import com.economato.inventory.application.dto.crisis.request.CrisisLiftRequestDTO;
-import com.economato.inventory.application.dto.crisis.response.ForwardTraceabilityDTO;
-import com.economato.inventory.application.dto.crisis.response.CrisisResponseDTO;
-import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
-import com.economato.inventory.application.mapper.order.OrderMapper;
-import com.economato.inventory.application.mapper.product.ProductBatchMapper;
-import com.economato.inventory.application.mapper.recipe.RecipeCookingAuditMapper;
-import com.economato.inventory.application.mapper.ledger.StockLedgerMapper;
-import com.economato.inventory.domain.model.crisis.CrisisAffectedProduct;
-import com.economato.inventory.domain.model.crisis.FoodCrisis;
-import com.economato.inventory.domain.model.shared.MovementType;
-import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.domain.model.product.ProductBatch;
-import com.economato.inventory.domain.model.ledger.StockLedger;
-import com.economato.inventory.domain.model.recipe.RecipeCookingAudit;
-import com.economato.inventory.domain.model.product.Supplier;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.crisis.CrisisAffectedProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.crisis.FoodCrisisRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.order.OrderRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeCookingAuditRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.SupplierRepository;
-import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 @ExtendWith(MockitoExtension.class)
 public class TraceabilityServiceTest {
@@ -132,7 +132,7 @@ public class TraceabilityServiceTest {
             productBatchRepository, null, orderMapper, cookingAuditMapper, ledgerMapper, productBatchMapper,
             objectMapper, i18nService
         );
-        traceabilityService = new TraceabilityService(containmentService, queryService);
+        traceabilityService = new TraceabilityService(containmentService, queryService, mock(CrisisReportPdfService.class));
     }
 
     @Test
@@ -351,9 +351,9 @@ public class TraceabilityServiceTest {
         Map<String, Object> matchingState = Map.of("components", List.of(Map.of("productId", 1)));
         Map<String, Object> nonMatchingState = Map.of("components", List.of(Map.of("productId", 2)));
         
-        when(objectMapper.readValue(eq(matchingAudit.getComponentsState()), any(com.fasterxml.jackson.core.type.TypeReference.class)))
+        when(objectMapper.readValue(eq(matchingAudit.getComponentsState()), any(TypeReference.class)))
             .thenReturn(matchingState);
-        when(objectMapper.readValue(eq(nonMatchingAudit.getComponentsState()), any(com.fasterxml.jackson.core.type.TypeReference.class)))
+        when(objectMapper.readValue(eq(nonMatchingAudit.getComponentsState()), any(TypeReference.class)))
             .thenReturn(nonMatchingState);
             
         // Stub Mappers to avoid NPE
@@ -415,9 +415,9 @@ public class TraceabilityServiceTest {
         when(orderRepository.findConfirmedOrdersByProductIdsAndDateRange(anyList(), any(), any())).thenReturn(List.of());
 
         // Mock JSON parsing specifically
-        when(objectMapper.readValue(eq(auditForP1.getComponentsState()), any(com.fasterxml.jackson.core.type.TypeReference.class)))
+        when(objectMapper.readValue(eq(auditForP1.getComponentsState()), any(TypeReference.class)))
             .thenReturn(Map.of("components", List.of(Map.of("productId", 1))));
-        when(objectMapper.readValue(eq(auditForP2.getComponentsState()), any(com.fasterxml.jackson.core.type.TypeReference.class)))
+        when(objectMapper.readValue(eq(auditForP2.getComponentsState()), any(TypeReference.class)))
             .thenReturn(Map.of("components", List.of(Map.of("productId", 2))));
 
         // Stub Cookings Mapper

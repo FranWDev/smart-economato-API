@@ -21,8 +21,8 @@ import com.economato.inventory.domain.model.ai.AiChatStatus;
 import com.economato.inventory.domain.model.ai.AiProvider;
 import com.economato.inventory.domain.model.user.MessageRole;
 import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiChatNotFoundException;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiConcurrentStreamException;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiKeyNotFoundException;
@@ -244,13 +244,16 @@ public class AiChatService {
         return aiChatHistoryService.changeProvider(chatId, request);
     }
 
-    public void archiveChat(Long chatId) {
+    public Void archiveChat(Long chatId) {
         aiChatHistoryService.archiveChat(chatId);
+        return null;
     }
 
-    public SseEmitter sendMessage(Long chatId, McpChatMessageRequest request, String userJwt) {
+    public SseEmitter sendMessage(Long chatId, McpChatMessageRequest request, String authHeader) {
         User currentUser = aiChatHistoryService.requireCurrentUser();
         AiChat chat = aiChatHistoryService.getOwnedChat(chatId, currentUser.getId());
+
+        String userJwt = extractJwt(authHeader);
 
         if (jwtUtils != null && userJwt != null && !userJwt.isBlank()) {
             String username = jwtUtils.validateAndExtractUsername(userJwt);
@@ -618,6 +621,17 @@ public class AiChatService {
             }
         }
         activeStreamsGlobal.updateAndGet(value -> Math.max(0, value - 1));
+    }
+
+    private String extractJwt(String authHeader) {
+        if (authHeader == null || authHeader.isBlank()) {
+            return "";
+        }
+        String lower = authHeader.toLowerCase();
+        if (lower.startsWith("bearer ")) {
+            return authHeader.substring(7).trim();
+        }
+        return authHeader.trim();
     }
 
     private static class StreamLease {

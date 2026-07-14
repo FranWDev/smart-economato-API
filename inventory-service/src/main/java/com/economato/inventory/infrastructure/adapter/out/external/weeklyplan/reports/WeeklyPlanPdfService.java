@@ -5,16 +5,6 @@ import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanSlo
 import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanSlotStudentResponseDTO;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-import java.io.ByteArrayOutputStream;
-import java.math.BigDecimal;
-import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
-
-import org.springframework.stereotype.Service;
-
 import com.itextpdf.kernel.colors.Color;
 import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.colors.DeviceRgb;
@@ -32,8 +22,8 @@ import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.layout.Canvas;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.borders.Border;
-import com.itextpdf.layout.borders.SolidBorder;
 import com.itextpdf.layout.borders.DashedBorder;
+import com.itextpdf.layout.borders.SolidBorder;
 import com.itextpdf.layout.element.Cell;
 import com.itextpdf.layout.element.Div;
 import com.itextpdf.layout.element.Paragraph;
@@ -41,6 +31,16 @@ import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.layout.properties.VerticalAlignment;
+import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.springframework.stereotype.Service;
 
 @Service
 public class WeeklyPlanPdfService {
@@ -84,6 +84,13 @@ public class WeeklyPlanPdfService {
 		} catch (Exception e) {
 			throw new RuntimeException(i18nService.getMessage(MessageKey.ERROR_REPORT_WEEKLY_PLAN_PDF_GENERATION, new Object[] { plan.getId() }), e);
 		}
+	}
+
+	public String generateFilename(WeeklyPlanResponseDTO plan) {
+		if (plan == null || plan.getId() == null) {
+			return "plan_semanal.pdf";
+		}
+		return "plan_semanal_" + plan.getId() + ".pdf";
 	}
 
 	private void addHeader(Document document, WeeklyPlanResponseDTO plan, PdfFont boldFont, PdfFont regularFont, boolean isVertical) {
@@ -156,7 +163,7 @@ public class WeeklyPlanPdfService {
 		}
 
 		// Group and sort slots
-		Map<Integer, List<WeeklyPlanSlotResponseDTO>> slotsByDay = java.util.Collections.emptyMap();
+		Map<Integer, List<WeeklyPlanSlotResponseDTO>> slotsByDay = Collections.emptyMap();
 		int maxRows = 0;
 		if (plan.getSlots() != null) {
 			slotsByDay = plan.getSlots().stream()
@@ -330,7 +337,7 @@ public class WeeklyPlanPdfService {
 			return "0";
 		}
 		// Si tiene decimales ".00" no los muestra
-		java.text.DecimalFormat df = new java.text.DecimalFormat("0.##");
+		DecimalFormat df = new DecimalFormat("0.##");
 		return df.format(value);
 	}
 

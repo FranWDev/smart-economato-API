@@ -1,7 +1,26 @@
 package com.economato.inventory.infrastructure.adapter.in.web.stock;
-import com.economato.inventory.infrastructure.adapter.in.web.ledger.StockLedgerController;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.economato.inventory.application.dto.product.response.ProductConsumptionResponseDTO;
+import com.economato.inventory.application.mapper.ledger.StockLedgerMapper;
+import com.economato.inventory.application.usecase.ledger.StockLedgerService;
+import com.economato.inventory.application.usecase.product.ProductBatchService;
+import com.economato.inventory.application.usecase.user.TokenBlacklistService;
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.infrastructure.adapter.in.web.ledger.StockLedgerController;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.config.shared.security.JwtUtils;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityConfig;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,33 +29,11 @@ import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.servlet.LocaleResolver;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.application.dto.product.response.ProductConsumptionResponseDTO;
-import com.economato.inventory.application.mapper.ledger.StockLedgerMapper;
-import com.economato.inventory.application.usecase.product.ProductBatchService;
-import com.economato.inventory.application.usecase.ledger.StockLedgerService;
-import com.economato.inventory.infrastructure.config.shared.security.SecurityConfig;
-import com.economato.inventory.infrastructure.config.shared.security.JwtUtils;
-import com.economato.inventory.application.usecase.user.TokenBlacklistService;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(StockLedgerController.class)
 @ActiveProfiles("test")
@@ -98,11 +95,11 @@ class StockConsumptionIntegrationTest {
 
     @Test
     void getProductConsumption_WithDate_ShouldReturnConsumption() throws Exception {
-        when(stockLedgerService.getProductConsumption(eq(1), any(), any())).thenReturn(testResponse);
+        when(stockLedgerService.getProductConsumptionDto(eq(1), any(), any(), any(), any())).thenReturn(testResponse);
 
         mockMvc.perform(get("/api/stock-ledger/consumption/1")
                 .param("date", "2024-05-03")
-                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                .with(SecurityMockMvcRequestPostProcessors
                         .user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -113,11 +110,11 @@ class StockConsumptionIntegrationTest {
 
     @Test
     void getProductConsumption_WithLastDays_ShouldReturnConsumption() throws Exception {
-        when(stockLedgerService.getProductConsumption(eq(1), any(), any())).thenReturn(testResponse);
+        when(stockLedgerService.getProductConsumptionDto(eq(1), any(), any(), any(), any())).thenReturn(testResponse);
 
         mockMvc.perform(get("/api/stock-ledger/consumption/1")
                 .param("lastDays", "5")
-                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                .with(SecurityMockMvcRequestPostProcessors
                         .user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -126,12 +123,12 @@ class StockConsumptionIntegrationTest {
 
     @Test
     void getProductConsumption_WithDateRange_ShouldReturnConsumption() throws Exception {
-        when(stockLedgerService.getProductConsumption(eq(1), any(), any())).thenReturn(testResponse);
+        when(stockLedgerService.getProductConsumptionDto(eq(1), any(), any(), any(), any())).thenReturn(testResponse);
 
         mockMvc.perform(get("/api/stock-ledger/consumption/1")
                 .param("startDate", "2024-05-01T00:00:00")
                 .param("endDate", "2024-05-10T23:59:59")
-                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                .with(SecurityMockMvcRequestPostProcessors
                         .user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -140,11 +137,11 @@ class StockConsumptionIntegrationTest {
 
     @Test
     void getProductConsumption_ProductNotFound_ShouldReturnError() throws Exception {
-        when(stockLedgerService.getProductConsumption(eq(999), any(), any()))
+        when(stockLedgerService.getProductConsumptionDto(eq(999), any(), any(), any(), any()))
                 .thenThrow(new InvalidOperationException("Product with ID 999 not found"));
 
         mockMvc.perform(get("/api/stock-ledger/consumption/999")
-                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                .with(SecurityMockMvcRequestPostProcessors
                         .user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
@@ -153,13 +150,13 @@ class StockConsumptionIntegrationTest {
 
     @Test
     void getProductConsumption_InvalidDateRange_ShouldReturnError() throws Exception {
-        when(stockLedgerService.getProductConsumption(eq(1), any(), any()))
+        when(stockLedgerService.getProductConsumptionDto(eq(1), any(), any(), any(), any()))
                 .thenThrow(new InvalidOperationException("Start date cannot be after end date"));
 
         mockMvc.perform(get("/api/stock-ledger/consumption/1")
                 .param("startDate", "2024-05-10T00:00:00")
                 .param("endDate", "2024-05-01T23:59:59")
-                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
+                .with(SecurityMockMvcRequestPostProcessors
                         .user("admin").roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())

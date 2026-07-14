@@ -1,39 +1,38 @@
 package com.economato.inventory.application.usecase.shared;
 
-import java.io.ByteArrayInputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import org.mockito.Mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.economato.inventory.application.dto.shared.mcp.NestCompletionRequest;
 import com.economato.inventory.application.dto.shared.mcp.ToolCallInfo;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiStreamException;
 import com.economato.inventory.infrastructure.config.ai.ai.AiNestProperties;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @ExtendWith(MockitoExtension.class)
 class NestStreamBridgeServiceTest {
@@ -159,7 +158,7 @@ class NestStreamBridgeServiceTest {
         NestStreamBridgeService.StreamCompletionResult result =
                 service.streamCompletion(request(), emitter, "jwt-token");
 
-        verify(emitter, org.mockito.Mockito.atLeastOnce()).send(any(SseEmitter.SseEventBuilder.class));
+        verify(emitter, Mockito.atLeastOnce()).send(any(SseEmitter.SseEventBuilder.class));
         assertEquals("Hello world", result.fullResponse());
         assertEquals(5, result.inputTokens());
         assertEquals(3, result.outputTokens());
@@ -195,7 +194,7 @@ class NestStreamBridgeServiceTest {
         SseEmitter emitter = mock(SseEmitter.class);
         service.streamCompletion(request(), emitter, "jwt-token");
 
-        verify(emitter, org.mockito.Mockito.atLeastOnce()).send(any(SseEmitter.SseEventBuilder.class));
+        verify(emitter, Mockito.atLeastOnce()).send(any(SseEmitter.SseEventBuilder.class));
     }
 
     private NestCompletionRequest request() {

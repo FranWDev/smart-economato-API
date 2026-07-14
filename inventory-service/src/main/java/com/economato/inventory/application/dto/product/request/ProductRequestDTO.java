@@ -1,9 +1,10 @@
 package com.economato.inventory.application.dto.product.request;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import com.fasterxml.jackson.annotation.JsonAlias;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -63,5 +64,5 @@ public class ProductRequestDTO {
     private Long batchId;
 
     @Schema(description = "Fecha de expiración para el stock inicial", example = "2026-12-31")
-    private java.time.LocalDate expirationDate;
+    private LocalDate expirationDate;
 }

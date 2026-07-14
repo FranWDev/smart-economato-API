@@ -41,7 +41,7 @@ import com.economato.inventory.domain.model.ai.AiChatStatus;
 import com.economato.inventory.domain.model.ai.AiProvider;
 import com.economato.inventory.domain.model.user.MessageRole;
 import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiChatLimitReachedException;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiChatNotFoundException;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiConcurrentStreamException;

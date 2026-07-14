@@ -1,18 +1,21 @@
 package com.economato.inventory.application.usecase.ledger;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
-import com.economato.inventory.domain.model.shared.MovementType;
+import com.economato.inventory.domain.model.ledger.StockLedger;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.product.ProductBatch;
-import com.economato.inventory.domain.model.ledger.StockLedger;
+import com.economato.inventory.domain.model.shared.MovementType;
 import com.economato.inventory.domain.model.stock.StockSnapshot;
 import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockSnapshotRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,8 +25,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 @SpringBootTest(properties = "blockchain.ledger-merkle-verification-enabled=true")
 @ActiveProfiles("test")
@@ -69,7 +70,7 @@ class StockLedgerServiceMerkleIntegrationTest {
                 .initialQuantity(testProduct.getCurrentStock())
                 .remainingQuantity(testProduct.getCurrentStock())
                 .expirationDate(LocalDate.now().plusYears(1))
-                .receivedAt(java.time.LocalDateTime.now())
+                .receivedAt(LocalDateTime.now())
                 .depleted(false)
                 .build();
         productBatchRepository.saveAndFlush(batch);

@@ -1,5 +1,18 @@
 package com.economato.inventory.infrastructure.config.messaging.shared;
 
+import com.economato.inventory.application.dto.ai.event.AiAuditEvent;
+import com.economato.inventory.application.dto.blockchain.event.BlockchainAuditEvent;
+import com.economato.inventory.application.dto.notification.event.PresenceAuditEvent;
+import com.economato.inventory.application.dto.order.event.OrderAuditEvent;
+import com.economato.inventory.application.dto.recipe.event.RecipeAuditEvent;
+import com.economato.inventory.application.dto.recipe.event.RecipeCookingAuditEvent;
+import com.economato.inventory.application.dto.shared.event.InventoryAuditEvent;
+import com.economato.inventory.application.dto.stock.event.ForecastResultEvent;
+import com.economato.inventory.application.dto.stock.event.StockPredictionEvent;
+import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -10,26 +23,12 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.*;
+import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
-
-import com.economato.inventory.application.dto.shared.event.InventoryAuditEvent;
-import com.economato.inventory.application.dto.ai.event.AiAuditEvent;
-import com.economato.inventory.application.dto.blockchain.event.BlockchainAuditEvent;
-import com.economato.inventory.application.dto.order.event.OrderAuditEvent;
-import com.economato.inventory.application.dto.notification.event.PresenceAuditEvent;
-import com.economato.inventory.application.dto.recipe.event.RecipeAuditEvent;
-import com.economato.inventory.application.dto.recipe.event.RecipeCookingAuditEvent;
-import com.economato.inventory.application.dto.stock.event.ForecastResultEvent;
-import com.economato.inventory.application.dto.stock.event.StockPredictionEvent;
-import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
-import org.apache.kafka.clients.admin.NewTopic;
-import org.springframework.kafka.config.TopicBuilder;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Configuración de Kafka para el sistema de auditoría asíncrona.
@@ -264,7 +263,7 @@ public class KafkaConfig {
         factory.setConsumerFactory(inventoryAuditConsumerFactory());
         factory.setConcurrency(3); 
         factory.getContainerProperties().setAckMode(
-                org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
+                ContainerProperties.AckMode.RECORD);
         return factory;
     }
 
@@ -291,7 +290,7 @@ public class KafkaConfig {
         factory.setConsumerFactory(recipeAuditConsumerFactory());
         factory.setConcurrency(3); // 3 hilos concurrentes
         factory.getContainerProperties().setAckMode(
-                org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
+                ContainerProperties.AckMode.RECORD);
         return factory;
     }
 
@@ -317,7 +316,7 @@ public class KafkaConfig {
         factory.setConsumerFactory(orderAuditConsumerFactory());
         factory.setConcurrency(3);
         factory.getContainerProperties().setAckMode(
-                org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
+                ContainerProperties.AckMode.RECORD);
         return factory;
     }
 
@@ -343,7 +342,7 @@ public class KafkaConfig {
         factory.setConsumerFactory(recipeCookingAuditConsumerFactory());
         factory.setConcurrency(3);
         factory.getContainerProperties().setAckMode(
-                org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
+                ContainerProperties.AckMode.RECORD);
         return factory;
     }
 
@@ -369,7 +368,7 @@ public class KafkaConfig {
         factory.setConsumerFactory(forecastResultConsumerFactory());
         factory.setConcurrency(3);
         factory.getContainerProperties().setAckMode(
-                org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
+                ContainerProperties.AckMode.RECORD);
         return factory;
     }
 
@@ -395,7 +394,7 @@ public class KafkaConfig {
         factory.setConsumerFactory(presenceAuditConsumerFactory());
         factory.setConcurrency(3);
         factory.getContainerProperties().setAckMode(
-                org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
+                ContainerProperties.AckMode.RECORD);
         return factory;
     }
 
@@ -421,7 +420,7 @@ public class KafkaConfig {
         factory.setConsumerFactory(blockchainAuditConsumerFactory());
         factory.setConcurrency(1);
         factory.getContainerProperties().setAckMode(
-                org.springframework.kafka.listener.ContainerProperties.AckMode.RECORD);
+                ContainerProperties.AckMode.RECORD);
         return factory;
     }
 }

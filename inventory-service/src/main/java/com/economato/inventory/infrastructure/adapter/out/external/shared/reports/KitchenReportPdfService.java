@@ -96,6 +96,23 @@ public class KitchenReportPdfService {
         }
     }
 
+    public String generateFilename(KitchenReportResponseDTO report) {
+        if (report == null || report.getReportPeriod() == null) {
+            return "reporte-cocina.pdf";
+        }
+        String filename = report.getReportPeriod()
+                .toLowerCase()
+                .replaceAll("[^a-z0-9áéíóúüñ\\-_]", "-")
+                .replaceAll("-{2,}", "-")
+                .replaceAll("^-|-$", "");
+        if (filename.isBlank()) {
+            filename = "reporte-cocina";
+        } else {
+            filename = "reporte-cocina-" + filename;
+        }
+        return filename + ".pdf";
+    }
+
     private class FooterEventHandler implements IEventHandler {
         private final I18nService i18nService;
         private final PdfFont font;

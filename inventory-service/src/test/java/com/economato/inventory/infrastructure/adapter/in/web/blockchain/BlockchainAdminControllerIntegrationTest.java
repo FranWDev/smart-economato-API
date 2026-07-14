@@ -29,18 +29,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import org.springframework.web.servlet.LocaleResolver;
 
+import com.economato.inventory.application.dto.blockchain.response.BlockchainStatsResponseDTO;
+import com.economato.inventory.application.dto.blockchain.response.BlockchainVerificationResponseDTO;
+import com.economato.inventory.application.dto.ledger.response.LedgerBlockResponseDTO;
 import com.economato.inventory.application.dto.ledger.response.StockLedgerResponseDTO;
-import com.economato.inventory.application.mapper.ledger.StockLedgerMapper;
 import com.economato.inventory.application.usecase.blockchain.BlockchainService;
 import com.economato.inventory.application.usecase.ledger.StockLedgerService;
 import com.economato.inventory.application.usecase.user.TokenBlacklistService;
 import com.economato.inventory.domain.model.ledger.LedgerBlock;
 import com.economato.inventory.domain.model.ledger.StockLedger;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.LedgerBlockRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
 import com.economato.inventory.infrastructure.config.shared.security.JwtUtils;
 import com.economato.inventory.infrastructure.config.shared.security.SecurityConfig;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 
 @WebMvcTest(BlockchainAdminController.class)
 @ActiveProfiles({"test", "kafka-test"})
@@ -55,15 +56,6 @@ class BlockchainAdminControllerIntegrationTest {
 
     @MockitoBean
     private StockLedgerService stockLedgerService;
-
-    @MockitoBean
-    private LedgerBlockRepository ledgerBlockRepository;
-
-    @MockitoBean
-    private StockLedgerRepository stockLedgerRepository;
-
-    @MockitoBean
-    private StockLedgerMapper stockLedgerMapper;
 
     @MockitoBean
     private JwtUtils jwtUtils;
@@ -110,10 +102,16 @@ class BlockchainAdminControllerIntegrationTest {
 
     @Test
     void verifyBlockchain_returnsSummary() throws Exception {
-        when(blockchainService.verifyBlockchainIntegrity()).thenReturn(true);
-        when(ledgerBlockRepository.count()).thenReturn(6L);
-        when(stockLedgerRepository.countByBlockIsNull()).thenReturn(2L);
-        when(ledgerBlockRepository.findTopByOrderByBlockNumberDesc()).thenReturn(Optional.of(latestBlock));
+        BlockchainVerificationResponseDTO response = BlockchainVerificationResponseDTO.builder()
+                .valid(true)
+                .message("Blockchain íntegra")
+                .blockCount(6L)
+                .pendingTransactions(2L)
+                .latestBlockNumber(5L)
+                .latestBlockHash(latestBlock.getBlockHash())
+                .build();
+
+        when(blockchainService.verifyBlockchain()).thenReturn(response);
 
         mockMvc.perform(get("/api/admin/blockchain/verify")
                         .with(user("admin").roles("ADMIN"))
@@ -128,10 +126,15 @@ class BlockchainAdminControllerIntegrationTest {
 
     @Test
     void getStats_returnsBlockchainStats() throws Exception {
-        when(blockchainService.verifyBlockchainIntegrity()).thenReturn(true);
-        when(ledgerBlockRepository.count()).thenReturn(6L);
-        when(stockLedgerRepository.countByBlockIsNull()).thenReturn(2L);
-        when(ledgerBlockRepository.findTopByOrderByBlockNumberDesc()).thenReturn(Optional.of(latestBlock));
+        BlockchainStatsResponseDTO stats = BlockchainStatsResponseDTO.builder()
+                .blockCount(6L)
+                .pendingTransactions(2L)
+                .latestBlockNumber(5L)
+                .latestBlockHash(latestBlock.getBlockHash())
+                .valid(true)
+                .build();
+
+        when(blockchainService.getStats()).thenReturn(stats);
 
         mockMvc.perform(get("/api/admin/blockchain/stats")
                         .with(user("admin").roles("ADMIN"))
@@ -145,8 +148,13 @@ class BlockchainAdminControllerIntegrationTest {
 
     @Test
     void getBlocks_returnsPageOfBlocks() throws Exception {
-        Page<LedgerBlock> page = new PageImpl<>(List.of(latestBlock), PageRequest.of(0, 10), 1);
-        when(ledgerBlockRepository.findAll(any(Pageable.class))).thenReturn(page);
+        LedgerBlockResponseDTO blockDto = LedgerBlockResponseDTO.builder()
+                .blockNumber(5L)
+                .blockHash(latestBlock.getBlockHash())
+                .build();
+        Page<LedgerBlockResponseDTO> pageDto = new PageImpl<>(List.of(blockDto), PageRequest.of(0, 10), 1);
+
+        when(blockchainService.getBlocks(any(Pageable.class))).thenReturn(pageDto);
 
         mockMvc.perform(get("/api/admin/blockchain/blocks")
                         .with(user("admin").roles("ADMIN"))
@@ -161,7 +169,13 @@ class BlockchainAdminControllerIntegrationTest {
 
     @Test
     void getBlock_byNumber_returnsBlock() throws Exception {
-        when(ledgerBlockRepository.findByBlockNumber(5L)).thenReturn(Optional.of(latestBlock));
+        LedgerBlockResponseDTO blockDto = LedgerBlockResponseDTO.builder()
+                .blockNumber(5L)
+                .merkleRoot(latestBlock.getMerkleRoot())
+                .transactionCount(10)
+                .build();
+
+        when(blockchainService.getBlock(5L)).thenReturn(Optional.of(blockDto));
 
         mockMvc.perform(get("/api/admin/blockchain/blocks/5")
                         .with(user("admin").roles("ADMIN"))
@@ -174,7 +188,7 @@ class BlockchainAdminControllerIntegrationTest {
 
     @Test
     void getBlock_whenMissing_returns404() throws Exception {
-        when(ledgerBlockRepository.findByBlockNumber(999L)).thenReturn(Optional.empty());
+        when(blockchainService.getBlock(999L)).thenReturn(Optional.empty());
 
         mockMvc.perform(get("/api/admin/blockchain/blocks/999")
                         .with(user("admin").roles("ADMIN"))
@@ -184,17 +198,15 @@ class BlockchainAdminControllerIntegrationTest {
 
     @Test
     void getMempool_returnsPendingTransactionsPage() throws Exception {
-        Page<StockLedger> page = new PageImpl<>(List.of(pendingLedger), PageRequest.of(0, 10), 1);
         StockLedgerResponseDTO dto = StockLedgerResponseDTO.builder()
                 .id(1L)
                 .sequenceNumber(1L)
                 .currentHash(pendingLedger.getCurrentHash())
                 .previousHash(pendingLedger.getPreviousHash())
                 .build();
+        Page<StockLedgerResponseDTO> pageDto = new PageImpl<>(List.of(dto), PageRequest.of(0, 10), 1);
 
-        when(stockLedgerRepository.findPendingTransactionsOrderByIdAsc(any(Pageable.class))).thenReturn(List.of(pendingLedger));
-        when(stockLedgerRepository.countByBlockIsNull()).thenReturn(1L);
-        when(stockLedgerMapper.toDTO(any(StockLedger.class))).thenReturn(dto);
+        when(blockchainService.getMempool(any(Pageable.class))).thenReturn(pageDto);
 
         mockMvc.perform(get("/api/admin/blockchain/mempool")
                         .with(user("admin").roles("ADMIN"))
@@ -217,6 +229,9 @@ class BlockchainAdminControllerIntegrationTest {
 
     @Test
     void syncStockWithLedger_withAdminRole_returnsSuccess() throws Exception {
+        when(i18nService.getMessage(MessageKey.SUCCESS_BLOCKCHAIN_SYNC))
+                .thenReturn("Stock y lotes sincronizados correctamente con el Ledger");
+
         mockMvc.perform(post("/api/admin/blockchain/sync-stock")
                         .with(user("admin").roles("ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON))

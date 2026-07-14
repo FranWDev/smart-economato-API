@@ -1,12 +1,13 @@
 package com.economato.inventory.application.usecase.stock;
 
+import com.economato.inventory.application.dto.product.response.ProductBatchResponseDTO;
+import com.economato.inventory.application.dto.shared.response.WeeklyConsumptionResponseDTO;
 import com.economato.inventory.application.dto.stock.event.ForecastResultType;
 import com.economato.inventory.application.dto.stock.response.AlertSeverity;
+import com.economato.inventory.application.dto.stock.response.AlertType;
 import com.economato.inventory.application.dto.stock.response.DailyForecastResponseDTO;
-import com.economato.inventory.application.dto.product.response.ProductBatchResponseDTO;
 import com.economato.inventory.application.dto.stock.response.StockAlertDTO;
 import com.economato.inventory.application.dto.stock.response.StockPredictionResponseDTO;
-import com.economato.inventory.application.dto.shared.response.WeeklyConsumptionResponseDTO;
 import com.economato.inventory.application.mapper.stock.StockDailyForecastMapper;
 import com.economato.inventory.application.mapper.stock.StockWeeklyConsumptionHistoryMapper;
 import com.economato.inventory.application.usecase.product.ProductBatchService;
@@ -15,13 +16,23 @@ import com.economato.inventory.domain.model.product.ProductBatch;
 import com.economato.inventory.domain.model.stock.StockDailyForecast;
 import com.economato.inventory.domain.model.stock.StockPrediction;
 import com.economato.inventory.domain.model.stock.StockWeeklyConsumptionHistory;
+import com.economato.inventory.infrastructure.adapter.out.external.stock.prediction.HoltWintersForecaster;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.order.OrderDetailRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeCookingAuditRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockDailyForecastRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockPredictionRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockWeeklyConsumptionHistoryRepository;
 import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -32,13 +43,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * Facade y despachador de alertas de stock.
@@ -86,16 +90,16 @@ public class StockAlertService {
 
     // Overloaded secondary constructor for backwards compatibility with tests (12 args).
     public StockAlertService(
-            com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeCookingAuditRepository cookingAuditRepository,
-            com.economato.inventory.infrastructure.adapter.out.persistence.repository.order.OrderDetailRepository orderDetailRepository,
+            RecipeCookingAuditRepository cookingAuditRepository,
+            OrderDetailRepository orderDetailRepository,
             ProductRepository productRepository,
-            com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository recipeRepository,
+            RecipeRepository recipeRepository,
             StockPredictionRepository predictionRepository,
             StockDailyForecastRepository dailyForecastRepository,
             StockWeeklyConsumptionHistoryRepository weeklyHistoryRepository,
             StockDailyForecastMapper stockDailyForecastMapper,
             StockWeeklyConsumptionHistoryMapper stockWeeklyConsumptionHistoryMapper,
-            com.economato.inventory.infrastructure.adapter.out.external.stock.prediction.HoltWintersForecaster forecaster,
+            HoltWintersForecaster forecaster,
             I18nService i18nService,
             ProductBatchService productBatchService) {
         this(
@@ -169,7 +173,7 @@ public class StockAlertService {
                         .projectedConsumptionUnit(prediction.getProduct().getUnit())
                         .currentStock(prediction.getProduct().getCurrentStock())
                         .lotQuantity(prediction.getProduct().getLotQuantity())
-                        .alertType(com.economato.inventory.application.dto.stock.response.AlertType.PREDICTION)
+                        .alertType(AlertType.PREDICTION)
                         .updatedAt(prediction.getUpdatedAt())
                         .build())
                 .collect(Collectors.toList());
@@ -215,6 +219,20 @@ public class StockAlertService {
                 .sorted(Comparator.comparing(StockWeeklyConsumptionHistory::getId))
                 .map(stockWeeklyConsumptionHistoryMapper::toDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<StockAlertDTO> getAlerts(AlertSeverity severity) {
+        return (severity != null) ? getAlertsBySeverity(severity) : getActiveAlerts();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistoryOptional(Integer productId) {
+        List<WeeklyConsumptionResponseDTO> history = getWeeklyConsumptionHistory(productId);
+        if (history == null || history.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(history.get(0));
     }
 
     @Transactional(readOnly = true)

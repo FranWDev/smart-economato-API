@@ -1,6 +1,4 @@
 package com.economato.inventory.application.usecase.product;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -9,17 +7,19 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.economato.inventory.application.dto.ai.BatchConsumptionDetail;
+import com.economato.inventory.domain.model.ledger.StockLedger;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.product.ProductBatch;
-import com.economato.inventory.domain.model.ledger.StockLedger;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-import com.economato.inventory.application.dto.ai.BatchConsumptionDetail;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -182,7 +182,7 @@ class ProductBatchServiceTest {
                 .remainingQuantity(new BigDecimal("10.000"))
                 .depleted(false).build();
 
-        when(batchRepository.findById(10L)).thenReturn(java.util.Optional.of(batch));
+        when(batchRepository.findById(10L)).thenReturn(Optional.of(batch));
         when(batchRepository.save(any(ProductBatch.class))).thenReturn(updated);
 
         ProductBatch result = productBatchService.updateExpirationDate(10L, newDate, "Corrección de fecha");
@@ -202,7 +202,7 @@ class ProductBatchServiceTest {
                 .remainingQuantity(BigDecimal.ZERO)
                 .depleted(true).build();
 
-        when(batchRepository.findById(20L)).thenReturn(java.util.Optional.of(depleted));
+        when(batchRepository.findById(20L)).thenReturn(Optional.of(depleted));
         when(i18nService.getMessage(MessageKey.ERROR_BATCH_DEPLETED_CANNOT_UPDATE))
                 .thenReturn("Cannot update depleted batch");
 
@@ -224,7 +224,7 @@ class ProductBatchServiceTest {
 
         LocalDate pastDate = LocalDate.now().minusDays(1);
 
-        when(batchRepository.findById(30L)).thenReturn(java.util.Optional.of(batch));
+        when(batchRepository.findById(30L)).thenReturn(Optional.of(batch));
         when(i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_PAST, new Object[]{pastDate}))
                 .thenReturn("Expiration date cannot be in the past");
 
@@ -244,7 +244,7 @@ class ProductBatchServiceTest {
                 .remainingQuantity(new BigDecimal("5.000"))
                 .depleted(false).build();
 
-        when(batchRepository.findById(40L)).thenReturn(java.util.Optional.of(batch));
+        when(batchRepository.findById(40L)).thenReturn(Optional.of(batch));
         when(i18nService.getMessage(MessageKey.ERROR_BATCH_EXPIRATION_REQUIRED))
                 .thenReturn("Expiration date required");
 
@@ -254,7 +254,7 @@ class ProductBatchServiceTest {
 
     @Test
     void updateExpirationDate_shouldFail_whenBatchNotFound() {
-        when(batchRepository.findById(999L)).thenReturn(java.util.Optional.empty());
+        when(batchRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThrows(ResourceNotFoundException.class,
                 () -> productBatchService.updateExpirationDate(999L, LocalDate.now().plusDays(10), null));
@@ -273,7 +273,7 @@ class ProductBatchServiceTest {
                 .remainingQuantity(new BigDecimal("5.000"))
                 .depleted(false).build();
 
-        when(batchRepository.findById(100L)).thenReturn(java.util.Optional.of(expired));
+        when(batchRepository.findById(100L)).thenReturn(Optional.of(expired));
 
         productBatchService.depleteExpiredBatch(100L);
 
@@ -293,7 +293,7 @@ class ProductBatchServiceTest {
                 .remainingQuantity(new BigDecimal("5.000"))
                 .depleted(false).build();
 
-        when(batchRepository.findById(101L)).thenReturn(java.util.Optional.of(valid));
+        when(batchRepository.findById(101L)).thenReturn(Optional.of(valid));
         when(i18nService.getMessage(MessageKey.ERROR_BATCH_NOT_EXPIRED)).thenReturn("Not expired");
 
         assertThrows(InvalidOperationException.class,
@@ -311,7 +311,7 @@ class ProductBatchServiceTest {
                 .remainingQuantity(BigDecimal.ZERO)
                 .depleted(true).build();
 
-        when(batchRepository.findById(102L)).thenReturn(java.util.Optional.of(depleted));
+        when(batchRepository.findById(102L)).thenReturn(Optional.of(depleted));
         when(i18nService.getMessage(MessageKey.ERROR_BATCH_DEPLETED)).thenReturn("Depleted");
 
         assertThrows(InvalidOperationException.class,
@@ -330,7 +330,7 @@ class ProductBatchServiceTest {
                 .remainingQuantity(new BigDecimal("5.000"))
                 .depleted(false).build();
 
-        when(batchRepository.findById(5L)).thenReturn(java.util.Optional.of(expired));
+        when(batchRepository.findById(5L)).thenReturn(Optional.of(expired));
         when(i18nService.getMessage(
                 eq(MessageKey.ERROR_BATCH_EXPIRED_CANNOT_REVERT), any(Object[].class)))
                 .thenReturn("Batch expired cannot revert");
@@ -351,7 +351,7 @@ class ProductBatchServiceTest {
                 .remainingQuantity(new BigDecimal("3.000"))
                 .depleted(false).build();
 
-        when(batchRepository.findById(6L)).thenReturn(java.util.Optional.of(expired));
+        when(batchRepository.findById(6L)).thenReturn(Optional.of(expired));
         when(i18nService.getMessage(
                 eq(MessageKey.ERROR_BATCH_EXPIRED_CANNOT_ADD_STOCK), any(Object[].class)))
                 .thenReturn("Batch expired cannot add stock");

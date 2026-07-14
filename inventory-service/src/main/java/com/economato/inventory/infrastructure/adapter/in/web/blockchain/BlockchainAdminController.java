@@ -4,13 +4,10 @@ import com.economato.inventory.application.dto.blockchain.response.BlockchainSta
 import com.economato.inventory.application.dto.blockchain.response.BlockchainVerificationResponseDTO;
 import com.economato.inventory.application.dto.ledger.response.LedgerBlockResponseDTO;
 import com.economato.inventory.application.dto.ledger.response.StockLedgerResponseDTO;
-import com.economato.inventory.application.mapper.ledger.StockLedgerMapper;
 import com.economato.inventory.application.usecase.blockchain.BlockchainService;
 import com.economato.inventory.application.usecase.ledger.StockLedgerService;
-import com.economato.inventory.domain.model.ledger.LedgerBlock;
-import com.economato.inventory.domain.model.ledger.StockLedger;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.LedgerBlockRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -19,7 +16,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.context.annotation.Profile;
@@ -29,8 +25,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/admin/blockchain")
@@ -42,9 +36,7 @@ public class BlockchainAdminController {
 
     private final BlockchainService blockchainService;
     private final StockLedgerService stockLedgerService;
-    private final LedgerBlockRepository ledgerBlockRepository;
-    private final StockLedgerRepository stockLedgerRepository;
-    private final StockLedgerMapper stockLedgerMapper;
+    private final I18nService i18nService;
 
     @GetMapping("/verify")
     @Operation(summary = "Verificar blockchain completa")
@@ -52,21 +44,7 @@ public class BlockchainAdminController {
             @ApiResponse(responseCode = "200", description = "Verificación completada", content = @Content(mediaType = "application/json", schema = @Schema(implementation = BlockchainVerificationResponseDTO.class)))
     })
     public ResponseEntity<BlockchainVerificationResponseDTO> verifyBlockchain() {
-        boolean valid = blockchainService.verifyBlockchainIntegrity();
-        long blockCount = ledgerBlockRepository.count();
-        long pendingTransactions = stockLedgerRepository.countByBlockIsNull();
-        LedgerBlock latestBlock = ledgerBlockRepository.findTopByOrderByBlockNumberDesc().orElse(null);
-
-        BlockchainVerificationResponseDTO response = BlockchainVerificationResponseDTO.builder()
-                .valid(valid)
-                .message(valid ? "Blockchain íntegra" : "Blockchain con inconsistencias")
-                .blockCount(blockCount)
-                .pendingTransactions(pendingTransactions)
-                .latestBlockNumber(latestBlock != null ? latestBlock.getBlockNumber() : null)
-                .latestBlockHash(latestBlock != null ? latestBlock.getBlockHash() : null)
-                .build();
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(blockchainService.verifyBlockchain());
     }
 
     @GetMapping("/stats")
@@ -75,18 +53,7 @@ public class BlockchainAdminController {
             @ApiResponse(responseCode = "200", description = "Estadísticas obtenidas correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = BlockchainStatsResponseDTO.class)))
     })
     public ResponseEntity<BlockchainStatsResponseDTO> getStats() {
-        LedgerBlock latestBlock = ledgerBlockRepository.findTopByOrderByBlockNumberDesc().orElse(null);
-        boolean valid = blockchainService.verifyBlockchainIntegrity();
-
-        BlockchainStatsResponseDTO response = BlockchainStatsResponseDTO.builder()
-                .blockCount(ledgerBlockRepository.count())
-                .pendingTransactions(stockLedgerRepository.countByBlockIsNull())
-                .latestBlockNumber(latestBlock != null ? latestBlock.getBlockNumber() : null)
-                .latestBlockHash(latestBlock != null ? latestBlock.getBlockHash() : null)
-                .valid(valid)
-                .build();
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(blockchainService.getStats());
     }
 
     @GetMapping("/blocks")
@@ -95,8 +62,7 @@ public class BlockchainAdminController {
             @ApiResponse(responseCode = "200", description = "Bloques obtenidos correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = LedgerBlockResponseDTO.class)))
     })
     public ResponseEntity<Page<LedgerBlockResponseDTO>> getBlocks(Pageable pageable) {
-        Page<LedgerBlock> blocks = ledgerBlockRepository.findAll(pageable);
-        return ResponseEntity.ok(blocks.map(this::toDto));
+        return ResponseEntity.ok(blockchainService.getBlocks(pageable));
     }
 
     @GetMapping("/blocks/{blockNumber}")
@@ -106,8 +72,8 @@ public class BlockchainAdminController {
             @ApiResponse(responseCode = "404", description = "Bloque no encontrado")
     })
     public ResponseEntity<LedgerBlockResponseDTO> getBlock(@PathVariable Long blockNumber) {
-        return ledgerBlockRepository.findByBlockNumber(blockNumber)
-                .map(block -> ResponseEntity.ok(toDto(block)))
+        return blockchainService.getBlock(blockNumber)
+                .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
@@ -117,24 +83,7 @@ public class BlockchainAdminController {
             @ApiResponse(responseCode = "200", description = "Mempool obtenido correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = StockLedgerResponseDTO.class)))
     })
     public ResponseEntity<Page<StockLedgerResponseDTO>> getMempool(Pageable pageable) {
-        List<StockLedger> pending = stockLedgerRepository.findPendingTransactionsOrderByIdAsc(pageable);
-        long total = stockLedgerRepository.countByBlockIsNull();
-        Page<StockLedgerResponseDTO> response = new PageImpl<>(pending.stream()
-                .map(stockLedgerMapper::toDTO)
-                .toList(), pageable, total);
-        return ResponseEntity.ok(response);
-    }
-
-    private LedgerBlockResponseDTO toDto(LedgerBlock block) {
-        return LedgerBlockResponseDTO.builder()
-                .blockNumber(block.getBlockNumber())
-                .previousBlockHash(block.getPreviousBlockHash())
-                .merkleRoot(block.getMerkleRoot())
-                .blockHash(block.getBlockHash())
-                .timestamp(block.getTimestamp())
-                .transactionCount(block.getTransactionCount())
-                .hmacKeyVersion(block.getHmacKeyVersion())
-                .build();
+        return ResponseEntity.ok(blockchainService.getMempool(pageable));
     }
 
     @PostMapping("/sync-stock")
@@ -144,7 +93,7 @@ public class BlockchainAdminController {
     })
     public ResponseEntity<String> syncStockWithLedger() {
         stockLedgerService.synchronizeStockWithLedger();
-        return ResponseEntity.ok("Stock y lotes sincronizados correctamente con el Ledger");
+        return ResponseEntity.ok(i18nService.getMessage(MessageKey.SUCCESS_BLOCKCHAIN_SYNC));
     }
 
     @PostMapping("/rebuild-all")
@@ -154,6 +103,6 @@ public class BlockchainAdminController {
     })
     public ResponseEntity<String> rebuildAllChains() {
         stockLedgerService.rebuildAllChains();
-        return ResponseEntity.ok("Blockchain y stocks reconstruidos totalmente desde el historial de deltas.");
+        return ResponseEntity.ok(i18nService.getMessage(MessageKey.SUCCESS_BLOCKCHAIN_REBUILD));
     }
 }

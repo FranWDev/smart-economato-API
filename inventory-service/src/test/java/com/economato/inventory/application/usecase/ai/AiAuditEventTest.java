@@ -1,32 +1,13 @@
 package com.economato.inventory.application.usecase.ai;
-import com.economato.inventory.application.usecase.shared.NestStreamBridgeService;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.GlobalApiKeyRepository;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import org.mockito.Mock;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.economato.inventory.application.dto.ai.event.AiAuditEvent;
 import com.economato.inventory.application.dto.mcp.mcp.McpChangeProviderRequest;
@@ -34,8 +15,9 @@ import com.economato.inventory.application.dto.mcp.mcp.McpChatCreateRequest;
 import com.economato.inventory.application.dto.mcp.mcp.McpChatMessageRequest;
 import com.economato.inventory.application.dto.shared.mcp.NestCompletionRequest;
 import com.economato.inventory.application.dto.shared.mcp.ToolCallInfo;
-import com.economato.inventory.application.usecase.smg.shared.SemanticMemoryGraphService;
+import com.economato.inventory.application.usecase.shared.NestStreamBridgeService;
 import com.economato.inventory.application.usecase.smg.model.shared.CompressedContext;
+import com.economato.inventory.application.usecase.smg.shared.SemanticMemoryGraphService;
 import com.economato.inventory.domain.model.ai.AiChat;
 import com.economato.inventory.domain.model.ai.AiChatMessage;
 import com.economato.inventory.domain.model.ai.AiChatStatus;
@@ -47,6 +29,7 @@ import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.Ai
 import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ai.AiChatMessageRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ai.AiChatRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.GlobalApiKeyRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserApiKeyRepository;
 import com.economato.inventory.infrastructure.config.ai.ai.AiChatProperties;
 import com.economato.inventory.infrastructure.config.ai.ai.AiNestProperties;
@@ -54,12 +37,30 @@ import com.economato.inventory.infrastructure.config.ai.ai.AiProviderProperties;
 import com.economato.inventory.infrastructure.config.ai.ai.AiRateLimitProperties;
 import com.economato.inventory.infrastructure.config.ai.ai.AiVaultProperties;
 import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
-
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -139,7 +140,7 @@ class AiAuditEventTest {
                 return key.name();
             }
             @Override public String getMessage(MessageKey key, Object... args) { return key.name(); }
-            @Override public String getMessage(MessageKey key, java.util.Locale locale) { return key.name(); }
+            @Override public String getMessage(MessageKey key, Locale locale) { return key.name(); }
         };
 
         aiKeyVaultService = new AiKeyVaultService(
@@ -150,15 +151,16 @@ class AiAuditEventTest {
                 rateLimitProperties,
                 new SimpleMeterRegistry(),
                 Optional.of(auditEventProducer),
-                i18nService
+                i18nService,
+                mock(SecurityContextHelper.class)
         );
 
-        aiKeyVaultServiceMock = org.mockito.Mockito.mock(AiKeyVaultService.class);
+        aiKeyVaultServiceMock = Mockito.mock(AiKeyVaultService.class);
 
         when(circuitBreakerRegistry.circuitBreaker("nest")).thenReturn(circuitBreaker);
         when(circuitBreaker.getState()).thenReturn(CircuitBreaker.State.CLOSED);
         when(nestRestClient.post()).thenReturn(requestBodyUriSpec);
-        when(requestBodyUriSpec.uri(org.mockito.ArgumentMatchers.anyString())).thenReturn(requestBodySpec);
+        when(requestBodyUriSpec.uri(ArgumentMatchers.anyString())).thenReturn(requestBodySpec);
         when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
         when(requestBodySpec.accept(any())).thenReturn(requestBodySpec);
         when(requestBodySpec.headers(any())).thenReturn(requestBodySpec);
@@ -180,7 +182,7 @@ class AiAuditEventTest {
             nestProperties,
             circuitBreakerRegistry,
             new SimpleMeterRegistry(),
-            new com.fasterxml.jackson.databind.ObjectMapper(),
+            new ObjectMapper(),
             Optional.of(auditEventProducer),
             i18nService
         );
@@ -190,7 +192,7 @@ class AiAuditEventTest {
                 aiChatMessageRepository,
             aiKeyVaultServiceMock,
                 semanticMemoryGraphService,
-                org.mockito.Mockito.mock(NestStreamBridgeService.class),
+                Mockito.mock(NestStreamBridgeService.class),
                 aiRateLimitService,
                 securityContextHelper,
                 chatProperties,
@@ -204,7 +206,7 @@ class AiAuditEventTest {
         currentUser = new User();
         currentUser.setId(10);
         currentUser.setName("Admin");
-        org.mockito.Mockito.lenient().when(securityContextHelper.getCurrentUser()).thenReturn(currentUser);
+        Mockito.lenient().when(securityContextHelper.getCurrentUser()).thenReturn(currentUser);
     }
 
     @Test
@@ -281,8 +283,8 @@ class AiAuditEventTest {
         });
         when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(message(MessageRole.USER, "hola")));
         when(semanticMemoryGraphService.compress(any(), eq("es"))).thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
-        NestStreamBridgeService mockBridge = org.mockito.Mockito.mock(NestStreamBridgeService.class);
-        when(mockBridge.streamCompletion(any(), any(), org.mockito.ArgumentMatchers.anyString()))
+        NestStreamBridgeService mockBridge = Mockito.mock(NestStreamBridgeService.class);
+        when(mockBridge.streamCompletion(any(), any(), ArgumentMatchers.anyString()))
             .thenReturn(new NestStreamBridgeService.StreamCompletionResult("respuesta", 10, 20, null, new ArrayList<ToolCallInfo>()));
 
         aiChatService = new AiChatService(
@@ -330,7 +332,7 @@ class AiAuditEventTest {
         when(aiChatMessageRepository.save(any(AiChatMessage.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(aiChatMessageRepository.findByChatIdOrderByCreatedAtAsc(100L)).thenReturn(List.of(message(MessageRole.USER, "hola")));
         when(semanticMemoryGraphService.compress(any(), eq("es"))).thenReturn(new CompressedContext("sys", "intent", "entity", "topic", List.of(), 12, 0.7, "es"));
-        NestStreamBridgeService mockBridge = org.mockito.Mockito.mock(NestStreamBridgeService.class);
+        NestStreamBridgeService mockBridge = Mockito.mock(NestStreamBridgeService.class);
         when(mockBridge.streamCompletion(any(), any(), eq("jwt"))).thenThrow(new RuntimeException("connection refused"));
 
         aiChatService = new AiChatService(
@@ -370,7 +372,7 @@ class AiAuditEventTest {
 
     @Test
     void sendMessage_publishesAiMessageSentEvent() {
-        AiChatService service = buildChatService(org.mockito.Mockito.mock(NestStreamBridgeService.class));
+        AiChatService service = buildChatService(Mockito.mock(NestStreamBridgeService.class));
         AiChat chat = chat(100L, AiProvider.OPENAI, "es");
         when(aiChatRepository.findByIdAndUserId(100L, 10)).thenReturn(Optional.of(chat));
         when(aiRateLimitService.isAllowed(10)).thenReturn(true);

@@ -42,8 +42,8 @@ import com.economato.inventory.domain.recipe.RecipeAuditable;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.recipe.Recipe;
 import com.economato.inventory.domain.model.recipe.RecipeComponent;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.AllergenRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeCookingAuditRepository;
@@ -204,6 +204,9 @@ public class RecipeService {
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
+        if (!repository.existsById(id)) {
+            throw new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND));
+        }
         repository.deleteById(id);
     }
 

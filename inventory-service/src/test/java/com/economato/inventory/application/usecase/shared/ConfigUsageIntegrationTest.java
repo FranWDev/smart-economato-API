@@ -1,4 +1,17 @@
 package com.economato.inventory.application.usecase.shared;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
+import com.economato.inventory.application.dto.product.response.ProductResponseDTO;
+import com.economato.inventory.application.dto.user.presence.UserSessionInfo;
+import com.economato.inventory.application.mapper.product.ProductMapper;
 import com.economato.inventory.application.usecase.ledger.StockLedgerService;
 import com.economato.inventory.application.usecase.notification.PersistentNotificationService;
 import com.economato.inventory.application.usecase.notification.UserPresenceService;
@@ -9,49 +22,38 @@ import com.economato.inventory.application.usecase.product.ProductSkuGuard;
 import com.economato.inventory.application.usecase.product.ValidUnitService;
 import com.economato.inventory.application.usecase.recipe.RecipeService;
 import com.economato.inventory.application.usecase.stock.ScheduledForecastRefreshService;
-import com.economato.inventory.infrastructure.config.shared.PredictionConfig;
-import com.economato.inventory.application.dto.product.response.ProductResponseDTO;
-import com.economato.inventory.application.dto.user.presence.UserSessionInfo;
-
-import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
-import com.economato.inventory.application.mapper.product.ProductMapper;
-import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.shared.InventoryAuditRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeComponentRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.SupplierRepository;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.product.ValidUnit;
 import com.economato.inventory.domain.model.user.Role;
 import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.SupplierRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeComponentRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.shared.InventoryAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
+import com.economato.inventory.infrastructure.config.shared.PredictionConfig;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import java.lang.reflect.Field;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.mock.web.MockMultipartFile;
-
-import java.lang.reflect.Field;
-import java.math.BigDecimal;
-import java.nio.file.Path;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.mock;
 
 @ExtendWith(MockitoExtension.class)
 class ConfigUsageIntegrationTest {
@@ -76,7 +78,7 @@ class ConfigUsageIntegrationTest {
         lenient().when(systemConfigService.getPredictionConfig()).thenReturn(new SystemConfigService.PredictionConfig(true, 12, 30, 7));
         lenient().when(systemConfigService.getOutboxConfig()).thenReturn(new SystemConfigService.OutboxConfig(5000L, 50, 3, 5));
         lenient().when(systemConfigService.getMaxUploadFileSizeBytes()).thenReturn(1024L * 1024L);
-        lenient().when(systemConfigService.getAllowedFileTypes()).thenReturn(java.util.Set.of("image/jpeg"));
+        lenient().when(systemConfigService.getAllowedFileTypes()).thenReturn(Set.of("image/jpeg"));
         lenient().when(systemConfigService.getMaxChatMessageLength()).thenReturn(100);
         lenient().when(validUnitService.getActive()).thenReturn(List.of(ValidUnit.builder().id(1).code("LITRO").category("VOLUMEN").active(true).build()));
         lenient().when(i18nService.getMessage(any())).thenAnswer(inv -> inv.getArgument(0).toString());
@@ -146,7 +148,7 @@ class ConfigUsageIntegrationTest {
 
         when(stockLedgerRepository.findProductIdsWithMovementsSince(any())).thenReturn(List.of(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25));
         when(productRepository.findAllActive()).thenReturn(List.of(p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19,p20,p21,p22,p23,p24,p25));
-        when(stockLedgerService.getDailyConsumptionBatch(any(), any(), any())).thenReturn(java.util.Collections.emptyMap());
+        when(stockLedgerService.getDailyConsumptionBatch(any(), any(), any())).thenReturn(Collections.emptyMap());
 
         AuditEventProducer outboxProducer = mock(AuditEventProducer.class);
 
@@ -170,7 +172,7 @@ class ConfigUsageIntegrationTest {
     @Test
     void fileStorage_ShouldUseConfigOverrides() throws Exception {
         init();
-        Path tempDir = java.nio.file.Files.createTempDirectory("cfg-upload-test");
+        Path tempDir = Files.createTempDirectory("cfg-upload-test");
         FileStorageService service = new FileStorageService(tempDir.toString(), 1, "application/x-msdownload", i18nService);
         setField(service, "systemConfigService", systemConfigService);
 
@@ -207,7 +209,9 @@ class ConfigUsageIntegrationTest {
                 securityContextHelper,
                 recipeService,
                 validUnitService,
-                guard
+                guard,
+                null,
+                null
         );
 
         User current = new User();
@@ -262,8 +266,8 @@ class ConfigUsageIntegrationTest {
     private static void setLastActivity(UserPresenceService service, String username, String sessionId, LocalDateTime time) throws Exception {
         Field field = UserPresenceService.class.getDeclaredField("sessionsByUser");
         field.setAccessible(true);
-        java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.ConcurrentHashMap<String, UserSessionInfo>> map =
-                (java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.ConcurrentHashMap<String, UserSessionInfo>>) field.get(service);
+        ConcurrentHashMap<String, ConcurrentHashMap<String, UserSessionInfo>> map =
+                (ConcurrentHashMap<String, ConcurrentHashMap<String, UserSessionInfo>>) field.get(service);
         map.get(username).get(sessionId).setLastActivityAt(time);
     }
 }

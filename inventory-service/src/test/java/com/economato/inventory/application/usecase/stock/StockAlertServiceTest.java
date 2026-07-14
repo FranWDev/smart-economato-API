@@ -1,43 +1,25 @@
 package com.economato.inventory.application.usecase.stock;
-import com.economato.inventory.application.usecase.product.ProductBatchService;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.MessageSource;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 
 import com.economato.inventory.application.dto.product.projection.PendingProductQuantity;
+import com.economato.inventory.application.dto.shared.response.WeeklyConsumptionResponseDTO;
 import com.economato.inventory.application.dto.stock.response.AlertResolution;
 import com.economato.inventory.application.dto.stock.response.AlertSeverity;
 import com.economato.inventory.application.dto.stock.response.AlertType;
 import com.economato.inventory.application.dto.stock.response.DailyForecastResponseDTO;
 import com.economato.inventory.application.dto.stock.response.StockAlertDTO;
 import com.economato.inventory.application.dto.stock.response.StockPredictionResponseDTO;
-import com.economato.inventory.application.dto.shared.response.WeeklyConsumptionResponseDTO;
 import com.economato.inventory.application.mapper.stock.StockDailyForecastMapper;
 import com.economato.inventory.application.mapper.stock.StockWeeklyConsumptionHistoryMapper;
+import com.economato.inventory.application.usecase.product.ProductBatchService;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.product.ProductBatch;
 import com.economato.inventory.domain.model.stock.StockDailyForecast;
@@ -51,6 +33,26 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockDailyForecastRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockPredictionRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockWeeklyConsumptionHistoryRepository;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.MessageSource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 @ExtendWith(MockitoExtension.class)
 class StockAlertServiceTest {
@@ -84,7 +86,7 @@ class StockAlertServiceTest {
     @InjectMocks
     private StockAlertService stockAlertService;
 
-    @org.junit.jupiter.api.BeforeEach
+    @BeforeEach
     @SuppressWarnings("unused")
     void setUp() {
         i18nService = new I18nService(null) {
@@ -103,7 +105,7 @@ class StockAlertServiceTest {
                 return getMessage(key, (Object[]) null);
             }
             @Override
-            public String getMessage(MessageKey key, java.util.Locale locale) {
+            public String getMessage(MessageKey key, Locale locale) {
                 return getMessage(key, (Object[]) null);
             }
         };
@@ -122,7 +124,7 @@ class StockAlertServiceTest {
             i18nService,
             productBatchService
         );
-        org.mockito.Mockito.lenient().when(productBatchService.getExpiringBatches(anyInt())).thenReturn(List.of());
+        Mockito.lenient().when(productBatchService.getExpiringBatches(anyInt())).thenReturn(List.of());
     }
 
     @Test
@@ -363,7 +365,7 @@ class StockAlertServiceTest {
         ProductBatch batch = ProductBatch.builder()
                 .id(1L)
                 .product(product)
-                .expirationDate(java.time.LocalDate.now().plusDays(2))
+                .expirationDate(LocalDate.now().plusDays(2))
                 .remainingQuantity(BigDecimal.valueOf(4))
                 .depleted(false)
                 .build();
@@ -401,7 +403,7 @@ class StockAlertServiceTest {
         ProductBatch batch = ProductBatch.builder()
             .id(2L)
             .product(product)
-            .expirationDate(java.time.LocalDate.now().plusDays(3))
+            .expirationDate(LocalDate.now().plusDays(3))
             .remainingQuantity(BigDecimal.valueOf(7))
             .depleted(false)
             .build();

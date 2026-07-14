@@ -1,4 +1,4 @@
-package com.economato.inventory.infrastructure.adapter.in.web.ai;
+package com.economato.inventory.infrastructure.adapter.in.web.ai.exception;
 
 public class AiStreamException extends RuntimeException {
 

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -19,7 +20,7 @@ import com.economato.inventory.domain.model.weeklyplan.WeeklyPlan;
 import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlot;
 import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlotStatus;
 import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanStatus;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanRepository;
@@ -29,6 +30,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,7 +40,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import static org.mockito.ArgumentMatchers.anyCollection;
 
 @ExtendWith(MockitoExtension.class)
 class WeeklyPlanStockReservationServiceTest {
@@ -63,7 +65,7 @@ class WeeklyPlanStockReservationServiceTest {
         LocalDate targetDate = LocalDate.now().plusDays(7);
 
         when(productRepository.findById(1)).thenReturn(Optional.of(product));
-        when(weeklyPlanRepository.calculateReservedStock(null)).thenReturn(java.util.Collections.<Object[]>emptyList());
+        when(weeklyPlanRepository.calculateReservedStock(null)).thenReturn(Collections.<Object[]>emptyList());
         when(batchRepository.sumNonExpiredRemainingQuantity(1, targetDate)).thenReturn(new BigDecimal("100.000"));
 
         assertFalse(service.isStockSufficientForAction(1, new BigDecimal("120.000"), targetDate));
@@ -78,8 +80,8 @@ class WeeklyPlanStockReservationServiceTest {
 
         when(weeklyPlanRepository.findById(10L)).thenReturn(Optional.of(plan));
         when(weeklyPlanRepository.calculateRequiredStockForPlan(10L))
-            .thenReturn(java.util.List.<Object[]>of(new Object[]{1, new BigDecimal("120.000")}));
-        when(weeklyPlanRepository.calculateReservedStock(10L)).thenReturn(java.util.Collections.<Object[]>emptyList());
+            .thenReturn(List.<Object[]>of(new Object[]{1, new BigDecimal("120.000")}));
+        when(weeklyPlanRepository.calculateReservedStock(10L)).thenReturn(Collections.<Object[]>emptyList());
         when(productRepository.findAllById(anyCollection())).thenReturn(List.of(product));
         when(batchRepository.sumNonExpiredRemainingQuantity(1, weekStart)).thenReturn(new BigDecimal("100.000"));
         when(i18nService.getMessage(eq(MessageKey.ERROR_WEEKLY_PLAN_STOCK_EXPIRES_BEFORE_PLAN), any(Object[].class)))
@@ -96,7 +98,7 @@ class WeeklyPlanStockReservationServiceTest {
         existingPlan.getSlots().add(createPendingSlot(existingPlan, product, new BigDecimal("120.000")));
 
         when(weeklyPlanRepository.calculateReservedStock(20L))
-            .thenReturn(java.util.List.<Object[]>of(new Object[]{2, new BigDecimal("20.000")}));
+            .thenReturn(List.<Object[]>of(new Object[]{2, new BigDecimal("20.000")}));
         when(productRepository.findAllById(anyCollection())).thenReturn(List.of(product));
         when(batchRepository.sumNonExpiredRemainingQuantity(2, weekStart)).thenReturn(new BigDecimal("100.000"));
         when(i18nService.getMessage(eq(MessageKey.ERROR_WEEKLY_PLAN_STOCK_EXPIRES_BEFORE_PLAN), any(Object[].class)))
@@ -132,8 +134,8 @@ class WeeklyPlanStockReservationServiceTest {
 
         when(weeklyPlanRepository.findById(30L)).thenReturn(Optional.of(plan));
         when(weeklyPlanRepository.calculateRequiredStockForPlan(30L))
-            .thenReturn(java.util.List.<Object[]>of(new Object[]{3, new BigDecimal("120.000")}));
-        when(weeklyPlanRepository.calculateReservedStock(30L)).thenReturn(java.util.Collections.<Object[]>emptyList());
+            .thenReturn(List.<Object[]>of(new Object[]{3, new BigDecimal("120.000")}));
+        when(weeklyPlanRepository.calculateReservedStock(30L)).thenReturn(Collections.<Object[]>emptyList());
         when(productRepository.findAllById(anyCollection())).thenReturn(List.of(product));
         when(batchRepository.sumNonExpiredRemainingQuantity(3, weekStart)).thenReturn(new BigDecimal("100.000"));
         when(batchRepository.sumExpiringBeforeDate(3, weekStart)).thenReturn(new BigDecimal("30.000"));
@@ -158,7 +160,7 @@ class WeeklyPlanStockReservationServiceTest {
         Product product = createProduct(4, "Mantequilla", "KG", new BigDecimal("55.000"));
         product.setLotQuantity(new BigDecimal("1.000"));
         when(productRepository.findAllById(anyCollection())).thenReturn(List.of(product));
-        when(weeklyPlanRepository.calculateReservedStock(null)).thenReturn(java.util.Collections.<Object[]>emptyList());
+        when(weeklyPlanRepository.calculateReservedStock(null)).thenReturn(Collections.<Object[]>emptyList());
         when(batchRepository.sumExpiredRemainingQuantityByProductId(4)).thenReturn(BigDecimal.ZERO);
 
         List<WeeklyPlanStockRequirementDTO> result = service.calculateStockRequirements(Map.of(4, new BigDecimal("10.000")), null);
@@ -184,7 +186,7 @@ class WeeklyPlanStockReservationServiceTest {
         plan.setId(id);
         plan.setWeekStartDate(weekStart);
         plan.setStatus(WeeklyPlanStatus.DRAFT);
-        plan.setSlots(new java.util.HashSet<>());
+        plan.setSlots(new HashSet<>());
         return plan;
     }
 
@@ -196,7 +198,7 @@ class WeeklyPlanStockReservationServiceTest {
         component.setProduct(product);
         component.setQuantity(BigDecimal.ONE);
         component.setParentRecipe(recipe);
-        recipe.setComponents(new java.util.HashSet<>(List.of(component)));
+        recipe.setComponents(new HashSet<>(List.of(component)));
 
         WeeklyPlanSlot slot = new WeeklyPlanSlot();
         slot.setWeeklyPlan(plan);

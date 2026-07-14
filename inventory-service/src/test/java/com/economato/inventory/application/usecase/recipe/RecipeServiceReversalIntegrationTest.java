@@ -1,32 +1,17 @@
 package com.economato.inventory.application.usecase.recipe;
-import com.economato.inventory.application.usecase.ledger.StockLedgerService;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.economato.inventory.application.dto.recipe.request.RecipeCookingRequestDTO;
 import com.economato.inventory.application.dto.recipe.response.RecipeResponseDTO;
-import com.economato.inventory.domain.model.shared.MovementType;
+import com.economato.inventory.application.usecase.ledger.StockLedgerService;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.product.ProductBatch;
 import com.economato.inventory.domain.model.recipe.Recipe;
 import com.economato.inventory.domain.model.recipe.RecipeComponent;
 import com.economato.inventory.domain.model.recipe.RecipeCookingAudit;
+import com.economato.inventory.domain.model.shared.MovementType;
 import com.economato.inventory.domain.model.user.Role;
 import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
@@ -36,7 +21,20 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -110,7 +108,7 @@ class RecipeServiceReversalIntegrationTest extends BaseIntegrationTest {
         // 1. Create two batches, one small enough to be depleted
         ProductBatch batch1 = ProductBatch.builder()
                 .product(product)
-                .receivedAt(java.time.LocalDateTime.now())
+                .receivedAt(LocalDateTime.now())
                 .expirationDate(LocalDate.now().plusDays(5))
                 .initialQuantity(new BigDecimal("2.000"))
                 .remainingQuantity(new BigDecimal("2.000"))
@@ -120,7 +118,7 @@ class RecipeServiceReversalIntegrationTest extends BaseIntegrationTest {
 
         ProductBatch batch2 = ProductBatch.builder()
                 .product(product)
-                .receivedAt(java.time.LocalDateTime.now())
+                .receivedAt(LocalDateTime.now())
                 .expirationDate(LocalDate.now().plusDays(10))
                 .initialQuantity(new BigDecimal("5.000"))
                 .remainingQuantity(new BigDecimal("5.000"))
@@ -145,7 +143,7 @@ class RecipeServiceReversalIntegrationTest extends BaseIntegrationTest {
         manualAudit.setUser(user);
         manualAudit.setQuantityCooked(cookRequest.getQuantity());
         manualAudit.setDetails("Manual test audit");
-        manualAudit.setCookingDate(java.time.LocalDateTime.now());
+        manualAudit.setCookingDate(LocalDateTime.now());
         manualAudit.setCorrelationId(cookRequest.getCorrelationId());
         recipeCookingAuditRepository.saveAndFlush(manualAudit);
 

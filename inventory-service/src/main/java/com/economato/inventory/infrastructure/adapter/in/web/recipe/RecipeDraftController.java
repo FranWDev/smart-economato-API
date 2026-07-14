@@ -63,10 +63,7 @@ public class RecipeDraftController {
     public ResponseEntity<Page<RecipeDraftResponseDTO>> list(
             @RequestParam(value = "status", required = false) RecipeDraftStatus status,
             Pageable pageable) {
-        if (status != null) {
-            return ResponseEntity.ok(recipeDraftService.findByStatus(status, pageable));
-        }
-        return ResponseEntity.ok(recipeDraftService.findAll(pageable));
+        return ResponseEntity.ok(recipeDraftService.findAll(status, pageable));
     }
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")

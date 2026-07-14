@@ -1,39 +1,37 @@
 package com.economato.inventory.application.usecase.incident;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-import org.springframework.data.domain.PageRequest;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.economato.inventory.application.dto.shared.request.AttachAuditRequestDTO;
 import com.economato.inventory.application.dto.incident.request.RevertAuditFromIncidentRequestDTO;
 import com.economato.inventory.application.dto.incident.response.IncidentAuditAttachmentResponseDTO;
 import com.economato.inventory.application.dto.recipe.response.RecipeCookingAuditResponseDTO;
+import com.economato.inventory.application.dto.shared.request.AttachAuditRequestDTO;
 import com.economato.inventory.application.mapper.incident.IncidentMapper;
 import com.economato.inventory.application.mapper.recipe.RecipeCookingAuditMapper;
 import com.economato.inventory.application.usecase.recipe.RecipeService;
 import com.economato.inventory.application.usecase.shared.SystemConfigService;
 import com.economato.inventory.domain.model.incident.Incident;
 import com.economato.inventory.domain.model.incident.IncidentAuditAttachment;
+import com.economato.inventory.domain.model.incident.IncidentStatus;
 import com.economato.inventory.domain.model.recipe.RecipeCookingAudit;
 import com.economato.inventory.domain.model.user.Role;
 import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentAuditAttachmentRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeCookingAuditRepository;
 import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
 import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -170,8 +168,8 @@ public class IncidentAttachmentService {
     }
 
     private boolean isClosed(Incident incident) {
-        return incident.getStatus() == com.economato.inventory.domain.model.incident.IncidentStatus.CERRADO_CON_RESOLUCION
-                || incident.getStatus() == com.economato.inventory.domain.model.incident.IncidentStatus.CERRADO_SIN_RESOLUCION;
+        return incident.getStatus() == IncidentStatus.CERRADO_CON_RESOLUCION
+                || incident.getStatus() == IncidentStatus.CERRADO_SIN_RESOLUCION;
     }
 
     private int maxAdminAttachableAudits() {

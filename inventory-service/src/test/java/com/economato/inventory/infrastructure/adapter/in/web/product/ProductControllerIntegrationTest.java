@@ -1,17 +1,9 @@
 package com.economato.inventory.infrastructure.adapter.in.web.product;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
-
-import java.math.BigDecimal;
-
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -20,22 +12,29 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-import org.springframework.test.web.servlet.MvcResult;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 
-import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
 import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
+import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
 import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
 import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.domain.model.product.ProductBatch;
 import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
+import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
-import com.economato.inventory.domain.model.product.ProductBatch;
 import com.economato.inventory.infrastructure.shared.TestDataUtil;
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
+import org.springframework.test.web.servlet.MvcResult;
 
 class ProductControllerIntegrationTest extends BaseIntegrationTest {
 
@@ -87,7 +86,7 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                 batch.setInitialQuantity(testProduct.getCurrentStock());
                 batch.setRemainingQuantity(testProduct.getCurrentStock());
                 batch.setExpirationDate(LocalDate.now().plusYears(1));
-                batch.setReceivedAt(java.time.LocalDateTime.now());
+                batch.setReceivedAt(LocalDateTime.now());
                 batch.setDepleted(false);
                 productBatchRepository.saveAndFlush(batch);
         }

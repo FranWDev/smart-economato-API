@@ -20,8 +20,8 @@ import com.economato.inventory.domain.model.ai.AiProvider;
 import com.economato.inventory.domain.model.user.GlobalApiKey;
 import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.domain.model.user.UserApiKey;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.GlobalApiKeyRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserApiKeyRepository;
@@ -30,6 +30,9 @@ import com.economato.inventory.infrastructure.config.ai.ai.AiRateLimitProperties
 import com.economato.inventory.infrastructure.config.ai.ai.AiVaultProperties;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
+import com.economato.inventory.application.dto.user.request.GlobalApiKeyRequestDTO;
+import com.economato.inventory.application.dto.user.response.GlobalApiKeyResponseDTO;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -56,6 +59,52 @@ public class AiKeyVaultService {
     private final MeterRegistry meterRegistry;
     private final Optional<AuditEventProducer> auditEventProducer;
     private final I18nService i18nService;
+    private final SecurityContextHelper securityContextHelper;
+
+    @Transactional(readOnly = true)
+    public List<GlobalApiKeyResponseDTO> listGlobalKeysDto() {
+        return listGlobalKeys().stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    public GlobalApiKeyResponseDTO saveGlobalKeyDto(GlobalApiKeyRequestDTO request) {
+        Integer adminUserId = currentAdminUserId();
+        AiProvider provider = request.providerAsEnum();
+        ApiKeyMetadata metadata = saveGlobalKey(provider, request.getApiKey(), adminUserId);
+        return toDto(metadata);
+    }
+
+    public GlobalApiKeyResponseDTO updateGlobalKeyDto(GlobalApiKeyRequestDTO request) {
+        Integer adminUserId = currentAdminUserId();
+        AiProvider provider = request.providerAsEnum();
+        ApiKeyMetadata metadata = updateGlobalKey(provider, request.getApiKey(), adminUserId);
+        return toDto(metadata);
+    }
+
+    public Void deleteGlobalKeyDto(String providerStr) {
+        Integer adminUserId = currentAdminUserId();
+        AiProvider provider = AiProvider.valueOf(providerStr.trim().toUpperCase());
+        deleteGlobalKey(provider, adminUserId);
+        return null;
+    }
+
+    private GlobalApiKeyResponseDTO toDto(ApiKeyMetadata metadata) {
+        return GlobalApiKeyResponseDTO.builder()
+                .provider(metadata.provider().name())
+                .keyHint(metadata.keyHint())
+                .active(metadata.active())
+                .createdAt(metadata.createdAt())
+                .build();
+    }
+
+    private Integer currentAdminUserId() {
+        var currentUser = securityContextHelper.getCurrentUser();
+        if (currentUser == null || currentUser.getId() == null) {
+            throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_AUTH_ADMIN_NOT_FOUND));
+        }
+        return currentUser.getId();
+    }
 
     public void saveKey(Integer userId, AiProvider provider, String plainApiKey) {
         validateInputs(userId, provider, plainApiKey);

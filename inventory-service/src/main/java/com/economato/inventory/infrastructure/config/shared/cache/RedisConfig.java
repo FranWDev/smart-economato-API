@@ -2,11 +2,15 @@ package com.economato.inventory.infrastructure.config.shared.cache;
 
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import com.fasterxml.jackson.databind.jsontype.PolymorphicTypeValidator;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -20,14 +24,9 @@ import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
-
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
 
 @Configuration
 @EnableCaching
@@ -70,7 +69,7 @@ public class RedisConfig {
                 // copy() para evitar mutar el ObjectMapper global que Spring Boot configura, ya que --
                 // activateDefaultTyping es una operación global que afectaría a toda la aplicación y podría causar problemas de seguridad o serialización en otros contextos.
                 ObjectMapper redisMapper = baseMapper.copy();
-                redisMapper.configure(com.fasterxml.jackson.databind.SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
+                redisMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
                 redisMapper.activateDefaultTyping(
                                 ptv,
                                 ObjectMapper.DefaultTyping.NON_FINAL,

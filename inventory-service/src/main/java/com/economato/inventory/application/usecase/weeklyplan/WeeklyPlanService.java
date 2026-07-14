@@ -1,21 +1,67 @@
 package com.economato.inventory.application.usecase.weeklyplan;
+import com.economato.inventory.application.dto.shared.request.BatchMovementItem;
+import com.economato.inventory.application.dto.shared.response.ConfirmDayResponseDTO;
+import com.economato.inventory.application.dto.shared.response.PdfReportResponseDTO;
+import com.economato.inventory.application.dto.user.projection.UserProjection;
+import com.economato.inventory.application.dto.weeklyplan.request.WeeklyPlanRequestDTO;
+import com.economato.inventory.application.dto.weeklyplan.request.WeeklyPlanSlotRequestDTO;
+import com.economato.inventory.application.dto.weeklyplan.response.StudentMetricsResponseDTO;
+import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanResponseDTO;
+import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanSlotResponseDTO;
+import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanSlotStudentResponseDTO;
+import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanStockRequirementDTO;
+import com.economato.inventory.application.mapper.weeklyplan.WeeklyPlanMapper;
 import com.economato.inventory.application.usecase.ledger.StockLedgerService;
 import com.economato.inventory.application.usecase.notification.PersistentNotificationService;
+import com.economato.inventory.domain.model.notification.NotificationType;
 import com.economato.inventory.domain.model.order.Order;
-
+import com.economato.inventory.domain.model.recipe.Recipe;
+import com.economato.inventory.domain.model.recipe.RecipeComponent;
+import com.economato.inventory.domain.model.recipe.RecipeCookingAudit;
+import com.economato.inventory.domain.model.shared.MovementType;
+import com.economato.inventory.domain.model.user.Role;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.domain.model.weeklyplan.StudentSlotStatus;
+import com.economato.inventory.domain.model.weeklyplan.WeeklyPlan;
+import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlot;
+import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlotStatus;
+import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlotStudent;
+import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanStatus;
+import com.economato.inventory.domain.stock.PredictorTrigger;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.out.external.weeklyplan.reports.WeeklyPlanPdfService;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.notification.NotificationRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeCookingAuditRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanSlotRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanSlotStudentRepository;
+import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import com.economato.inventory.infrastructure.config.weeklyplan.cache.event.WeeklyPlanSlotConfirmedEvent;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.context.ApplicationEventPublisher;
@@ -27,52 +73,6 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.economato.inventory.application.dto.user.projection.UserProjection;
-import com.economato.inventory.application.dto.shared.request.BatchMovementItem;
-import com.economato.inventory.application.dto.weeklyplan.request.WeeklyPlanRequestDTO;
-import com.economato.inventory.application.dto.weeklyplan.request.WeeklyPlanSlotRequestDTO;
-import com.economato.inventory.application.dto.shared.response.ConfirmDayResponseDTO;
-import com.economato.inventory.application.dto.weeklyplan.response.StudentMetricsResponseDTO;
-import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanResponseDTO;
-import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanSlotResponseDTO;
-import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanSlotStudentResponseDTO;
-import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanStockRequirementDTO;
-import com.economato.inventory.application.mapper.weeklyplan.WeeklyPlanMapper;
-import com.economato.inventory.domain.stock.PredictorTrigger;
-import com.economato.inventory.domain.model.shared.MovementType;
-import com.economato.inventory.domain.model.notification.NotificationType;
-import com.economato.inventory.domain.model.recipe.Recipe;
-import com.economato.inventory.domain.model.recipe.RecipeComponent;
-import com.economato.inventory.domain.model.recipe.RecipeCookingAudit;
-import com.economato.inventory.domain.model.user.Role;
-import com.economato.inventory.domain.model.weeklyplan.StudentSlotStatus;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.domain.model.weeklyplan.WeeklyPlan;
-import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlot;
-import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlotStatus;
-import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlotStudent;
-import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanStatus;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.notification.NotificationRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeCookingAuditRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanSlotRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanSlotStudentRepository;
-import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
-import com.economato.inventory.infrastructure.config.weeklyplan.cache.event.WeeklyPlanSlotConfirmedEvent;
-import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -97,6 +97,16 @@ public class WeeklyPlanService {
     private final ObjectMapper objectMapper;
     private final PersistentNotificationService persistentNotificationService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final WeeklyPlanPdfService weeklyPlanPdfService;
+
+    @Transactional(readOnly = true)
+    public PdfReportResponseDTO generatePlanPdf(Long planId, String orientation) {
+        boolean isVertical = "vertical".equalsIgnoreCase(orientation);
+        WeeklyPlanResponseDTO plan = getPlanById(planId);
+        byte[] pdfBytes = weeklyPlanPdfService.generateWeeklyPlanPdf(plan, isVertical);
+        String filename = weeklyPlanPdfService.generateFilename(plan);
+        return new PdfReportResponseDTO(pdfBytes, filename);
+    }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     @RealtimeSync(entityType = "weekly_plan", action = "CREATE", idFromArg = -2,
@@ -110,7 +120,7 @@ public class WeeklyPlanService {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_MUST_START_MONDAY));
         }
 
-        LocalDate currentWeekStart = LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate currentWeekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
         if (request.getWeekStartDate().isBefore(currentWeekStart)) {
             throw new InvalidOperationException(i18nService.getMessage(MessageKey.ERROR_WEEKLY_PLAN_PAST_WEEK));
         }
@@ -264,7 +274,7 @@ public class WeeklyPlanService {
         stockLedgerService.recordBatchStockMovements(movements, plan.getChef(), null, false);
 
         slot.setStatus(WeeklyPlanSlotStatus.CONFIRMED);
-        slot.setConfirmedAt(java.time.LocalDateTime.now());
+        slot.setConfirmedAt(LocalDateTime.now());
         slot.setConfirmedBy(currentUser);
 
         if (plan.getStatus() == WeeklyPlanStatus.ACTIVE) {
@@ -457,7 +467,7 @@ public class WeeklyPlanService {
         List<BatchMovementItem> allMovements = new ArrayList<>();
         List<RecipeCookingAudit> audits = new ArrayList<>();
         User currentUser = securityContextHelper.getCurrentUser();
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now();
 
         validateStockForConfirmation(plan, slotsToConfirm);
 
@@ -636,7 +646,7 @@ public class WeeklyPlanService {
             chefId = currentUser.getId();
         }
         LocalDate now = LocalDate.now();
-        LocalDate weekStart = now.with(java.time.temporal.TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        LocalDate weekStart = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
 
         WeeklyPlan plan = weeklyPlanRepository
                 .findByChefIdAndWeekStartDateAndStatusIn(chefId, weekStart, List.of(WeeklyPlanStatus.ACTIVE, WeeklyPlanStatus.IN_PROGRESS))
@@ -757,7 +767,7 @@ public class WeeklyPlanService {
         }
 
         studentSlot.setStatus(StudentSlotStatus.CANCELLED);
-        studentSlot.setCancelledAt(java.time.LocalDateTime.now());
+        studentSlot.setCancelledAt(LocalDateTime.now());
         studentSlot.setCancelledBy(securityContextHelper.getCurrentUser());
 
         slotRepository.save(slot);
@@ -1062,7 +1072,7 @@ public class WeeklyPlanService {
                 continue;
             }
 
-            Set<Integer> studentIdsInSlot = new java.util.HashSet<>();
+            Set<Integer> studentIdsInSlot = new HashSet<>();
             
             // Validar solapamientos con slots nuevos que estamos añadiendo
             for (WeeklyPlanSlot existing : newSlots) {

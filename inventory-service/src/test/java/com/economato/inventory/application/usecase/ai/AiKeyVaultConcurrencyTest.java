@@ -23,6 +23,8 @@ import org.mockito.Mock;
 import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
+import static org.mockito.Mockito.mock;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import org.mockito.quality.Strictness;
 
 import com.economato.inventory.domain.model.ai.AiProvider;
@@ -76,11 +78,12 @@ class AiKeyVaultConcurrencyTest {
                 aiVaultProperties,
                 aiProviderProperties,
                 userApiKeyRepository,
-            globalApiKeyRepository,
+                globalApiKeyRepository,
                 aiRateLimitProperties,
                 new SimpleMeterRegistry(),
                 Optional.empty(),
-                i18nService
+                i18nService,
+                mock(SecurityContextHelper.class)
         );
     }
 

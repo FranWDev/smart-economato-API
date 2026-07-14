@@ -1,27 +1,30 @@
 package com.economato.inventory.infrastructure.config.notification.database;
 
-import com.economato.inventory.infrastructure.shared.WebSocketConnectedEvent;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
+import com.economato.inventory.application.usecase.notification.WebSocketNotificationService;
+import com.economato.inventory.application.usecase.stock.AlertMessage;
+import com.economato.inventory.application.usecase.user.CustomUserDetailsService;
 import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditOutboxProcessor;
 import com.economato.inventory.infrastructure.config.shared.security.JwtUtils;
-import com.economato.inventory.application.usecase.user.CustomUserDetailsService;
-import com.economato.inventory.application.usecase.notification.WebSocketNotificationService;
-import com.economato.inventory.application.usecase.stock.AlertMessage;
+import com.economato.inventory.infrastructure.shared.WebSocketConnectedEvent;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import java.sql.SQLException;
+import java.util.concurrent.TimeUnit;
+import org.apache.kafka.common.errors.TimeoutException;
+import org.hibernate.exception.JDBCConnectionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-
-import java.util.concurrent.TimeUnit;
-
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
 
 /**
  * Tests that verify new WebSocket connections receive notifications
@@ -68,9 +71,9 @@ public class WebSocketCircuitBreakerNotificationTest {
     void testNotifyOpenCircuitBreakers_WhenDbIsOpen_SendsDbFailureAlert() {
         // Arrange: Open the DB circuit breaker
         CircuitBreaker dbCircuitBreaker = circuitBreakerRegistry.circuitBreaker("db");
-        RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException(
+        RuntimeException fakeException = new JDBCConnectionException(
                 "DB Connection Refused",
-                new java.sql.SQLException());
+                new SQLException());
         dbCircuitBreaker.onError(0, TimeUnit.MILLISECONDS, fakeException);
         
         assert(dbCircuitBreaker.getState() == CircuitBreaker.State.OPEN);
@@ -91,7 +94,7 @@ public class WebSocketCircuitBreakerNotificationTest {
     void testNotifyOpenCircuitBreakers_WhenRedisIsOpen_SendsRedisFailureAlert() {
         // Arrange: Open the Redis circuit breaker
         CircuitBreaker redisCircuitBreaker = circuitBreakerRegistry.circuitBreaker("redis");
-        RuntimeException fakeException = new org.springframework.data.redis.RedisConnectionFailureException("Redis is down");
+        RuntimeException fakeException = new RedisConnectionFailureException("Redis is down");
         redisCircuitBreaker.onError(0, TimeUnit.MILLISECONDS, fakeException);
         
         assert(redisCircuitBreaker.getState() == CircuitBreaker.State.OPEN);
@@ -112,7 +115,7 @@ public class WebSocketCircuitBreakerNotificationTest {
     void testNotifyOpenCircuitBreakers_WhenKafkaIsOpen_SendsKafkaFailureAlert() {
         // Arrange: Open the Kafka circuit breaker
         CircuitBreaker kafkaCircuitBreaker = circuitBreakerRegistry.circuitBreaker("kafka");
-        RuntimeException fakeException = new org.apache.kafka.common.errors.TimeoutException("Kafka broker unreachable");
+        RuntimeException fakeException = new TimeoutException("Kafka broker unreachable");
         kafkaCircuitBreaker.onError(0, TimeUnit.MILLISECONDS, fakeException);
         
         assert(kafkaCircuitBreaker.getState() == CircuitBreaker.State.OPEN);
@@ -133,9 +136,9 @@ public class WebSocketCircuitBreakerNotificationTest {
     void testNotifyOpenCircuitBreakers_WhenReplicaIsOpen_SendsReplicaFailureAlert() {
         // Arrange: Open the Replica circuit breaker
         CircuitBreaker replicaCircuitBreaker = circuitBreakerRegistry.circuitBreaker("replica");
-        RuntimeException fakeException = new org.hibernate.exception.JDBCConnectionException(
+        RuntimeException fakeException = new JDBCConnectionException(
                 "Replica Connection Refused",
-                new java.sql.SQLException());
+                new SQLException());
         replicaCircuitBreaker.onError(0, TimeUnit.MILLISECONDS, fakeException);
         
         assert(replicaCircuitBreaker.getState() == CircuitBreaker.State.OPEN);
@@ -158,10 +161,10 @@ public class WebSocketCircuitBreakerNotificationTest {
         CircuitBreaker dbCircuitBreaker = circuitBreakerRegistry.circuitBreaker("db");
         CircuitBreaker redisCircuitBreaker = circuitBreakerRegistry.circuitBreaker("redis");
         
-        RuntimeException dbException = new org.hibernate.exception.JDBCConnectionException(
+        RuntimeException dbException = new JDBCConnectionException(
                 "DB Connection Refused",
-                new java.sql.SQLException());
-        RuntimeException redisException = new org.springframework.data.redis.RedisConnectionFailureException("Redis is down");
+                new SQLException());
+        RuntimeException redisException = new RedisConnectionFailureException("Redis is down");
         
         dbCircuitBreaker.onError(0, TimeUnit.MILLISECONDS, dbException);
         redisCircuitBreaker.onError(0, TimeUnit.MILLISECONDS, redisException);

@@ -1,5 +1,4 @@
 package com.economato.inventory.infrastructure.adapter.in.web.notification.config;
-import com.economato.inventory.domain.model.shared.SystemConfig;
 
 import com.economato.inventory.application.dto.notification.request.NotificationPurgeRequestDTO;
 import com.economato.inventory.application.dto.notification.request.NotificationsConfigRequestDTO;
@@ -7,7 +6,6 @@ import com.economato.inventory.application.dto.shared.response.ConfigAuditLogRes
 import com.economato.inventory.application.dto.notification.response.NotificationsConfigResponseDTO;
 import com.economato.inventory.application.dto.shared.response.PurgeResultResponseDTO;
 import com.economato.inventory.application.usecase.shared.SystemConfigService;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.notification.NotificationRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -24,15 +22,14 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 @Tag(name = "Configuración de Notificaciones", description = "Gestión de tipos de notificaciones y limpieza")
 public class NotificationsConfigController {
+
     private final SystemConfigService systemConfigService;
-    private final NotificationRepository notificationRepository;
 
     @GetMapping("/")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Obtener configuración de notificaciones")
     public ResponseEntity<NotificationsConfigResponseDTO> get() {
-        var c = systemConfigService.getConfigEntity();
-        return ResponseEntity.ok(toDto(c));
+        return ResponseEntity.ok(systemConfigService.getNotificationsConfigDto());
     }
 
     @PutMapping("/")
@@ -40,16 +37,14 @@ public class NotificationsConfigController {
     @Operation(summary = "Actualizar configuración de notificaciones")
     public ResponseEntity<NotificationsConfigResponseDTO> update(@Valid @RequestBody NotificationsConfigRequestDTO request,
                                                                  Authentication authentication) {
-        var c = systemConfigService.updateNotificationsConfig(request, authentication.getName());
-        return ResponseEntity.ok(toDto(c));
+        return ResponseEntity.ok(systemConfigService.updateNotificationsConfigDto(request, authentication.getName()));
     }
 
     @DeleteMapping("/logs")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Purgar notificaciones leídas")
     public ResponseEntity<PurgeResultResponseDTO> purge(@RequestBody(required = false) NotificationPurgeRequestDTO request) {
-        int deleted = systemConfigService.purgeReadNotifications(request == null ? null : request.getFrom(), request == null ? null : request.getTo());
-        return ResponseEntity.ok(PurgeResultResponseDTO.builder().deletedCount(deleted).build());
+        return ResponseEntity.ok(systemConfigService.purgeReadNotificationsDto(request));
     }
 
     @GetMapping("/audit-log")
@@ -57,26 +52,5 @@ public class NotificationsConfigController {
     @Operation(summary = "Historial de cambios de notificaciones")
     public ResponseEntity<Page<ConfigAuditLogResponseDTO>> auditLog(Pageable pageable) {
         return ResponseEntity.ok(systemConfigService.getAuditByCategoryDto("NOTIFICATIONS", pageable));
-    }
-
-    private NotificationsConfigResponseDTO toDto(SystemConfig c) {
-        return NotificationsConfigResponseDTO.builder()
-                .notifyWeeklyPlanCreated(c.isNotifyWeeklyPlanCreated())
-                .notifyWeeklyPlanActivated(c.isNotifyWeeklyPlanActivated())
-                .notifyWeeklyPlanSlotConfirmed(c.isNotifyWeeklyPlanSlotConfirmed())
-                .notifyWeeklyPlanDayConfirmed(c.isNotifyWeeklyPlanDayConfirmed())
-                .notifyWeeklyPlanCompleted(c.isNotifyWeeklyPlanCompleted())
-                .notifyWeeklyPlanCancelled(c.isNotifyWeeklyPlanCancelled())
-                .notifyFoodCrisisActivated(c.isNotifyFoodCrisisActivated())
-                .notifyFoodCrisisLifted(c.isNotifyFoodCrisisLifted())
-                .notifyStockPredictionTriggered(c.isNotifyStockPredictionTriggered())
-                .notifyIncidentCreated(c.isNotifyIncidentCreated())
-                .notifyIncidentOpened(c.isNotifyIncidentOpened())
-                .notifyIncidentClosed(c.isNotifyIncidentClosed())
-                .notifyIncidentChatMessage(c.isNotifyIncidentChatMessage())
-                .notificationRetentionDays(c.getNotificationRetentionDays())
-                .notificationAutoCleanupEnabled(c.isNotificationAutoCleanupEnabled())
-                .totalNotificationCount(notificationRepository.count())
-                .build();
     }
 }

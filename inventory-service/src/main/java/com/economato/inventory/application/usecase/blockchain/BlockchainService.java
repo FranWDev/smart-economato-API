@@ -1,5 +1,14 @@
 package com.economato.inventory.application.usecase.blockchain;
 import com.economato.inventory.application.usecase.shared.MerkleTreeService;
+import com.economato.inventory.application.dto.blockchain.response.BlockchainStatsResponseDTO;
+import com.economato.inventory.application.dto.blockchain.response.BlockchainVerificationResponseDTO;
+import com.economato.inventory.application.dto.ledger.response.LedgerBlockResponseDTO;
+import com.economato.inventory.application.dto.ledger.response.StockLedgerResponseDTO;
+import com.economato.inventory.application.mapper.ledger.StockLedgerMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -68,6 +77,7 @@ public class BlockchainService {
     private final TransactionTemplate readTx;
     private final TransactionTemplate writeTx;
     private final I18nService i18nService;
+    private final StockLedgerMapper stockLedgerMapper;
 
     public BlockchainService(
             LedgerBlockRepository blockRepository,
@@ -81,6 +91,7 @@ public class BlockchainService {
             PlatformTransactionManager txManager,
             MeterRegistry meterRegistry,
             I18nService i18nService,
+            StockLedgerMapper stockLedgerMapper,
             Optional<AuditEventProducer> auditEventProducer) {
         this.i18nService = i18nService;
         this.blockRepository = blockRepository;
@@ -91,6 +102,7 @@ public class BlockchainService {
         this.merkleVerificationService = merkleVerificationService;
         this.ledgerProperties = ledgerProperties;
         this.blockchainProperties = blockchainProperties;
+        this.stockLedgerMapper = stockLedgerMapper;
         this.auditEventProducer = auditEventProducer;
 
         this.readTx = new TransactionTemplate(txManager);
@@ -278,6 +290,69 @@ public class BlockchainService {
             log.info("Sealed block #{} hash={} txCount={}",
                     savedBlock.getBlockNumber(), savedBlock.getBlockHash(), savedBlock.getTransactionCount());
         });
+    }
+
+    @Transactional(readOnly = true)
+    public BlockchainVerificationResponseDTO verifyBlockchain() {
+        boolean valid = verifyBlockchainIntegrity();
+        long blockCount = blockRepository.count();
+        long pendingTransactions = ledgerRepository.countByBlockIsNull();
+        LedgerBlock latestBlock = blockRepository.findTopByOrderByBlockNumberDesc().orElse(null);
+
+        return BlockchainVerificationResponseDTO.builder()
+                .valid(valid)
+                .message(valid ? "Blockchain íntegra" : "Blockchain con inconsistencias")
+                .blockCount(blockCount)
+                .pendingTransactions(pendingTransactions)
+                .latestBlockNumber(latestBlock != null ? latestBlock.getBlockNumber() : null)
+                .latestBlockHash(latestBlock != null ? latestBlock.getBlockHash() : null)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public BlockchainStatsResponseDTO getStats() {
+        LedgerBlock latestBlock = blockRepository.findTopByOrderByBlockNumberDesc().orElse(null);
+        boolean valid = verifyBlockchainIntegrity();
+
+        return BlockchainStatsResponseDTO.builder()
+                .blockCount(blockRepository.count())
+                .pendingTransactions(ledgerRepository.countByBlockIsNull())
+                .latestBlockNumber(latestBlock != null ? latestBlock.getBlockNumber() : null)
+                .latestBlockHash(latestBlock != null ? latestBlock.getBlockHash() : null)
+                .valid(valid)
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<LedgerBlockResponseDTO> getBlocks(Pageable pageable) {
+        return blockRepository.findAll(pageable).map(this::toDto);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<LedgerBlockResponseDTO> getBlock(Long blockNumber) {
+        return blockRepository.findByBlockNumber(blockNumber)
+                .map(this::toDto);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<StockLedgerResponseDTO> getMempool(Pageable pageable) {
+        List<StockLedger> pending = ledgerRepository.findPendingTransactionsOrderByIdAsc(pageable);
+        long total = ledgerRepository.countByBlockIsNull();
+        return new PageImpl<>(pending.stream()
+                .map(stockLedgerMapper::toDTO)
+                .toList(), pageable, total);
+    }
+
+    private LedgerBlockResponseDTO toDto(LedgerBlock block) {
+        return LedgerBlockResponseDTO.builder()
+                .blockNumber(block.getBlockNumber())
+                .previousBlockHash(block.getPreviousBlockHash())
+                .merkleRoot(block.getMerkleRoot())
+                .blockHash(block.getBlockHash())
+                .timestamp(block.getTimestamp())
+                .transactionCount(block.getTransactionCount())
+                .hmacKeyVersion(block.getHmacKeyVersion())
+                .build();
     }
 
     private String hmacSha256(String data) {

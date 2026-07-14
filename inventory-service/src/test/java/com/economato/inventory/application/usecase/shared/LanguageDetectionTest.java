@@ -1,34 +1,20 @@
 package com.economato.inventory.application.usecase.shared;
-import com.economato.inventory.application.usecase.ai.AiChatService;
-import com.economato.inventory.application.usecase.ai.AiKeyVaultService;
-import com.economato.inventory.application.usecase.ai.AiRateLimitService;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import org.mockito.Mock;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.when;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.economato.inventory.application.dto.mcp.mcp.McpChatCreateRequest;
 import com.economato.inventory.application.dto.mcp.mcp.McpChatMessageRequest;
 import com.economato.inventory.application.dto.shared.mcp.NestCompletionRequest;
 import com.economato.inventory.application.dto.shared.mcp.ToolCallInfo;
-import com.economato.inventory.application.usecase.smg.shared.SemanticMemoryGraphService;
+import com.economato.inventory.application.usecase.ai.AiChatService;
+import com.economato.inventory.application.usecase.ai.AiKeyVaultService;
+import com.economato.inventory.application.usecase.ai.AiRateLimitService;
 import com.economato.inventory.application.usecase.smg.model.shared.CompressedContext;
+import com.economato.inventory.application.usecase.smg.shared.SemanticMemoryGraphService;
 import com.economato.inventory.domain.model.ai.AiChat;
 import com.economato.inventory.domain.model.ai.AiChatMessage;
 import com.economato.inventory.domain.model.ai.AiChatStatus;
@@ -41,10 +27,21 @@ import com.economato.inventory.infrastructure.config.ai.ai.AiChatProperties;
 import com.economato.inventory.infrastructure.config.ai.ai.AiNestProperties;
 import com.economato.inventory.infrastructure.config.ai.ai.AiProviderProperties;
 import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
-
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @ExtendWith(MockitoExtension.class)
 class LanguageDetectionTest {
@@ -141,7 +138,7 @@ class LanguageDetectionTest {
 
         assertNotNull(emitter);
         ArgumentCaptor<NestCompletionRequest> requestCaptor = ArgumentCaptor.forClass(NestCompletionRequest.class);
-        org.mockito.Mockito.verify(nestStreamBridgeService, timeout(1500)).streamCompletion(requestCaptor.capture(), any(), eq("jwt"));
+        Mockito.verify(nestStreamBridgeService, timeout(1500)).streamCompletion(requestCaptor.capture(), any(), eq("jwt"));
         assertEquals("en", requestCaptor.getValue().userLanguage());
     }
 
@@ -161,7 +158,7 @@ class LanguageDetectionTest {
         service.sendMessage(100L, new McpChatMessageRequest("hola", "xx"), "jwt");
 
         ArgumentCaptor<NestCompletionRequest> requestCaptor = ArgumentCaptor.forClass(NestCompletionRequest.class);
-        org.mockito.Mockito.verify(nestStreamBridgeService, timeout(1500)).streamCompletion(requestCaptor.capture(), any(), eq("jwt"));
+        Mockito.verify(nestStreamBridgeService, timeout(1500)).streamCompletion(requestCaptor.capture(), any(), eq("jwt"));
         assertEquals("es", requestCaptor.getValue().userLanguage());
     }
 

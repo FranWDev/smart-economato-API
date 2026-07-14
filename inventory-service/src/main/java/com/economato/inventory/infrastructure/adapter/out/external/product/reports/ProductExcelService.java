@@ -1,10 +1,15 @@
 package com.economato.inventory.infrastructure.adapter.out.external.product.reports;
 
+import com.economato.inventory.application.dto.product.projection.ProductProjection;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-
+import java.util.Objects;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -22,12 +27,6 @@ import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.economato.inventory.application.dto.product.projection.ProductProjection;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 
 @Service
 public class ProductExcelService {
@@ -132,7 +131,7 @@ public class ProductExcelService {
         }
         LocalDate nearest = productBatchRepository.findActiveByProductIdOrderByExpiration(productId).stream()
                 .map(batch -> batch.getExpirationDate())
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .findFirst()
                 .orElse(null);
         return nearest != null ? nearest.toString() : "";

@@ -1,24 +1,22 @@
 package com.economato.inventory.application.usecase.shared;
 
-import org.springframework.stereotype.Service;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.economato.inventory.application.dto.shared.RestPage;
 import com.economato.inventory.application.dto.shared.response.InventoryMovementResponseDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
 import com.economato.inventory.application.mapper.shared.InventoryMovementMapper;
 import com.economato.inventory.domain.model.shared.InventoryAudit;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.shared.InventoryAuditRepository;
-
 import com.economato.inventory.infrastructure.adapter.out.persistence.specification.shared.InventoryAuditSpecifications;
-import org.springframework.data.jpa.domain.Specification;
-
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
@@ -62,8 +60,8 @@ public class InventoryAuditService {
     }
 
     @Transactional(readOnly = true)
-    public List<InventoryMovementResponseDTO> findByMovementDateBetween(java.time.LocalDateTime start,
-            java.time.LocalDateTime end) {
+    public List<InventoryMovementResponseDTO> findByMovementDateBetween(LocalDateTime start,
+            LocalDateTime end) {
         return repository.findProjectedByMovementDateBetween(start, end).stream()
                 .map(inventoryMovementMapper::toResponseDTO)
                 .toList();
@@ -71,7 +69,7 @@ public class InventoryAuditService {
 
     @Transactional(readOnly = true)
     public Page<InventoryMovementResponseDTO> findFiltered(
-            java.time.LocalDateTime start, java.time.LocalDateTime end, String type, String productName, Pageable pageable) {
+            LocalDateTime start, LocalDateTime end, String type, String productName, Pageable pageable) {
         
         Specification<InventoryAudit> spec = (root, query, cb) -> cb.conjunction();
         

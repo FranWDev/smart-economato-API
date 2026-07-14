@@ -1,26 +1,30 @@
 package com.economato.inventory.infrastructure.config.ai.database;
 
-import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.config.shared.security.JwtUtils;
-import com.economato.inventory.application.usecase.user.CustomUserDetailsService;
-import com.economato.inventory.application.usecase.stock.AlertMessage;
-import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
-import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.transaction.annotation.Transactional;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+
+import com.economato.inventory.application.usecase.stock.AlertMessage;
+import com.economato.inventory.application.usecase.user.CustomUserDetailsService;
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.config.shared.security.JwtUtils;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import java.sql.SQLException;
+import java.util.concurrent.TimeUnit;
+import org.hibernate.exception.JDBCConnectionException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Integration test to verify that when the replica database fails,
@@ -73,13 +77,13 @@ public class DataSourceReplicaFailoverIntegrationTest {
         CircuitBreaker dbCb = circuitBreakerRegistry.circuitBreaker("db");
         
         // Simulate multiple connection failures
-        RuntimeException connectionError = new org.springframework.dao.DataAccessResourceFailureException(
+        RuntimeException connectionError = new DataAccessResourceFailureException(
                 "Connection refused"
         );
         
         // The circuit breaker is configured with minimum-number-of-calls=1 and failure-rate-threshold=50
         // With sliding-window-size=2, after 1 failure the circuit should open
-        dbCb.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS, connectionError);
+        dbCb.onError(0, TimeUnit.MILLISECONDS, connectionError);
         
         assertEquals(CircuitBreaker.State.OPEN, dbCb.getState());
         
@@ -98,11 +102,11 @@ public class DataSourceReplicaFailoverIntegrationTest {
         assertEquals(CircuitBreaker.State.CLOSED, dbCb.getState());
         
         // Simulate failure
-        RuntimeException error = new org.hibernate.exception.JDBCConnectionException(
+        RuntimeException error = new JDBCConnectionException(
                 "Connection error",
-                new java.sql.SQLException()
+                new SQLException()
         );
-        dbCb.onError(0, java.util.concurrent.TimeUnit.MILLISECONDS, error);
+        dbCb.onError(0, TimeUnit.MILLISECONDS, error);
         
         // Should be open
         assertEquals(CircuitBreaker.State.OPEN, dbCb.getState());

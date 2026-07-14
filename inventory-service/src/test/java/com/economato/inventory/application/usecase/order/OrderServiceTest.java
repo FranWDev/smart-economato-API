@@ -59,9 +59,9 @@ import com.economato.inventory.domain.model.order.OrderStatus;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.ledger.StockLedger;
 import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.order.OrderReceptionAlreadyProcessedException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.order.exception.OrderReceptionAlreadyProcessedException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.order.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.SupplierRepository;
@@ -197,7 +197,9 @@ class OrderServiceTest {
                 stockLedgerService,
                 productBatchService,
                 orderReviewLockService,
-                environment);
+                environment,
+                new OrderValidator(i18nService, null, orderReviewLockService),
+                null);
     }
 
     @Test
@@ -311,6 +313,7 @@ class OrderServiceTest {
     @Test
     void deleteById_ShouldCallRepository() {
 
+        when(repository.existsById(1)).thenReturn(true);
         doNothing().when(repository).deleteById(1);
 
         orderService.deleteById(1);

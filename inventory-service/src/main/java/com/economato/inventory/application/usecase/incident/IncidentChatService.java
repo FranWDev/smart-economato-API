@@ -7,7 +7,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -15,6 +14,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,6 +24,7 @@ import com.economato.inventory.application.dto.shared.RestPage;
 import com.economato.inventory.application.dto.shared.response.ChatReadReceiptBroadcastDTO;
 import com.economato.inventory.application.dto.incident.response.IncidentChatMessageResponseDTO;
 import com.economato.inventory.application.dto.incident.response.IncidentChatTypingResponseDTO;
+import com.economato.inventory.application.dto.incident.response.AttachmentDownloadDTO;
 import com.economato.inventory.application.mapper.incident.IncidentChatMessageMapper;
 import com.economato.inventory.application.mapper.incident.IncidentChatReadReceiptMapper;
 import com.economato.inventory.domain.model.incident.Incident;
@@ -30,17 +32,19 @@ import com.economato.inventory.domain.model.incident.IncidentChatMessage;
 import com.economato.inventory.domain.model.incident.IncidentChatReadReceipt;
 import com.economato.inventory.domain.model.incident.IncidentStatus;
 import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentChatMessageRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentChatReadReceiptRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentRepository;
 import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @Transactional(rollbackFor = Exception.class)
+@RequiredArgsConstructor
 public class IncidentChatService {
 
     private static final int MAX_CHAT_CONTENT_LENGTH = 5000;
@@ -58,30 +62,6 @@ public class IncidentChatService {
     private final I18nService i18nService;
     private final SystemConfigService systemConfigService;
 
-    public IncidentChatService(IncidentRepository incidentRepository,
-            IncidentChatMessageRepository incidentChatMessageRepository,
-            IncidentChatReadReceiptRepository readReceiptRepository,
-            SecurityContextHelper securityContextHelper,
-            IncidentParticipantService incidentParticipantService,
-            IncidentChatMessageMapper incidentChatMessageMapper,
-            IncidentChatReadReceiptMapper readReceiptMapper,
-            FileStorageService fileStorageService,
-            PersistentNotificationService persistentNotificationService,
-            SimpMessagingTemplate messagingTemplate,
-            I18nService i18nService) {
-        this.incidentRepository = incidentRepository;
-        this.incidentChatMessageRepository = incidentChatMessageRepository;
-        this.readReceiptRepository = readReceiptRepository;
-        this.securityContextHelper = securityContextHelper;
-        this.incidentParticipantService = incidentParticipantService;
-        this.incidentChatMessageMapper = incidentChatMessageMapper;
-        this.readReceiptMapper = readReceiptMapper;
-        this.fileStorageService = fileStorageService;
-        this.persistentNotificationService = persistentNotificationService;
-        this.messagingTemplate = messagingTemplate;
-        this.i18nService = i18nService;
-        this.systemConfigService = null;
-    }
 
 
     public IncidentChatMessageResponseDTO sendMessage(Long incidentId, String content, MultipartFile file) {
@@ -164,7 +144,7 @@ public class IncidentChatService {
     }
 
     @Transactional
-    public void markMessagesAsRead(Long incidentId) {
+    public Void markMessagesAsRead(Long incidentId) {
         Incident incident = getIncidentOrThrow(incidentId);
         User currentUser = getCurrentUserOrThrow();
         ensureParticipant(incident, currentUser);
@@ -172,17 +152,18 @@ public class IncidentChatService {
         IncidentChatMessage lastMessage = incidentChatMessageRepository.findTopByIncidentIdOrderByIdDesc(incidentId)
                 .orElse(null);
         if (lastMessage == null) {
-            return;
+            return null;
         }
 
         Optional<IncidentChatReadReceipt> existingReceipt = readReceiptRepository.findByIncidentIdAndUserId(incidentId, currentUser.getId());
         if (existingReceipt.isPresent() && existingReceipt.get().getLastReadMessageId() >= lastMessage.getId()) {
-            return;
+            return null;
         }
 
         IncidentChatReadReceipt receipt = saveOrUpdateReadReceipt(incident, currentUser, lastMessage.getId());
         ChatReadReceiptBroadcastDTO broadcastDTO = readReceiptMapper.toBroadcastDTO(receipt, incidentId);
         messagingTemplate.convertAndSend("/topic/incidents/" + incidentId + "/chat/read-receipts", broadcastDTO);
+        return null;
     }
 
     @Transactional(readOnly = true)
@@ -215,6 +196,60 @@ public class IncidentChatService {
         }
 
         return fileStorageService.load(message.getAttachmentUrl());
+    }
+
+    @Transactional(readOnly = true)
+    public AttachmentDownloadDTO getAttachmentDownload(Long incidentId, Long messageId) {
+        IncidentChatMessageResponseDTO message = getMessage(incidentId, messageId);
+        Resource resource = downloadAttachment(incidentId, messageId);
+
+        String filename = message.getAttachmentFilename() != null ? message.getAttachmentFilename() : "attachment";
+        String contentType = "application/octet-stream";
+        if (message.getAttachmentContentType() != null && !message.getAttachmentContentType().isBlank()) {
+            contentType = message.getAttachmentContentType();
+        }
+
+        return AttachmentDownloadDTO.builder()
+                .resource(resource)
+                .filename(filename)
+                .contentType(contentType)
+                .build();
+    }
+
+    public Void sendChatMessageWebSocket(Long incidentId, String content, Authentication authentication) {
+        withAuthentication(authentication, () -> this.sendMessage(incidentId, content, null));
+        return null;
+    }
+
+    public Void markMessagesAsReadWebSocket(Long incidentId, Authentication authentication) {
+        withAuthentication(authentication, () -> this.markMessagesAsRead(incidentId));
+        return null;
+    }
+
+    public Void broadcastTypingWebSocket(Long incidentId, boolean typing, Authentication authentication) {
+        withAuthentication(authentication, () -> this.broadcastTyping(incidentId, typing));
+        return null;
+    }
+
+    private void withAuthentication(Authentication authentication, Runnable action) {
+        if (authentication == null || authentication.getAuthorities() == null || authentication.getAuthorities().stream().noneMatch(authority ->
+                "ROLE_ADMIN".equals(authority.getAuthority())
+                        || "ROLE_CHEF".equals(authority.getAuthority())
+                        || "ROLE_ELEVATED".equals(authority.getAuthority()))) {
+            throw new AccessDeniedException("Forbidden");
+        }
+
+        Authentication previous = SecurityContextHolder.getContext().getAuthentication();
+        try {
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            action.run();
+        } finally {
+            if (previous != null) {
+                SecurityContextHolder.getContext().setAuthentication(previous);
+            } else {
+                SecurityContextHolder.clearContext();
+            }
+        }
     }
 
     @Transactional(readOnly = true)
@@ -283,4 +318,5 @@ public class IncidentChatService {
             return MAX_CHAT_CONTENT_LENGTH;
         }
     }
+
 }

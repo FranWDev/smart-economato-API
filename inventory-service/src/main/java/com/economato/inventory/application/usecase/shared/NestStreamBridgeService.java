@@ -1,22 +1,5 @@
 package com.economato.inventory.application.usecase.shared;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
-
 import com.economato.inventory.application.dto.ai.event.AiAuditEvent;
 import com.economato.inventory.application.dto.shared.mcp.NestCompletionRequest;
 import com.economato.inventory.application.dto.shared.mcp.NestStreamEvent;
@@ -27,14 +10,29 @@ import com.economato.inventory.infrastructure.config.ai.ai.AiNestProperties;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @Slf4j
 @Service
@@ -168,7 +166,7 @@ public class NestStreamBridgeService {
                                 log.debug("Nest tool call received: tool={}, provider={}", toolName,
                                         request.provider());
                                 emitter.send(SseEmitter.event().name("tool_called")
-                                        .data(objectMapper.writeValueAsString(java.util.Map.of("toolName", toolName)),
+                                        .data(objectMapper.writeValueAsString(Map.of("toolName", toolName)),
                                                 MediaType.APPLICATION_JSON));
                                 toolCalls.add(new ToolCallInfo(toolName, null, null));
                             } else if (EVENT_THINKING.equals(event.type())

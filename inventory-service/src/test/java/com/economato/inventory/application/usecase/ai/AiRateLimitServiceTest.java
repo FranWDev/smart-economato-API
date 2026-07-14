@@ -1,20 +1,5 @@
 package com.economato.inventory.application.usecase.ai;
 
-import com.economato.inventory.domain.model.ai.AiChatStatus;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ai.AiChatMessageRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ai.AiChatRepository;
-import com.economato.inventory.infrastructure.config.ai.ai.AiRateLimitProperties;
-import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ZSetOperations;
-
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -22,11 +7,27 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.lenient;
+
+import com.economato.inventory.domain.model.ai.AiChatStatus;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ai.AiChatMessageRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ai.AiChatRepository;
+import com.economato.inventory.infrastructure.config.ai.ai.AiRateLimitProperties;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.ZSetOperations;
 
 @ExtendWith(MockitoExtension.class)
 class AiRateLimitServiceTest {
@@ -130,7 +131,7 @@ class AiRateLimitServiceTest {
         service.recordRequest(10);
 
         verify(zSetOperations).add(anyString(), anyString(), anyDouble());
-        verify(stringRedisTemplate).expire(anyString(), eq(2L), eq(java.util.concurrent.TimeUnit.MINUTES));
+        verify(stringRedisTemplate).expire(anyString(), eq(2L), eq(TimeUnit.MINUTES));
     }
 
     @Test

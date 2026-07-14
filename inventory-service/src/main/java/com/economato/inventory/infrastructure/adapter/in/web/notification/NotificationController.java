@@ -1,5 +1,4 @@
 package com.economato.inventory.infrastructure.adapter.in.web.notification;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
 
 import com.economato.inventory.application.dto.notification.request.SendNotificationRequestDTO;
 import com.economato.inventory.application.dto.notification.response.NotificationResponseDTO;
@@ -7,9 +6,6 @@ import com.economato.inventory.application.dto.notification.response.Notificatio
 import com.economato.inventory.application.usecase.notification.PersistentNotificationService;
 import com.economato.inventory.domain.model.notification.NotificationType;
 import com.economato.inventory.domain.model.user.Role;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -25,7 +21,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/notifications")
@@ -34,8 +29,6 @@ import java.util.List;
 public class NotificationController {
 
     private final PersistentNotificationService persistentNotificationService;
-    private final UserRepository userRepository;
-    private final I18nService i18nService;
 
     @PostMapping("/role/{role}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -45,8 +38,7 @@ public class NotificationController {
             @PathVariable Role role,
             @RequestParam String title,
             @RequestParam String message) {
-        persistentNotificationService.sendManualNotification(new SendNotificationRequestDTO(title, message, null, role));
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(persistentNotificationService.sendToRole(role, title, message));
     }
 
     @PostMapping("/user/{username}")
@@ -57,15 +49,7 @@ public class NotificationController {
             @PathVariable String username,
             @RequestParam String title,
             @RequestParam String message) {
-        Integer recipientId = userRepository.findByName(username)
-                .or(() -> userRepository.findByUser(username))
-                .map(user -> user.getId())
-                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND,
-                        new Object[] {username})));
-
-        persistentNotificationService.sendManualNotification(
-                new SendNotificationRequestDTO(title, message, List.of(recipientId), null));
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(persistentNotificationService.sendToUser(username, title, message));
     }
 
     @PostMapping("/send")
@@ -73,8 +57,7 @@ public class NotificationController {
     @Operation(summary = "Enviar notificación manual", description = "Envía una notificación manual persistida y push WebSocket a destinatarios por ids, rol o todos.")
     @ApiResponse(responseCode = "200", description = "Notificación enviada correctamente")
     public ResponseEntity<Void> sendManualNotification(@Valid @RequestBody SendNotificationRequestDTO request) {
-        persistentNotificationService.sendManualNotification(request);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(persistentNotificationService.sendManualNotification(request));
     }
 
     @GetMapping
@@ -103,8 +86,7 @@ public class NotificationController {
     @Operation(summary = "Marcar como leída", description = "Marca como leída una notificación propia.")
     @ApiResponse(responseCode = "204", description = "Notificación marcada como leída")
     public ResponseEntity<Void> markAsRead(@PathVariable Long id) {
-        persistentNotificationService.markAsRead(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(204).body(persistentNotificationService.markAsRead(id));
     }
 
     @PatchMapping("/read-all")
@@ -112,8 +94,7 @@ public class NotificationController {
     @Operation(summary = "Marcar todas como leídas", description = "Marca como leídas todas las notificaciones propias.")
     @ApiResponse(responseCode = "204", description = "Notificaciones marcadas como leídas")
     public ResponseEntity<Void> markAllAsRead() {
-        persistentNotificationService.markAllAsRead();
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(204).body(persistentNotificationService.markAllAsRead());
     }
 
     @DeleteMapping("/{id}")
@@ -121,8 +102,7 @@ public class NotificationController {
     @Operation(summary = "Eliminar notificación", description = "Realiza soft-delete de una notificación propia.")
     @ApiResponse(responseCode = "204", description = "Notificación eliminada")
     public ResponseEntity<Void> deleteNotification(@PathVariable Long id) {
-        persistentNotificationService.deleteNotification(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(204).body(persistentNotificationService.deleteNotification(id));
     }
 
     @DeleteMapping("/group/{groupId}")
@@ -130,7 +110,6 @@ public class NotificationController {
     @Operation(summary = "Eliminar envío manual por grupo", description = "Marca como eliminadas por emisor todas las notificaciones manuales del grupo generado en un push masivo.")
     @ApiResponse(responseCode = "204", description = "Grupo eliminado")
     public ResponseEntity<Void> deleteManualNotificationGroup(@PathVariable String groupId) {
-        persistentNotificationService.deleteManualNotificationGroup(groupId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(204).body(persistentNotificationService.deleteManualNotificationGroup(groupId));
     }
 }

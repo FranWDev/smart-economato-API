@@ -10,7 +10,8 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -32,8 +33,8 @@ import com.economato.inventory.domain.model.user.Role;
 import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.domain.model.weeklyplan.WeeklyPlan;
 import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlot;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.notification.NotificationRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.specification.notification.NotificationSpecifications;
@@ -46,6 +47,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @Transactional(rollbackFor = Exception.class)
+@RequiredArgsConstructor
 public class PersistentNotificationService {
 
     private final NotificationRepository notificationRepository;
@@ -54,22 +56,7 @@ public class PersistentNotificationService {
     private final SecurityContextHelper securityContextHelper;
     private final RoleNotificationService roleNotificationService;
     private final I18nService i18nService;
-    private final SystemConfigService systemConfigService;
-
-    public PersistentNotificationService(NotificationRepository notificationRepository,
-                                        NotificationMapper notificationMapper,
-                                        UserRepository userRepository,
-                                        SecurityContextHelper securityContextHelper,
-                                        RoleNotificationService roleNotificationService,
-                                        I18nService i18nService) {
-        this.notificationRepository = notificationRepository;
-        this.notificationMapper = notificationMapper;
-        this.userRepository = userRepository;
-        this.securityContextHelper = securityContextHelper;
-        this.roleNotificationService = roleNotificationService;
-        this.i18nService = i18nService;
-        this.systemConfigService = null;
-    }
+    private final ObjectProvider<SystemConfigService> systemConfigServiceProvider;
 
     public Notification createNotification(User recipient,
                                            User sender,
@@ -98,9 +85,10 @@ public class PersistentNotificationService {
                                   String message,
                                   Long referenceId,
                                   List<User> recipients) {
-        if (type != NotificationType.MANUAL && systemConfigService != null) {
+        SystemConfigService systemConfig = systemConfigServiceProvider.getIfAvailable();
+        if (type != NotificationType.MANUAL && systemConfig != null) {
             try {
-                if (!systemConfigService.isNotificationTypeEnabled(type)) {
+                if (!systemConfig.isNotificationTypeEnabled(type)) {
                     return;
                 }
             } catch (Exception ignored) {
@@ -137,7 +125,7 @@ public class PersistentNotificationService {
         sendWebSocketNotifications(notifications);
     }
 
-    public void sendManualNotification(SendNotificationRequestDTO request) {
+    public Void sendManualNotification(SendNotificationRequestDTO request) {
         User sender = getCurrentUserOrThrow();
 
         if (request.getRecipientIds() != null && request.getRecipientIds().isEmpty() && request.getTargetRole() == null) {
@@ -184,32 +172,52 @@ public class PersistentNotificationService {
 
         notificationRepository.saveAll(notifications);
         sendWebSocketNotifications(notifications);
+        return null;
     }
 
-    public void markAsRead(Long notificationId) {
+    public Void sendToRole(Role role, String title, String message) {
+        sendManualNotification(new SendNotificationRequestDTO(title, message, null, role));
+        return null;
+    }
+
+    public Void sendToUser(String username, String title, String message) {
+        Integer recipientId = userRepository.findByName(username)
+                .or(() -> userRepository.findByUser(username))
+                .map(User::getId)
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND,
+                        new Object[] {username})));
+
+        sendManualNotification(new SendNotificationRequestDTO(title, message, List.of(recipientId), null));
+        return null;
+    }
+
+    public Void markAsRead(Long notificationId) {
         User currentUser = getCurrentUserOrThrow();
         Notification notification = notificationRepository.findByIdAndRecipientId(notificationId, currentUser.getId())
                 .orElseThrow(() -> buildOwnershipOrNotFound(notificationId));
 
         notification.setRead(true);
         notificationRepository.save(notification);
+        return null;
     }
 
-    public void markAllAsRead() {
+    public Void markAllAsRead() {
         User currentUser = getCurrentUserOrThrow();
         notificationRepository.markAllAsReadByRecipientId(currentUser.getId());
+        return null;
     }
 
-    public void deleteNotification(Long notificationId) {
+    public Void deleteNotification(Long notificationId) {
         User currentUser = getCurrentUserOrThrow();
         Notification notification = notificationRepository.findByIdAndRecipientId(notificationId, currentUser.getId())
                 .orElseThrow(() -> buildOwnershipOrNotFound(notificationId));
 
         notification.setDeletedByRecipient(true);
         notificationRepository.save(notification);
+        return null;
     }
 
-    public void deleteManualNotificationGroup(String groupId) {
+    public Void deleteManualNotificationGroup(String groupId) {
         User currentUser = getCurrentUserOrThrow();
         if (currentUser.getRole() != Role.ADMIN) {
             throw new AccessDeniedException(i18nService.getMessage(MessageKey.ERROR_NOTIFICATION_NOT_OWNER));
@@ -219,6 +227,7 @@ public class PersistentNotificationService {
         }
 
         notificationRepository.softDeleteManualGroupByGroupIdAndSenderId(groupId, currentUser.getId());
+        return null;
     }
 
     @Transactional(readOnly = true)

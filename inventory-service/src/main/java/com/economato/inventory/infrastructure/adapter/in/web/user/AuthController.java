@@ -1,25 +1,21 @@
 package com.economato.inventory.infrastructure.adapter.in.web.user;
 
+import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
+import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
+import com.economato.inventory.application.usecase.user.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
 import jakarta.validation.Valid;
-
-import java.util.HashMap;
 import java.util.Map;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
-import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
-import com.economato.inventory.application.usecase.user.AuthService;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -39,7 +35,7 @@ public class AuthController {
     })
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> authenticateUser(
-            @Valid @org.springframework.web.bind.annotation.RequestBody LoginRequestDTO loginRequest) {
+            @Valid @RequestBody LoginRequestDTO loginRequest) {
         LoginResponseDTO response = authService.login(loginRequest);
         return ResponseEntity.ok(response);
     }
@@ -51,16 +47,7 @@ public class AuthController {
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/validate")
     public ResponseEntity<Map<String, Object>> validateToken(Authentication authentication) {
-        Map<String, Object> response = new HashMap<>();
-
-        if (authentication != null && authentication.isAuthenticated()) {
-            response.put("valid", true);
-            response.put("username", authentication.getName());
-            return ResponseEntity.ok(response);
-        }
-
-        response.put("valid", false);
-        return ResponseEntity.status(401).body(response);
+        return ResponseEntity.ok(authService.validateToken(authentication));
     }
 
     @Operation(summary = "Obtener rol del token", description = "Devuelve el rol del usuario autenticado a partir del token JWT. [Rol requerido: USER]", security = @SecurityRequirement(name = "bearerAuth"), responses = {
@@ -70,18 +57,7 @@ public class AuthController {
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/role")
     public ResponseEntity<Map<String, String>> getUserRole(Authentication authentication) {
-        Map<String, String> response = new HashMap<>();
-
-        if (authentication != null && authentication.isAuthenticated()) {
-            String role = authentication.getAuthorities().stream()
-                    .findFirst()
-                    .map(authority -> authority.getAuthority().replace("ROLE_", ""))
-                    .orElse("USER");
-            response.put("role", role);
-            return ResponseEntity.ok(response);
-        }
-
-        return ResponseEntity.status(401).body(response);
+        return ResponseEntity.ok(authService.getUserRole(authentication));
     }
 
     @Operation(summary = "Cerrar sesión", description = "Invalida el token JWT del usuario actual, añadiéndolo a la lista negra para que no pueda ser usado nuevamente. [Rol requerido: USER]", security = @SecurityRequirement(name = "bearerAuth"), responses = {
@@ -92,17 +68,6 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Map<String, String>> logout(
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        Map<String, String> response = new HashMap<>();
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            response.put("message", "Token no proporcionado");
-            return ResponseEntity.badRequest().body(response);
-        }
-
-        String token = authHeader.substring(7);
-
-        authService.logout(token);
-        response.put("message", "Sesión cerrada exitosamente");
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(authService.logoutWithHeader(authHeader));
     }
 }

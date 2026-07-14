@@ -1,28 +1,28 @@
 package com.economato.inventory.infrastructure.adapter.in.web.shared;
 
+import static org.hamcrest.Matchers.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.domain.model.recipe.Allergen;
+import com.economato.inventory.domain.model.recipe.Recipe;
 import com.economato.inventory.domain.model.user.Role;
 import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.domain.model.recipe.Allergen;
-import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.domain.model.recipe.Recipe;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.AllergenRepository;
+import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.AllergenRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
 import com.economato.inventory.infrastructure.shared.TestDataUtil;
-import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
+import java.math.BigDecimal;
+import java.util.Arrays;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.ResultActions;
-
-import java.math.BigDecimal;
-
-import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class StatsControllerIntegrationTest extends BaseIntegrationTest {
 
@@ -149,7 +149,7 @@ class StatsControllerIntegrationTest extends BaseIntegrationTest {
         Product p1 = TestDataUtil.createProduct("Product 1", "KG", new BigDecimal("10.00"), "P1", new BigDecimal("5.0"));
         Product p2 = TestDataUtil.createProduct("Product 2", "KG", new BigDecimal("20.00"), "P2", new BigDecimal("2.0"));
         
-        productRepository.saveAllAndFlush(java.util.Arrays.asList(p1, p2));
+        productRepository.saveAllAndFlush(Arrays.asList(p1, p2));
 
         mockMvc.perform(get("/api/stats/products")
                 .header("Authorization", "Bearer " + token)

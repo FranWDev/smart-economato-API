@@ -23,7 +23,7 @@ import com.economato.inventory.domain.model.order.OrderStatus;
 import com.economato.inventory.domain.model.ledger.StockLedger;
 import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlotStatus;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
 import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import org.junit.jupiter.api.Test;

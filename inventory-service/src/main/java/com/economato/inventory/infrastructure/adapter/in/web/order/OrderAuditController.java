@@ -21,16 +21,15 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/api/order-audits")
+@RequiredArgsConstructor
 @Tag(name = "Auditoría de Órdenes", description = "Operaciones relacionadas con las auditorías de órdenes")
 public class OrderAuditController {
 
     private final OrderAuditService orderAuditService;
-
-    public OrderAuditController(OrderAuditService orderAuditService) {
-        this.orderAuditService = orderAuditService;
-    }
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
@@ -58,9 +57,7 @@ public class OrderAuditController {
     public ResponseEntity<OrderAuditResponseDTO> getById(
             @Parameter(description = "ID de la auditoría", example = "5", required = true)
             @PathVariable Integer id) {
-        return orderAuditService.findById(id)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
+        return orderAuditService.findById(id).map(ResponseEntity::ok).orElse(ResponseEntity.notFound().build());
     }
 
     @PreAuthorize("hasRole('ADMIN')")

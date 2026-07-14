@@ -26,21 +26,21 @@ public class ValidUnitController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Listar todas las unidades")
     public ResponseEntity<List<ValidUnitResponseDTO>> getAll() {
-        return ResponseEntity.ok(validUnitService.getAll().stream().map(this::map).toList());
+        return ResponseEntity.ok(validUnitService.getAllDto());
     }
 
     @GetMapping("/active")
     @PreAuthorize("isAuthenticated()")
     @Operation(summary = "Listar unidades activas")
     public ResponseEntity<List<ValidUnitResponseDTO>> getActive() {
-        return ResponseEntity.ok(validUnitService.getActive().stream().map(this::map).toList());
+        return ResponseEntity.ok(validUnitService.getActiveDto());
     }
 
     @PostMapping("/")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Crear unidad")
     public ResponseEntity<ValidUnitResponseDTO> create(@Valid @RequestBody ValidUnitRequestDTO request) {
-        return ResponseEntity.ok(map(validUnitService.create(request.getCode(), request.getCategory())));
+        return ResponseEntity.ok(validUnitService.createDto(request.getCode(), request.getCategory()));
     }
 
     @PutMapping("/{id}")
@@ -48,22 +48,13 @@ public class ValidUnitController {
     @Operation(summary = "Actualizar unidad")
     public ResponseEntity<ValidUnitResponseDTO> update(@PathVariable Integer id,
                                                        @Valid @RequestBody ValidUnitRequestDTO request) {
-        return ResponseEntity.ok(map(validUnitService.update(id, request.getCode(), request.getCategory(), request.getActive())));
+        return ResponseEntity.ok(validUnitService.updateDto(id, request.getCode(), request.getCategory(), request.getActive()));
     }
 
     @PatchMapping("/{id}/toggle")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Activar/desactivar unidad")
     public ResponseEntity<ValidUnitResponseDTO> toggle(@PathVariable Integer id) {
-        return ResponseEntity.ok(map(validUnitService.toggleActive(id)));
-    }
-
-    private ValidUnitResponseDTO map(ValidUnit v) {
-        return ValidUnitResponseDTO.builder()
-                .id(v.getId())
-                .code(v.getCode())
-                .category(v.getCategory())
-                .active(v.isActive())
-                .build();
+        return ResponseEntity.ok(validUnitService.toggleActiveDto(id));
     }
 }

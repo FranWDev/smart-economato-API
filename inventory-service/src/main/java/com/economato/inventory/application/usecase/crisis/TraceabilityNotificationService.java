@@ -15,14 +15,14 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanRepository;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -103,7 +103,7 @@ public class TraceabilityNotificationService {
 
             List<User> uniqueRecipients = recipients.stream()
                     .collect(Collectors.toMap(User::getId, user -> user, (left, right) -> left,
-                            java.util.LinkedHashMap::new))
+                            LinkedHashMap::new))
                     .values().stream().toList();
 
             String chefName = plan.getChef() != null ? plan.getChef().getName() : "N/A";

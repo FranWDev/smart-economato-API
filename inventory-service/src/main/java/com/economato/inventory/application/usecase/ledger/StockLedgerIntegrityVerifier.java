@@ -1,9 +1,5 @@
 package com.economato.inventory.application.usecase.ledger;
 import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-
-import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
 import com.economato.inventory.domain.model.ledger.StockLedger;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.product.ProductBatch;
@@ -14,21 +10,20 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockSnapshotRepository;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -87,7 +82,7 @@ public class StockLedgerIntegrityVerifier {
         log.info("Verificando integridad del ledger para {} productos en batch", productIds.size());
 
         if (productIds.isEmpty())
-            return java.util.Collections.emptyList();
+            return Collections.emptyList();
 
         Map<Integer, Product> productsById = productRepository.findAllById(productIds).stream()
                 .collect(Collectors.toMap(Product::getId, p -> p));
@@ -101,7 +96,7 @@ public class StockLedgerIntegrityVerifier {
         for (Integer productId : productIds) {
             Product product = productsById.get(productId);
             String productName = product != null ? product.getName() : "Desconocido";
-            List<StockLedger> chain = chainsByProduct.getOrDefault(productId, java.util.Collections.emptyList());
+            List<StockLedger> chain = chainsByProduct.getOrDefault(productId, Collections.emptyList());
 
             if (chain.isEmpty()) {
                 results.add(new IntegrityCheckResult(productId, productName, true,
@@ -126,8 +121,8 @@ public class StockLedgerIntegrityVerifier {
                     errors.add(error);
                 }
 
-                BigDecimal normalizedDelta = tx.getQuantityDelta().setScale(3, java.math.RoundingMode.HALF_UP);
-                BigDecimal normalizedStock = tx.getResultingStock().setScale(3, java.math.RoundingMode.HALF_UP);
+                BigDecimal normalizedDelta = tx.getQuantityDelta().setScale(3, RoundingMode.HALF_UP);
+                BigDecimal normalizedStock = tx.getResultingStock().setScale(3, RoundingMode.HALF_UP);
                 LocalDateTime normalizedTimestamp = normalizeTimestamp(tx.getTransactionTimestamp());
 
                 String recalculatedHash = stockMovementRecorder.calculateTransactionHash(

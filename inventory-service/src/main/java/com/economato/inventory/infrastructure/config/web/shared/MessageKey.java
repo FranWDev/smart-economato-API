@@ -389,6 +389,8 @@ public enum MessageKey {
     ERROR_BATCH_OPERATION_REVERTED("error.batch.operation.reverted"),
     SUCCESS_USER_TRANSFER("success.user.transfer"),
     SUCCESS_USER_TOTAL_TRANSFER("success.user.total.transfer"),
+    SUCCESS_BLOCKCHAIN_SYNC("success.blockchain.sync"),
+    SUCCESS_BLOCKCHAIN_REBUILD("success.blockchain.rebuild"),
     ERROR_MCP_PLAN_SLOT_REQUIRES_FLOW("error.mcp.plan.slot.requires.flow"),
     ERROR_AUTH_ADMIN_NOT_FOUND("error.auth.admin.not.found"),
     ERROR_AUTH_FORBIDDEN("error.auth.forbidden"),
@@ -439,7 +441,13 @@ public enum MessageKey {
     REPORT_COLUMN_GROSS_QUANTITY("report.column.gross.quantity"),
     REPORT_LABEL_SELLING_PRICE("report.label.selling.price"),
     REPORT_ECONOMIC_ANALYSIS_EXPLANATION("report.economic.analysis.explanation"),
-    ERROR_BATCH_NOT_EXPIRED("error.batch.not.expired");
+    ERROR_BATCH_NOT_EXPIRED("error.batch.not.expired"),
+    SUCCESS_BATCH_MOVEMENT("success.batch.movement"),
+    
+    // Authentication success messages
+    SUCCESS_AUTH_LOGOUT("success.auth.logout");
+
+
 
     private final String key;
 

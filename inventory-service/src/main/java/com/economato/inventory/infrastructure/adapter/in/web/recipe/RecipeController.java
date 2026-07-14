@@ -33,6 +33,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+
 @RestController
 @RequestMapping("/api/recipes")
 @Tag(name = "Recetas", description = "Operaciones relacionadas con las recetas")
@@ -40,10 +44,12 @@ public class RecipeController {
 
         private final RecipeService recipeService;
         private final RecipePdfService recipePdfService;
+        private final I18nService i18nService;
 
-        public RecipeController(RecipeService recipeService, RecipePdfService recipePdfService) {
+        public RecipeController(RecipeService recipeService, RecipePdfService recipePdfService, I18nService i18nService) {
                 this.recipeService = recipeService;
                 this.recipePdfService = recipePdfService;
+                this.i18nService = i18nService;
         }
 
         @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
@@ -111,12 +117,8 @@ public class RecipeController {
         })
         public ResponseEntity<Void> delete(
                         @Parameter(description = "ID de la receta", required = true) @PathVariable Integer id) {
-                return recipeService.findById(id)
-                                .map(recipe -> {
-                                        recipeService.deleteById(id);
-                                        return ResponseEntity.noContent().<Void>build();
-                                })
-                                .orElse(ResponseEntity.notFound().build());
+                recipeService.deleteById(id);
+                return ResponseEntity.noContent().build();
         }
 
         @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
@@ -140,17 +142,17 @@ public class RecipeController {
         @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/search")
         @Operation(summary = "Buscar recetas por nombre", description = "Devuelve todas las recetas cuyo nombre contenga la cadena indicada. [Rol requerido: USER]")
-        public List<RecipeResponseDTO> searchByName(
+        public ResponseEntity<List<RecipeResponseDTO>> searchByName(
                         @Parameter(description = "Nombre a buscar", required = true) @RequestParam String name) {
-                return recipeService.findByNameContaining(name);
+                return ResponseEntity.ok(recipeService.findByNameContaining(name));
         }
 
         @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
         @GetMapping("/maxcost")
         @Operation(summary = "Buscar recetas por costo máximo", description = "Devuelve todas las recetas cuyo costo total sea menor al indicado. [Rol requerido: USER]")
-        public List<RecipeResponseDTO> findByCostLessThan(
+        public ResponseEntity<List<RecipeResponseDTO>> findByCostLessThan(
                         @Parameter(description = "Costo máximo", required = true) @RequestParam BigDecimal maxCost) {
-                return recipeService.findByCostLessThan(maxCost);
+                return ResponseEntity.ok(recipeService.findByCostLessThan(maxCost));
         }
 
         @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
@@ -205,18 +207,16 @@ public class RecipeController {
         })
         public ResponseEntity<byte[]> downloadRecipePdf(
                         @Parameter(description = "ID de la receta", required = true) @PathVariable Integer id) {
-                return recipeService.findById(id)
-                                .map(recipe -> {
-                                        byte[] pdfBytes = recipePdfService.generateRecipePdf(recipe);
-                                        HttpHeaders headers = new HttpHeaders();
-                                        headers.setContentType(MediaType.APPLICATION_PDF);
-                                        headers.setContentDisposition(ContentDisposition.attachment()
-                                                        .filename(sanitizeFilename(recipe.getName()) + ".pdf")
-                                                        .build());
-                                        headers.setContentLength(pdfBytes.length);
-                                        return ResponseEntity.ok().headers(headers).body(pdfBytes);
-                                })
-                                .orElse(ResponseEntity.<byte[]>notFound().build());
+                RecipeResponseDTO recipe = recipeService.findById(id)
+                                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
+                byte[] pdfBytes = recipePdfService.generateRecipePdf(recipe);
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_PDF);
+                headers.setContentDisposition(ContentDisposition.attachment()
+                                .filename(sanitizeFilename(recipe.getName()) + ".pdf")
+                                .build());
+                headers.setContentLength(pdfBytes.length);
+                return ResponseEntity.ok().headers(headers).body(pdfBytes);
         }
 
         private String sanitizeFilename(String filename) {
