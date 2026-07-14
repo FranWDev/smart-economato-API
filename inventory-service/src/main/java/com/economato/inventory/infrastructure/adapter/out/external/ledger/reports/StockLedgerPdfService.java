@@ -3,7 +3,7 @@ package com.economato.inventory.infrastructure.adapter.out.external.ledger.repor
 import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.ledger.response.LedgerPdfResponseDTO;
 import com.economato.inventory.application.usecase.ledger.StockLedgerService;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import com.economato.inventory.domain.model.ledger.LedgerBlock;

@@ -33,7 +33,7 @@ import com.economato.inventory.domain.model.notification.NotificationType;
 import com.economato.inventory.domain.model.shared.SystemConfig;
 import com.economato.inventory.domain.model.shared.SystemConfigAuditLog;
 import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.notification.NotificationRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.shared.SystemConfigAuditLogRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.shared.SystemConfigRepository;

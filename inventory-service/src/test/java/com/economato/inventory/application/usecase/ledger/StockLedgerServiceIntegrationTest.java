@@ -11,7 +11,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
 import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
 import com.economato.inventory.domain.model.shared.MovementType;
 import com.economato.inventory.domain.model.product.Product;

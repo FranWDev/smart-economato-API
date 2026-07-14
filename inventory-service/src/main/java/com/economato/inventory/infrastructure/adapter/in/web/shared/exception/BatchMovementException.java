@@ -1,4 +1,4 @@
-package com.economato.inventory.infrastructure.adapter.in.web.shared;
+package com.economato.inventory.infrastructure.adapter.in.web.shared.exception;
 
 import com.economato.inventory.application.dto.stock.response.BatchStockMovementResponseDTO;
 import lombok.Getter;

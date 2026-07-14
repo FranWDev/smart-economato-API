@@ -18,7 +18,7 @@ import java.util.Optional;
 
 import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
 import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
 import com.economato.inventory.infrastructure.config.shared.security.JwtUtils;
 import com.economato.inventory.application.mapper.user.UserMapper;

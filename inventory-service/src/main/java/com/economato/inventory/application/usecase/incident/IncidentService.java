@@ -42,7 +42,7 @@ import com.economato.inventory.domain.model.incident.IncidentSeverity;
 import com.economato.inventory.domain.model.incident.IncidentStatus;
 import com.economato.inventory.domain.model.user.Role;
 import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentAuditAttachmentRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentChatMessageRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentRepository;

@@ -1,5 +1,5 @@
 package com.economato.inventory.infrastructure.adapter.in.web.product;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 
 import java.util.List;
 

@@ -53,7 +53,7 @@ import com.economato.inventory.domain.model.user.GlobalApiKey;
 import com.economato.inventory.domain.model.user.MessageRole;
 import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.domain.model.user.UserApiKey;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ai.AiChatMessageRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ai.AiChatRepository;

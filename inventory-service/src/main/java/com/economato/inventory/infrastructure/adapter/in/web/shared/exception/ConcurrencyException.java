@@ -1,4 +1,4 @@
-package com.economato.inventory.infrastructure.adapter.in.web.shared;
+package com.economato.inventory.infrastructure.adapter.in.web.shared.exception;
 
 /**
  * Excepción lanzada cuando se detecta un conflicto de concurrencia

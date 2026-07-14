@@ -1,6 +1,6 @@
 package com.economato.inventory.infrastructure.adapter.in.web.stock;
 import com.economato.inventory.infrastructure.adapter.in.web.ledger.StockLedgerController;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

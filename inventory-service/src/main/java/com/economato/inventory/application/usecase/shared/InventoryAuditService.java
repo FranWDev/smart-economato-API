@@ -8,8 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.shared.RestPage;
 import com.economato.inventory.application.dto.shared.response.InventoryMovementResponseDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.application.mapper.shared.InventoryMovementMapper;
 import com.economato.inventory.domain.model.shared.InventoryAudit;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.shared.InventoryAuditRepository;

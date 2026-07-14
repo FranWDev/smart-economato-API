@@ -1,7 +1,14 @@
 package com.economato.inventory.infrastructure.adapter.in.web.shared;
 import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.infrastructure.adapter.in.web.stock.InsufficientStockException;
-import com.economato.inventory.infrastructure.adapter.in.web.stock.StockLockException;
+import com.economato.inventory.infrastructure.adapter.in.web.stock.exception.InsufficientStockException;
+import com.economato.inventory.infrastructure.adapter.in.web.stock.exception.StockLockException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.GlobalExceptionHandler;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ConcurrencyException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ErrorResponse;
+
+
 
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;

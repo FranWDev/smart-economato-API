@@ -21,8 +21,8 @@ import com.economato.inventory.application.dto.shared.response.BatchTypeaheadDTO
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.product.ProductBatch;
 import com.economato.inventory.domain.model.ledger.StockLedger;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;

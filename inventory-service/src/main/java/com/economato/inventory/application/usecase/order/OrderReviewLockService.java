@@ -22,9 +22,9 @@ import com.economato.inventory.application.dto.order.response.OrderReviewCollabo
 import com.economato.inventory.domain.model.order.OrderStatus;
 import com.economato.inventory.domain.model.user.Role;
 import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.order.OrderCollaborationFieldLockedException;
-import com.economato.inventory.infrastructure.adapter.in.web.order.OrderReviewLockedException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.order.exception.OrderCollaborationFieldLockedException;
+import com.economato.inventory.infrastructure.adapter.in.web.order.exception.OrderReviewLockedException;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;

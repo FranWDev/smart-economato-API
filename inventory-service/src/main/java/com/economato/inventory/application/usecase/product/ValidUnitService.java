@@ -1,8 +1,8 @@
 package com.economato.inventory.application.usecase.product;
 
 import com.economato.inventory.domain.model.product.ValidUnit;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ValidUnitRepository;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;

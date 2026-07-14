@@ -1,4 +1,4 @@
-package com.economato.inventory.infrastructure.adapter.in.web.stock;
+package com.economato.inventory.infrastructure.adapter.in.web.stock.exception;
 
 /**
  * Excepción lanzada cuando no se puede obtener un bloqueo

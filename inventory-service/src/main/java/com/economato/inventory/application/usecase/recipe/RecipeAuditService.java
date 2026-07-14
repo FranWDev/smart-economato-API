@@ -11,8 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.recipe.response.RecipeAuditResponseDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.application.mapper.recipe.RecipeAuditMapper;
 import com.economato.inventory.domain.model.recipe.Recipe;
 import com.economato.inventory.domain.model.recipe.RecipeAudit;

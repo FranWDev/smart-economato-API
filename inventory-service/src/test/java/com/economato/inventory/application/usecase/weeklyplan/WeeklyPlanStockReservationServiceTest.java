@@ -19,7 +19,7 @@ import com.economato.inventory.domain.model.weeklyplan.WeeklyPlan;
 import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlot;
 import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlotStatus;
 import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanStatus;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanRepository;

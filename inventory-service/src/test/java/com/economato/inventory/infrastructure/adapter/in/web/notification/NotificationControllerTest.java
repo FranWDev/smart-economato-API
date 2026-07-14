@@ -1,5 +1,5 @@
 package com.economato.inventory.infrastructure.adapter.in.web.notification;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 
 import com.economato.inventory.application.dto.notification.request.SendNotificationRequestDTO;
 import com.economato.inventory.application.dto.notification.response.NotificationResponseDTO;

@@ -13,8 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.economato.inventory.application.dto.product.request.SupplierRequestDTO;
 import com.economato.inventory.application.dto.product.response.SupplierResponseDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.application.mapper.product.SupplierMapper;
 import com.economato.inventory.domain.model.product.Supplier;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;

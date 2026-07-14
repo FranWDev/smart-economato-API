@@ -1,9 +1,15 @@
-package com.economato.inventory.infrastructure.adapter.in.web.shared;
-import com.economato.inventory.infrastructure.adapter.in.web.order.OrderCollaborationFieldLockedException;
-import com.economato.inventory.infrastructure.adapter.in.web.order.OrderReceptionAlreadyProcessedException;
-import com.economato.inventory.infrastructure.adapter.in.web.order.OrderReviewLockedException;
-import com.economato.inventory.infrastructure.adapter.in.web.stock.InsufficientStockException;
-import com.economato.inventory.infrastructure.adapter.in.web.stock.StockLockException;
+package com.economato.inventory.infrastructure.adapter.in.web.shared.exception;
+import com.economato.inventory.infrastructure.adapter.in.web.order.exception.OrderCollaborationFieldLockedException;
+import com.economato.inventory.infrastructure.adapter.in.web.order.exception.OrderReceptionAlreadyProcessedException;
+import com.economato.inventory.infrastructure.adapter.in.web.order.exception.OrderReviewLockedException;
+import com.economato.inventory.infrastructure.adapter.in.web.stock.exception.InsufficientStockException;
+import com.economato.inventory.infrastructure.adapter.in.web.stock.exception.StockLockException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ConcurrencyException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.BatchMovementException;
+
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ErrorResponse;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;

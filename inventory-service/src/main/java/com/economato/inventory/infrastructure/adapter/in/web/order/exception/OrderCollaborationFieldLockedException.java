@@ -1,4 +1,4 @@
-package com.economato.inventory.infrastructure.adapter.in.web.order;
+package com.economato.inventory.infrastructure.adapter.in.web.order.exception;
 
 import lombok.Getter;
 

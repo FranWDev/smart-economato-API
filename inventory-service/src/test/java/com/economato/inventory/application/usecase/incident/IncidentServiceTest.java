@@ -56,7 +56,7 @@ import com.economato.inventory.domain.model.recipe.Recipe;
 import com.economato.inventory.domain.model.recipe.RecipeCookingAudit;
 import com.economato.inventory.domain.model.user.Role;
 import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentAuditAttachmentRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentChatMessageRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentRepository;

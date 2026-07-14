@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
 import com.economato.inventory.domain.model.product.ValidUnit;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.SupplierRepository;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;

@@ -21,7 +21,7 @@ import com.economato.inventory.domain.model.product.ProductBatch;
 import com.economato.inventory.domain.model.recipe.RecipeCookingAudit;
 import com.economato.inventory.domain.model.product.Supplier;
 import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.crisis.CrisisAffectedProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.crisis.FoodCrisisRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.order.OrderRepository;

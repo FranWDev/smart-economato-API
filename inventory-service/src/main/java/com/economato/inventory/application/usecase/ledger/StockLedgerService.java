@@ -23,14 +23,14 @@ import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockSnapshotRepository;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.application.dto.ledger.response.StockLedgerResponseDTO;
 import com.economato.inventory.application.dto.shared.response.IntegrityCheckResponseDTO;
 import com.economato.inventory.application.dto.stock.response.StockSnapshotResponseDTO;
 import com.economato.inventory.application.dto.stock.response.BatchStockMovementResponseDTO;
 import com.economato.inventory.application.mapper.ledger.StockLedgerMapper;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.BatchMovementException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.BatchMovementException;
 
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;

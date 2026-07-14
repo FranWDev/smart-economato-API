@@ -5,7 +5,7 @@ import com.economato.inventory.application.usecase.smg.shared.TopicClusterer;
 import com.economato.inventory.application.usecase.smg.model.shared.EntityMemory;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.GlobalApiKeyRepository;
 import com.economato.inventory.application.usecase.smg.shared.DecayFunction;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.application.usecase.smg.user.TokenEstimator;
 import com.economato.inventory.application.dto.mcp.mcp.McpSystemContextDto;
 import com.economato.inventory.application.usecase.mcp.mcp.McpUtilityService;

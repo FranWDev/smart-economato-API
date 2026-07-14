@@ -11,8 +11,8 @@ import com.economato.inventory.application.dto.notification.response.Notificatio
 import com.economato.inventory.application.dto.notification.response.NotificationUnreadCountDTO;
 import com.economato.inventory.application.mapper.notification.NotificationMapper;
 
-import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.notification.NotificationRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
 import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;

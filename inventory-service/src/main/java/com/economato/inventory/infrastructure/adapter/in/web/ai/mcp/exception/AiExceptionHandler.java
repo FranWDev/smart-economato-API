@@ -1,4 +1,4 @@
-package com.economato.inventory.infrastructure.adapter.in.web.ai.mcp;
+package com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception;
 
 import java.time.LocalDateTime;
 
@@ -8,7 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import com.economato.inventory.infrastructure.adapter.in.web.shared.ErrorResponse;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ErrorResponse;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiChatLimitReachedException;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiChatNotFoundException;
 import com.economato.inventory.infrastructure.adapter.in.web.ai.mcp.exception.AiConcurrentStreamException;
