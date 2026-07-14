@@ -47,9 +47,9 @@ public class RecipeAllergenController {
             @ApiResponse(responseCode = "200", description = "Relación creada correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = RecipeAllergen.class))),
             @ApiResponse(responseCode = "400", description = "Datos inválidos o incompletos")
     })
-    public RecipeAllergen create(
+    public ResponseEntity<RecipeAllergen> create(
             @Parameter(description = "Objeto que contiene los IDs de receta y alérgeno a asociar", required = true) @RequestBody RecipeAllergen recipeAllergen) {
-        return recipeAllergenService.save(recipeAllergen);
+        return ResponseEntity.ok(recipeAllergenService.save(recipeAllergen));
     }
 
     @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
@@ -61,12 +61,8 @@ public class RecipeAllergenController {
     })
     public ResponseEntity<Void> delete(
             @Parameter(description = "ID de la relación receta-alérgeno", example = "3", required = true) @PathVariable Integer id) {
-        return recipeAllergenService.findById(id)
-                .map(existing -> {
-                    recipeAllergenService.deleteById(id);
-                    return ResponseEntity.noContent().<Void>build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+        recipeAllergenService.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
@@ -107,9 +103,8 @@ public class RecipeAllergenController {
     public ResponseEntity<Void> addAllergenToRecipe(
             @Parameter(description = "ID de la receta", required = true) @PathVariable Integer recipeId,
             @Parameter(description = "ID del alérgeno", required = true) @PathVariable Integer allergenId) {
-
-        boolean success = recipeAllergenService.addAllergenToRecipe(recipeId, allergenId);
-        return success ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
+        recipeAllergenService.addAllergenToRecipe(recipeId, allergenId);
+        return ResponseEntity.ok().build();
     }
 
     @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
@@ -122,9 +117,8 @@ public class RecipeAllergenController {
     public ResponseEntity<Void> removeAllergenFromRecipe(
             @Parameter(description = "ID de la receta", required = true) @PathVariable Integer recipeId,
             @Parameter(description = "ID del alérgeno", required = true) @PathVariable Integer allergenId) {
-
-        boolean success = recipeAllergenService.removeAllergenFromRecipe(recipeId, allergenId);
-        return success ? ResponseEntity.noContent().build() : ResponseEntity.notFound().build();
+        recipeAllergenService.removeAllergenFromRecipe(recipeId, allergenId);
+        return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
@@ -136,7 +130,6 @@ public class RecipeAllergenController {
     })
     public ResponseEntity<List<AllergenResponseDTO>> getAllergensForRecipe(
             @Parameter(description = "ID de la receta", required = true) @PathVariable Integer recipeId) {
-
         return recipeAllergenService.getAllergensForRecipe(recipeId)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

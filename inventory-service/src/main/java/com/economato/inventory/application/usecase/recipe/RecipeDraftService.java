@@ -173,6 +173,14 @@ public class RecipeDraftService {
     }
 
     @Transactional(readOnly = true)
+    public Page<RecipeDraftResponseDTO> findAll(RecipeDraftStatus status, Pageable pageable) {
+        if (status != null) {
+            return findByStatus(status, pageable);
+        }
+        return findAll(pageable);
+    }
+
+    @Transactional(readOnly = true)
     public Page<RecipeDraftResponseDTO> findByStatus(RecipeDraftStatus status, Pageable pageable) {
         return recipeDraftRepository.findByStatus(status, pageable).map(this::toResponse);
     }

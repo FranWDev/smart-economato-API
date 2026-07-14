@@ -17,6 +17,9 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeAllergenRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
 
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -29,16 +32,19 @@ public class RecipeAllergenService {
     private final RecipeRepository recipeRepository;
     private final AllergenRepository allergenRepository;
     private final AllergenMapper allergenMapper;
+    private final I18nService i18nService;
 
     public RecipeAllergenService(
             RecipeAllergenRepository repository,
             RecipeRepository recipeRepository,
             AllergenRepository allergenRepository,
-            AllergenMapper allergenMapper) {
+            AllergenMapper allergenMapper,
+            I18nService i18nService) {
         this.repository = repository;
         this.recipeRepository = recipeRepository;
         this.allergenRepository = allergenRepository;
         this.allergenMapper = allergenMapper;
+        this.i18nService = i18nService;
     }
 
     @Transactional(readOnly = true)
@@ -60,6 +66,9 @@ public class RecipeAllergenService {
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
+        if (!repository.existsById(id)) {
+            throw new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND));
+        }
         repository.deleteById(id);
     }
 
@@ -86,46 +95,31 @@ public class RecipeAllergenService {
     }
 
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
-    public boolean addAllergenToRecipe(Integer recipeId, Integer allergenId) {
-        Optional<Recipe> recipeOpt = recipeRepository.findById(recipeId);
-        Optional<Allergen> allergenOpt = allergenRepository.findById(allergenId);
-
-        if (recipeOpt.isEmpty() || allergenOpt.isEmpty()) {
-            return false;
-        }
-
-        Recipe recipe = recipeOpt.get();
-        Allergen allergen = allergenOpt.get();
+    public void addAllergenToRecipe(Integer recipeId, Integer allergenId) {
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RECIPE_NOT_FOUND)));
+        Allergen allergen = allergenRepository.findById(allergenId)
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
         // Verificar si la asociación ya existe
         List<RecipeAllergen> existing = repository.findByRecipeAndAllergen(recipe, allergen);
-        if (!existing.isEmpty()) {
-            return true; // Ya existe, no hacer nada
+        if (existing.isEmpty()) {
+            RecipeAllergen recipeAllergen = new RecipeAllergen();
+            recipeAllergen.setRecipe(recipe);
+            recipeAllergen.setAllergen(allergen);
+            repository.save(recipeAllergen);
         }
-
-        RecipeAllergen recipeAllergen = new RecipeAllergen();
-        recipeAllergen.setRecipe(recipe);
-        recipeAllergen.setAllergen(allergen);
-
-        repository.save(recipeAllergen);
-        return true;
     }
 
     @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
-    public boolean removeAllergenFromRecipe(Integer recipeId, Integer allergenId) {
-        Optional<Recipe> recipeOpt = recipeRepository.findById(recipeId);
-        Optional<Allergen> allergenOpt = allergenRepository.findById(allergenId);
-
-        if (recipeOpt.isEmpty() || allergenOpt.isEmpty()) {
-            return false;
-        }
-
-        Recipe recipe = recipeOpt.get();
-        Allergen allergen = allergenOpt.get();
+    public void removeAllergenFromRecipe(Integer recipeId, Integer allergenId) {
+        Recipe recipe = recipeRepository.findById(recipeId)
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RECIPE_NOT_FOUND)));
+        Allergen allergen = allergenRepository.findById(allergenId)
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
 
         List<RecipeAllergen> associations = repository.findByRecipeAndAllergen(recipe, allergen);
         repository.deleteAll(associations);
-        return true;
     }
 
     @Transactional(readOnly = true)

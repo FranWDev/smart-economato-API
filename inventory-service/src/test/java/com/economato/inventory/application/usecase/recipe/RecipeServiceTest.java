@@ -381,6 +381,7 @@ class RecipeServiceTest {
     @Test
     void deleteById_ShouldCallRepository() {
 
+        when(repository.existsById(1)).thenReturn(true);
         doNothing().when(repository).deleteById(1);
 
         recipeService.deleteById(1);

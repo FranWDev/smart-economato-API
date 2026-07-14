@@ -15,6 +15,10 @@ import com.economato.inventory.application.mapper.recipe.AllergenMapper;
 import com.economato.inventory.domain.model.recipe.Allergen;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.AllergenRepository;
 
+import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+
 import java.util.Optional;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,10 +29,12 @@ public class AllergenService {
 
     private final AllergenRepository repository;
     private final AllergenMapper allergenMapper;
+    private final I18nService i18nService;
 
-    public AllergenService(AllergenRepository repository, AllergenMapper allergenMapper) {
+    public AllergenService(AllergenRepository repository, AllergenMapper allergenMapper, I18nService i18nService) {
         this.repository = repository;
         this.allergenMapper = allergenMapper;
+        this.i18nService = i18nService;
     }
 
     @Cacheable(value = "allergens_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
@@ -71,9 +77,10 @@ public class AllergenService {
     @RealtimeSync(entityType = "allergen", action = "DELETE", idFromArg = 0,
             affectedDomains = {"recipe"})
     public void deleteById(Integer id) {
-        if (repository.existsById(id)) {
-            repository.deleteById(id);
+        if (!repository.existsById(id)) {
+            throw new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND));
         }
+        repository.deleteById(id);
     }
 
     @Cacheable(value = "allergen", key = "'name:' + #namePart.toLowerCase()", unless = "#result == null")

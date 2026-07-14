@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 import com.economato.inventory.application.dto.recipe.request.RecipeComponentRequestDTO;
 import com.economato.inventory.application.dto.recipe.response.RecipeComponentResponseDTO;
 import com.economato.inventory.application.usecase.recipe.RecipeComponentService;
-import com.economato.inventory.application.usecase.recipe.RecipeService;
 
 import java.util.List;
 
@@ -27,11 +26,9 @@ import java.util.List;
 public class RecipeComponentController {
 
     private final RecipeComponentService componentService;
-    private final RecipeService recipeService;
 
-    public RecipeComponentController(RecipeComponentService componentService, RecipeService recipeService) {
+    public RecipeComponentController(RecipeComponentService componentService) {
         this.componentService = componentService;
-        this.recipeService = recipeService;
     }
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
@@ -43,7 +40,7 @@ public class RecipeComponentController {
                 schema = @Schema(implementation = RecipeComponentResponseDTO.class)))
     })
     public ResponseEntity<Page<RecipeComponentResponseDTO>> getAll(Pageable pageable) {
-        return ResponseEntity.status(200).body(componentService.findAll(pageable));
+        return ResponseEntity.ok(componentService.findAll(pageable));
     }
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
@@ -58,7 +55,7 @@ public class RecipeComponentController {
     public ResponseEntity<RecipeComponentResponseDTO> getById(
             @Parameter(description = "ID del componente", required = true) @PathVariable Integer id) {
         return componentService.findById(id)
-                .map(component -> ResponseEntity.status(200).body(component))
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -100,7 +97,7 @@ public class RecipeComponentController {
             )
             @Valid @RequestBody RecipeComponentRequestDTO componentRequest) {
         return componentService.update(id, componentRequest)
-                .map(component -> ResponseEntity.status(200).body(component))
+                .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -111,14 +108,10 @@ public class RecipeComponentController {
         @ApiResponse(responseCode = "204", description = "Componente eliminado"),
         @ApiResponse(responseCode = "404", description = "Componente no encontrado")
     })
-    public ResponseEntity<Object> delete(
+    public ResponseEntity<Void> delete(
             @Parameter(description = "ID del componente", required = true) @PathVariable Integer id) {
-        return componentService.findById(id)
-                .map(existing -> {
-                    componentService.deleteById(id);
-                    return ResponseEntity.noContent().build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+        componentService.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
@@ -132,8 +125,6 @@ public class RecipeComponentController {
     })
     public ResponseEntity<List<RecipeComponentResponseDTO>> getByParentRecipe(
             @Parameter(description = "ID de la receta", required = true) @PathVariable Integer recipeId) {
-        return recipeService.findById(recipeId)
-                .map(recipe -> ResponseEntity.status(200).body(componentService.findByParentRecipe(recipe)))
-                .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.ok(componentService.findByParentRecipeId(recipeId));
     }
 }

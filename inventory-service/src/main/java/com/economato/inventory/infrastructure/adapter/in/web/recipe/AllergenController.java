@@ -81,7 +81,7 @@ public class AllergenController {
     @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @PostMapping
     public ResponseEntity<AllergenResponseDTO> create(
-            @Valid @org.springframework.web.bind.annotation.RequestBody AllergenRequestDTO allergenRequest) {
+            @Valid @RequestBody AllergenRequestDTO allergenRequest) {
         AllergenResponseDTO created = allergenService.save(allergenRequest);
         return ResponseEntity.created(URI.create("/api/allergens/" + created.getId()))
                 .body(created);
@@ -106,7 +106,7 @@ public class AllergenController {
     @PutMapping("/{id}")
     public ResponseEntity<AllergenResponseDTO> update(
             @PathVariable Integer id,
-            @Valid @org.springframework.web.bind.annotation.RequestBody AllergenRequestDTO allergenRequest) {
+            @Valid @RequestBody AllergenRequestDTO allergenRequest) {
         return allergenService.update(id, allergenRequest)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
@@ -122,13 +122,9 @@ public class AllergenController {
     )
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
-    public ResponseEntity<Object> delete(@PathVariable Integer id) {
-        return allergenService.findById(id)
-                .map(existing -> {
-                    allergenService.deleteById(id);
-                    return ResponseEntity.noContent().build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+    public ResponseEntity<Void> delete(@PathVariable Integer id) {
+        allergenService.deleteById(id);
+        return ResponseEntity.noContent().build();
     }
 
     @Operation(
