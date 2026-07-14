@@ -441,7 +441,9 @@ public enum MessageKey {
     REPORT_COLUMN_GROSS_QUANTITY("report.column.gross.quantity"),
     REPORT_LABEL_SELLING_PRICE("report.label.selling.price"),
     REPORT_ECONOMIC_ANALYSIS_EXPLANATION("report.economic.analysis.explanation"),
-    ERROR_BATCH_NOT_EXPIRED("error.batch.not.expired");
+    ERROR_BATCH_NOT_EXPIRED("error.batch.not.expired"),
+    SUCCESS_BATCH_MOVEMENT("success.batch.movement");
+
 
     private final String key;
 

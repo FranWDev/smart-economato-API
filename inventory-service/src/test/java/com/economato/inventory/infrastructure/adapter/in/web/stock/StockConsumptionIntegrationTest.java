@@ -98,7 +98,7 @@ class StockConsumptionIntegrationTest {
 
     @Test
     void getProductConsumption_WithDate_ShouldReturnConsumption() throws Exception {
-        when(stockLedgerService.getProductConsumption(eq(1), any(), any())).thenReturn(testResponse);
+        when(stockLedgerService.getProductConsumptionDto(eq(1), any(), any(), any(), any())).thenReturn(testResponse);
 
         mockMvc.perform(get("/api/stock-ledger/consumption/1")
                 .param("date", "2024-05-03")
@@ -113,7 +113,7 @@ class StockConsumptionIntegrationTest {
 
     @Test
     void getProductConsumption_WithLastDays_ShouldReturnConsumption() throws Exception {
-        when(stockLedgerService.getProductConsumption(eq(1), any(), any())).thenReturn(testResponse);
+        when(stockLedgerService.getProductConsumptionDto(eq(1), any(), any(), any(), any())).thenReturn(testResponse);
 
         mockMvc.perform(get("/api/stock-ledger/consumption/1")
                 .param("lastDays", "5")
@@ -126,7 +126,7 @@ class StockConsumptionIntegrationTest {
 
     @Test
     void getProductConsumption_WithDateRange_ShouldReturnConsumption() throws Exception {
-        when(stockLedgerService.getProductConsumption(eq(1), any(), any())).thenReturn(testResponse);
+        when(stockLedgerService.getProductConsumptionDto(eq(1), any(), any(), any(), any())).thenReturn(testResponse);
 
         mockMvc.perform(get("/api/stock-ledger/consumption/1")
                 .param("startDate", "2024-05-01T00:00:00")
@@ -140,7 +140,7 @@ class StockConsumptionIntegrationTest {
 
     @Test
     void getProductConsumption_ProductNotFound_ShouldReturnError() throws Exception {
-        when(stockLedgerService.getProductConsumption(eq(999), any(), any()))
+        when(stockLedgerService.getProductConsumptionDto(eq(999), any(), any(), any(), any()))
                 .thenThrow(new InvalidOperationException("Product with ID 999 not found"));
 
         mockMvc.perform(get("/api/stock-ledger/consumption/999")
@@ -153,7 +153,7 @@ class StockConsumptionIntegrationTest {
 
     @Test
     void getProductConsumption_InvalidDateRange_ShouldReturnError() throws Exception {
-        when(stockLedgerService.getProductConsumption(eq(1), any(), any()))
+        when(stockLedgerService.getProductConsumptionDto(eq(1), any(), any(), any(), any()))
                 .thenThrow(new InvalidOperationException("Start date cannot be after end date"));
 
         mockMvc.perform(get("/api/stock-ledger/consumption/1")

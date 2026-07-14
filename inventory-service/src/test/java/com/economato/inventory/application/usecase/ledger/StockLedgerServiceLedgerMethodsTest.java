@@ -1,6 +1,8 @@
 package com.economato.inventory.application.usecase.ledger;
 import com.economato.inventory.application.usecase.product.ProductBatchService;
 import com.economato.inventory.application.usecase.weeklyplan.WeeklyPlanStockReservationService;
+import com.economato.inventory.application.mapper.ledger.StockLedgerMapper;
+import static org.mockito.Mockito.mock;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -159,7 +161,8 @@ class StockLedgerServiceLedgerMethodsTest {
                         snapshotRepository,
                         productRepository,
                         securityContextHelper,
-                        i18nService
+                        i18nService,
+                        mock(StockLedgerMapper.class)
                 );
 
                 lenient().when(ledgerProperties.getHmacSecret()).thenReturn("test-hmac-secret-for-ledger-integrity-verification");

@@ -26,6 +26,7 @@ import jakarta.persistence.OptimisticLockException;
 import jakarta.validation.ConstraintViolationException;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import com.economato.inventory.application.dto.stock.response.BatchStockMovementResponseDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -244,5 +245,11 @@ public class GlobalExceptionHandler {
                         "status", 401,
                         "message", i18nService.getMessage(MessageKey.ERROR_AUTH_JWT_MISSING),
                         "timestamp", Instant.now().toString()));
+    }
+
+    @ExceptionHandler(BatchMovementException.class)
+    public ResponseEntity<BatchStockMovementResponseDTO> handleBatchMovementException(BatchMovementException ex) {
+        log.error("Batch stock movement error: {}", ex.getMessage());
+        return new ResponseEntity<>(ex.getErrorResponse(), HttpStatus.BAD_REQUEST);
     }
 }

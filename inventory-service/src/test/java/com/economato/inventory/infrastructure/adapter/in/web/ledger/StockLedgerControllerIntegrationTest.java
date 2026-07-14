@@ -21,7 +21,9 @@ import com.economato.inventory.domain.model.ledger.StockLedger;
 import com.economato.inventory.domain.model.stock.StockSnapshot;
 import com.economato.inventory.domain.model.shared.MovementType;
 import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
+import com.economato.inventory.application.dto.shared.response.IntegrityCheckResponseDTO;
 import com.economato.inventory.application.dto.ledger.response.StockLedgerResponseDTO;
+import com.economato.inventory.application.dto.stock.response.StockSnapshotResponseDTO;
 import com.economato.inventory.application.mapper.ledger.StockLedgerMapper;
 import com.economato.inventory.application.usecase.product.ProductBatchService;
 import com.economato.inventory.application.usecase.ledger.StockLedgerService;
@@ -120,16 +122,13 @@ class StockLedgerControllerIntegrationTest {
     }
 
     @Test
-
     void getProductHistory_ShouldReturnList() throws Exception {
-
-        Page<StockLedger> page = new PageImpl<>(testLedgers, PageRequest.of(0, 20), 1);
         StockLedgerResponseDTO dto = StockLedgerResponseDTO.builder()
                 .id(1L)
                 .productId(1)
                 .build();
-        when(stockLedgerService.getProductHistory(anyInt(), any())).thenReturn(page);
-        when(stockLedgerMapper.toDTO(any(StockLedger.class))).thenReturn(dto);
+        Page<StockLedgerResponseDTO> page = new PageImpl<>(Arrays.asList(dto), PageRequest.of(0, 20), 1);
+        when(stockLedgerService.getProductHistoryDto(anyInt(), any())).thenReturn(page);
 
         mockMvc.perform(get("/api/stock-ledger/history/1")
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
@@ -142,16 +141,13 @@ class StockLedgerControllerIntegrationTest {
     }
 
     @Test
-
     void getProductHistory_WithAdminRole_ShouldReturnList() throws Exception {
-
-                Page<StockLedger> page = new PageImpl<>(testLedgers, PageRequest.of(0, 10), 1);
         StockLedgerResponseDTO dto = StockLedgerResponseDTO.builder()
                 .id(1L)
                 .productId(1)
                 .build();
-        when(stockLedgerService.getProductHistory(anyInt(), any())).thenReturn(page);
-        when(stockLedgerMapper.toDTO(any(StockLedger.class))).thenReturn(dto);
+        Page<StockLedgerResponseDTO> page = new PageImpl<>(Arrays.asList(dto), PageRequest.of(0, 10), 1);
+        when(stockLedgerService.getProductHistoryDto(anyInt(), any())).thenReturn(page);
 
         mockMvc.perform(get("/api/stock-ledger/history/1?page=0&size=10")
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
@@ -162,10 +158,11 @@ class StockLedgerControllerIntegrationTest {
     }
 
     @Test
-
     void verifyAllChains_ShouldReturnList() throws Exception {
-
-        when(stockLedgerService.verifyAllChains()).thenReturn(Arrays.asList(testIntegrityResult));
+        IntegrityCheckResponseDTO response = IntegrityCheckResponseDTO.builder()
+                .valid(true)
+                .build();
+        when(stockLedgerService.verifyAllChainsDto()).thenReturn(Arrays.asList(response));
 
         mockMvc.perform(get("/api/stock-ledger/verify-all")
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
@@ -177,7 +174,6 @@ class StockLedgerControllerIntegrationTest {
     }
 
     @Test
-
     void verifyAllChains_WithUserRole_ShouldReturnForbidden() throws Exception {
 
         mockMvc.perform(get("/api/stock-ledger/verify-all")
@@ -188,10 +184,13 @@ class StockLedgerControllerIntegrationTest {
     }
 
     @Test
-
     void getCurrentStock_WhenExists_ShouldReturnSnapshot() throws Exception {
-
-        when(stockLedgerService.getCurrentStock(1)).thenReturn(Optional.of(testSnapshot));
+        StockSnapshotResponseDTO response = StockSnapshotResponseDTO.builder()
+                .productId(1)
+                .productName("Test Product")
+                .integrityStatus("VALID")
+                .build();
+        when(stockLedgerService.getCurrentStockDto(1)).thenReturn(response);
 
         mockMvc.perform(get("/api/stock-ledger/snapshot/1")
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors
@@ -204,10 +203,13 @@ class StockLedgerControllerIntegrationTest {
     }
 
     @Test
-
     void getCurrentStock_WithAdminRole_ShouldReturnSnapshot() throws Exception {
-
-        when(stockLedgerService.getCurrentStock(anyInt())).thenReturn(Optional.of(testSnapshot));
+        StockSnapshotResponseDTO response = StockSnapshotResponseDTO.builder()
+                .productId(1)
+                .productName("Test Product")
+                .integrityStatus("VALID")
+                .build();
+        when(stockLedgerService.getCurrentStockDto(anyInt())).thenReturn(response);
 
         mockMvc.perform(get("/api/stock-ledger/snapshot/1")
                 .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors

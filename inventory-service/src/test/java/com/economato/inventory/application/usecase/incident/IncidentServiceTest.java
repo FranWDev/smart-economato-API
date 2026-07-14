@@ -1,6 +1,9 @@
 package com.economato.inventory.application.usecase.incident;
 import com.economato.inventory.application.usecase.notification.PersistentNotificationService;
 import com.economato.inventory.application.usecase.recipe.RecipeService;
+import com.economato.inventory.application.usecase.incident.IncidentChatService;
+import com.economato.inventory.infrastructure.adapter.out.external.incident.reports.IncidentReportPdfService;
+import static org.mockito.Mockito.mock;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -128,7 +131,9 @@ class IncidentServiceTest {
                 securityContextHelper,
                 i18nService,
                 workflowManager,
-                attachmentService
+                attachmentService,
+                mock(IncidentChatService.class),
+                mock(IncidentReportPdfService.class)
         );
 
         admin = user(1, "Admin", "admin", Role.ADMIN, null);

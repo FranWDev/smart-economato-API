@@ -32,6 +32,7 @@ import com.economato.inventory.application.dto.incident.request.RevertAuditFromI
 import com.economato.inventory.application.dto.incident.response.IncidentAuditAttachmentResponseDTO;
 import com.economato.inventory.application.dto.incident.response.IncidentListResponseDTO;
 import com.economato.inventory.application.dto.incident.response.IncidentResponseDTO;
+import com.economato.inventory.application.dto.incident.response.IncidentChatMessageResponseDTO;
 import com.economato.inventory.application.dto.recipe.response.RecipeCookingAuditResponseDTO;
 import com.economato.inventory.application.mapper.incident.IncidentMapper;
 import com.economato.inventory.application.mapper.recipe.RecipeCookingAuditMapper;
@@ -52,9 +53,12 @@ import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeS
 import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import com.economato.inventory.infrastructure.adapter.out.external.incident.reports.IncidentReportPdfService;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @Transactional(rollbackFor = Exception.class)
+@RequiredArgsConstructor
 public class IncidentService {
 
     private final IncidentRepository incidentRepository;
@@ -65,24 +69,8 @@ public class IncidentService {
     private final I18nService i18nService;
     private final IncidentWorkflowManager incidentWorkflowManager;
     private final IncidentAttachmentService incidentAttachmentService;
-
-    public IncidentService(IncidentRepository incidentRepository,
-            IncidentAuditAttachmentRepository incidentAuditAttachmentRepository,
-            IncidentChatMessageRepository incidentChatMessageRepository,
-            IncidentMapper incidentMapper,
-            SecurityContextHelper securityContextHelper,
-            I18nService i18nService,
-            IncidentWorkflowManager incidentWorkflowManager,
-            IncidentAttachmentService incidentAttachmentService) {
-        this.incidentRepository = incidentRepository;
-        this.incidentAuditAttachmentRepository = incidentAuditAttachmentRepository;
-        this.incidentChatMessageRepository = incidentChatMessageRepository;
-        this.incidentMapper = incidentMapper;
-        this.securityContextHelper = securityContextHelper;
-        this.i18nService = i18nService;
-        this.incidentWorkflowManager = incidentWorkflowManager;
-        this.incidentAttachmentService = incidentAttachmentService;
-    }
+    private final IncidentChatService incidentChatService;
+    private final IncidentReportPdfService incidentReportPdfService;
 
     public IncidentResponseDTO createIncident(CreateIncidentRequestDTO request) {
         User currentUser = getCurrentUserOrThrow();
@@ -166,7 +154,7 @@ public class IncidentService {
                                                                       RevertAuditFromIncidentRequestDTO request) {
         User currentUser = getCurrentUserOrThrow();
         incidentWorkflowManager.ensureAdmin(currentUser);
-
+        request.setAuditAttachmentId(attachmentId);
         return incidentAttachmentService.revertAuditFromIncident(incidentId, attachmentId, request, currentUser);
     }
 
@@ -224,4 +212,12 @@ public class IncidentService {
                         "CASE severity WHEN 'ALTA' THEN 3 WHEN 'MEDIA' THEN 2 WHEN 'BAJA' THEN 1 ELSE 0 END")
                 .and(Sort.by(Sort.Direction.DESC, "createdAt"));
     }
+
+    @Transactional(readOnly = true)
+    public byte[] exportIncidentPdf(Long id) {
+        IncidentResponseDTO incident = getById(id);
+        List<IncidentChatMessageResponseDTO> chat = incidentChatService.getHistory(id, Pageable.unpaged()).getContent();
+        return incidentReportPdfService.generateIncidentReport(incident, chat);
+    }
 }
+

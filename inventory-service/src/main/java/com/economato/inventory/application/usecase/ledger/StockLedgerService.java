@@ -1,4 +1,5 @@
 package com.economato.inventory.application.usecase.ledger;
+
 import com.economato.inventory.application.dto.shared.request.BatchMovementItem;
 import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.stock.request.BatchStockMovementRequestDTO;
@@ -8,16 +9,12 @@ import com.economato.inventory.infrastructure.config.shared.security.SecurityCon
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 
-import com.economato.inventory.application.dto.shared.request.BatchMovementItem;
-import com.economato.inventory.application.dto.stock.request.BatchStockMovementRequestDTO;
-import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.product.response.ProductConsumptionResponseDTO;
 import com.economato.inventory.application.dto.product.response.ProductConsumptionResponseDTO.DailyConsumptionDTO;
 import com.economato.inventory.application.dto.stock.request.ManualStockAdjustmentRequestDTO;
 import com.economato.inventory.application.usecase.notification.PersistentNotificationService;
 import com.economato.inventory.application.usecase.notification.WebSocketNotificationService;
 import com.economato.inventory.application.usecase.shared.SystemConfigService;
-import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import com.economato.inventory.domain.model.ledger.StockLedger;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.shared.MovementType;
@@ -26,13 +23,17 @@ import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockSnapshotRepository;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import com.economato.inventory.infrastructure.adapter.in.web.shared.InvalidOperationException;
-import com.economato.inventory.domain.stock.PredictorTrigger;
-import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.ResourceNotFoundException;
+import com.economato.inventory.application.dto.ledger.response.StockLedgerResponseDTO;
+import com.economato.inventory.application.dto.shared.response.IntegrityCheckResponseDTO;
+import com.economato.inventory.application.dto.stock.response.StockSnapshotResponseDTO;
+import com.economato.inventory.application.dto.stock.response.BatchStockMovementResponseDTO;
+import com.economato.inventory.application.mapper.ledger.StockLedgerMapper;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.BatchMovementException;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -59,6 +60,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @Transactional(rollbackFor = Exception.class)
+@RequiredArgsConstructor
 public class StockLedgerService {
 
     private final StockMovementRecorder stockMovementRecorder;
@@ -69,25 +71,7 @@ public class StockLedgerService {
     private final ProductRepository productRepository;
     private final SecurityContextHelper securityContextHelper;
     private final I18nService i18nService;
-
-    public StockLedgerService(
-            StockMovementRecorder stockMovementRecorder,
-            StockReversalProcessor stockReversalProcessor,
-            StockLedgerIntegrityVerifier stockLedgerIntegrityVerifier,
-            StockLedgerRepository ledgerRepository,
-            StockSnapshotRepository snapshotRepository,
-            ProductRepository productRepository,
-            SecurityContextHelper securityContextHelper,
-            I18nService i18nService) {
-        this.stockMovementRecorder = stockMovementRecorder;
-        this.stockReversalProcessor = stockReversalProcessor;
-        this.stockLedgerIntegrityVerifier = stockLedgerIntegrityVerifier;
-        this.ledgerRepository = ledgerRepository;
-        this.snapshotRepository = snapshotRepository;
-        this.productRepository = productRepository;
-        this.securityContextHelper = securityContextHelper;
-        this.i18nService = i18nService;
-    }
+    private final StockLedgerMapper stockLedgerMapper;
 
     @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
     public StockLedger recordStockMovement(
@@ -377,5 +361,105 @@ public class StockLedgerService {
     @Transactional(rollbackFor = Exception.class)
     public void rebuildAllChains() {
         stockLedgerIntegrityVerifier.rebuildAllChains();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<StockLedgerResponseDTO> getProductHistoryDto(Integer productId, Pageable pageable) {
+        return getProductHistory(productId, pageable).map(stockLedgerMapper::toDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public IntegrityCheckResponseDTO verifyProductIntegrityDto(Integer productId) {
+        IntegrityCheckResult result = verifyChainIntegrity(productId);
+        List<StockLedger> history = getProductHistory(productId);
+        return IntegrityCheckResponseDTO.builder()
+                .productId(result.getProductId())
+                .productName(result.getProductName())
+                .valid(result.isValid())
+                .message(result.getMessage())
+                .errors(result.getErrors())
+                .totalTransactions(history.size())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<IntegrityCheckResponseDTO> verifyAllChainsDto() {
+        List<IntegrityCheckResult> results = verifyAllChains();
+        return results.stream()
+                .map(result -> IntegrityCheckResponseDTO.builder()
+                        .valid(result.isValid())
+                        .message(result.getMessage())
+                        .errors(result.getErrors())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public StockSnapshotResponseDTO getCurrentStockDto(Integer productId) {
+        StockSnapshot snapshot = getCurrentStock(productId)
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
+        return StockSnapshotResponseDTO.builder()
+                .productId(snapshot.getProductId())
+                .productName(snapshot.getProduct().getName())
+                .currentStock(snapshot.getCurrentStock())
+                .lastTransactionHash(snapshot.getLastTransactionHash())
+                .lastSequenceNumber(snapshot.getLastSequenceNumber())
+                .lastUpdated(snapshot.getLastUpdated())
+                .lastVerified(snapshot.getLastVerified())
+                .integrityStatus(snapshot.getIntegrityStatus())
+                .build();
+    }
+
+    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
+    public StockLedgerResponseDTO registerManualAdjustmentDto(ManualStockAdjustmentRequestDTO request) {
+        StockLedger transaction = processManualAdjustment(request);
+        return stockLedgerMapper.toDTO(transaction);
+    }
+
+    @Transactional(readOnly = true)
+    public ProductConsumptionResponseDTO getProductConsumptionDto(Integer productId, LocalDate date, Integer lastDays, LocalDateTime startDate, LocalDateTime endDate) {
+        LocalDateTime start;
+        LocalDateTime end;
+
+        if (date != null) {
+            start = date.atStartOfDay();
+            end = date.atTime(23, 59, 59, 999999999);
+        } else if (lastDays != null) {
+            end = LocalDateTime.now();
+            start = end.minusDays(lastDays).withHour(0).withMinute(0).withSecond(0).withNano(0);
+        } else if (startDate != null && endDate != null) {
+            start = startDate;
+            end = endDate;
+        } else {
+            start = LocalDate.now().atStartOfDay();
+            end = LocalDateTime.now();
+        }
+
+        return getProductConsumption(productId, start, end);
+    }
+
+    @Transactional(isolation = Isolation.SERIALIZABLE, rollbackFor = Exception.class)
+    public BatchStockMovementResponseDTO processBatchMovementsDto(BatchStockMovementRequestDTO request) {
+        try {
+            List<StockLedger> transactions = processBatchMovements(request);
+            return BatchStockMovementResponseDTO.builder()
+                    .success(true)
+                    .processedCount(transactions.size())
+                    .totalCount(request.getMovements().size())
+                    .message(i18nService.getMessage(MessageKey.SUCCESS_BATCH_MOVEMENT, new Object[]{transactions.size()}))
+                    .transactions(transactions.stream()
+                            .map(stockLedgerMapper::toDTO)
+                            .collect(Collectors.toList()))
+                    .build();
+        } catch (Exception e) {
+            BatchStockMovementResponseDTO errorResponse = BatchStockMovementResponseDTO.builder()
+                    .success(false)
+                    .processedCount(0)
+                    .totalCount(request.getMovements().size())
+                    .message(i18nService.getMessage(MessageKey.ERROR_BATCH_OPERATION_REVERTED))
+                    .errorDetail(e.getMessage())
+                    .build();
+            throw new BatchMovementException(errorResponse, e.getMessage());
+        }
     }
 }

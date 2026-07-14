@@ -1,4 +1,5 @@
 package com.economato.inventory.infrastructure.adapter.in.web.incident;
+
 import com.economato.inventory.application.dto.incident.request.CloseIncidentRequestDTO;
 import com.economato.inventory.application.dto.incident.request.CreateIncidentRequestDTO;
 import com.economato.inventory.application.dto.incident.request.OpenIncidentRequestDTO;
@@ -7,16 +8,13 @@ import com.economato.inventory.application.dto.incident.response.IncidentAuditAt
 import com.economato.inventory.application.dto.incident.response.IncidentChatMessageResponseDTO;
 import com.economato.inventory.application.dto.incident.response.IncidentListResponseDTO;
 import com.economato.inventory.application.dto.incident.response.IncidentResponseDTO;
+import com.economato.inventory.application.dto.incident.response.AttachmentDownloadDTO;
 import com.economato.inventory.application.dto.recipe.response.RecipeCookingAuditResponseDTO;
 import com.economato.inventory.application.dto.shared.request.AttachAuditRequestDTO;
-
-
-
 import com.economato.inventory.application.usecase.incident.IncidentChatService;
 import com.economato.inventory.application.usecase.incident.IncidentService;
 import com.economato.inventory.domain.model.incident.IncidentSeverity;
 import com.economato.inventory.domain.model.incident.IncidentStatus;
-import com.economato.inventory.infrastructure.adapter.out.external.incident.reports.IncidentReportPdfService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -35,7 +33,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
-
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -47,7 +44,6 @@ public class IncidentController {
 
     private final IncidentService incidentService;
     private final IncidentChatService incidentChatService;
-    private final IncidentReportPdfService incidentReportPdfService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','CHEF','ELEVATED')")
@@ -106,7 +102,6 @@ public class IncidentController {
     public ResponseEntity<IncidentAuditAttachmentResponseDTO> revertAudit(@PathVariable Long id,
                                                                           @PathVariable Long attachmentId,
                                                                           @Valid @RequestBody RevertAuditFromIncidentRequestDTO request) {
-        request.setAuditAttachmentId(attachmentId);
         return ResponseEntity.ok(incidentService.revertAuditFromIncident(id, attachmentId, request));
     }
 
@@ -128,8 +123,7 @@ public class IncidentController {
     @PreAuthorize("hasAnyRole('ADMIN','CHEF','ELEVATED')")
     @Operation(summary = "Marcar mensajes del chat como leídos")
     public ResponseEntity<Void> markChatAsRead(@PathVariable Long id) {
-        incidentChatService.markMessagesAsRead(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(204).body(incidentChatService.markMessagesAsRead(id));
     }
 
     @PostMapping(value = "/{id}/chat", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -146,33 +140,21 @@ public class IncidentController {
     @Operation(summary = "Descargar adjunto de chat")
     public ResponseEntity<Resource> downloadAttachment(@PathVariable Long id,
                                                        @PathVariable Long messageId) {
-        IncidentChatMessageResponseDTO message = incidentChatService.getMessage(id, messageId);
-        Resource resource = incidentChatService.downloadAttachment(id, messageId);
-
-        String filename = message.getAttachmentFilename() != null ? message.getAttachmentFilename() : "attachment";
-        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
-        if (message.getAttachmentContentType() != null && !message.getAttachmentContentType().isBlank()) {
-            mediaType = MediaType.parseMediaType(message.getAttachmentContentType());
-        }
-
+        AttachmentDownloadDTO download = incidentChatService.getAttachmentDownload(id, messageId);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,
-                        ContentDisposition.attachment().filename(filename, StandardCharsets.UTF_8).build().toString())
-                .contentType(mediaType)
-                .body(resource);
+                        ContentDisposition.attachment().filename(download.getFilename(), StandardCharsets.UTF_8).build().toString())
+                .contentType(MediaType.parseMediaType(download.getContentType()))
+                .body(download.getResource());
     }
 
     @GetMapping("/{id}/export/pdf")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Exportar incidencia a PDF")
     public ResponseEntity<byte[]> exportPdf(@PathVariable Long id) {
-        IncidentResponseDTO incident = incidentService.getById(id);
-        List<IncidentChatMessageResponseDTO> chat = incidentChatService.getHistory(id, Pageable.unpaged()).getContent();
-        byte[] pdf = incidentReportPdfService.generateIncidentReport(incident, chat);
-
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=incident-" + id + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)
-                .body(pdf);
+                .body(incidentService.exportIncidentPdf(id));
     }
 }
