@@ -1,5 +1,6 @@
 package com.economato.inventory.infrastructure.adapter.in.web.shared;
 
+import com.economato.inventory.application.dto.shared.response.PdfReportResponseDTO;
 import com.economato.inventory.application.dto.shared.request.ReportRange;
 import com.economato.inventory.application.dto.shared.response.KitchenReportResponseDTO;
 import com.economato.inventory.infrastructure.adapter.out.external.shared.reports.KitchenReportPdfService;
@@ -42,7 +43,7 @@ class KitchenReportControllerTest {
     void setUp() {
         lenient().when(i18nService.getMessage(any())).thenAnswer(invocation -> "Dummy text for " + invocation.getArgument(0));
         pdfService = new KitchenReportPdfService(i18nService);
-        controller = new KitchenReportController(service, pdfService);
+        controller = new KitchenReportController(service);
     }
 
     @Test
@@ -105,7 +106,10 @@ class KitchenReportControllerTest {
                 .topProducts(Collections.emptyList())
                 .build();
 
-        when(service.generateReport(eq(ReportRange.WEEKLY), any(), any())).thenReturn(mockResponse);
+        byte[] pdfBytes = pdfService.generateKitchenReportPdf(mockResponse);
+        String filename = pdfService.generateFilename(mockResponse);
+        when(service.generateKitchenReportPdfResponse(eq(ReportRange.WEEKLY), any(), any()))
+                .thenReturn(new PdfReportResponseDTO(pdfBytes, filename));
 
         ResponseEntity<byte[]> response = controller.exportPdf(ReportRange.WEEKLY, null, null);
 
@@ -117,7 +121,7 @@ class KitchenReportControllerTest {
         assertTrue(disposition.startsWith("attachment; filename=\"reporte-cocina-"), "Unexpected: " + disposition);
         assertTrue(disposition.endsWith(".pdf\""), "Expected .pdf ending: " + disposition);
 
-        byte[] pdfBytes = response.getBody();
+        pdfBytes = response.getBody();
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 500, "Expected real PDF, got: " + pdfBytes.length + " bytes");
         assertEquals('%', (char) pdfBytes[0]);

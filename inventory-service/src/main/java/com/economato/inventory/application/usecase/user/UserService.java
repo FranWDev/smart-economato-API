@@ -19,6 +19,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.security.core.Authentication;
 
 import com.economato.inventory.application.dto.shared.RestPage;
 import com.economato.inventory.application.dto.user.projection.UserProjection;
@@ -129,6 +130,13 @@ public class UserService {
     @Transactional(readOnly = true)
     public UserResponseDTO findCurrentUser(String username) {
         return userMapper.toResponseDTO(findByUsername(username));
+    }
+
+    @Transactional(readOnly = true)
+    public UserResponseDTO findCurrentUserWithToken(String username, String token) {
+        UserResponseDTO user = findCurrentUser(username);
+        user.setToken(token);
+        return user;
     }
 
         @Caching(evict = {
@@ -257,6 +265,12 @@ public class UserService {
         customUserDetailsService.evictUser(user.getUser());
     }
 
+    public void updateFirstLoginStatusByActor(Integer id, boolean status, Authentication authentication) {
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        updateFirstLoginStatus(id, status, isAdmin);
+    }
+
         @Caching(evict = {
             @CacheEvict(value = "user", key = "#id"),
             @CacheEvict(value = "userByEmail", allEntries = true)
@@ -288,6 +302,19 @@ public class UserService {
         repository.save(user);
         customUserDetailsService.evictUser(user.getName());
         customUserDetailsService.evictUser(user.getUser());
+    }
+
+    public void changePasswordByActor(Integer id, ChangePasswordRequestDTO request, Authentication authentication) {
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isSelf = false;
+        if (authentication != null && authentication.getName() != null) {
+            try {
+                isSelf = id.equals(findByUsername(authentication.getName()).getId());
+            } catch (Exception ignored) {
+            }
+        }
+        changePassword(id, request, isAdmin, isSelf);
     }
 
     @Cacheable(value = "users_by_role", key = "#role.name()")

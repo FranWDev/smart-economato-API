@@ -218,6 +218,20 @@ public class StockAlertService {
     }
 
     @Transactional(readOnly = true)
+    public List<StockAlertDTO> getAlerts(AlertSeverity severity) {
+        return (severity != null) ? getAlertsBySeverity(severity) : getActiveAlerts();
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistoryOptional(Integer productId) {
+        List<WeeklyConsumptionResponseDTO> history = getWeeklyConsumptionHistory(productId);
+        if (history == null || history.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(history.get(0));
+    }
+
+    @Transactional(readOnly = true)
     public Page<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistoryAll(Pageable pageable) {
         return weeklyHistoryRepository.findAll(pageable)
                 .map(stockWeeklyConsumptionHistoryMapper::toDTO);

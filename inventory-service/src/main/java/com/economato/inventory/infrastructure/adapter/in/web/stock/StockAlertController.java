@@ -61,12 +61,7 @@ public class StockAlertController {
     })
     public ResponseEntity<List<StockAlertDTO>> getAlerts(
             @Parameter(description = "Filtrar por severidad mínima (LOW, MEDIUM, HIGH, CRITICAL). Si no se especifica, devuelve todas las alertas activas.") @RequestParam(required = false) AlertSeverity severity) {
-
-        List<StockAlertDTO> alerts = (severity != null)
-                ? stockAlertService.getAlertsBySeverity(severity)
-                : stockAlertService.getActiveAlerts();
-
-        return ResponseEntity.ok(alerts);
+        return ResponseEntity.ok(stockAlertService.getAlerts(severity));
     }
 
     @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
@@ -75,7 +70,7 @@ public class StockAlertController {
     public ResponseEntity<StockAlertDTO> getProductAlert(@PathVariable Integer productId) {
         return stockAlertService.getAlertByProductId(productId)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.noContent().build());
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
@@ -112,11 +107,9 @@ public class StockAlertController {
             @ApiResponse(responseCode = "403", description = "Acceso denegado")
     })
     public ResponseEntity<WeeklyConsumptionResponseDTO> getWeeklyConsumptionHistoryByProduct(@PathVariable Integer productId) {
-        List<WeeklyConsumptionResponseDTO> history = stockAlertService.getWeeklyConsumptionHistory(productId);
-        if (history.isEmpty()) {
-            return ResponseEntity.noContent().build();
-        }
-        return ResponseEntity.ok(history.get(0));
+        return stockAlertService.getWeeklyConsumptionHistoryOptional(productId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @PreAuthorize("hasAnyRole('CHEF', 'ADMIN')")
@@ -143,6 +136,6 @@ public class StockAlertController {
     public ResponseEntity<DailyForecastResponseDTO> getDailyForecastByProduct(@PathVariable Integer productId) {
         return stockAlertService.getDailyForecast(productId)
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.noContent().build());
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 }

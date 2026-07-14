@@ -64,9 +64,7 @@ public class UserController {
         public ResponseEntity<UserResponseDTO> getCurrentUser(
                         Authentication authentication,
                         HttpServletRequest request) {
-                UserResponseDTO user = service.findCurrentUser(authentication.getName());
-                user.setToken(jwtUtils.resolveToken(request));
-                return ResponseEntity.ok(user);
+                return ResponseEntity.ok(service.findCurrentUserWithToken(authentication.getName(), jwtUtils.resolveToken(request)));
         }
 
         @GetMapping
@@ -107,7 +105,7 @@ public class UserController {
                         @Parameter(description = "ID del usuario", required = true) @PathVariable Integer id) {
                 return service.findById(id)
                                 .map(ResponseEntity::ok)
-                                .orElse(ResponseEntity.notFound().build());
+                                .orElseGet(() -> ResponseEntity.notFound().build());
         }
 
         @PostMapping
@@ -180,10 +178,7 @@ public class UserController {
                         @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Nuevo estado (true/false)", required = true) @RequestBody boolean status,
                         Authentication authentication) {
 
-                boolean isAdmin = authentication.getAuthorities().stream()
-                                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-
-                service.updateFirstLoginStatus(id, status, isAdmin);
+                service.updateFirstLoginStatusByActor(id, status, authentication);
                 return ResponseEntity.ok().build();
         }
 
@@ -202,11 +197,7 @@ public class UserController {
                         @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Datos de cambio de contraseña", required = true) @RequestBody @Valid ChangePasswordRequestDTO request,
                         Authentication authentication) {
 
-                boolean isAdmin = authentication.getAuthorities().stream()
-                                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-                boolean isSelf = id.equals(service.findByUsername(authentication.getName()).getId());
-
-                service.changePassword(id, request, isAdmin, isSelf);
+                service.changePasswordByActor(id, request, authentication);
                 return ResponseEntity.ok().build();
         }
 

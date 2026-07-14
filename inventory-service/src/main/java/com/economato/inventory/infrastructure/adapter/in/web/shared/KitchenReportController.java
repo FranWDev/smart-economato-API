@@ -2,7 +2,7 @@ package com.economato.inventory.infrastructure.adapter.in.web.shared;
 
 import com.economato.inventory.application.dto.shared.request.ReportRange;
 import com.economato.inventory.application.dto.shared.response.KitchenReportResponseDTO;
-import com.economato.inventory.infrastructure.adapter.out.external.shared.reports.KitchenReportPdfService;
+import com.economato.inventory.application.dto.shared.response.PdfReportResponseDTO;
 import com.economato.inventory.application.usecase.shared.KitchenReportService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,11 +28,9 @@ import java.time.LocalDate;
 public class KitchenReportController {
 
     private final KitchenReportService service;
-    private final KitchenReportPdfService pdfService;
 
-    public KitchenReportController(KitchenReportService service, KitchenReportPdfService pdfService) {
+    public KitchenReportController(KitchenReportService service) {
         this.service = service;
-        this.pdfService = pdfService;
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -67,22 +65,13 @@ public class KitchenReportController {
 
             @Parameter(description = "Fecha de fin para rango CUSTOM (formato: yyyy-MM-dd)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
 
-        KitchenReportResponseDTO report = service.generateReport(range, startDate, endDate);
-        byte[] pdfBytes = pdfService.generateKitchenReportPdf(report);
+        PdfReportResponseDTO response = service.generateKitchenReportPdfResponse(range, startDate, endDate);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_PDF);
-        String filename = "reporte-cocina-" + report.getReportPeriod()
-                .toLowerCase()
-                .replaceAll("[^a-z0-9áéíóúüñ\\-_]", "-")
-                .replaceAll("-{2,}", "-")
-                .replaceAll("^-|-$", "")
-                + ".pdf";
-        headers.setContentDisposition(ContentDisposition.attachment()
-                .filename(filename)
-                .build());
-        headers.setContentLength(pdfBytes.length);
+        headers.setContentDisposition(ContentDisposition.attachment().filename(response.getFilename()).build());
+        headers.setContentLength(response.getBytes().length);
 
-        return ResponseEntity.ok().headers(headers).body(pdfBytes);
+        return ResponseEntity.ok().headers(headers).body(response.getBytes());
     }
 }

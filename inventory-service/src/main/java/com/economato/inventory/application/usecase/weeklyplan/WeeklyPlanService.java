@@ -38,6 +38,7 @@ import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanRes
 import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanSlotResponseDTO;
 import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanSlotStudentResponseDTO;
 import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanStockRequirementDTO;
+import com.economato.inventory.application.dto.shared.response.PdfReportResponseDTO;
 import com.economato.inventory.application.mapper.weeklyplan.WeeklyPlanMapper;
 import com.economato.inventory.domain.stock.PredictorTrigger;
 import com.economato.inventory.domain.model.shared.MovementType;
@@ -64,6 +65,7 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanSlotRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanSlotStudentRepository;
+import com.economato.inventory.infrastructure.adapter.out.external.weeklyplan.reports.WeeklyPlanPdfService;
 import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
 import com.economato.inventory.infrastructure.config.weeklyplan.cache.event.WeeklyPlanSlotConfirmedEvent;
 import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
@@ -97,6 +99,16 @@ public class WeeklyPlanService {
     private final ObjectMapper objectMapper;
     private final PersistentNotificationService persistentNotificationService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final WeeklyPlanPdfService weeklyPlanPdfService;
+
+    @Transactional(readOnly = true)
+    public PdfReportResponseDTO generatePlanPdf(Long planId, String orientation) {
+        boolean isVertical = "vertical".equalsIgnoreCase(orientation);
+        WeeklyPlanResponseDTO plan = getPlanById(planId);
+        byte[] pdfBytes = weeklyPlanPdfService.generateWeeklyPlanPdf(plan, isVertical);
+        String filename = weeklyPlanPdfService.generateFilename(plan);
+        return new PdfReportResponseDTO(pdfBytes, filename);
+    }
 
     @CacheEvict(value = { "weekly_plan", "weekly_plan_requirements", "student_metrics" }, allEntries = true)
     @RealtimeSync(entityType = "weekly_plan", action = "CREATE", idFromArg = -2,

@@ -4,6 +4,7 @@ import com.economato.inventory.application.dto.stock.response.AlertType;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -61,7 +62,7 @@ class StockAlertControllerTest {
 
     @Test
     void getAlerts_withoutFilter_returnsAllActiveAlerts() {
-        when(stockAlertService.getActiveAlerts()).thenReturn(List.of(criticalAlert()));
+        when(stockAlertService.getAlerts(null)).thenReturn(List.of(criticalAlert()));
 
         ResponseEntity<List<StockAlertDTO>> response = controller.getAlerts(null);
 
@@ -69,26 +70,26 @@ class StockAlertControllerTest {
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
         assertEquals(AlertSeverity.CRITICAL, response.getBody().get(0).getSeverity());
-        verify(stockAlertService).getActiveAlerts();
+        verify(stockAlertService).getAlerts(null);
         verifyNoMoreInteractions(stockAlertService);
     }
 
     @Test
     void getAlerts_withSeverityFilter_delegatesToFilteredMethod() {
-        when(stockAlertService.getAlertsBySeverity(AlertSeverity.HIGH)).thenReturn(List.of(criticalAlert()));
+        when(stockAlertService.getAlerts(AlertSeverity.HIGH)).thenReturn(List.of(criticalAlert()));
 
         ResponseEntity<List<StockAlertDTO>> response = controller.getAlerts(AlertSeverity.HIGH);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertFalse(response.getBody().isEmpty());
-        verify(stockAlertService).getAlertsBySeverity(AlertSeverity.HIGH);
+        verify(stockAlertService).getAlerts(AlertSeverity.HIGH);
         verifyNoMoreInteractions(stockAlertService);
     }
 
     @Test
     void getAlerts_whenNoAlerts_returnsEmptyList() {
-        when(stockAlertService.getActiveAlerts()).thenReturn(List.of());
+        when(stockAlertService.getAlerts(null)).thenReturn(List.of());
 
         ResponseEntity<List<StockAlertDTO>> response = controller.getAlerts(null);
 
@@ -182,24 +183,24 @@ class StockAlertControllerTest {
                 .weeklyConsumption(List.of(BigDecimal.valueOf(2.0)))
                 .weeksOfHistory(12)
                 .build();
-        when(stockAlertService.getWeeklyConsumptionHistory(2)).thenReturn(List.of(dto));
+        when(stockAlertService.getWeeklyConsumptionHistoryOptional(2)).thenReturn(Optional.of(dto));
 
         ResponseEntity<WeeklyConsumptionResponseDTO> response = controller.getWeeklyConsumptionHistoryByProduct(2);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals(dto, response.getBody());
-        verify(stockAlertService).getWeeklyConsumptionHistory(2);
+        verify(stockAlertService).getWeeklyConsumptionHistoryOptional(2);
     }
 
     @Test
     void getWeeklyConsumptionHistoryByProduct_whenNoData_returnsNoContent() {
-        when(stockAlertService.getWeeklyConsumptionHistory(999)).thenReturn(List.of());
+        when(stockAlertService.getWeeklyConsumptionHistoryOptional(999)).thenReturn(Optional.empty());
 
         ResponseEntity<WeeklyConsumptionResponseDTO> response = controller.getWeeklyConsumptionHistoryByProduct(999);
 
         assertEquals(HttpStatus.NO_CONTENT, response.getStatusCode());
         assertNull(response.getBody());
-        verify(stockAlertService).getWeeklyConsumptionHistory(999);
+        verify(stockAlertService).getWeeklyConsumptionHistoryOptional(999);
     }
 
     @Test

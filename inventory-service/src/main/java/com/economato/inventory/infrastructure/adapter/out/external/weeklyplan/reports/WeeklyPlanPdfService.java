@@ -86,6 +86,13 @@ public class WeeklyPlanPdfService {
 		}
 	}
 
+	public String generateFilename(WeeklyPlanResponseDTO plan) {
+		if (plan == null || plan.getId() == null) {
+			return "plan_semanal.pdf";
+		}
+		return "plan_semanal_" + plan.getId() + ".pdf";
+	}
+
 	private void addHeader(Document document, WeeklyPlanResponseDTO plan, PdfFont boldFont, PdfFont regularFont, boolean isVertical) {
 		Table headerTable = new Table(UnitValue.createPercentArray(new float[] { 2, 1 }))
 				.setWidth(UnitValue.createPercentValue(100))

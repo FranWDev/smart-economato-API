@@ -1,18 +1,21 @@
 package com.economato.inventory.infrastructure.adapter.in.web.weeklyplan;
 
+import com.economato.inventory.application.dto.shared.response.PdfReportResponseDTO;
 import com.economato.inventory.application.dto.weeklyplan.request.WeeklyPlanRequestDTO;
 import com.economato.inventory.application.dto.weeklyplan.response.StudentMetricsResponseDTO;
 import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanResponseDTO;
 import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanSlotResponseDTO;
 import com.economato.inventory.application.dto.shared.response.ConfirmDayResponseDTO;
 import com.economato.inventory.application.usecase.weeklyplan.WeeklyPlanService;
-import com.economato.inventory.infrastructure.adapter.out.external.weeklyplan.reports.WeeklyPlanPdfService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ContentDisposition;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,7 +29,6 @@ import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanSlo
 public class WeeklyPlanController {
 
     private final WeeklyPlanService weeklyPlanService;
-    private final WeeklyPlanPdfService weeklyPlanPdfService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'CHEF', 'ELEVATED')")
@@ -94,17 +96,13 @@ public class WeeklyPlanController {
             @PathVariable Long planId,
             @RequestParam(defaultValue = "horizontal") String orientation) {
         
-        boolean isVertical = "vertical".equalsIgnoreCase(orientation);
-        WeeklyPlanResponseDTO plan = weeklyPlanService.getPlanById(planId);
-        byte[] pdfBytes = weeklyPlanPdfService.generateWeeklyPlanPdf(plan, isVertical);
+        PdfReportResponseDTO response = weeklyPlanService.generatePlanPdf(planId, orientation);
         
-        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-        headers.setContentType(org.springframework.http.MediaType.APPLICATION_PDF);
-        headers.setContentDisposition(org.springframework.http.ContentDisposition.attachment()
-                .filename("plan_semanal_" + plan.getId() + ".pdf")
-                .build());
-        headers.setContentLength(pdfBytes.length);
-        return ResponseEntity.ok().headers(headers).body(pdfBytes);
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDisposition(ContentDisposition.attachment().filename(response.getFilename()).build());
+        headers.setContentLength(response.getBytes().length);
+        return ResponseEntity.ok().headers(headers).body(response.getBytes());
     }
 
     @GetMapping
