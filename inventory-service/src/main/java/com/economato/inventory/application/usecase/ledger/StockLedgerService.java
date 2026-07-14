@@ -353,6 +353,14 @@ public class StockLedgerService {
         stockMovementRecorder.withdrawExpiredBatch(batchId);
     }
 
+    @RealtimeSync(entityType = "batch", action = "STATUS_CHANGE", idFromArg = 0,
+            affectedDomains = {"batch", "product", "weekly_plan", "ledger", "stock_alerts"})
+    @Transactional(rollbackFor = Exception.class)
+    public Void withdrawExpiredBatchEntity(Long batchId) {
+        stockMovementRecorder.withdrawExpiredBatch(batchId);
+        return null;
+    }
+
     @Transactional(rollbackFor = Exception.class)
     public void synchronizeStockWithLedger() {
         stockLedgerIntegrityVerifier.synchronizeStockWithLedger();

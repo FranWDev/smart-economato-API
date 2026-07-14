@@ -43,8 +43,15 @@ import com.economato.inventory.infrastructure.config.shared.security.SecurityCon
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
+import com.economato.inventory.infrastructure.adapter.out.external.product.reports.ProductExcelService;
+import com.economato.inventory.infrastructure.adapter.out.external.ledger.reports.StockLedgerPdfService;
+import com.economato.inventory.application.dto.ledger.response.LedgerPdfResponseDTO;
+
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
+@RequiredArgsConstructor
 public class ProductService {
     private final I18nService i18nService;
 
@@ -74,47 +81,56 @@ public class ProductService {
     private final RecipeService recipeService;
     private final ValidUnitService validUnitService;
     private final ProductSkuGuard productSkuGuard;
+    private final ProductExcelService productExcelService;
+    private final StockLedgerPdfService stockLedgerPdfService;
 
-    @Autowired
-    public ProductService(I18nService i18nService,
-            ProductRepository repository,
-            InventoryAuditRepository movementRepository,
-            RecipeComponentRepository recipeComponentRepository,
-            SupplierRepository supplierRepository,
-            ProductMapper productMapper,
-            StockLedgerService stockLedgerService,
-            ProductBatchService productBatchService,
-            SecurityContextHelper securityContextHelper,
-            RecipeService recipeService,
-            @Autowired(required = false) ValidUnitService validUnitService,
-            ProductSkuGuard productSkuGuard) {
-        this.i18nService = i18nService;
-        this.repository = repository;
-        this.movementRepository = movementRepository;
-        this.recipeComponentRepository = recipeComponentRepository;
-        this.supplierRepository = supplierRepository;
-        this.productMapper = productMapper;
-        this.stockLedgerService = stockLedgerService;
-        this.productBatchService = productBatchService;
-        this.securityContextHelper = securityContextHelper;
-        this.recipeService = recipeService;
-        this.validUnitService = validUnitService;
-        this.productSkuGuard = productSkuGuard;
+    @lombok.Getter
+    @lombok.Builder
+    public static class StockLedgerPdfDownloadDTO {
+        private final byte[] pdfContent;
+        private final String filename;
+        private final boolean integrityValid;
+        private final String integrityMessage;
+        private final String integrityError;
     }
 
-    public ProductService(I18nService i18nService,
-            ProductRepository repository,
-            InventoryAuditRepository movementRepository,
-            RecipeComponentRepository recipeComponentRepository,
-            SupplierRepository supplierRepository,
-            ProductMapper productMapper,
-            StockLedgerService stockLedgerService,
-            ProductBatchService productBatchService,
-            SecurityContextHelper securityContextHelper,
-            RecipeService recipeService) {
-        this(i18nService, repository, movementRepository, recipeComponentRepository, supplierRepository, productMapper,
-                stockLedgerService, productBatchService, securityContextHelper, recipeService, null,
-                new ProductSkuGuard(repository, supplierRepository, null, i18nService));
+    public StreamingResponseBody getProductsExcelStream() {
+        return out -> productExcelService.streamProductsExcel(out);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<StockLedgerPdfDownloadDTO> getStockLedgerPdfDownload(Integer id) {
+        return repository.findById(id)
+                .map(product -> {
+                    LedgerPdfResponseDTO pdfResponse = stockLedgerPdfService.generateStockLedgerPdfWithIntegrity(id);
+                    
+                    String integrityError = null;
+                    if (!pdfResponse.isIntegrityValid() && pdfResponse.getIntegrityErrors() != null) {
+                        integrityError = pdfResponse.getIntegrityErrors().isEmpty() 
+                                ? i18nService.getMessage(MessageKey.ERROR_INTERNAL_SERVER_ERROR) 
+                                : pdfResponse.getIntegrityErrors().get(0);
+                    }
+
+                    return StockLedgerPdfDownloadDTO.builder()
+                            .pdfContent(pdfResponse.getPdfContent())
+                            .filename("ledger_stock_" + sanitizeFilename(product.getName()) + ".pdf")
+                            .integrityValid(pdfResponse.isIntegrityValid())
+                            .integrityMessage(pdfResponse.getIntegrityMessage())
+                            .integrityError(integrityError)
+                            .build();
+                });
+    }
+
+    private String sanitizeFilename(String filename) {
+        if (filename == null || filename.isBlank()) {
+            return "producto";
+        }
+        String cleaned = filename.replaceAll("[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\\s-]", "_")
+                .replaceAll("\\s", "_");
+        if (cleaned.isBlank()) {
+            return "producto";
+        }
+        return cleaned.substring(0, Math.min(cleaned.length(), 50));
     }
 
     @Cacheable(value = "products_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")

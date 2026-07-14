@@ -23,16 +23,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/api/order-details")
+@RequiredArgsConstructor
 @Tag(name = "Detalles de Orden", description = "Operaciones relacionadas con los detalles de pedidos")
 public class OrderDetailController {
 
     private final OrderDetailService orderDetailService;
-
-    public OrderDetailController(OrderDetailService orderDetailService) {
-        this.orderDetailService = orderDetailService;
-    }
 
     @Operation(summary = "Obtener todos los detalles de pedido", description = "Devuelve una lista paginada de todos los detalles de pedidos existentes. [Rol requerido: CHEF]")
     @ApiResponse(responseCode = "200", description = "Lista obtenida correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OrderDetailResponseDTO.class)))
@@ -94,15 +93,10 @@ public class OrderDetailController {
     })
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{orderId}/{productId}")
-    public ResponseEntity<Object> delete(
+    public ResponseEntity<Void> delete(
             @Parameter(description = "ID del pedido", example = "10") @PathVariable Integer orderId,
             @Parameter(description = "ID del producto", example = "42") @PathVariable Integer productId) {
-        return orderDetailService.findById(orderId, productId)
-                .map(existing -> {
-                    orderDetailService.deleteById(orderId, productId);
-                    return ResponseEntity.noContent().build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.status(204).body(orderDetailService.deleteEntity(orderId, productId));
     }
 
     @Operation(summary = "Obtener detalles por pedido", description = "Devuelve todos los detalles asociados a un pedido concreto. [Rol requerido: CHEF]")

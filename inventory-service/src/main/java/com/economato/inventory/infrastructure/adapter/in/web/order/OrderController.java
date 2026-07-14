@@ -48,23 +48,16 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/api/orders")
+@RequiredArgsConstructor
 @Tag(name = "Ordenes", description = "Gestión de pedidos, incluyendo creación, actualización, búsqueda y filtrado por usuario, estado o rango de fechas.")
 public class OrderController {
 
         private final OrderService orderService;
         private final OrderReviewLockService orderReviewLockService;
-        private final UserService userService;
-        private final OrderPdfService orderPdfService;
-
-        public OrderController(OrderService orderService, OrderReviewLockService orderReviewLockService,
-                        UserService userService, OrderPdfService orderPdfService) {
-                this.orderService = orderService;
-                this.orderReviewLockService = orderReviewLockService;
-                this.userService = userService;
-                this.orderPdfService = orderPdfService;
-        }
 
         @Operation(summary = "Obtener todos los pedidos", description = "Devuelve una lista paginada de todos los pedidos registrados en el sistema. [Rol requerido: CHEF]", responses = {
                         @ApiResponse(responseCode = "200", description = "Lista de pedidos obtenida correctamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = OrderResponseDTO.class)))
@@ -99,18 +92,10 @@ public class OrderController {
         @GetMapping("/{id}/pdf")
         public ResponseEntity<byte[]> downloadOrderPdf(
                         @Parameter(description = "ID del pedido", example = "10") @PathVariable Integer id) {
-                return orderService.findById(id)
-                                .map(order -> {
-                                        byte[] pdfBytes = orderPdfService.generateOrderPdf(order);
-                                        HttpHeaders headers = new HttpHeaders();
-                                        headers.setContentType(MediaType.APPLICATION_PDF);
-                                        headers.setContentDisposition(ContentDisposition.attachment()
-                                                        .filename("pedido_" + order.getId() + ".pdf")
-                                                        .build());
-                                        headers.setContentLength(pdfBytes.length);
-                                        return ResponseEntity.ok().headers(headers).body(pdfBytes);
-                                })
-                                .orElse(ResponseEntity.<byte[]>notFound().build());
+                return ResponseEntity.ok()
+                                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"pedido_" + id + ".pdf\"")
+                                .contentType(MediaType.APPLICATION_PDF)
+                                .body(orderService.getOrderPdfBytes(id));
         }
 
         @Operation(summary = "Crear un nuevo pedido", description = "Registra un pedido nuevo en el sistema, asociado a un usuario y con una lista de productos. [Rol requerido: USER]", requestBody = @RequestBody(description = "Datos del pedido a crear", required = true, content = @Content(schema = @Schema(implementation = OrderRequestDTO.class))), responses = {
@@ -151,14 +136,9 @@ public class OrderController {
         })
         @PreAuthorize("hasRole('ADMIN')")
         @DeleteMapping("/{id}")
-        public ResponseEntity<Object> delete(
+        public ResponseEntity<Void> delete(
                         @Parameter(description = "ID del pedido a eliminar", example = "12") @PathVariable Integer id) {
-                return orderService.findById(id)
-                                .map(existing -> {
-                                        orderService.deleteById(id);
-                                        return ResponseEntity.noContent().build();
-                                })
-                                .orElse(ResponseEntity.notFound().build());
+                return ResponseEntity.status(204).body(orderService.deleteEntity(id));
         }
 
         @Operation(summary = "Obtener pedidos por usuario", description = "Devuelve todos los pedidos realizados por un usuario específico. [Rol requerido: USER]", responses = {
@@ -169,9 +149,7 @@ public class OrderController {
         @GetMapping("/user/{userId}")
         public ResponseEntity<List<OrderResponseDTO>> getByUser(
                         @Parameter(description = "ID del usuario asociado a los pedidos", example = "3") @PathVariable Integer userId) {
-                return userService.findById(userId)
-                                .map(user -> ResponseEntity.ok(orderService.findByUser(user)))
-                                .orElse(ResponseEntity.notFound().build());
+                return ResponseEntity.ok(orderService.findByUserId(userId));
         }
 
         @Operation(summary = "Obtener pedidos por estado", description = "Permite listar todos los pedidos que se encuentran en un estado determinado, como 'PENDIENTE', 'ENVIADO' o 'CANCELADO'. [Rol requerido: CHEF]", responses = {

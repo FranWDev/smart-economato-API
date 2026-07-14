@@ -67,10 +67,13 @@ import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeS
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.economato.inventory.infrastructure.adapter.out.external.order.reports.OrderPdfService;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class OrderService {
         private final I18nService i18nService;
 
@@ -85,46 +88,12 @@ public class OrderService {
         private final OrderReviewLockService orderReviewLockService;
         private final Environment environment;
         private final OrderValidator orderValidator;
+        private final OrderPdfService orderPdfService;
 
-        public OrderService(I18nService i18nService, OrderRepository repository,
-                        UserRepository userRepository,
-                        ProductRepository productRepository,
-                        SupplierRepository supplierRepository,
-                        FoodCrisisRepository foodCrisisRepository,
-                        OrderMapper orderMapper,
-                        StockLedgerService stockLedgerService,
-                        ProductBatchService productBatchService,
-                        OrderReviewLockService orderReviewLockService,
-                        Environment environment) {
-                this(i18nService, repository, userRepository, productRepository, supplierRepository, foodCrisisRepository,
-                        orderMapper, stockLedgerService, productBatchService, orderReviewLockService, environment,
-                        new OrderValidator(i18nService, foodCrisisRepository, orderReviewLockService));
-        }
-
-        @Autowired
-        public OrderService(I18nService i18nService, OrderRepository repository,
-                        UserRepository userRepository,
-                        ProductRepository productRepository,
-                        SupplierRepository supplierRepository,
-                        FoodCrisisRepository foodCrisisRepository,
-                        OrderMapper orderMapper,
-                        StockLedgerService stockLedgerService,
-                        ProductBatchService productBatchService,
-                        OrderReviewLockService orderReviewLockService,
-                        Environment environment,
-                        OrderValidator orderValidator) {
-                this.i18nService = i18nService;
-                this.repository = repository;
-                this.userRepository = userRepository;
-                this.productRepository = productRepository;
-                this.supplierRepository = supplierRepository;
-                this.foodCrisisRepository = foodCrisisRepository;
-                this.orderMapper = orderMapper;
-                this.stockLedgerService = stockLedgerService;
-                this.productBatchService = productBatchService;
-                this.orderReviewLockService = orderReviewLockService;
-                this.environment = environment;
-                this.orderValidator = orderValidator;
+        public byte[] getOrderPdfBytes(Integer id) {
+                OrderResponseDTO order = findById(id)
+                        .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_ORDER_NOT_FOUND)));
+                return orderPdfService.generateOrderPdf(order);
         }
 
         @Cacheable(value = "orders_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
@@ -277,12 +246,32 @@ public class OrderService {
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
         public void deleteById(Integer id) {
+                if (!repository.existsById(id)) {
+                        throw new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_ORDER_NOT_FOUND));
+                }
                 repository.deleteById(id);
+        }
+
+        @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
+                        RuntimeException.class, Exception.class })
+        public Void deleteEntity(Integer id) {
+                deleteById(id);
+                return null;
         }
 
         @Transactional(readOnly = true)
         public List<OrderResponseDTO> findByUser(UserResponseDTO user) {
                 return repository.findProjectedByUserId(user.getId()).stream()
+                                .map(orderMapper::toResponseDTO)
+                                .toList();
+        }
+
+        @Transactional(readOnly = true)
+        public List<OrderResponseDTO> findByUserId(Integer userId) {
+                if (!userRepository.existsById(userId)) {
+                        throw new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_USER_NOT_FOUND));
+                }
+                return repository.findProjectedByUserId(userId).stream()
                                 .map(orderMapper::toResponseDTO)
                                 .toList();
         }

@@ -207,7 +207,9 @@ class ConfigUsageIntegrationTest {
                 securityContextHelper,
                 recipeService,
                 validUnitService,
-                guard
+                guard,
+                null,
+                null
         );
 
         User current = new User();

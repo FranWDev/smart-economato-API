@@ -197,7 +197,9 @@ class OrderServiceTest {
                 stockLedgerService,
                 productBatchService,
                 orderReviewLockService,
-                environment);
+                environment,
+                new OrderValidator(i18nService, null, orderReviewLockService),
+                null);
     }
 
     @Test
@@ -311,6 +313,7 @@ class OrderServiceTest {
     @Test
     void deleteById_ShouldCallRepository() {
 
+        when(repository.existsById(1)).thenReturn(true);
         doNothing().when(repository).deleteById(1);
 
         orderService.deleteById(1);

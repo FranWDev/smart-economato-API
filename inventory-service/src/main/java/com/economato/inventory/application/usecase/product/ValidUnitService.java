@@ -15,6 +15,8 @@ import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeS
 import java.util.List;
 import java.util.Locale;
 
+import com.economato.inventory.application.dto.product.response.ValidUnitResponseDTO;
+
 @Service
 @RequiredArgsConstructor
 public class ValidUnitService {
@@ -22,6 +24,40 @@ public class ValidUnitService {
     private final ValidUnitRepository validUnitRepository;
     private final ProductRepository productRepository;
     private final I18nService i18nService;
+
+    private ValidUnitResponseDTO mapToDto(ValidUnit v) {
+        return ValidUnitResponseDTO.builder()
+                .id(v.getId())
+                .code(v.getCode())
+                .category(v.getCategory())
+                .active(v.isActive())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ValidUnitResponseDTO> getAllDto() {
+        return getAll().stream().map(this::mapToDto).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ValidUnitResponseDTO> getActiveDto() {
+        return getActive().stream().map(this::mapToDto).toList();
+    }
+
+    @Transactional
+    public ValidUnitResponseDTO createDto(String code, String category) {
+        return mapToDto(create(code, category));
+    }
+
+    @Transactional
+    public ValidUnitResponseDTO updateDto(Integer id, String code, String category, Boolean active) {
+        return mapToDto(update(id, code, category, active));
+    }
+
+    @Transactional
+    public ValidUnitResponseDTO toggleActiveDto(Integer id) {
+        return mapToDto(toggleActive(id));
+    }
 
     @Transactional(readOnly = true)
     public List<ValidUnit> getAll() {

@@ -30,6 +30,8 @@ import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
+import com.economato.inventory.application.dto.product.response.ProductBatchResponseDTO;
+import com.economato.inventory.application.mapper.product.ProductBatchMapper;
 
 
 /**-
@@ -37,6 +39,7 @@ import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeS
  * Encapsula la lógica de negocio relacionada con el manejo de lotes, como validaciones de fechas, cálculos de stock
  * restante y manejo de estados (agotado/no agotado).
  */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -44,6 +47,46 @@ public class ProductBatchService {
 
     private final ProductBatchRepository batchRepository;
     private final I18nService i18nService;
+    private final ProductBatchMapper productBatchMapper;
+
+    @Transactional(readOnly = true)
+    public List<ProductBatchResponseDTO> getExpiringBatchesDto(int days) {
+        return getExpiringBatches(days).stream()
+                .map(productBatchMapper::toResponseDTO)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductBatchResponseDTO> getExpiredBatchesDto() {
+        return getExpiredBatches().stream()
+                .map(productBatchMapper::toResponseDTO)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ProductBatchResponseDTO> getActiveBatchesDto(Integer productId) {
+        return getActiveBatches(productId).stream()
+                .map(productBatchMapper::toResponseDTO)
+                .toList();
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    public ProductBatchResponseDTO updateExpirationDateDto(Long batchId, LocalDate newExpirationDate, String reason, String batchCode) {
+        return productBatchMapper.toResponseDTO(updateExpirationDate(batchId, newExpirationDate, reason, batchCode));
+    }
+
+    @Transactional(readOnly = true)
+    public ProductBatchResponseDTO getBatchByCodeDto(String batchCode) {
+        ProductBatch batch = findByBatchCode(batchCode)
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
+        return productBatchMapper.toResponseDTO(batch);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ProductBatchResponseDTO> findAllBatchesDto(String search, Boolean depleted, Pageable pageable) {
+        return findAllBatches(search, depleted, pageable)
+                .map(productBatchMapper::toResponseDTO);
+    }
 
     @Transactional(rollbackFor = Exception.class)
     public ProductBatch createBatch(Product product, BigDecimal quantity, LocalDate expirationDate, StockLedger ledgerTx) {

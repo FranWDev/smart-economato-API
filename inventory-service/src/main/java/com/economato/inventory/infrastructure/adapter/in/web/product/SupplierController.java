@@ -19,16 +19,15 @@ import com.economato.inventory.application.usecase.product.SupplierService;
 
 import java.net.URI;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/api/suppliers")
+@RequiredArgsConstructor
 @Tag(name = "Proveedores", description = "Gestión de proveedores en el sistema, CRUD completo y búsqueda por nombre")
 public class SupplierController {
 
     private final SupplierService supplierService;
-
-    public SupplierController(SupplierService supplierService) {
-        this.supplierService = supplierService;
-    }
 
     @Operation(
         summary = "Obtener todos los proveedores",
@@ -80,7 +79,7 @@ public class SupplierController {
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<SupplierResponseDTO> create(
-            @Valid @org.springframework.web.bind.annotation.RequestBody SupplierRequestDTO supplierRequest) {
+             @Valid @org.springframework.web.bind.annotation.RequestBody SupplierRequestDTO supplierRequest) {
         SupplierResponseDTO created = supplierService.save(supplierRequest);
         return ResponseEntity.created(URI.create("/api/suppliers/" + created.getId()))
                 .body(created);
@@ -123,12 +122,7 @@ public class SupplierController {
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Integer id) {
-        return supplierService.findById(id)
-                .map(existing -> {
-                    supplierService.deleteById(id);
-                    return ResponseEntity.noContent().<Void>build();
-                })
-                .orElse(ResponseEntity.notFound().build());
+        return ResponseEntity.status(204).body(supplierService.deleteEntity(id));
     }
 
     @Operation(

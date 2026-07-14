@@ -24,7 +24,10 @@ import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeS
 import java.util.Optional;
 import java.util.List;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
         Exception.class })
 public class SupplierService {
@@ -33,14 +36,6 @@ public class SupplierService {
     private final SupplierRepository repository;
     private final ProductRepository productRepository;
     private final SupplierMapper supplierMapper;
-
-    public SupplierService(I18nService i18nService, SupplierRepository repository, ProductRepository productRepository,
-            SupplierMapper supplierMapper) {
-        this.i18nService = i18nService;
-        this.repository = repository;
-        this.productRepository = productRepository;
-        this.supplierMapper = supplierMapper;
-    }
 
     @Cacheable(value = "suppliers_page", key = "#pageable.pageNumber + '-' + #pageable.pageSize")
     @Transactional(readOnly = true)
@@ -92,19 +87,26 @@ public class SupplierService {
                 });
     }
 
-        @CacheEvict(value = { "suppliers_page", "supplier" }, allEntries = true)
+    @CacheEvict(value = { "suppliers_page", "supplier" }, allEntries = true)
     @RealtimeSync(entityType = "supplier", action = "DELETE", idFromArg = 0,
             affectedDomains = {"supplier", "product"})
     @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
             RuntimeException.class, Exception.class })
     public void deleteById(Integer id) {
-        repository.findById(id).ifPresent(supplier -> {
-            if (productRepository.existsBySupplierId(id)) {
-                throw new InvalidOperationException(
-                        i18nService.getMessage(MessageKey.ERROR_SUPPLIER_DELETE_HAS_PRODUCTS));
-            }
-            repository.deleteById(id);
-        });
+        Supplier supplier = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_SUPPLIER_NOT_FOUND)));
+        if (productRepository.existsBySupplierId(id)) {
+            throw new InvalidOperationException(
+                    i18nService.getMessage(MessageKey.ERROR_SUPPLIER_DELETE_HAS_PRODUCTS));
+        }
+        repository.deleteById(id);
+    }
+
+    @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
+            RuntimeException.class, Exception.class })
+    public Void deleteEntity(Integer id) {
+        deleteById(id);
+        return null;
     }
 
     @Transactional(readOnly = true)

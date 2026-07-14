@@ -143,7 +143,11 @@ class ProductServiceTest {
                 stockLedgerService,
                 productBatchService,
                 securityContextHelper,
-                recipeService);
+                recipeService,
+                null,
+                new ProductSkuGuard(repository, supplierRepository, null, i18nService),
+                null,
+                null);
     }
 
     @Test

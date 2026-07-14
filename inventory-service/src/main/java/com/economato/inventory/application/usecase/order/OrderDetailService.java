@@ -25,7 +25,10 @@ import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeS
 import java.util.List;
 import java.util.Optional;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
                 Exception.class })
 public class OrderDetailService {
@@ -35,18 +38,6 @@ public class OrderDetailService {
         private final OrderRepository orderRepository;
         private final ProductRepository productRepository;
         private final OrderDetailMapper orderDetailMapper;
-
-        public OrderDetailService(I18nService i18nService,
-                        OrderDetailRepository repository,
-                        OrderRepository orderRepository,
-                        ProductRepository productRepository,
-                        OrderDetailMapper orderDetailMapper) {
-                this.i18nService = i18nService;
-                this.repository = repository;
-                this.orderRepository = orderRepository;
-                this.productRepository = productRepository;
-                this.orderDetailMapper = orderDetailMapper;
-        }
 
         @Transactional(readOnly = true)
         public Page<OrderDetailResponseDTO> findAll(Pageable pageable) {
@@ -99,9 +90,9 @@ public class OrderDetailService {
                                         repository.save(existing);
 
                                         return repository.findProjectedByIdOrderIdAndIdProductId(orderId, productId)
-                                                        .map(orderDetailMapper::toResponseDTO)
-                                                        .orElseThrow(() -> new RuntimeException(
-                                                                        i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
+                                                         .map(orderDetailMapper::toResponseDTO)
+                                                         .orElseThrow(() -> new RuntimeException(
+                                                                         i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND)));
                                 });
         }
 
@@ -109,8 +100,13 @@ public class OrderDetailService {
                 affectedDomains = {"order"})
         @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class,
                         RuntimeException.class, Exception.class })
-        public void deleteById(Integer orderId, Integer productId) {
-                repository.deleteById(new OrderDetailId(orderId, productId));
+        public Void deleteEntity(Integer orderId, Integer productId) {
+                OrderDetailId detailId = new OrderDetailId(orderId, productId);
+                if (!repository.existsById(detailId)) {
+                        throw new ResourceNotFoundException(i18nService.getMessage(MessageKey.ERROR_RESOURCE_NOT_FOUND));
+                }
+                repository.deleteById(detailId);
+                return null;
         }
 
         @Transactional(readOnly = true)

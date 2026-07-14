@@ -40,7 +40,6 @@ import lombok.RequiredArgsConstructor;
 public class ProductBatchController {
 
     private final ProductBatchService productBatchService;
-    private final ProductBatchMapper productBatchMapper;
     private final StockLedgerService stockLedgerService;
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
@@ -49,20 +48,14 @@ public class ProductBatchController {
     public ResponseEntity<List<ProductBatchResponseDTO>> getExpiringBatches(
             @Parameter(description = "Días para considerar próximos a caducar", example = "7")
             @RequestParam(defaultValue = "7") int days) {
-        List<ProductBatchResponseDTO> response = productBatchService.getExpiringBatches(days).stream()
-                .map(productBatchMapper::toResponseDTO)
-                .toList();
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(productBatchService.getExpiringBatchesDto(days));
     }
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
     @Operation(summary = "Obtener lotes caducados con stock restante")
     @GetMapping("/expired")
     public ResponseEntity<List<ProductBatchResponseDTO>> getExpiredBatches() {
-        List<ProductBatchResponseDTO> response = productBatchService.getExpiredBatches().stream()
-                .map(productBatchMapper::toResponseDTO)
-                .toList();
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(productBatchService.getExpiredBatchesDto());
     }
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
@@ -70,18 +63,14 @@ public class ProductBatchController {
     @GetMapping("/product/{productId}")
     public ResponseEntity<List<ProductBatchResponseDTO>> getActiveBatches(
             @Parameter(description = "ID del producto", required = true) @PathVariable Integer productId) {
-        List<ProductBatchResponseDTO> response = productBatchService.getActiveBatches(productId).stream()
-                .map(productBatchMapper::toResponseDTO)
-                .toList();
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(productBatchService.getActiveBatchesDto(productId));
     }
 
     @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @Operation(summary = "Retirar lote caducado", description = "Retira el stock restante de un lote caducado y lo registra como merma.")
     @PostMapping("/{batchId}/withdraw")
     public ResponseEntity<Void> withdrawBatch(@PathVariable Long batchId) {
-        stockLedgerService.withdrawExpiredBatch(batchId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(204).body(stockLedgerService.withdrawExpiredBatchEntity(batchId));
     }
 
     @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
@@ -96,9 +85,8 @@ public class ProductBatchController {
     public ResponseEntity<ProductBatchResponseDTO> updateBatchExpiration(
             @PathVariable Long batchId,
             @Valid @RequestBody UpdateBatchExpirationRequestDTO request) {
-        var updated = productBatchService.updateExpirationDate(
-            batchId, request.getExpirationDate(), request.getReason(), request.getBatchCode());
-        return ResponseEntity.ok(productBatchMapper.toResponseDTO(updated));
+        return ResponseEntity.ok(productBatchService.updateExpirationDateDto(
+            batchId, request.getExpirationDate(), request.getReason(), request.getBatchCode()));
     }
 
         @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
@@ -106,9 +94,7 @@ public class ProductBatchController {
         @GetMapping("/by-code/{batchCode}")
         public ResponseEntity<ProductBatchResponseDTO> getBatchByCode(
             @Parameter(description = "Código de lote", required = true) @PathVariable String batchCode) {
-        var batch = productBatchService.findByBatchCode(batchCode)
-            .orElseThrow(() -> new ResourceNotFoundException("Lote no encontrado con código: " + batchCode));
-        return ResponseEntity.ok(productBatchMapper.toResponseDTO(batch));
+        return ResponseEntity.ok(productBatchService.getBatchByCodeDto(batchCode));
         }
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
@@ -127,10 +113,7 @@ public class ProductBatchController {
                 Sort.Direction.DESC : Sort.Direction.ASC;
         
         Pageable pageable = PageRequest.of(page, size, Sort.by(sortDirection, sortBy));
-        Page<ProductBatchResponseDTO> response = productBatchService.findAllBatches(search, depleted, pageable)
-                .map(productBatchMapper::toResponseDTO);
-                
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(productBatchService.findAllBatchesDto(search, depleted, pageable));
     }
 
     @PreAuthorize("hasAnyRole('USER', 'CHEF', 'ELEVATED', 'ADMIN')")
