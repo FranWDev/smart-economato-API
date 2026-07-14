@@ -1,29 +1,28 @@
 package com.economato.inventory.application.usecase.ledger;
 import com.economato.inventory.application.usecase.shared.MerkleTreeService;
-import com.economato.inventory.domain.model.shared.MovementType;
-
 import com.economato.inventory.domain.model.ledger.StockLedger;
 import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.domain.model.shared.MovementType;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.config.ledger.security.LedgerProperties;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-import com.economato.inventory.infrastructure.config.ledger.security.LedgerProperties;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HexFormat;
 import java.util.List;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.util.HexFormat;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
@@ -292,7 +291,7 @@ public class LedgerChainVerificationService {
             String description,
             Integer userId,
             Integer orderId,
-            java.time.LocalDate expirationDate,
+            LocalDate expirationDate,
             String correlationId,
             LocalDateTime timestamp,
             String previousHash,

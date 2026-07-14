@@ -1,25 +1,26 @@
 package com.economato.inventory.infrastructure.config.shared.security;
 
-import com.economato.inventory.application.usecase.shared.SystemConfigService;
 import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
+import com.economato.inventory.application.usecase.shared.SystemConfigService;
 import com.economato.inventory.domain.model.user.Role;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.io.DecodingException;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.MacAlgorithm;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
+import javax.crypto.SecretKey;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
-
-import javax.crypto.SecretKey;
-import java.util.Date;
 
 @Component
 public class JwtUtils {
@@ -38,11 +39,11 @@ public class JwtUtils {
         byte[] keyBytes;
         try {
             keyBytes = Decoders.BASE64.decode(secret);
-        } catch (io.jsonwebtoken.io.DecodingException e) {
+        } catch (DecodingException e) {
             try {
                 keyBytes = Decoders.BASE64URL.decode(secret);
-            } catch (io.jsonwebtoken.io.DecodingException ex) {
-                keyBytes = secret.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+            } catch (DecodingException ex) {
+                keyBytes = secret.getBytes(StandardCharsets.UTF_8);
             }
         }
         this.key = Keys.hmacShaKeyFor(keyBytes);

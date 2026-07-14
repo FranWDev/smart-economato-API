@@ -20,14 +20,15 @@ import com.economato.inventory.domain.model.user.MessageRole;
 import com.economato.inventory.domain.model.user.Role;
 import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.domain.model.user.UserApiKey;
-
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -95,7 +96,7 @@ public class TestDataUtil {
         product.setUnit(unit);
         product.setUnitPrice(price);
         product.setProductCode(code);
-        product.setCurrentStock(stock.setScale(3, java.math.RoundingMode.HALF_UP));
+        product.setCurrentStock(stock.setScale(3, RoundingMode.HALF_UP));
         product.setOrderDetails(new ArrayList<>());
         return product;
     }
@@ -231,7 +232,7 @@ public class TestDataUtil {
         dto.setUnitPrice(new BigDecimal("2.50"));
         dto.setProductCode("HAR002");
         dto.setCurrentStock(new BigDecimal("100.0"));
-        dto.setExpirationDate(java.time.LocalDate.now().plusDays(30));
+        dto.setExpirationDate(LocalDate.now().plusDays(30));
         dto.setLotQuantity(new BigDecimal("1.000"));
         return dto;
     }
@@ -245,7 +246,7 @@ public class TestDataUtil {
         return dto;
     }
 
-    public static WeeklyPlanSlotRequestDTO createWeeklyPlanSlotRequestDTO(Integer recipeId, java.math.BigDecimal quantity, Integer dayOfWeek, java.time.LocalTime startTime, java.time.LocalTime endTime, Integer sortOrder, java.util.List<Integer> studentIds) {
+    public static WeeklyPlanSlotRequestDTO createWeeklyPlanSlotRequestDTO(Integer recipeId, BigDecimal quantity, Integer dayOfWeek, LocalTime startTime, LocalTime endTime, Integer sortOrder, List<Integer> studentIds) {
         WeeklyPlanSlotRequestDTO dto = new WeeklyPlanSlotRequestDTO();
         dto.setRecipeId(recipeId);
         dto.setQuantity(quantity);
@@ -257,7 +258,7 @@ public class TestDataUtil {
         return dto;
     }
 
-    public static WeeklyPlanRequestDTO createWeeklyPlanRequestDTO(Integer chefId, java.time.LocalDate weekStartDate, java.util.List<WeeklyPlanSlotRequestDTO> slots) {
+    public static WeeklyPlanRequestDTO createWeeklyPlanRequestDTO(Integer chefId, LocalDate weekStartDate, List<WeeklyPlanSlotRequestDTO> slots) {
         WeeklyPlanRequestDTO dto = new WeeklyPlanRequestDTO();
         dto.setChefId(chefId);
         dto.setWeekStartDate(weekStartDate);

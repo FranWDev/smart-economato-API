@@ -1,18 +1,8 @@
 package com.economato.inventory.infrastructure.adapter.in.web.order;
 
-import jakarta.validation.Valid;
-
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-
 import com.economato.inventory.application.dto.order.request.OrderDetailRequestDTO;
 import com.economato.inventory.application.dto.order.response.OrderDetailResponseDTO;
 import com.economato.inventory.application.usecase.order.OrderDetailService;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -20,10 +10,16 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
+import jakarta.validation.Valid;
 import java.util.List;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
 @RequestMapping("/api/order-details")
@@ -64,7 +60,7 @@ public class OrderDetailController {
     @PreAuthorize("hasAnyRole('CHEF', 'ELEVATED', 'ADMIN')")
     @PostMapping
     public ResponseEntity<OrderDetailResponseDTO> create(
-            @Valid @org.springframework.web.bind.annotation.RequestBody OrderDetailRequestDTO orderDetailRequest) {
+            @Valid @RequestBody OrderDetailRequestDTO orderDetailRequest) {
         OrderDetailResponseDTO response = orderDetailService.save(orderDetailRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -80,7 +76,7 @@ public class OrderDetailController {
     public ResponseEntity<OrderDetailResponseDTO> update(
             @Parameter(description = "ID del pedido", example = "10") @PathVariable Integer orderId,
             @Parameter(description = "ID del producto", example = "42") @PathVariable Integer productId,
-            @Valid @org.springframework.web.bind.annotation.RequestBody OrderDetailRequestDTO orderDetailRequest) {
+            @Valid @RequestBody OrderDetailRequestDTO orderDetailRequest) {
         return orderDetailService.update(orderId, productId, orderDetailRequest)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

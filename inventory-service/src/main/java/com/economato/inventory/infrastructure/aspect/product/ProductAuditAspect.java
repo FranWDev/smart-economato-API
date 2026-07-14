@@ -1,25 +1,23 @@
 package com.economato.inventory.infrastructure.aspect.product;
 
+import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
+import com.economato.inventory.application.dto.shared.event.InventoryAuditEvent;
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.domain.product.ProductAuditable;
+import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
-
+import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-
-import com.economato.inventory.domain.product.ProductAuditable;
-import com.economato.inventory.application.dto.shared.event.InventoryAuditEvent;
-import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
-import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
-import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
-
-import lombok.extern.slf4j.Slf4j;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -117,7 +115,7 @@ public class ProductAuditAspect {
                     .userName(user != null ? user.getName() : "Sistema")
                     .movementType(movementType)
                         .quantity(dto != null && dto.getCurrentStock() != null ? dto.getCurrentStock()
-                            : java.math.BigDecimal.ZERO)
+                            : BigDecimal.ZERO)
                         .actionDescription(actionDescription)
                     .previousState(previousState)
                     .newState(newState)

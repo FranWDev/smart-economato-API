@@ -5,22 +5,20 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
+import com.economato.inventory.application.dto.shared.event.RealtimeSyncEvent;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import java.time.LocalDateTime;
 import java.util.List;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-
-import com.economato.inventory.application.dto.shared.event.RealtimeSyncEvent;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-
-import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 
 @ExtendWith(MockitoExtension.class)
 class WebSocketNotificationServiceSyncTest {
@@ -76,7 +74,7 @@ class WebSocketNotificationServiceSyncTest {
     @Test
     void broadcastSync_doesNotThrow_whenMessagingFails() {
         doThrow(new RuntimeException("Broker down")).when(messagingTemplate)
-                .convertAndSend(eq("/topic/sync"), (Object) org.mockito.ArgumentMatchers.any());
+                .convertAndSend(eq("/topic/sync"), (Object) ArgumentMatchers.any());
 
         // No debe lanzar
         service.broadcastSync(event);

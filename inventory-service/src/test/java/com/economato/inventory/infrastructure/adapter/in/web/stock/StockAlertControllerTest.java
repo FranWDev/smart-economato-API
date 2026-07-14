@@ -1,23 +1,29 @@
 package com.economato.inventory.infrastructure.adapter.in.web.stock;
-import com.economato.inventory.application.dto.stock.response.AlertType;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+
+import com.economato.inventory.application.dto.shared.response.WeeklyConsumptionResponseDTO;
+import com.economato.inventory.application.dto.stock.response.AlertResolution;
+import com.economato.inventory.application.dto.stock.response.AlertSeverity;
+import com.economato.inventory.application.dto.stock.response.AlertType;
+import com.economato.inventory.application.dto.stock.response.DailyForecastResponseDTO;
+import com.economato.inventory.application.dto.stock.response.StockAlertDTO;
+import com.economato.inventory.application.dto.stock.response.StockPredictionResponseDTO;
+import com.economato.inventory.application.usecase.stock.StockAlertService;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -25,14 +31,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-
-import com.economato.inventory.application.dto.stock.response.AlertResolution;
-import com.economato.inventory.application.dto.stock.response.AlertSeverity;
-import com.economato.inventory.application.dto.stock.response.DailyForecastResponseDTO;
-import com.economato.inventory.application.dto.stock.response.StockAlertDTO;
-import com.economato.inventory.application.dto.stock.response.StockPredictionResponseDTO;
-import com.economato.inventory.application.dto.shared.response.WeeklyConsumptionResponseDTO;
-import com.economato.inventory.application.usecase.stock.StockAlertService;
 
 @ExtendWith(MockitoExtension.class)
 class StockAlertControllerTest {
@@ -101,7 +99,7 @@ class StockAlertControllerTest {
     @Test
     void getProductAlert_whenAlertExists_returnsOk() {
         StockAlertDTO alert = criticalAlert();
-        when(stockAlertService.getAlertByProductId(1)).thenReturn(java.util.Optional.of(alert));
+        when(stockAlertService.getAlertByProductId(1)).thenReturn(Optional.of(alert));
 
         ResponseEntity<StockAlertDTO> response = controller.getProductAlert(1);
 
@@ -111,7 +109,7 @@ class StockAlertControllerTest {
 
     @Test
     void getProductAlert_whenNoAlert_returnsNoContent() {
-        when(stockAlertService.getAlertByProductId(99)).thenReturn(java.util.Optional.empty());
+        when(stockAlertService.getAlertByProductId(99)).thenReturn(Optional.empty());
 
         ResponseEntity<StockAlertDTO> response = controller.getProductAlert(99);
 
@@ -236,7 +234,7 @@ class StockAlertControllerTest {
                 .horizonDays(14)
                 .calculatedAt(LocalDateTime.now())
                 .build();
-        when(stockAlertService.getDailyForecast(2)).thenReturn(java.util.Optional.of(dto));
+        when(stockAlertService.getDailyForecast(2)).thenReturn(Optional.of(dto));
 
         ResponseEntity<DailyForecastResponseDTO> response = controller.getDailyForecastByProduct(2);
 
@@ -247,7 +245,7 @@ class StockAlertControllerTest {
 
     @Test
     void getDailyForecastByProduct_whenNoData_returnsNoContent() {
-        when(stockAlertService.getDailyForecast(999)).thenReturn(java.util.Optional.empty());
+        when(stockAlertService.getDailyForecast(999)).thenReturn(Optional.empty());
 
         ResponseEntity<DailyForecastResponseDTO> response = controller.getDailyForecastByProduct(999);
 

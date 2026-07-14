@@ -1,29 +1,4 @@
 package com.economato.inventory.application.usecase.incident;
-import com.economato.inventory.application.usecase.crisis.TraceabilityService;
-import com.economato.inventory.application.dto.crisis.response.ReverseTraceabilityDTO;
-
-import com.economato.inventory.application.dto.incident.response.IncidentAuditAttachmentResponseDTO;
-import com.economato.inventory.application.dto.incident.response.IncidentChatMessageResponseDTO;
-import com.economato.inventory.application.dto.incident.response.IncidentResponseDTO;
-import com.economato.inventory.application.dto.incident.response.IncidentTypeResponseDTO;
-import com.economato.inventory.application.dto.user.response.UserSummaryDTO;
-import com.economato.inventory.domain.model.incident.IncidentSeverity;
-import com.economato.inventory.domain.model.incident.IncidentStatus;
-import com.economato.inventory.domain.model.user.Role;
-import com.economato.inventory.infrastructure.adapter.out.external.incident.reports.IncidentReportPdfService;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -32,6 +7,30 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+
+import com.economato.inventory.application.dto.crisis.response.ReverseTraceabilityDTO;
+import com.economato.inventory.application.dto.incident.response.IncidentAuditAttachmentResponseDTO;
+import com.economato.inventory.application.dto.incident.response.IncidentChatMessageResponseDTO;
+import com.economato.inventory.application.dto.incident.response.IncidentResponseDTO;
+import com.economato.inventory.application.dto.incident.response.IncidentTypeResponseDTO;
+import com.economato.inventory.application.dto.user.response.UserSummaryDTO;
+import com.economato.inventory.application.usecase.crisis.TraceabilityService;
+import com.economato.inventory.domain.model.incident.IncidentSeverity;
+import com.economato.inventory.domain.model.incident.IncidentStatus;
+import com.economato.inventory.domain.model.user.Role;
+import com.economato.inventory.infrastructure.adapter.out.external.incident.reports.IncidentReportPdfService;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class IncidentReportPdfServiceTest {
@@ -50,13 +49,13 @@ class IncidentReportPdfServiceTest {
 
         lenient().when(i18nService.getMessage(any(MessageKey.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0, MessageKey.class).name());
-        lenient().when(i18nService.getMessage(any(MessageKey.class), org.mockito.ArgumentMatchers.<Object[]>any()))
+        lenient().when(i18nService.getMessage(any(MessageKey.class), ArgumentMatchers.<Object[]>any()))
                 .thenAnswer(invocation -> {
                     MessageKey key = invocation.getArgument(0, MessageKey.class);
                 Object[] args = Arrays.copyOfRange(invocation.getArguments(), 1, invocation.getArguments().length);
                 return key.name() + " " + Arrays.toString(args);
                 });
-        lenient().when(i18nService.getMessage(eq(MessageKey.TRACEABILITY_SUMMARY_REVERSE), org.mockito.ArgumentMatchers.<Object[]>any()))
+        lenient().when(i18nService.getMessage(eq(MessageKey.TRACEABILITY_SUMMARY_REVERSE), ArgumentMatchers.<Object[]>any()))
                 .thenAnswer(invocation -> "traceability-summary");
 
         var reverseTraceability = mock(ReverseTraceabilityDTO.class);

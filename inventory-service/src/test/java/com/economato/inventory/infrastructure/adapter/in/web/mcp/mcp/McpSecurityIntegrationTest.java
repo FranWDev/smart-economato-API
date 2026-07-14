@@ -1,31 +1,29 @@
 package com.economato.inventory.infrastructure.adapter.in.web.mcp.mcp;
-import com.economato.inventory.domain.model.user.User;
-
-import java.util.Date;
-import java.util.concurrent.TimeUnit;
-
 import static org.hamcrest.Matchers.allOf;
 import static org.hamcrest.Matchers.containsString;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 import static org.mockito.Mockito.when;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.economato.inventory.application.usecase.user.TokenBlacklistService;
 import com.economato.inventory.application.usecase.mcp.mcp.McpToolReadService;
-import com.economato.inventory.infrastructure.shared.TestDataUtil;
+import com.economato.inventory.application.usecase.user.TokenBlacklistService;
+import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
 import com.economato.inventory.infrastructure.config.shared.security.JwtProperties;
-
+import com.economato.inventory.infrastructure.shared.TestDataUtil;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 class McpSecurityIntegrationTest extends BaseIntegrationTest {
 
@@ -48,7 +46,7 @@ class McpSecurityIntegrationTest extends BaseIntegrationTest {
     void setUp() {
         clearDatabase();
         userRepository.saveAndFlush(TestDataUtil.createAdminUser());
-        when(mcpToolReadService.getActiveAlerts()).thenReturn(java.util.List.of());
+        when(mcpToolReadService.getActiveAlerts()).thenReturn(List.of());
         tokenBlacklistService.clearBlacklist();
     }
 

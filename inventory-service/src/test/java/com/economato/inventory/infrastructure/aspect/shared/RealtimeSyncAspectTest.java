@@ -1,7 +1,4 @@
 package com.economato.inventory.infrastructure.aspect.shared;
-import com.economato.inventory.application.dto.order.response.OrderDetailResponseDTO;
-import com.economato.inventory.application.dto.order.response.OrderResponseDTO;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -9,10 +6,20 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.economato.inventory.application.dto.order.response.OrderDetailResponseDTO;
+import com.economato.inventory.application.dto.order.response.OrderResponseDTO;
+import com.economato.inventory.application.dto.shared.event.RealtimeSyncEvent;
+import com.economato.inventory.application.usecase.notification.WebSocketNotificationService;
+import com.economato.inventory.domain.model.ledger.StockLedger;
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
-
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,16 +28,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import com.economato.inventory.application.dto.shared.event.RealtimeSyncEvent;
-import com.economato.inventory.application.usecase.notification.WebSocketNotificationService;
-import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.domain.model.ledger.StockLedger;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
-import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
-
-import org.aspectj.lang.ProceedingJoinPoint;
 
 @ExtendWith(MockitoExtension.class)
 class RealtimeSyncAspectTest {
@@ -119,7 +116,7 @@ class RealtimeSyncAspectTest {
         ResultWithId result = new ResultWithId(1);
         when(joinPoint.proceed()).thenReturn(result);
         when(securityContextHelper.getCurrentUser()).thenReturn(testUser);
-        org.mockito.Mockito.doThrow(new RuntimeException("WS down"))
+        Mockito.doThrow(new RuntimeException("WS down"))
                 .when(webSocketNotificationService).broadcastSync(any());
 
         // No debe lanzar excepción
@@ -138,7 +135,7 @@ class RealtimeSyncAspectTest {
         // No hacemos stub de getArgs(): proceed() lanza antes de que el aspecto lo necesite
         when(joinPoint.proceed()).thenThrow(new RuntimeException("DB error"));
 
-        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class,
+        Assertions.assertThrows(RuntimeException.class,
                 () -> aspect.aroundSync(joinPoint, sync));
 
         verify(webSocketNotificationService, never()).broadcastSync(any());
@@ -326,7 +323,7 @@ class RealtimeSyncAspectTest {
         // Primera llamada: proceed() lanza excepción
         // Usamos lenient para poder cambiar el stub en la misma prueba
         Mockito.lenient().when(joinPoint.proceed()).thenThrow(new RuntimeException("DB error"));
-        org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class,
+        Assertions.assertThrows(RuntimeException.class,
                 () -> aspect.aroundSync(joinPoint, sync));
 
         // Segunda llamada: el ThreadLocal debe haberse limpiado, emite normalmente

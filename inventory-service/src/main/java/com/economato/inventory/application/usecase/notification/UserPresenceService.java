@@ -1,7 +1,13 @@
 package com.economato.inventory.application.usecase.notification;
+import com.economato.inventory.application.dto.notification.event.PresenceAuditEvent;
+import com.economato.inventory.application.dto.notification.presence.UserPresenceSnapshot;
+import com.economato.inventory.application.dto.user.presence.UserSessionInfo;
 import com.economato.inventory.application.usecase.order.OrderReviewLockService;
 import com.economato.inventory.application.usecase.shared.SystemConfigService;
-
+import com.economato.inventory.domain.model.user.Role;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -10,7 +16,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
+import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.context.event.EventListener;
@@ -18,16 +25,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
-
-import com.economato.inventory.application.dto.notification.event.PresenceAuditEvent;
-import com.economato.inventory.application.dto.notification.presence.UserPresenceSnapshot;
-import com.economato.inventory.application.dto.user.presence.UserSessionInfo;
-import com.economato.inventory.domain.model.user.Role;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
-
-import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -234,7 +231,7 @@ public class UserPresenceService {
                 .flatMap(map -> map.values().stream())
                 .filter(info -> Role.CHEF.equals(info.getRole()))
                 .map(UserSessionInfo::getUsername)
-                .collect(java.util.stream.Collectors.toSet());
+                .collect(Collectors.toSet());
 
         for (String chefUsername : connectedChefs) {
             Integer chefId = sessionsByUser.getOrDefault(chefUsername, new ConcurrentHashMap<>())

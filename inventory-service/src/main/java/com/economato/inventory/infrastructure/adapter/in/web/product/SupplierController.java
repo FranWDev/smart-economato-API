@@ -1,25 +1,22 @@
 package com.economato.inventory.infrastructure.adapter.in.web.product;
 
+import com.economato.inventory.application.dto.product.request.SupplierRequestDTO;
+import com.economato.inventory.application.dto.product.response.SupplierResponseDTO;
+import com.economato.inventory.application.usecase.product.SupplierService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
 import jakarta.validation.Valid;
+import java.net.URI;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import com.economato.inventory.application.dto.product.request.SupplierRequestDTO;
-import com.economato.inventory.application.dto.product.response.SupplierResponseDTO;
-import com.economato.inventory.application.usecase.product.SupplierService;
-
-import java.net.URI;
-
-import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
 @RequestMapping("/api/suppliers")
@@ -79,7 +76,7 @@ public class SupplierController {
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
     public ResponseEntity<SupplierResponseDTO> create(
-             @Valid @org.springframework.web.bind.annotation.RequestBody SupplierRequestDTO supplierRequest) {
+             @Valid @RequestBody SupplierRequestDTO supplierRequest) {
         SupplierResponseDTO created = supplierService.save(supplierRequest);
         return ResponseEntity.created(URI.create("/api/suppliers/" + created.getId()))
                 .body(created);
@@ -104,7 +101,7 @@ public class SupplierController {
     @PutMapping("/{id}")
     public ResponseEntity<SupplierResponseDTO> update(
             @PathVariable Integer id,
-            @Valid @org.springframework.web.bind.annotation.RequestBody SupplierRequestDTO supplierRequest) {
+            @Valid @RequestBody SupplierRequestDTO supplierRequest) {
         return supplierService.update(id, supplierRequest)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());

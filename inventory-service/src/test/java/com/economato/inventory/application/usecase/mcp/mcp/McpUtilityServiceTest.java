@@ -1,31 +1,30 @@
 package com.economato.inventory.application.usecase.mcp.mcp;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import com.economato.inventory.application.dto.mcp.mcp.McpBulkRequest;
 import com.economato.inventory.application.dto.mcp.mcp.McpSystemContextDto;
 import com.economato.inventory.application.dto.product.mcp.McpProductDto;
-
-
 import com.economato.inventory.domain.model.order.Order;
+import com.economato.inventory.domain.model.order.OrderStatus;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.recipe.Recipe;
-import com.economato.inventory.domain.model.order.OrderStatus;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.order.OrderRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.SupplierRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class McpUtilityServiceTest {
@@ -60,7 +59,7 @@ class McpUtilityServiceTest {
         testOrder.setId(1);
         testOrder.setStatus(OrderStatus.PENDING);
         testOrder.setDetails(new ArrayList<>());
-        testOrder.setOrderDate(java.time.LocalDateTime.now());
+        testOrder.setOrderDate(LocalDateTime.now());
 
         testRecipe = new Recipe();
         testRecipe.setId(1);
@@ -68,7 +67,7 @@ class McpUtilityServiceTest {
         testRecipe.setTotalCost(new BigDecimal("2.5"));
         testRecipe.setElaboration("Mix and fry");
         testRecipe.setPresentation("Stack them up");
-        testRecipe.setAllergens(new java.util.HashSet<>());
+        testRecipe.setAllergens(new HashSet<>());
     }
 
     @Test

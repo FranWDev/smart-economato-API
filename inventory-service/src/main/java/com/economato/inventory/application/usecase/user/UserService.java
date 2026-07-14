@@ -1,39 +1,21 @@
 package com.economato.inventory.application.usecase.user;
+import com.economato.inventory.application.dto.shared.RestPage;
+import com.economato.inventory.application.dto.shared.request.ChangePasswordRequestDTO;
+import com.economato.inventory.application.dto.user.projection.UserProjection;
+import com.economato.inventory.application.dto.user.request.RoleEscalationRequestDTO;
+import com.economato.inventory.application.dto.user.request.UserRequestDTO;
+import com.economato.inventory.application.dto.user.response.UserResponseDTO;
+import com.economato.inventory.application.dto.user.response.UserStatsResponseDTO;
+import com.economato.inventory.application.dto.weeklyplan.request.BatchTeacherAssignmentRequestDTO;
+import com.economato.inventory.application.dto.weeklyplan.request.TransferStudentsRequestDTO;
+import com.economato.inventory.application.dto.weeklyplan.response.BatchTeacherAssignmentResponseDTO;
+import com.economato.inventory.application.mapper.shared.StatsMapper;
+import com.economato.inventory.application.mapper.user.TemporaryRoleEscalationMapper;
+import com.economato.inventory.application.mapper.user.UserMapper;
 import com.economato.inventory.application.usecase.notification.RoleNotificationMessage;
 import com.economato.inventory.application.usecase.notification.RoleNotificationService;
 import com.economato.inventory.application.usecase.shared.SystemConfigService;
 import com.economato.inventory.application.usecase.stock.AlertCode;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.security.core.Authentication;
-
-import com.economato.inventory.application.dto.shared.RestPage;
-import com.economato.inventory.application.dto.user.projection.UserProjection;
-import com.economato.inventory.application.dto.weeklyplan.request.BatchTeacherAssignmentRequestDTO;
-import com.economato.inventory.application.dto.shared.request.ChangePasswordRequestDTO;
-import com.economato.inventory.application.dto.user.request.RoleEscalationRequestDTO;
-import com.economato.inventory.application.dto.weeklyplan.request.TransferStudentsRequestDTO;
-import com.economato.inventory.application.dto.user.request.UserRequestDTO;
-import com.economato.inventory.application.dto.weeklyplan.response.BatchTeacherAssignmentResponseDTO;
-import com.economato.inventory.application.dto.user.response.UserResponseDTO;
-import com.economato.inventory.application.dto.user.response.UserStatsResponseDTO;
-import com.economato.inventory.application.mapper.shared.StatsMapper;
-import com.economato.inventory.application.mapper.user.TemporaryRoleEscalationMapper;
-import com.economato.inventory.application.mapper.user.UserMapper;
 import com.economato.inventory.domain.model.user.Role;
 import com.economato.inventory.domain.model.user.TemporaryRoleEscalation;
 import com.economato.inventory.domain.model.user.User;
@@ -44,6 +26,22 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional(rollbackFor = { RuntimeException.class, Exception.class })
@@ -565,7 +563,7 @@ public class UserService {
             return;
         }
 
-        List<Integer> uniqueUserIds = userIds.stream().filter(java.util.Objects::nonNull).distinct().toList();
+        List<Integer> uniqueUserIds = userIds.stream().filter(Objects::nonNull).distinct().toList();
         if (uniqueUserIds.isEmpty()) {
             return;
         }

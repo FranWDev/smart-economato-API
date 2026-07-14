@@ -1,17 +1,16 @@
 package com.economato.inventory.application.mapper.order;
 
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.Named;
-import org.mapstruct.NullValuePropertyMappingStrategy;
-
-import com.economato.inventory.application.dto.order.request.OrderDetailRequestDTO;
-import com.economato.inventory.application.dto.order.projection.OrderProjection;
 import com.economato.inventory.application.dto.order.projection.OrderDetailProjection;
+import com.economato.inventory.application.dto.order.projection.OrderProjection;
+import com.economato.inventory.application.dto.order.request.OrderDetailRequestDTO;
 import com.economato.inventory.application.dto.order.response.OrderDetailResponseDTO;
 import com.economato.inventory.domain.model.order.OrderDetail;
-
 import java.math.BigDecimal;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+import org.mapstruct.Named;
+import org.mapstruct.NullValuePropertyMappingStrategy;
 
 @Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface OrderDetailMapper {
@@ -84,5 +83,5 @@ public interface OrderDetailMapper {
     @Mapping(target = "product", ignore = true)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "quantityReceived", ignore = true)
-    void updateEntityFromDto(OrderDetailRequestDTO dto, @org.mapstruct.MappingTarget OrderDetail entity);
+    void updateEntityFromDto(OrderDetailRequestDTO dto, @MappingTarget OrderDetail entity);
 }

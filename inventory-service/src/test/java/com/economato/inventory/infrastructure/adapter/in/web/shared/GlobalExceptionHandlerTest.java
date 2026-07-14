@@ -1,17 +1,26 @@
 package com.economato.inventory.infrastructure.adapter.in.web.shared;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.infrastructure.adapter.in.web.stock.exception.InsufficientStockException;
-import com.economato.inventory.infrastructure.adapter.in.web.stock.exception.StockLockException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.GlobalExceptionHandler;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
 import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ConcurrencyException;
 import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ErrorResponse;
-
-
-
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.GlobalExceptionHandler;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.in.web.stock.exception.InsufficientStockException;
+import com.economato.inventory.infrastructure.adapter.in.web.stock.exception.StockLockException;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import io.jsonwebtoken.JwtException;
+import jakarta.persistence.OptimisticLockException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Path;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -25,19 +34,6 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-
-import io.jsonwebtoken.JwtException;
-import jakarta.persistence.OptimisticLockException;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.ConstraintViolationException;
-import jakarta.validation.Path;
-
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class GlobalExceptionHandlerTest {
@@ -92,7 +88,7 @@ class GlobalExceptionHandlerTest {
 
         FieldError fieldError = new FieldError("object", "field", "Field error message");
         BindingResult bindingResult = mock(BindingResult.class);
-        when(bindingResult.getAllErrors()).thenReturn(java.util.Arrays.asList(fieldError));
+        when(bindingResult.getAllErrors()).thenReturn(Arrays.asList(fieldError));
 
         MethodArgumentNotValidException exception = new MethodArgumentNotValidException(null, bindingResult);
 

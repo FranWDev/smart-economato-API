@@ -1,21 +1,20 @@
 package com.economato.inventory.application.usecase.blockchain;
-import com.economato.inventory.application.usecase.ledger.StockLedgerService;
-import com.economato.inventory.infrastructure.config.ledger.cache.event.NewLedgerTransactionEvent;
-
-import java.math.BigDecimal;
-import java.util.concurrent.TimeUnit;
-
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.economato.inventory.application.usecase.ledger.StockLedgerService;
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.domain.model.shared.MovementType;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.LedgerBlockRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.config.ledger.cache.event.NewLedgerTransactionEvent;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ActiveProfiles;
-
-import com.economato.inventory.domain.model.shared.MovementType;
-import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.LedgerBlockRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
 
 /**
  * Test de integración para validar que el proceso de sellado de la blockchain funciona correctamente
@@ -66,7 +65,7 @@ public class BlockchainSealingIntegrationTest extends BaseIntegrationTest {
                     "TX Test Blockchain " + i,
                     null,
                     null,
-                    java.time.LocalDate.now().plusMonths(1)
+                    LocalDate.now().plusMonths(1)
             );
         }
 

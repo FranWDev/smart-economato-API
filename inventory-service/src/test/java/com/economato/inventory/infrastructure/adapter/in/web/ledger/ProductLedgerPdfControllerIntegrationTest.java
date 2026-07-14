@@ -1,30 +1,29 @@
 package com.economato.inventory.infrastructure.adapter.in.web.ledger;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
-
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
+import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
+import com.economato.inventory.domain.model.ledger.StockLedger;
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.domain.model.shared.MovementType;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
+import com.economato.inventory.infrastructure.adapter.out.external.ledger.reports.StockLedgerPdfService;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
+import com.economato.inventory.infrastructure.shared.TestDataUtil;
 import java.math.BigDecimal;
-
+import java.time.LocalDateTime;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.ResultActions;
-
-import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
-import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
-import com.economato.inventory.domain.model.shared.MovementType;
-import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.domain.model.ledger.StockLedger;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
-import com.economato.inventory.infrastructure.adapter.out.external.ledger.reports.StockLedgerPdfService;
-import com.economato.inventory.infrastructure.shared.TestDataUtil;
 
 class ProductLedgerPdfControllerIntegrationTest extends BaseIntegrationTest {
 
@@ -93,11 +92,11 @@ class ProductLedgerPdfControllerIntegrationTest extends BaseIntegrationTest {
                         .movementType(MovementType.valueOf(type))
                         .description(description)
                         .resultingStock(new BigDecimal(resultingStockValue))
-                        .transactionTimestamp(java.time.LocalDateTime.now())
+                        .transactionTimestamp(LocalDateTime.now())
                         .user(testUser)
                         .previousHash(prevHash != null ? prevHash : "0")
                         // Use UUID to ensure uniqueness across all tests
-                        .currentHash("hash_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12))
+                        .currentHash("hash_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12))
                         .verified(true)
                         .build();
                 stockLedgerRepository.save(ledger);

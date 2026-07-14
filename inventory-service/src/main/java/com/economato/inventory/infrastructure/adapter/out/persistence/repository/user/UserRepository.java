@@ -1,20 +1,18 @@
 package com.economato.inventory.infrastructure.adapter.out.persistence.repository.user;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
-
 import com.economato.inventory.application.dto.user.projection.RoleCountProjection;
 import com.economato.inventory.application.dto.user.projection.UserProjection;
 import com.economato.inventory.domain.model.user.Role;
 import com.economato.inventory.domain.model.user.User;
-
-import java.util.Optional;
 import java.util.List;
-
+import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface UserRepository extends JpaRepository<User, Integer> {
 
@@ -79,7 +77,7 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     @Query("SELECT u FROM User u WHERE u.teacher IS NULL AND u.role IN :roles AND u.isHidden = false")
     List<UserProjection> findProjectedByTeacherIsNullAndRoleInAndIsHiddenFalse(@Param("roles") List<Role> roles);
 
-    @org.springframework.data.jpa.repository.Modifying
+    @Modifying
     @Query("UPDATE User u SET u.isHidden = :hidden WHERE u.teacher.id = :teacherId")
     int updateHiddenByTeacherId(@Param("teacherId") Integer teacherId, @Param("hidden") boolean hidden);
 

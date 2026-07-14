@@ -1,23 +1,21 @@
 package com.economato.inventory.infrastructure.adapter.in.web.user;
 
+import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
+import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
+import com.economato.inventory.application.usecase.user.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
 import jakarta.validation.Valid;
 import java.util.Map;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
-import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
-import com.economato.inventory.application.usecase.user.AuthService;
+import org.springframework.web.bind.annotation.RequestBody;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -37,7 +35,7 @@ public class AuthController {
     })
     @PostMapping("/login")
     public ResponseEntity<LoginResponseDTO> authenticateUser(
-            @Valid @org.springframework.web.bind.annotation.RequestBody LoginRequestDTO loginRequest) {
+            @Valid @RequestBody LoginRequestDTO loginRequest) {
         LoginResponseDTO response = authService.login(loginRequest);
         return ResponseEntity.ok(response);
     }

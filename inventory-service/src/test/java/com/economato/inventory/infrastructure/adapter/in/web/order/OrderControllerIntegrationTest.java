@@ -1,34 +1,35 @@
 package com.economato.inventory.infrastructure.adapter.in.web.order;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
-
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.economato.inventory.application.dto.order.request.OrderDetailRequestDTO;
+import com.economato.inventory.application.dto.order.request.OrderRequestDTO;
+import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
+import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.domain.model.product.Supplier;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
+import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.SupplierRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
+import com.economato.inventory.infrastructure.shared.TestDataUtil;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
-
-import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
-import com.economato.inventory.application.dto.order.request.OrderDetailRequestDTO;
-import com.economato.inventory.application.dto.order.request.OrderRequestDTO;
-import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
-import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.domain.model.product.Supplier;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.SupplierRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
-import com.economato.inventory.infrastructure.shared.TestDataUtil;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
 
 class OrderControllerIntegrationTest extends BaseIntegrationTest {
 
@@ -389,17 +390,17 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(jsonPath("$.details[0].productId").value(testProduct1.getId()));
 
 
-                var receptionData = new java.util.HashMap<String, Object>();
+                var receptionData = new HashMap<String, Object>();
                 receptionData.put("orderId", orderId);
-                var items = new java.util.ArrayList<java.util.Map<String, Object>>();
-                var item = new java.util.HashMap<String, Object>();
+                var items = new ArrayList<Map<String, Object>>();
+                var item = new HashMap<String, Object>();
                 item.put("productId", testProduct1.getId());
                 item.put("quantityReceived", 5.0);
                 
-                var lot = new java.util.HashMap<String, Object>();
+                var lot = new HashMap<String, Object>();
                 lot.put("quantity", 5.0);
                 lot.put("expirationDate", "2030-01-01");
-                item.put("lots", java.util.Arrays.asList(lot));
+                item.put("lots", Arrays.asList(lot));
                 items.add(item);
                 receptionData.put("items", items);
 
@@ -442,16 +443,16 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
                                 .andExpect(status().isOk())
                                 .andExpect(jsonPath("$.status").value("REVIEW"));
 
-                var receptionData = new java.util.HashMap<String, Object>();
+                var receptionData = new HashMap<String, Object>();
                 receptionData.put("orderId", orderId);
-                var items = new java.util.ArrayList<java.util.Map<String, Object>>();
-                var item = new java.util.HashMap<String, Object>();
+                var items = new ArrayList<Map<String, Object>>();
+                var item = new HashMap<String, Object>();
                 item.put("productId", testProduct1.getId());
                 item.put("quantityReceived", 5.0);
-                var lot = new java.util.HashMap<String, Object>();
+                var lot = new HashMap<String, Object>();
                 lot.put("quantity", 5.0);
                 lot.put("expirationDate", "2030-01-01");
-                item.put("lots", java.util.Arrays.asList(lot));
+                item.put("lots", Arrays.asList(lot));
                 items.add(item);
                 receptionData.put("items", items);
 
@@ -544,7 +545,7 @@ class OrderControllerIntegrationTest extends BaseIntegrationTest {
                 assertNotNull(pdfBytes);
                 assertTrue(pdfBytes.length > 0);
 
-                String pdfHeader = new String(java.util.Arrays.copyOfRange(pdfBytes, 0, 4));
+                String pdfHeader = new String(Arrays.copyOfRange(pdfBytes, 0, 4));
                 assertTrue(pdfHeader.startsWith("%PDF"));
         }
 

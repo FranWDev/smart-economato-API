@@ -1,42 +1,19 @@
 package com.economato.inventory.application.usecase.incident;
-import com.economato.inventory.application.usecase.notification.PersistentNotificationService;
-import com.economato.inventory.application.usecase.recipe.RecipeService;
-import com.economato.inventory.application.usecase.incident.IncidentChatService;
-import com.economato.inventory.infrastructure.adapter.out.external.incident.reports.IncidentReportPdfService;
-import static org.mockito.Mockito.mock;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import org.mockito.Mock;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.access.AccessDeniedException;
 
 import com.economato.inventory.application.dto.incident.projection.IncidentChatMessageCountProjection;
-import com.economato.inventory.application.dto.shared.request.AttachAuditRequestDTO;
 import com.economato.inventory.application.dto.incident.request.CloseIncidentRequestDTO;
 import com.economato.inventory.application.dto.incident.request.CreateIncidentRequestDTO;
 import com.economato.inventory.application.dto.incident.request.OpenIncidentRequestDTO;
@@ -44,9 +21,13 @@ import com.economato.inventory.application.dto.incident.request.RevertAuditFromI
 import com.economato.inventory.application.dto.incident.response.IncidentAuditAttachmentResponseDTO;
 import com.economato.inventory.application.dto.incident.response.IncidentListResponseDTO;
 import com.economato.inventory.application.dto.incident.response.IncidentResponseDTO;
+import com.economato.inventory.application.dto.shared.request.AttachAuditRequestDTO;
 import com.economato.inventory.application.mapper.incident.IncidentMapper;
 import com.economato.inventory.application.mapper.incident.IncidentTypeMapper;
 import com.economato.inventory.application.mapper.recipe.RecipeCookingAuditMapper;
+import com.economato.inventory.application.usecase.incident.IncidentChatService;
+import com.economato.inventory.application.usecase.notification.PersistentNotificationService;
+import com.economato.inventory.application.usecase.recipe.RecipeService;
 import com.economato.inventory.domain.model.incident.Incident;
 import com.economato.inventory.domain.model.incident.IncidentAuditAttachment;
 import com.economato.inventory.domain.model.incident.IncidentSeverity;
@@ -57,6 +38,7 @@ import com.economato.inventory.domain.model.recipe.RecipeCookingAudit;
 import com.economato.inventory.domain.model.user.Role;
 import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.out.external.incident.reports.IncidentReportPdfService;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentAuditAttachmentRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentChatMessageRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.incident.IncidentRepository;
@@ -65,6 +47,24 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.security.access.AccessDeniedException;
 
 @ExtendWith(MockitoExtension.class)
 class IncidentServiceTest {
@@ -270,7 +270,7 @@ class IncidentServiceTest {
                 .cookingAuditIds(List.of(100L, 101L))
                 .build());
 
-        verify(incidentAuditAttachmentRepository).saveAll(org.mockito.ArgumentMatchers.argThat((List<IncidentAuditAttachment> attachments) ->
+        verify(incidentAuditAttachmentRepository).saveAll(ArgumentMatchers.argThat((List<IncidentAuditAttachment> attachments) ->
             attachments.size() == 2
                 && attachments.stream().allMatch(attachment -> attachment.getIncident().getId().equals(203L))));
     }
@@ -361,14 +361,14 @@ class IncidentServiceTest {
         when(incidentRepository.findDetailById(400L)).thenReturn(Optional.of(incident));
         when(recipeCookingAuditRepository.findAllByIdWithUser(List.of(100L))).thenReturn(List.of(auditByChef));
         when(incidentAuditAttachmentRepository.findAttachedCookingAuditIds(400L, List.of(100L))).thenReturn(List.of());
-        when(incidentParticipantService.allowedAuditUserIds(chef)).thenReturn(java.util.Set.of(chef.getId(), chefStudent.getId()));
+        when(incidentParticipantService.allowedAuditUserIds(chef)).thenReturn(Set.of(chef.getId(), chefStudent.getId()));
         when(incidentAuditAttachmentRepository.findByIncidentId(400L)).thenReturn(List.of());
 
         List<IncidentAuditAttachmentResponseDTO> result = service.attachAudits(400L,
                 AttachAuditRequestDTO.builder().cookingAuditIds(List.of(100L)).build());
 
         assertNotNull(result);
-        verify(incidentAuditAttachmentRepository).saveAll(org.mockito.ArgumentMatchers.argThat((List<IncidentAuditAttachment> attachments) ->
+        verify(incidentAuditAttachmentRepository).saveAll(ArgumentMatchers.argThat((List<IncidentAuditAttachment> attachments) ->
             attachments.size() == 1
                 && attachments.get(0).getIncident().getId().equals(400L)));
     }
@@ -380,11 +380,11 @@ class IncidentServiceTest {
         when(incidentRepository.findDetailById(401L)).thenReturn(Optional.of(incident));
         when(recipeCookingAuditRepository.findAllByIdWithUser(List.of(101L))).thenReturn(List.of(auditByStudent));
         when(incidentAuditAttachmentRepository.findAttachedCookingAuditIds(401L, List.of(101L))).thenReturn(List.of());
-        when(incidentParticipantService.allowedAuditUserIds(chef)).thenReturn(java.util.Set.of(chef.getId(), chefStudent.getId()));
+        when(incidentParticipantService.allowedAuditUserIds(chef)).thenReturn(Set.of(chef.getId(), chefStudent.getId()));
 
         service.attachAudits(401L, AttachAuditRequestDTO.builder().cookingAuditIds(List.of(101L)).build());
 
-        verify(incidentAuditAttachmentRepository).saveAll(org.mockito.ArgumentMatchers.argThat((List<IncidentAuditAttachment> attachments) ->
+        verify(incidentAuditAttachmentRepository).saveAll(ArgumentMatchers.argThat((List<IncidentAuditAttachment> attachments) ->
             attachments.size() == 1
                 && attachments.get(0).getIncident().getId().equals(401L)));
     }
@@ -404,7 +404,7 @@ class IncidentServiceTest {
         when(incidentRepository.findDetailById(402L)).thenReturn(Optional.of(incident));
         when(recipeCookingAuditRepository.findAllByIdWithUser(List.of(999L))).thenReturn(List.of(foreignAudit));
         when(incidentAuditAttachmentRepository.findAttachedCookingAuditIds(402L, List.of(999L))).thenReturn(List.of());
-        when(incidentParticipantService.allowedAuditUserIds(chef)).thenReturn(java.util.Set.of(chef.getId(), chefStudent.getId()));
+        when(incidentParticipantService.allowedAuditUserIds(chef)).thenReturn(Set.of(chef.getId(), chefStudent.getId()));
 
         assertThrows(InvalidOperationException.class,
                 () -> service.attachAudits(402L, AttachAuditRequestDTO.builder().cookingAuditIds(List.of(999L)).build()));

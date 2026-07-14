@@ -1,4 +1,9 @@
 package com.economato.inventory.infrastructure.adapter.in.web.weeklyplan;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
 import com.economato.inventory.application.dto.recipe.request.RecipeComponentRequestDTO;
 import com.economato.inventory.application.dto.recipe.request.RecipeRequestDTO;
 import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
@@ -16,6 +21,7 @@ import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.domain.model.weeklyplan.WeeklyPlan;
 import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlot;
 import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
+import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
@@ -23,33 +29,25 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanRepository;
-
-
-
-
 import com.economato.inventory.infrastructure.shared.TestDataUtil;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.http.MediaType;
-
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-
-import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
+import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
@@ -132,7 +130,7 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
         batch.setInitialQuantity(quantity);
         batch.setRemainingQuantity(quantity);
         batch.setExpirationDate(expirationDate);
-        batch.setReceivedAt(java.time.LocalDateTime.now());
+        batch.setReceivedAt(LocalDateTime.now());
         batch.setDepleted(false);
         productBatchRepository.saveAndFlush(batch);
     }
@@ -1102,7 +1100,7 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
 
         // Check req: flour 0.5 * 10 = 5.0
         mockMvc.perform(get(BASE_URL + "/{id}/stock-requirements", planId).header("Authorization", "Bearer " + chef1Token))
-                .andExpect(jsonPath("$[?(@.productName == 'Harina')].requiredQuantity").value(org.hamcrest.Matchers.hasItem(5.0)));
+                .andExpect(jsonPath("$[?(@.productName == 'Harina')].requiredQuantity").value(Matchers.hasItem(5.0)));
 
         // Admin modifies recipe flour from 0.5 to 0.8
         RecipeRequestDTO updateReq = new RecipeRequestDTO();
@@ -1120,7 +1118,7 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
 
         // Re-check req: flour 0.8 * 10 = 8.0
         mockMvc.perform(get(BASE_URL + "/{id}/stock-requirements", planId).header("Authorization", "Bearer " + chef1Token))
-                .andExpect(jsonPath("$[?(@.productName == 'Harina')].requiredQuantity").value(org.hamcrest.Matchers.hasItem(8.0)));
+                .andExpect(jsonPath("$[?(@.productName == 'Harina')].requiredQuantity").value(Matchers.hasItem(8.0)));
     }
 
         @Test
@@ -1149,7 +1147,7 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
 
         mockMvc.perform(get(BASE_URL + "/{id}/stock-requirements", planId).header("Authorization", "Bearer " + chef1Token))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[?(@.productName == 'Harina')].requiredQuantity").value(org.hamcrest.Matchers.hasItem(9.0)));
+            .andExpect(jsonPath("$[?(@.productName == 'Harina')].requiredQuantity").value(Matchers.hasItem(9.0)));
 
         RecipeRequestDTO secondUpdate = new RecipeRequestDTO();
         secondUpdate.setName(recipe.getName());
@@ -1169,7 +1167,7 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
 
         mockMvc.perform(get(BASE_URL + "/{id}/stock-requirements", planId).header("Authorization", "Bearer " + chef1Token))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[?(@.productName == 'Harina')].requiredQuantity").value(org.hamcrest.Matchers.hasItem(11.0)));
+            .andExpect(jsonPath("$[?(@.productName == 'Harina')].requiredQuantity").value(Matchers.hasItem(11.0)));
         }
 
     @Test
@@ -1245,7 +1243,7 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
         mockMvc.perform(patch(BASE_URL + "/{id}/activate", planId).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isOk());
 
         WeeklyPlanSlotRequestDTO slot2 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("2.0"), 2, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student3.getId()));
-        java.util.List<WeeklyPlanSlotRequestDTO> newSlots = new java.util.ArrayList<>(req.getSlots());
+        List<WeeklyPlanSlotRequestDTO> newSlots = new ArrayList<>(req.getSlots());
         newSlots.add(slot2);
         req.setSlots(newSlots);
 
@@ -1316,7 +1314,7 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
 
         mockMvc.perform(get(BASE_URL + "/{id}/pdf", planId).header("Authorization", "Bearer " + chef1Token))
                 .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().contentType(org.springframework.http.MediaType.APPLICATION_PDF));
+                .andExpect(MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_PDF));
     }
 
 }

@@ -1,6 +1,26 @@
 package com.economato.inventory.application.usecase.ledger;
-import com.economato.inventory.application.usecase.product.ProductService;
+import static org.junit.jupiter.api.Assertions.*;
 
+import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
+import com.economato.inventory.application.dto.product.response.ProductResponseDTO;
+import com.economato.inventory.application.usecase.product.ProductService;
+import com.economato.inventory.domain.model.ledger.StockLedger;
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.domain.model.product.ProductBatch;
+import com.economato.inventory.domain.model.user.Role;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
+import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockSnapshotRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -9,32 +29,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
-import com.economato.inventory.application.dto.product.response.ProductResponseDTO;
-import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.domain.model.user.Role;
-import com.economato.inventory.domain.model.ledger.StockLedger;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.stock.StockSnapshotRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
-import com.economato.inventory.domain.model.product.ProductBatch;
-import java.time.LocalDate;
-
-import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
-import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
-
 import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import static org.junit.jupiter.api.Assertions.*;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -90,7 +88,7 @@ class ProductServiceStockLedgerIntegrationTest extends BaseIntegrationTest {
                                 .initialQuantity(testProduct.getCurrentStock())
                                 .remainingQuantity(testProduct.getCurrentStock())
                                 .expirationDate(LocalDate.now().plusYears(1))
-                                .receivedAt(java.time.LocalDateTime.now())
+                                .receivedAt(LocalDateTime.now())
                                 .depleted(false)
                                 .build();
                 productBatchRepository.saveAndFlush(batch);

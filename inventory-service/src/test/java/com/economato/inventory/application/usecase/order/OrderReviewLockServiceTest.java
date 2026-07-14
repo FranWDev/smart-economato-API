@@ -13,8 +13,20 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.time.LocalDateTime;
+import com.economato.inventory.application.dto.order.response.OrderReviewCollaborationStateResponseDTO;
+import com.economato.inventory.application.dto.order.response.OrderReviewLockResponseDTO;
+import com.economato.inventory.application.dto.shared.event.RealtimeSyncEvent;
+import com.economato.inventory.domain.model.order.OrderStatus;
+import com.economato.inventory.domain.model.user.Role;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.adapter.in.web.order.exception.OrderCollaborationFieldLockedException;
+import com.economato.inventory.infrastructure.adapter.in.web.order.exception.OrderReviewLockedException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import java.lang.reflect.Field;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -24,28 +36,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-
-import com.economato.inventory.application.dto.shared.event.RealtimeSyncEvent;
-import com.economato.inventory.application.dto.order.response.OrderReviewLockResponseDTO;
-import com.economato.inventory.application.dto.order.response.OrderReviewCollaborationStateResponseDTO;
-import com.economato.inventory.domain.model.order.OrderStatus;
-import com.economato.inventory.domain.model.user.Role;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.order.exception.OrderCollaborationFieldLockedException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.order.exception.OrderReviewLockedException;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 
 @ExtendWith(MockitoExtension.class)
 class OrderReviewLockServiceTest {
@@ -116,7 +115,7 @@ class OrderReviewLockServiceTest {
 
         assertEquals(1, successCount, "Solo un usuario debe adquirir el lock");
         assertEquals(1, conflictCount, "El segundo usuario debe recibir conflicto");
-        verify(messagingTemplate, atLeastOnce()).convertAndSend(eq("/topic/sync"), org.mockito.ArgumentMatchers.any(Object.class));
+        verify(messagingTemplate, atLeastOnce()).convertAndSend(eq("/topic/sync"), ArgumentMatchers.any(Object.class));
     }
 
     @Test

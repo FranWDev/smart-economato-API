@@ -1,34 +1,18 @@
 package com.economato.inventory.application.usecase.shared;
-import com.economato.inventory.infrastructure.config.shared.PredictionConfig;
-import com.economato.inventory.infrastructure.scheduler.shared.DynamicSchedulerConfig;
-
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.economato.inventory.application.dto.shared.request.AdvancedConfigRequestDTO;
-import com.economato.inventory.application.dto.stock.request.AlertsConfigRequestDTO;
 import com.economato.inventory.application.dto.incident.request.IncidentsConfigRequestDTO;
-import com.economato.inventory.application.dto.notification.request.NotificationsConfigRequestDTO;
 import com.economato.inventory.application.dto.notification.request.NotificationPurgeRequestDTO;
-import com.economato.inventory.application.dto.shared.request.PredictionsConfigRequestDTO;
+import com.economato.inventory.application.dto.notification.request.NotificationsConfigRequestDTO;
 import com.economato.inventory.application.dto.notification.request.PresenceConfigRequestDTO;
+import com.economato.inventory.application.dto.notification.response.NotificationsConfigResponseDTO;
+import com.economato.inventory.application.dto.notification.response.PresenceConfigResponseDTO;
 import com.economato.inventory.application.dto.shared.request.ActivityLogPurgeRequestDTO;
+import com.economato.inventory.application.dto.shared.request.AdvancedConfigRequestDTO;
+import com.economato.inventory.application.dto.shared.request.PredictionsConfigRequestDTO;
 import com.economato.inventory.application.dto.shared.request.SecurityConfigRequestDTO;
 import com.economato.inventory.application.dto.shared.request.SessionsConfigRequestDTO;
 import com.economato.inventory.application.dto.shared.response.ConfigAuditLogResponseDTO;
-import com.economato.inventory.application.dto.notification.response.NotificationsConfigResponseDTO;
-import com.economato.inventory.application.dto.notification.response.PresenceConfigResponseDTO;
 import com.economato.inventory.application.dto.shared.response.PurgeResultResponseDTO;
+import com.economato.inventory.application.dto.stock.request.AlertsConfigRequestDTO;
 import com.economato.inventory.domain.model.notification.NotificationType;
 import com.economato.inventory.domain.model.shared.SystemConfig;
 import com.economato.inventory.domain.model.shared.SystemConfigAuditLog;
@@ -40,11 +24,26 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserActivityLogRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
 import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
+import com.economato.inventory.infrastructure.config.shared.PredictionConfig;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-
+import com.economato.inventory.infrastructure.scheduler.shared.DynamicSchedulerConfig;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -400,22 +399,22 @@ public class SystemConfigService {
     }
 
     @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<SystemConfigAuditLog> getAuditByCategory(String category, org.springframework.data.domain.Pageable pageable) {
+    public Page<SystemConfigAuditLog> getAuditByCategory(String category, Pageable pageable) {
         return auditLogRepository.findByCategoryOrderByChangedAtDesc(category, pageable);
     }
 
     @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<SystemConfigAuditLog> getAuditGlobal(org.springframework.data.domain.Pageable pageable) {
+    public Page<SystemConfigAuditLog> getAuditGlobal(Pageable pageable) {
         return auditLogRepository.findAllByOrderByChangedAtDesc(pageable);
     }
 
     @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<ConfigAuditLogResponseDTO> getAuditByCategoryDto(String category, org.springframework.data.domain.Pageable pageable) {
+    public Page<ConfigAuditLogResponseDTO> getAuditByCategoryDto(String category, Pageable pageable) {
         return getAuditByCategory(category, pageable).map(this::toAuditDto);
     }
 
     @Transactional(readOnly = true)
-    public org.springframework.data.domain.Page<ConfigAuditLogResponseDTO> getAuditGlobalDto(org.springframework.data.domain.Pageable pageable) {
+    public Page<ConfigAuditLogResponseDTO> getAuditGlobalDto(Pageable pageable) {
         return getAuditGlobal(pageable).map(this::toAuditDto);
     }
 
@@ -436,7 +435,7 @@ public class SystemConfigService {
 
     private <T> void setIfChanged(T oldValue,
                                   T newValue,
-                                  java.util.function.Consumer<T> setter,
+                                  Consumer<T> setter,
                                   List<SystemConfigAuditLog> logs,
                                   User admin,
                                   String category,

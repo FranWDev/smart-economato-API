@@ -1,6 +1,23 @@
 package com.economato.inventory.infrastructure.adapter.in.web.order;
-import com.economato.inventory.domain.model.user.User;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.economato.inventory.application.dto.order.response.OrderAuditResponseDTO;
+import com.economato.inventory.application.dto.shared.RestPage;
+import com.economato.inventory.application.usecase.order.OrderAuditService;
+import com.economato.inventory.application.usecase.user.TokenBlacklistService;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.config.shared.security.JwtUtils;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityConfig;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -10,31 +27,11 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.servlet.LocaleResolver;
-
-import com.economato.inventory.application.dto.shared.RestPage;
-import com.economato.inventory.application.dto.order.response.OrderAuditResponseDTO;
-import com.economato.inventory.application.usecase.order.OrderAuditService;
-import com.economato.inventory.infrastructure.config.shared.security.SecurityConfig;
-import com.economato.inventory.infrastructure.config.shared.security.JwtUtils;
-import com.economato.inventory.application.usecase.user.TokenBlacklistService;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
-
-import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(OrderAuditController.class)
 @ActiveProfiles("test")
@@ -160,7 +157,7 @@ class OrderAuditControllerIntegrationTest {
         when(orderAuditService.findByAuditDateBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
                 .thenReturn(testOrderAudits);
 
-        mockMvc.perform(get("/api/order-audits/by-date-range").with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
+        mockMvc.perform(get("/api/order-audits/by-date-range").with(SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                 .param("start", start.toString())
                 .param("end", end.toString())
                 .contentType(MediaType.APPLICATION_JSON))

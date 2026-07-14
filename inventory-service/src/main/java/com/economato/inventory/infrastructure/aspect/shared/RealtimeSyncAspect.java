@@ -1,9 +1,18 @@
 package com.economato.inventory.infrastructure.aspect.shared;
+import com.economato.inventory.application.dto.order.response.OrderDetailResponseDTO;
+import com.economato.inventory.application.dto.order.response.OrderResponseDTO;
+import com.economato.inventory.application.dto.recipe.response.RecipeComponentResponseDTO;
+import com.economato.inventory.application.dto.recipe.response.RecipeResponseDTO;
+import com.economato.inventory.application.dto.shared.event.RealtimeSyncEvent;
+import com.economato.inventory.application.usecase.notification.WebSocketNotificationService;
 import com.economato.inventory.application.usecase.recipe.RecipeDraftService;
 import com.economato.inventory.application.usecase.recipe.RecipeService;
+import com.economato.inventory.domain.model.ledger.StockLedger;
+import com.economato.inventory.domain.model.user.User;
 import com.economato.inventory.infrastructure.aspect.order.OrderAuditAspect;
 import com.economato.inventory.infrastructure.aspect.product.ProductAuditAspect;
-
+import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -11,8 +20,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
-
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -21,20 +32,6 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-
-import com.economato.inventory.application.dto.shared.event.RealtimeSyncEvent;
-import com.economato.inventory.application.usecase.notification.WebSocketNotificationService;
-import com.economato.inventory.application.dto.recipe.response.RecipeResponseDTO;
-import com.economato.inventory.application.dto.recipe.response.RecipeComponentResponseDTO;
-import com.economato.inventory.application.dto.order.response.OrderResponseDTO;
-import com.economato.inventory.application.dto.order.response.OrderDetailResponseDTO;
-import com.economato.inventory.domain.model.ledger.StockLedger;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
-import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Aspecto que intercepta métodos anotados con {@link RealtimeSync} y emite un evento
@@ -202,7 +199,7 @@ public class RealtimeSyncAspect {
         }
 
         Object unwrappedResult = result;
-        if (result instanceof java.util.Optional<?> opt) {
+        if (result instanceof Optional<?> opt) {
             if (opt.isEmpty()) return Collections.emptyList();
             unwrappedResult = opt.get();
         }
@@ -273,7 +270,7 @@ public class RealtimeSyncAspect {
         }
 
         // Si es Optional, intentar desenvolverlo
-        if (result instanceof java.util.Optional<?> opt) {
+        if (result instanceof Optional<?> opt) {
             if (opt.isEmpty()) return null;
             return extractIdViaReflection(opt.get());
         }

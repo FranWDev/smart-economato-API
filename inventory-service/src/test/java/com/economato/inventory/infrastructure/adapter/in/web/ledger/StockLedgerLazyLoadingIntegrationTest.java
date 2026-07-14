@@ -1,30 +1,29 @@
 package com.economato.inventory.infrastructure.adapter.in.web.ledger;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
-
-import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
-import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
-import com.economato.inventory.domain.model.shared.MovementType;
-import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.domain.model.ledger.StockLedger;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
-import com.economato.inventory.infrastructure.shared.TestDataUtil;
-import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-
 import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
+import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
+import com.economato.inventory.domain.model.ledger.StockLedger;
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.domain.model.shared.MovementType;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
+import com.economato.inventory.infrastructure.adapter.out.messaging.shared.kafka.producer.AuditEventProducer;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.ledger.StockLedgerRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
+import com.economato.inventory.infrastructure.shared.TestDataUtil;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 class StockLedgerLazyLoadingIntegrationTest extends BaseIntegrationTest {
 
@@ -74,7 +73,7 @@ class StockLedgerLazyLoadingIntegrationTest extends BaseIntegrationTest {
                 .movementType(MovementType.ENTRADA)
                 .description("Movimiento prueba lazy user")
                 .previousHash("0")
-                .currentHash("hash" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 28))
+                .currentHash("hash" + UUID.randomUUID().toString().replace("-", "").substring(0, 28))
                 .transactionTimestamp(LocalDateTime.now())
                 .user(adminUser)
                 .sequenceNumber(1L)

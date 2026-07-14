@@ -1,4 +1,13 @@
 package com.economato.inventory.application.usecase.weeklyplan;
+import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
+import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
+import com.economato.inventory.application.dto.weeklyplan.request.WeeklyPlanRequestDTO;
+import com.economato.inventory.application.dto.weeklyplan.request.WeeklyPlanSlotRequestDTO;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.product.ProductBatch;
 import com.economato.inventory.domain.model.recipe.Recipe;
@@ -12,6 +21,7 @@ import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlot;
 import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlotStatus;
 import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanSlotStudent;
 import com.economato.inventory.domain.model.weeklyplan.WeeklyPlanStatus;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductBatchRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeCookingAuditRepository;
@@ -19,34 +29,22 @@ import com.economato.inventory.infrastructure.adapter.out.persistence.repository
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanRepository;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.weeklyplan.WeeklyPlanSlotRepository;
-
-import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
-import com.economato.inventory.application.dto.weeklyplan.request.WeeklyPlanRequestDTO;
-import com.economato.inventory.application.dto.weeklyplan.request.WeeklyPlanSlotRequestDTO;
-import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
-import com.fasterxml.jackson.databind.JsonNode;
-
 import com.economato.inventory.infrastructure.shared.TestDataUtil;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.http.MediaType;
-
+import com.fasterxml.jackson.databind.JsonNode;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
-import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.hamcrest.Matchers.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
 
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
 class WeeklyPlanServiceTest extends BaseIntegrationTest {
@@ -86,7 +84,7 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
 
         recipe = TestDataUtil.createRecipe("Test", "E", "P", BigDecimal.TEN);
         RecipeComponent rc = TestDataUtil.createRecipeComponent(recipe, flour, new BigDecimal("0.5"));
-        recipe.setComponents(new java.util.HashSet<>(List.of(rc)));
+        recipe.setComponents(new HashSet<>(List.of(rc)));
         recipe = recipeRepository.saveAndFlush(recipe);
 
         // Crear lote para que el confirmSlot tenga stock "físico"
@@ -434,7 +432,7 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
                 .andExpect(status().isOk());
 
         RecipeCookingAudit latestAudit = cookingAuditRepository.findAll().stream()
-                .max(java.util.Comparator.comparing(RecipeCookingAudit::getId))
+                .max(Comparator.comparing(RecipeCookingAudit::getId))
                 .orElseThrow();
 
         assertNotNull(latestAudit.getComponentsState());
@@ -521,7 +519,7 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
                 .andExpect(status().isOk());
 
         Long auditId = cookingAuditRepository.findAll().stream()
-                .max(java.util.Comparator.comparing(RecipeCookingAudit::getId))
+                .max(Comparator.comparing(RecipeCookingAudit::getId))
                 .orElseThrow()
                 .getId();
 

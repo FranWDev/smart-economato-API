@@ -1,50 +1,46 @@
 package com.economato.inventory.application.usecase.product;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+import com.economato.inventory.application.dto.product.projection.ProductProjection;
+import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
+import com.economato.inventory.application.dto.product.response.ProductResponseDTO;
+import com.economato.inventory.application.mapper.product.ProductMapper;
 import com.economato.inventory.application.usecase.ledger.StockLedgerService;
 import com.economato.inventory.application.usecase.recipe.RecipeService;
-
+import com.economato.inventory.domain.model.product.Product;
+import com.economato.inventory.domain.model.shared.MovementType;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ConcurrencyException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.SupplierRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeComponentRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.shared.InventoryAuditRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mockito;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-
-import com.economato.inventory.application.dto.product.projection.ProductProjection;
-import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
-import com.economato.inventory.application.dto.product.response.ProductResponseDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ConcurrencyException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
-import com.economato.inventory.application.mapper.product.ProductMapper;
-import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.shared.InventoryAuditRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeComponentRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.SupplierRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
-
-import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-
-import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.domain.model.shared.MovementType;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ProductServiceTest {
@@ -309,7 +305,7 @@ class ProductServiceTest {
 
     @Test
     void save_WhenNameDoesNotExist_ShouldCreateProduct() {
-        testProductRequestDTO.setExpirationDate(java.time.LocalDate.now().plusDays(30)); // obligatoria con stock > 0
+        testProductRequestDTO.setExpirationDate(LocalDate.now().plusDays(30)); // obligatoria con stock > 0
 
         when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
         when(productMapper.toEntity(testProductRequestDTO)).thenReturn(testProduct);
@@ -322,7 +318,7 @@ class ProductServiceTest {
         assertEquals(testProductResponseDTO.getName(), result.getName());
         verify(repository).existsByName(testProductRequestDTO.getName());
         verify(repository).saveAndFlush(testProduct);
-        verify(stockLedgerService).recordStockMovement(eq(1), any(BigDecimal.class), eq(MovementType.ENTRADA), anyString(), any(User.class), ArgumentMatchers.isNull(), ArgumentMatchers.any(java.time.LocalDate.class));
+        verify(stockLedgerService).recordStockMovement(eq(1), any(BigDecimal.class), eq(MovementType.ENTRADA), anyString(), any(User.class), ArgumentMatchers.isNull(), ArgumentMatchers.any(LocalDate.class));
     }
 
     @Test
@@ -376,7 +372,7 @@ class ProductServiceTest {
 
         for (String unit : validUnits) {
             testProductRequestDTO.setUnit(unit);
-            testProductRequestDTO.setExpirationDate(java.time.LocalDate.now().plusDays(30)); // obligatoria
+            testProductRequestDTO.setExpirationDate(LocalDate.now().plusDays(30)); // obligatoria
             when(repository.existsByName(testProductRequestDTO.getName())).thenReturn(false);
             when(productMapper.toEntity(testProductRequestDTO)).thenReturn(testProduct);
             when(repository.saveAndFlush(testProduct)).thenReturn(testProduct);
@@ -553,7 +549,7 @@ class ProductServiceTest {
 
         testProduct.setCurrentStock(new BigDecimal("10.0"));
         testProductRequestDTO.setCurrentStock(new BigDecimal("50.0"));
-        testProductRequestDTO.setExpirationDate(java.time.LocalDate.now().plusDays(30));
+        testProductRequestDTO.setExpirationDate(LocalDate.now().plusDays(30));
 
         Product updatedProduct = new Product();
         updatedProduct.setId(1);

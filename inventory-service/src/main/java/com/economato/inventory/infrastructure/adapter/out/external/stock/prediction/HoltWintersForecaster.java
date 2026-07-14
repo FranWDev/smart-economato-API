@@ -1,6 +1,7 @@
 package com.economato.inventory.infrastructure.adapter.out.external.stock.prediction;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -71,7 +72,7 @@ public class HoltWintersForecaster {
         }
 
         if (weeklyObservations == null || weeklyObservations.isEmpty()) {
-            return new ArrayList<>(java.util.Collections.nCopies(horizonDays, 0.0));
+            return new ArrayList<>(Collections.nCopies(horizonDays, 0.0));
         }
 
         List<Double> cleaned = filterAnomalies(weeklyObservations);
@@ -83,7 +84,7 @@ public class HoltWintersForecaster {
         double fallbackDaily = simpleMean(cleaned) / 7.0;
 
         if (cleaned.size() < MIN_WEEKS_FOR_HW) {
-            return new ArrayList<>(java.util.Collections.nCopies(horizonDays, Math.max(0.0, fallbackDaily)));
+            return new ArrayList<>(Collections.nCopies(horizonDays, Math.max(0.0, fallbackDaily)));
         }
 
         HoltWintersState state = holtwintersFull(cleaned, m);

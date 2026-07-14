@@ -1,30 +1,15 @@
 package com.economato.inventory.infrastructure.adapter.in.web.product;
 
-import jakarta.validation.Valid;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.ContentDisposition;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
-
-import java.util.List;
-
-
-import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
-import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
 import com.economato.inventory.application.dto.ledger.response.LedgerPdfResponseDTO;
+import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
 import com.economato.inventory.application.dto.product.response.ProductResponseDTO;
+import com.economato.inventory.application.dto.shared.response.IntegrityCheckResult;
+import com.economato.inventory.application.usecase.ledger.StockLedgerService;
 import com.economato.inventory.application.usecase.product.ProductService;
-import com.economato.inventory.infrastructure.adapter.out.external.product.reports.ProductExcelService;
 import com.economato.inventory.infrastructure.adapter.out.external.ledger.reports.StockLedgerPdfService;
+import com.economato.inventory.infrastructure.adapter.out.external.product.reports.ProductExcelService;
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;
 import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-import com.economato.inventory.application.usecase.ledger.StockLedgerService;
-
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -32,8 +17,19 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
+import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 @RestController
 @RequestMapping("/api/products")
@@ -113,7 +109,7 @@ public class ProductController {
         @PostMapping
         public ResponseEntity<ProductResponseDTO> createProduct(
                         @Valid @RequestBody ProductRequestDTO productRequest) {
-                return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+                return ResponseEntity.status(HttpStatus.CREATED)
                                 .body(productService.save(productRequest));
         }
 

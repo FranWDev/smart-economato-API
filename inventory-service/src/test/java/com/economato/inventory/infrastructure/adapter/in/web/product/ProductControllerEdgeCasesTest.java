@@ -1,23 +1,21 @@
 package com.economato.inventory.infrastructure.adapter.in.web.product;
-import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
 import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
+import com.economato.inventory.application.dto.shared.request.LoginRequestDTO;
 import com.economato.inventory.application.dto.shared.response.LoginResponseDTO;
+import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.BaseIntegrationTest;
 import com.economato.inventory.infrastructure.adapter.out.persistence.repository.user.UserRepository;
 import com.economato.inventory.infrastructure.shared.TestDataUtil;
-
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-
-import java.math.BigDecimal;
-
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
 
@@ -126,7 +124,7 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
                 productRequest.setName("Duplicate Product");
                 productRequest.setUnit("KG");
                 productRequest.setCurrentStock(new BigDecimal("5.0"));
-                productRequest.setExpirationDate(java.time.LocalDate.now().plusDays(30));
+                productRequest.setExpirationDate(LocalDate.now().plusDays(30));
                 productRequest.setUnitPrice(new BigDecimal("10.0"));
                 productRequest.setProductCode("TEST001");
 
@@ -185,7 +183,7 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
                         productRequest.setName("Product " + i);
                         productRequest.setUnit("KG");
                         productRequest.setCurrentStock(new BigDecimal("5.0"));
-                        productRequest.setExpirationDate(java.time.LocalDate.now().plusDays(30));
+                        productRequest.setExpirationDate(LocalDate.now().plusDays(30));
                         productRequest.setUnitPrice(new BigDecimal("10.0"));
                         productRequest.setProductCode("CODE" + i);
 
@@ -216,7 +214,7 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
                 ingredientProduct.setName("Flour");
                 ingredientProduct.setUnit("KG");
                 ingredientProduct.setCurrentStock(new BigDecimal("10.0"));
-                ingredientProduct.setExpirationDate(java.time.LocalDate.now().plusDays(30));
+                ingredientProduct.setExpirationDate(LocalDate.now().plusDays(30));
                 ingredientProduct.setUnitPrice(new BigDecimal("5.0"));
                 ingredientProduct.setProductCode("FLOUR001");
 

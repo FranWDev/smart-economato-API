@@ -1,23 +1,22 @@
 package com.economato.inventory.application.usecase.order;
 
+import com.economato.inventory.application.dto.order.response.OrderAuditResponseDTO;
+import com.economato.inventory.application.dto.shared.RestPage;
+import com.economato.inventory.application.mapper.order.OrderAuditMapper;
+import com.economato.inventory.domain.model.order.Order;
+import com.economato.inventory.domain.model.order.OrderAudit;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.order.OrderAuditRepository;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.economato.inventory.application.dto.shared.RestPage;
-import com.economato.inventory.application.dto.order.response.OrderAuditResponseDTO;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
-import com.economato.inventory.application.mapper.order.OrderAuditMapper;
-import com.economato.inventory.domain.model.order.Order;
-import com.economato.inventory.domain.model.order.OrderAudit;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.order.OrderAuditRepository;
 
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, ResourceNotFoundException.class, RuntimeException.class,
@@ -72,8 +71,8 @@ public class OrderAuditService {
     }
 
     @Transactional(readOnly = true)
-    public List<OrderAuditResponseDTO> findByAuditDateBetween(java.time.LocalDateTime start,
-            java.time.LocalDateTime end) {
+    public List<OrderAuditResponseDTO> findByAuditDateBetween(LocalDateTime start,
+            LocalDateTime end) {
         return repository.findProjectedByAuditDateBetween(start, end).stream()
                 .map(orderAuditMapper::toResponseDTO)
                 .collect(Collectors.toList());

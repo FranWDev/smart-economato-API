@@ -2,23 +2,26 @@ package com.economato.inventory.infrastructure.shared;
 
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import org.springframework.beans.factory.annotation.Qualifier;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.common.errors.NetworkException;
+import org.hibernate.exception.JDBCConnectionException;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Profile;
+import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-
-import javax.sql.DataSource;
-import java.sql.Connection;
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Revisa proactivamente la salud de las dependencias críticas (DB, Redis, Kafka) y abre los circuit breakers inmediatamente al detectar fallos.
@@ -62,9 +65,9 @@ public class CircuitBreakerHealthChecker {
 
         if (!writerHealthy) {
             log.warn("PRIMARY DATABASE (WRITER) IS DOWN! Opening circuit breaker immediately");
-            RuntimeException error = new org.hibernate.exception.JDBCConnectionException(
+            RuntimeException error = new JDBCConnectionException(
                     "Writer database connection failed",
-                    new java.sql.SQLException("Health check failed")
+                    new SQLException("Health check failed")
             );
             circuitBreaker.onError(0, TimeUnit.MILLISECONDS, error);
         }
@@ -82,9 +85,9 @@ public class CircuitBreakerHealthChecker {
 
         if (!readerHealthy) {
             log.warn("REPLICA DATABASE (READER) IS DOWN! Opening replica circuit breaker to alert frontend");
-            RuntimeException error = new org.hibernate.exception.JDBCConnectionException(
+            RuntimeException error = new JDBCConnectionException(
                     "Reader (replica) database connection failed",
-                    new java.sql.SQLException("Health check failed")
+                    new SQLException("Health check failed")
             );
             replicaCircuitBreaker.onError(0, TimeUnit.MILLISECONDS, error);
         }
@@ -147,7 +150,7 @@ public class CircuitBreakerHealthChecker {
 
         if (!testRedisConnection()) {
             log.warn("Redis is DOWN! Opening circuit breaker immediately");
-            RuntimeException error = new org.springframework.data.redis.RedisConnectionFailureException(
+            RuntimeException error = new RedisConnectionFailureException(
                     "Redis connection failed"
             );
             circuitBreaker.onError(0, TimeUnit.MILLISECONDS, error);
@@ -194,7 +197,7 @@ public class CircuitBreakerHealthChecker {
 
         if (!testKafkaConnection()) {
             log.warn("Kafka is DOWN! Opening circuit breaker immediately");
-            RuntimeException error = new org.apache.kafka.common.errors.NetworkException(
+            RuntimeException error = new NetworkException(
                     "Kafka connection failed"
             );
             circuitBreaker.onError(0, TimeUnit.MILLISECONDS, error);

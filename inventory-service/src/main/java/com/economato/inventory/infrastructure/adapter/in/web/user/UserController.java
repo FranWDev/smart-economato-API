@@ -1,7 +1,27 @@
 package com.economato.inventory.infrastructure.adapter.in.web.user;
 
+import com.economato.inventory.application.dto.shared.request.ChangePasswordRequestDTO;
+import com.economato.inventory.application.dto.user.request.RoleEscalationRequestDTO;
+import com.economato.inventory.application.dto.user.request.UserRequestDTO;
+import com.economato.inventory.application.dto.user.response.UserResponseDTO;
+import com.economato.inventory.application.dto.weeklyplan.request.BatchTeacherAssignmentRequestDTO;
+import com.economato.inventory.application.dto.weeklyplan.request.TeacherAssignmentRequestDTO;
+import com.economato.inventory.application.dto.weeklyplan.request.TransferStudentsRequestDTO;
+import com.economato.inventory.application.dto.weeklyplan.response.BatchTeacherAssignmentResponseDTO;
+import com.economato.inventory.application.usecase.user.UserService;
+import com.economato.inventory.domain.model.user.Role;
+import com.economato.inventory.infrastructure.config.shared.security.JwtUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import java.util.List;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -17,30 +37,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.economato.inventory.application.dto.weeklyplan.request.BatchTeacherAssignmentRequestDTO;
-import com.economato.inventory.application.dto.shared.request.ChangePasswordRequestDTO;
-import com.economato.inventory.application.dto.user.request.RoleEscalationRequestDTO;
-import com.economato.inventory.application.dto.weeklyplan.request.TeacherAssignmentRequestDTO;
-import com.economato.inventory.application.dto.weeklyplan.request.TransferStudentsRequestDTO;
-import com.economato.inventory.application.dto.user.request.UserRequestDTO;
-import com.economato.inventory.application.dto.weeklyplan.response.BatchTeacherAssignmentResponseDTO;
-import com.economato.inventory.application.dto.user.response.UserResponseDTO;
-import com.economato.inventory.application.usecase.user.UserService;
-import com.economato.inventory.domain.model.user.Role;
-import com.economato.inventory.infrastructure.config.shared.security.JwtUtils;
-
-import jakarta.servlet.http.HttpServletRequest;
-
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/users")
@@ -87,7 +85,7 @@ public class UserController {
                         @ApiResponse(responseCode = "403", description = "Acceso denegado")
         })
         public ResponseEntity<Page<UserResponseDTO>> searchUsers(
-                        @Parameter(description = "Texto a buscar en nombre o usuario", required = true) @org.springframework.web.bind.annotation.RequestParam String term,
+                        @Parameter(description = "Texto a buscar en nombre o usuario", required = true) @RequestParam String term,
                         Pageable pageable) {
                 Page<UserResponseDTO> users = service.searchVisibleUsers(term, pageable);
                 return ResponseEntity.ok(users);
@@ -166,7 +164,7 @@ public class UserController {
 
         @PatchMapping("/{id}/first-login")
         @PreAuthorize("hasRole('ADMIN') or #id == @userService.findByUsername(authentication.name).id")
-        @Operation(summary = "Actualizar estado de primer login", description = "Actualiza el estado de isFirstLogin. Los usuarios solo pueden cambiarlo a false (completar primer login), los administradores pueden cambiarlo a cualquier valor. [Rol requerido: USER]", security = @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth"))
+        @Operation(summary = "Actualizar estado de primer login", description = "Actualiza el estado de isFirstLogin. Los usuarios solo pueden cambiarlo a false (completar primer login), los administradores pueden cambiarlo a cualquier valor. [Rol requerido: USER]", security = @SecurityRequirement(name = "bearerAuth"))
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Estado actualizado correctamente"),
                         @ApiResponse(responseCode = "400", description = "Operación no permitida (usuario intenta reactivar primer login)"),
@@ -184,7 +182,7 @@ public class UserController {
 
         @PatchMapping("/{id}/password")
         @PreAuthorize("hasRole('ADMIN') or #id == @userService.findByUsername(authentication.name).id")
-        @Operation(summary = "Cambiar contraseña", description = "Permite cambiar la contraseña del usuario. Requiere contraseña actual si no es admin y el estado isFirstLogin (en la base de datos) es false. El estado isFirstLogin se valida desde la base de datos, no desde el request, para prevenir ataques. [Rol requerido: ADMIN o USER (propio)]", security = @io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth"))
+        @Operation(summary = "Cambiar contraseña", description = "Permite cambiar la contraseña del usuario. Requiere contraseña actual si no es admin y el estado isFirstLogin (en la base de datos) es false. El estado isFirstLogin se valida desde la base de datos, no desde el request, para prevenir ataques. [Rol requerido: ADMIN o USER (propio)]", security = @SecurityRequirement(name = "bearerAuth"))
         @ApiResponses({
                         @ApiResponse(responseCode = "200", description = "Contraseña actualizada correctamente"),
                         @ApiResponse(responseCode = "400", description = "Datos inválidos o contraseña actual incorrecta"),
@@ -249,7 +247,7 @@ public class UserController {
                         @ApiResponse(responseCode = "401", description = "No autenticado")
         })
         public ResponseEntity<Page<UserResponseDTO>> searchTeachers(
-                        @Parameter(description = "Texto a buscar (coincidencia parcial) en nombre o usuario") @org.springframework.web.bind.annotation.RequestParam(defaultValue = "") String term,
+                        @Parameter(description = "Texto a buscar (coincidencia parcial) en nombre o usuario") @RequestParam(defaultValue = "") String term,
                         Pageable pageable) {
                 Page<UserResponseDTO> teachers = service.searchVisibleTeachers(term, pageable);
                 return ResponseEntity.ok(teachers);

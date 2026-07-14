@@ -1,14 +1,38 @@
 package com.economato.inventory.application.usecase.product;
+import com.economato.inventory.application.dto.ledger.response.LedgerPdfResponseDTO;
+import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
+import com.economato.inventory.application.dto.product.response.ProductResponseDTO;
+import com.economato.inventory.application.dto.product.response.ProductStatsResponseDTO;
+import com.economato.inventory.application.dto.shared.RestPage;
+import com.economato.inventory.application.mapper.product.ProductMapper;
 import com.economato.inventory.application.usecase.ledger.StockLedgerService;
 import com.economato.inventory.application.usecase.recipe.RecipeService;
+import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.product.ValidUnit;
-
+import com.economato.inventory.domain.model.shared.MovementType;
+import com.economato.inventory.domain.model.user.User;
+import com.economato.inventory.domain.product.ProductAuditable;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ConcurrencyException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
+import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
+import com.economato.inventory.infrastructure.adapter.out.external.ledger.reports.StockLedgerPdfService;
+import com.economato.inventory.infrastructure.adapter.out.external.product.reports.ProductExcelService;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.SupplierRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeComponentRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.shared.InventoryAuditRepository;
+import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
+import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
+import com.economato.inventory.infrastructure.config.web.shared.I18nService;
+import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
 import java.math.BigDecimal;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
+import lombok.Builder;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
@@ -21,33 +45,7 @@ import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.economato.inventory.application.dto.shared.RestPage;
-import com.economato.inventory.application.dto.product.request.ProductRequestDTO;
-import com.economato.inventory.application.dto.product.response.ProductResponseDTO;
-import com.economato.inventory.application.dto.product.response.ProductStatsResponseDTO;
-import com.economato.inventory.application.mapper.product.ProductMapper;
-import com.economato.inventory.domain.product.ProductAuditable;
-import com.economato.inventory.domain.model.shared.MovementType;
-import com.economato.inventory.domain.model.product.Product;
-import com.economato.inventory.domain.model.user.User;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ConcurrencyException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.InvalidOperationException;
-import com.economato.inventory.infrastructure.adapter.in.web.shared.exception.ResourceNotFoundException;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.shared.InventoryAuditRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeComponentRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.SupplierRepository;
-import com.economato.inventory.infrastructure.aspect.shared.annotation.RealtimeSync;
-import com.economato.inventory.infrastructure.config.shared.security.SecurityContextHelper;
-import com.economato.inventory.infrastructure.config.web.shared.I18nService;
-import com.economato.inventory.infrastructure.config.web.shared.MessageKey;
-
-import lombok.RequiredArgsConstructor;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
-import com.economato.inventory.infrastructure.adapter.out.external.product.reports.ProductExcelService;
-import com.economato.inventory.infrastructure.adapter.out.external.ledger.reports.StockLedgerPdfService;
-import com.economato.inventory.application.dto.ledger.response.LedgerPdfResponseDTO;
 
 @Service
 @Transactional(rollbackFor = { InvalidOperationException.class, RuntimeException.class, Exception.class })
@@ -84,8 +82,8 @@ public class ProductService {
     private final ProductExcelService productExcelService;
     private final StockLedgerPdfService stockLedgerPdfService;
 
-    @lombok.Getter
-    @lombok.Builder
+    @Getter
+    @Builder
     public static class StockLedgerPdfDownloadDTO {
         private final byte[] pdfContent;
         private final String filename;

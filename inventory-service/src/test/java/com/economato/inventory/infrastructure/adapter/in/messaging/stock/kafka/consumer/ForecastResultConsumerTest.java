@@ -1,21 +1,21 @@
 package com.economato.inventory.infrastructure.adapter.in.messaging.stock.kafka.consumer;
 
-import java.math.BigDecimal;
-import java.time.OffsetDateTime;
-
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.economato.inventory.application.dto.stock.event.ForecastResultEvent;
 import com.economato.inventory.application.dto.stock.event.ForecastResultType;
 import com.economato.inventory.application.usecase.stock.StockAlertService;
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class ForecastResultConsumerTest {
@@ -82,7 +82,7 @@ class ForecastResultConsumerTest {
 
         consumer.consumeForecastResult(event);
 
-        verify(stockAlertService, org.mockito.Mockito.never()).updatePredictionFromForecast(any(), any(), any());
+        verify(stockAlertService, Mockito.never()).updatePredictionFromForecast(any(), any(), any());
     }
 
         @Test
