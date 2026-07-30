@@ -16,7 +16,7 @@ spring:
             - id: inventory-route
               uri: lb://inventory
               predicates:
-                - Path=/api/**
+                - Path=/api/**,/v3/api-docs,/v3/api-docs/**,/scalar,/scalar/**
             - id: predictor-route
               uri: lb://predictor-service
               predicates:
