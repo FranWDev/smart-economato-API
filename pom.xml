@@ -18,6 +18,7 @@
     <description>Parent POM for Smart Economato Modular Monolith</description>
 
     <modules>
+        <module>config-service</module>
         <module>inventory-service</module>
         <module>discovery-service</module>
         <module>gateway-service</module>

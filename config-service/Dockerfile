@@ -10,21 +10,24 @@ COPY discovery-service/pom.xml discovery-service/
 COPY gateway-service/pom.xml gateway-service/
 COPY inventory-service/pom.xml inventory-service/
 
-RUN mvn dependency:go-offline -B -pl gateway-service -am || true
+RUN mvn dependency:go-offline -B -pl config-service -am || true
 
-COPY gateway-service/src gateway-service/src
-RUN mvn clean package -DskipTests -B -pl gateway-service -am
+COPY config-service/src config-service/src
+RUN mvn clean package -DskipTests -B -pl config-service -am
 
 FROM mirror.gcr.io/library/eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
 RUN addgroup -S spring && adduser -S spring -G spring
-COPY --from=builder /build/gateway-service/target/*.jar app.jar
+COPY --from=builder /build/config-service/target/*.jar app.jar
 RUN chown -R spring:spring /app
 
 USER spring:spring
 
-EXPOSE 8080
+EXPOSE 8888
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=5 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8888/actuator/health || exit 1
 
 ENTRYPOINT ["java", "-jar", "app.jar"]

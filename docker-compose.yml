@@ -162,6 +162,30 @@ services:
 
 
   # ===================================
+  # Spring Cloud Config Service
+  # ===================================
+  config-service:
+    build:
+      context: .
+      dockerfile: config-service/Dockerfile
+    container_name: inventory-config
+    ports:
+      - "8888:8888"
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8888/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - inventory-network
+    restart: unless-stopped
+
+  # ===================================
   # Eureka Discovery Service
   # ===================================
   discovery-service:
@@ -169,6 +193,9 @@ services:
       context: .
       dockerfile: discovery-service/Dockerfile
     container_name: inventory-discovery
+    depends_on:
+      config-service:
+        condition: service_healthy
     ports:
       - "8761:8761"
     deploy:
@@ -194,12 +221,15 @@ services:
       dockerfile: gateway-service/Dockerfile
     container_name: inventory-gateway
     depends_on:
+      config-service:
+        condition: service_healthy
       discovery-service:
         condition: service_healthy
     ports:
       - "8080:8080"
     environment:
       EUREKA_SERVER_URL: http://discovery-service:8761/eureka/
+      CONFIG_SERVER_URL: http://config-service:8888
     deploy:
       resources:
         limits:
@@ -224,6 +254,8 @@ services:
       redis:
         condition: service_healthy
       kafka:
+        condition: service_healthy
+      config-service:
         condition: service_healthy
       discovery-service:
         condition: service_healthy

@@ -10,10 +10,10 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>discovery-service</artifactId>
+    <artifactId>config-service</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-    <name>discovery-service</name>
-    <description>Eureka Discovery Server for Smart Economato</description>
+    <name>config-service</name>
+    <description>Spring Cloud Config Server for Smart Economato</description>
 
     <properties>
         <java.version>21</java.version>
@@ -35,11 +35,7 @@
     <dependencies>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-config</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-netflix-eureka-server</artifactId>
+            <artifactId>spring-cloud-config-server</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

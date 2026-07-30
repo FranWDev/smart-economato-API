@@ -5,6 +5,7 @@ RUN apk add --no-cache maven
 WORKDIR /build
 
 COPY pom.xml .
+COPY config-service/pom.xml config-service/
 COPY discovery-service/pom.xml discovery-service/
 COPY gateway-service/pom.xml gateway-service/
 COPY inventory-service/pom.xml inventory-service/
