@@ -45,3 +45,6 @@ nginx/certs/*
 /backups/*
 *.tmp
 utils
+
+# Agent workspace memory & instructions
+/agents
