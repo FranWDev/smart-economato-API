@@ -19,10 +19,11 @@
 
     <modules>
         <module>inventory-service</module>
+        <module>discovery-service</module>
+        <module>gateway-service</module>
     </modules>
 
     <properties>
-        <java.version>25</java.version>
         <spring-cloud.version>2025.1.0</spring-cloud.version>
     </properties>
 

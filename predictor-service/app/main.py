@@ -9,10 +9,31 @@ from app.db.outbox import init_db
 from app.services.kafka_service import kafka_manager
 from app.services.outbox_service import outbox_service
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
-)
+import uuid
+from pythonjsonlogger import jsonlogger
+from opentelemetry import trace
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+class CustomJsonFormatter(jsonlogger.JsonFormatter):
+    def add_fields(self, log_record, record, message_dict):
+        super().add_fields(log_record, record, message_dict)
+        log_record["service"] = "predictor-service"
+        log_record["level"] = record.levelname
+        
+        span = trace.get_current_span()
+        if span and span.get_span_context().is_valid:
+            ctx = span.get_span_context()
+            log_record["trace_id"] = f"{ctx.trace_id:032x}"
+            log_record["span_id"] = f"{ctx.span_id:016x}"
+
+logHandler = logging.StreamHandler()
+formatter = CustomJsonFormatter('%(timestamp)s %(level)s %(name)s %(message)s')
+logHandler.setFormatter(formatter)
+
+root_logger = logging.getLogger()
+root_logger.setLevel(logging.INFO)
+root_logger.handlers = [logHandler]
+
 logging.getLogger("prophet").setLevel(logging.ERROR)
 logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
 
@@ -26,6 +47,7 @@ class HealthCheckAccessFilter(logging.Filter):
 logging.getLogger("uvicorn.access").addFilter(HealthCheckAccessFilter())
 
 logger = logging.getLogger(__name__)
+
 
 
 @asynccontextmanager
@@ -64,6 +86,8 @@ app = FastAPI(
     description="AI-powered demand forecasting microservice using Meta Prophet.",
     lifespan=lifespan,
 )
+FastAPIInstrumentor.instrument_app(app)
+
 
 
 @app.get("/health", tags=["observability"])

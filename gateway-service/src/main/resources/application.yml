@@ -1,0 +1,43 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    gateway:
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: true
+              lower-case-service-id: true
+          routes:
+            - id: inventory-route
+              uri: lb://inventory
+              predicates:
+                - Path=/api/**
+            - id: predictor-route
+              uri: lb://predictor-service
+              predicates:
+                - Path=/predictor/**
+            - id: mcp-route
+              uri: lb://mcp-service
+              predicates:
+                - Path=/ai/**
+
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_SERVER_URL:http://discovery-service:8761/eureka/}
+

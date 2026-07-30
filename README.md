@@ -22,13 +22,18 @@ Dentro del `inventory-service`, los casos de uso complejos siguen el **patrón F
 graph TD
     User((Usuario / Navegador))
     
-    subgraph "Reverse Proxy (Gateway)"
+    subgraph "Reverse Proxy & Entry Gateway"
         NG["Nginx 1.27"]
+        GW["Spring Cloud Gateway (gateway-service:8080)"]
+    end
+
+    subgraph "Service Discovery"
+        EUK["Netflix Eureka Server (discovery-service:8761)"]
     end
 
     subgraph "Capas de Aplicación"
         FE["Frontend-service (Angular SPA)"]
-        BE["Monolito Hexagonal (inventory-service)"]
+        BE["Monolito Hexagonal (inventory-service:8081)"]
     end
 
     subgraph "Servicios Satélite Políglotas"
@@ -43,29 +48,40 @@ graph TD
         KF[(Kafka KRaft)]
     end
 
-    subgraph "Observabilidad"
+    subgraph "Observabilidad & Tracing"
         PROM[Prometheus]
         GRAF[Grafana]
+        OTEL[OpenTelemetry W3C Tracing & JSON Logs]
     end
 
     %% Flujos Externos (Vía Proxy)
-    User -- "HTTPS (3443)" --> NG
+    User -- "HTTP (3000) / HTTPS (3443)" --> NG
     NG -- "/ (Route)" --> FE
-    NG -- "/api/ (Route)" --> BE
+    NG -- "/api/ (Route)" --> GW
     NG -- "/monitor/ (Route)" --> GRAF
 
-    %% Comunicación Inter-Servicio (Interna)
+    %% Gateway & Service Discovery
+    GW -- "Discover & Route" --> EUK
+    BE -- "Register (INVENTORY)" --> EUK
+    GW -- "LB Route /api/**" --> BE
+    GW -- "LB Route /predictor/**" --> PRED
+    GW -- "LB Route /ai/**" --> MCP
+
+    %% Comunicación Inter-Servicio
     BE -- "Write SQL" --> PG
     BE -- "Read SQL" --> PGR
     PG -- "Replicación" --> PGR
     BE -- "Cache" --> RD
     BE -- "Events / Outbox" --> KF
-    KF -- "Message Stream" --> PRED
+    KF -- "Message Stream (W3C Headers)" --> PRED
     BE -- "HTTP (Service-Key)" --> MCP
-    MCP -- "SSE Stream" --> BE
 
-    %% Métricas
+    %% Observabilidad
+    BE -. "JSON Logs & Trace Context" .-> OTEL
+    GW -. "Correlation ID & Trace Context" .-> OTEL
+    PRED -. "FastAPI Trace Context" .-> OTEL
     PROM -- "Scrape Actuator" --> BE
+    PROM -- "Scrape Actuator" --> GW
     GRAF -- "Query" --> PROM
 ```
 
@@ -73,17 +89,19 @@ graph TD
 
 | Servicio | Tecnología | Puerto interno | Descripción |
 |---|---|---|---|
-| **inventory-service** | Spring Boot 4.0, Java 25 | `8081` | **Monolito hexagonal**: todos los dominios de negocio (inventario, pedidos, recetas, planificación, ledger, blockchain, incidencias, usuarios). |
-| **mcp-service** | NestJS 11, TypeScript | `3000` | **Servicio satélite**: Agente IA (Model Context Protocol) — conecta con OpenAI, Anthropic, Google, etc. |
-| **predictor-service** | FastAPI, Python, Prophet | `8000` | **Servicio satélite**: Predicción de demanda con series temporales. |
+| **gateway-service** | Spring Cloud Gateway, Java 21 | `8080` | **API Gateway reactivo (WebFlux)**: Enrutamiento dinámico guiado por Eureka y propagación de `X-Correlation-ID`. |
+| **discovery-service** | Spring Cloud Netflix Eureka, Java 21 | `8761` | **Service Discovery Server**: Registro y descubrimiento de microservicios. |
+| **inventory-service** | Spring Boot 4.0, Java 25 | `8081` | **Monolito hexagonal (Core)**: Dominio de inventario, pedidos, recetas, ledger inmutable, blockchain. |
+| **mcp-service** | NestJS 11, TypeScript | `3000` | **Servicio satélite**: Agente IA (Model Context Protocol) — OpenAI, Anthropic, Google, etc. |
+| **predictor-service** | FastAPI, Python, Prophet | `8000` | **Servicio satélite**: Predicción de demanda basada en Kafka strams y series temporales. |
 | **frontend-service** | Angular + Nginx | `80` | SPA del cliente -> [Smart Economato Frontend](https://github.com/user-ijavieh/smart-economato) |
-| **reverse-proxy** | Nginx 1.27 | `80/443` | Terminación SSL, enrutamiento |
-| **postgres** | PostgreSQL 16 Alpine | `5432` | Base de datos primaria (escritura) |
+| **reverse-proxy** | Nginx 1.27 | `80/443` | Terminación SSL, balanceo de entrada y enrutamiento hacia el API Gateway. |
+| **postgres** | PostgreSQL 16 Alpine | `5432` | Base de datos primaria (escritura) — **Catálogo cargado (1.165 productos)**. |
 | **postgres-replica** | PostgreSQL 16 Alpine | `5433` | Réplica de lectura (CQRS) |
 | **redis** | Redis 7 Alpine | `6379` | Caché, blacklist JWT |
 | **kafka** | Confluent Kafka 7.6 (KRaft) | `9092` | Mensajería event-driven, auditoría |
-| **prometheus** | Prometheus 2.51 | `9090` | Recolección de métricas |
-| **grafana** | Grafana 10.4 | `3000` | Dashboards de monitorización |
+| **prometheus** | Prometheus 2.51 | `9090` | Recolección de métricas de rendimiento |
+| **grafana** | Grafana 10.4 | `3000` | Dashboards de monitorización unificada |
 
 ## Requisitos previos
 
@@ -234,10 +252,13 @@ smart-economato-API/
 - **Circuit breakers (Resilience4j)** — degradación graceful ante fallos de DB, Redis, Kafka y el servicio MCP; el sistema continúa operativo en modo reducido (ver sección Resiliencia)
 - **RBAC con 3 roles** (`ADMIN`, `CHEF`, `STUDENT`) implementado a nivel de endpoint y reflejado en la UI
 
-### Observabilidad
-- Métricas Prometheus (JVM, HikariCP, Kafka, caché)
-- Dashboards Grafana
-- WebSockets para alertas y notificaciones en tiempo real
+### Observabilidad y Trazado Distribuido (Fase 2)
+- **Trazado Distribuido OpenTelemetry (W3C)** — Propagación automática de contextos `traceparent` a través de HTTP endpoints y encabezados de mensajes en Apache Kafka.
+- **Logs Estructurados en Formato JSON** — Emisión de registros de log de una sola línea enriquecidos con `trace_id`, `span_id` y `correlation_id` en todos los microservicios (`gateway-service`, `inventory-service`, `predictor-service`, `mcp-service`).
+- **Correlación de Negocio (`X-Correlation-ID`)** — Generación y propagación del encabezado de correlación desde el API Gateway a través de MDC en el backend y servicios políglotas.
+- **Métricas Prometheus** (JVM, HikariCP, Kafka, memoria, caché Redis).
+- **Dashboards Grafana** para la monitorización centralizada.
+- **WebSockets** para alertas y notificaciones en tiempo real.
 
 ## Documentación de la API
 

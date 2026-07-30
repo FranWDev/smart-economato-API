@@ -8,6 +8,8 @@ WORKDIR /build
 # Copy the parent pom and all module poms to satisfy Maven reactor
 COPY pom.xml .
 COPY inventory-service/pom.xml inventory-service/
+COPY discovery-service/pom.xml discovery-service/
+COPY gateway-service/pom.xml gateway-service/
 RUN mvn dependency:go-offline -B -pl inventory-service -am
 COPY inventory-service/src inventory-service/src
 RUN mvn clean package -DskipTests -B -pl inventory-service -am
