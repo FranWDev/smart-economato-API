@@ -35,7 +35,7 @@ public class ScalarController {
     @Value("${scalar.pageTitle:Smart Economato | API Docs}")
     private String pageTitle;
 
-    @GetMapping({"/scalar", "/scalar/"})
+    @GetMapping({"/scalar", "/scalar/", "/api/scalar", "/api/scalar/"})
     @ResponseBody
     @Operation(hidden = true)
     public String scalarDocs() {

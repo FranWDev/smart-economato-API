@@ -19,10 +19,12 @@ import org.springframework.http.ContentDisposition;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanStockRequirementDTO;
 import com.economato.inventory.application.dto.weeklyplan.response.WeeklyPlanSlotStudentResponseDTO;
 
+@Tag(name = "Planes Semanales", description = "Gestión de planes semanales, menús y asignaciones de alumnos")
 @RestController
 @RequestMapping("/api/weekly-plans")
 @RequiredArgsConstructor

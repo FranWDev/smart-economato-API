@@ -7,6 +7,7 @@ WORKDIR /build
 
 # Copy the parent pom and all module poms to satisfy Maven reactor
 COPY pom.xml .
+COPY config-service/pom.xml config-service/
 COPY inventory-service/pom.xml inventory-service/
 COPY discovery-service/pom.xml discovery-service/
 COPY gateway-service/pom.xml gateway-service/

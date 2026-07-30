@@ -22,13 +22,14 @@ Dentro del `inventory-service`, los casos de uso complejos siguen el **patrón F
 graph TD
     User((Usuario / Navegador))
     
+    subgraph "Configuración & Service Discovery"
+        CFG["Spring Cloud Config Server (config-service:8888)"]
+        EUK["Netflix Eureka Server (discovery-service:8761)"]
+    end
+
     subgraph "Reverse Proxy & Entry Gateway"
         NG["Nginx 1.27"]
         GW["Spring Cloud Gateway (gateway-service:8080)"]
-    end
-
-    subgraph "Service Discovery"
-        EUK["Netflix Eureka Server (discovery-service:8761)"]
     end
 
     subgraph "Capas de Aplicación"
@@ -53,6 +54,11 @@ graph TD
         GRAF[Grafana]
         OTEL[OpenTelemetry W3C Tracing & JSON Logs]
     end
+
+    %% Flujos de Configuración
+    EUK -- "Fetch Config" --> CFG
+    GW -- "Fetch Config" --> CFG
+    BE -- "Fetch Config" --> CFG
 
     %% Flujos Externos (Vía Proxy)
     User -- "HTTP (3000) / HTTPS (3443)" --> NG
@@ -89,11 +95,12 @@ graph TD
 
 | Servicio | Tecnología | Puerto interno | Descripción |
 |---|---|---|---|
-| **gateway-service** | Spring Cloud Gateway, Java 21 | `8080` | **API Gateway reactivo (WebFlux)**: Enrutamiento dinámico guiado por Eureka y propagación de `X-Correlation-ID`. |
+| **config-service** | Spring Cloud Config Server, Java 21 | `8888` | **Config Server centralizado**: Repositorio de configuración YAML único para todos los microservicios en bootstrap. |
+| **gateway-service** | Spring Cloud Gateway, Java 21 | `8080` | **API Gateway reactivo (WebFlux)**: Enrutamiento dinámico guiado por Eureka, agregador OpenAPI/Swagger UI y propagación de `X-Correlation-ID`. |
 | **discovery-service** | Spring Cloud Netflix Eureka, Java 21 | `8761` | **Service Discovery Server**: Registro y descubrimiento de microservicios. |
 | **inventory-service** | Spring Boot 4.0, Java 25 | `8081` | **Monolito hexagonal (Core)**: Dominio de inventario, pedidos, recetas, ledger inmutable, blockchain. |
 | **mcp-service** | NestJS 11, TypeScript | `3000` | **Servicio satélite**: Agente IA (Model Context Protocol) — OpenAI, Anthropic, Google, etc. |
-| **predictor-service** | FastAPI, Python, Prophet | `8000` | **Servicio satélite**: Predicción de demanda basada en Kafka strams y series temporales. |
+| **predictor-service** | FastAPI, Python, Prophet | `8000` | **Servicio satélite**: Predicción de demanda basada en Kafka streams y series temporales. |
 | **frontend-service** | Angular + Nginx | `80` | SPA del cliente -> [Smart Economato Frontend](https://github.com/user-ijavieh/smart-economato) |
 | **reverse-proxy** | Nginx 1.27 | `80/443` | Terminación SSL, balanceo de entrada y enrutamiento hacia el API Gateway. |
 | **postgres** | PostgreSQL 16 Alpine | `5432` | Base de datos primaria (escritura) — **Catálogo cargado (1.165 productos)**. |
