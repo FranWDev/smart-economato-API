@@ -26,7 +26,18 @@ spring:
               predicates:
                 - Path=/ai/**
 
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
 eureka:
   client:
     service-url:
       defaultZone: ${EUREKA_SERVER_URL:http://discovery-service:8761/eureka/}
+
