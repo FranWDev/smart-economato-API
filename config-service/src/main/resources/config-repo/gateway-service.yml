@@ -17,14 +17,54 @@ spring:
               uri: lb://inventory
               predicates:
                 - Path=/api/**,/v3/api-docs,/v3/api-docs/**,/scalar,/scalar/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: inventoryCB
+                    fallbackUri: forward:/fallback/inventory
             - id: predictor-route
               uri: lb://predictor-service
               predicates:
                 - Path=/predictor/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: predictorCB
+                    fallbackUri: forward:/fallback/predictor
             - id: mcp-route
               uri: lb://mcp-service
               predicates:
                 - Path=/ai/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: mcpCB
+                    fallbackUri: forward:/fallback/mcp
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      inventoryCB:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+      predictorCB:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+      mcpCB:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+  timelimiter:
+    instances:
+      inventoryCB:
+        timeoutDuration: 5s
+      predictorCB:
+        timeoutDuration: 5s
+      mcpCB:
+        timeoutDuration: 5s
 
 management:
   tracing:
