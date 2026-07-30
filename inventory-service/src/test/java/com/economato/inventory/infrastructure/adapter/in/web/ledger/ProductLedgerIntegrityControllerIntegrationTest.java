@@ -50,19 +50,7 @@ class ProductLedgerIntegrityControllerIntegrationTest extends BaseIntegrationTes
                 User chefUser = TestDataUtil.createChefUser();
                 testUser = userRepository.saveAndFlush(chefUser);
 
-                // Autenticar
-                LoginRequestDTO loginRequest = new LoginRequestDTO(chefUser.getUser(), "chef123");
-                String response = mockMvc
-                                .perform(post("/api/auth/login")
-                                                .contentType("application/json")
-                                                .content(objectMapper.writeValueAsString(loginRequest)))
-                                .andExpect(status().isOk())
-                                .andReturn()
-                                .getResponse()
-                                .getContentAsString();
-
-                LoginResponseDTO loginResponse = objectMapper.readValue(response, LoginResponseDTO.class);
-                jwtToken = loginResponse.getToken();
+                jwtToken = login(chefUser.getName(), "chef123");
 
                 // Crear productos de prueba
                 testProduct1 = new Product();
@@ -176,18 +164,7 @@ class ProductLedgerIntegrityControllerIntegrationTest extends BaseIntegrationTes
                 User regularUser = TestDataUtil.createUser("Regular User", "regularuser", "password", Role.USER);
                 userRepository.saveAndFlush(regularUser);
 
-                LoginRequestDTO loginRequest = new LoginRequestDTO(regularUser.getUser(), "password");
-                String response = mockMvc
-                                .perform(post("/api/auth/login")
-                                                .contentType("application/json")
-                                                .content(objectMapper.writeValueAsString(loginRequest)))
-                                .andExpect(status().isOk())
-                                .andReturn()
-                                .getResponse()
-                                .getContentAsString();
-
-                LoginResponseDTO loginResponse = objectMapper.readValue(response, LoginResponseDTO.class);
-                String regularToken = loginResponse.getToken();
+                String regularToken = login(regularUser.getName(), "password");
 
                 mockMvc.perform(get(BASE_URL + "/ledger-integrity")
                                 .header("Authorization", "Bearer " + regularToken))

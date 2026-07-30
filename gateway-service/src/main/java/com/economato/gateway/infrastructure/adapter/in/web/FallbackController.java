@@ -29,6 +29,13 @@ public class FallbackController {
                 .map(response -> ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response));
     }
 
+    @GetMapping("/user")
+    @PostMapping("/user")
+    public Mono<ResponseEntity<FallbackResponse>> userFallback(Locale locale) {
+        return fallbackUseCase.getUserFallback(locale)
+                .map(response -> ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(response));
+    }
+
     @GetMapping("/predictor")
     @PostMapping("/predictor")
     public Mono<ResponseEntity<FallbackResponse>> predictorFallback(Locale locale) {

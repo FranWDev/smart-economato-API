@@ -154,17 +154,6 @@ class RecipeDraftControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     private String loginByNameAndPassword(String name, String password) throws Exception {
-        LoginRequestDTO loginRequest = new LoginRequestDTO();
-        loginRequest.setName(name);
-        loginRequest.setPassword(password);
-
-        String response = mockMvc.perform(post(AUTH_URL)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(asJsonString(loginRequest)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-
-        LoginResponseDTO loginResponse = objectMapper.readValue(response, LoginResponseDTO.class);
-        return loginResponse.getToken();
+        return login(name, password);
     }
 }

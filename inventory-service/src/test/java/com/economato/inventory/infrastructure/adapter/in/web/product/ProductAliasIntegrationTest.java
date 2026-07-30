@@ -34,16 +34,7 @@ public class ProductAliasIntegrationTest extends BaseIntegrationTest {
 
                 // Create admin user and get token
                 userRepository.save(TestDataUtil.createAdminUser());
-                LoginRequestDTO loginRequest = new LoginRequestDTO("adminUser", "admin123");
-                MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(asJsonString(loginRequest)))
-                                .andExpect(status().isOk())
-                                .andReturn();
-
-                LoginResponseDTO loginResponse = objectMapper.readValue(
-                                loginResult.getResponse().getContentAsString(), LoginResponseDTO.class);
-                token = loginResponse.getToken();
+                token = loginAsAdmin();
 
                 // Create a supplier
                 Supplier supplier = new Supplier();

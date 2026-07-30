@@ -21,10 +21,23 @@ public class SecurityContextHelper {
             if (authentication != null && authentication.isAuthenticated()
                     && !"anonymousUser".equals(authentication.getPrincipal())) {
                 String username = authentication.getName();
-                return userRepository.findByName(username).orElse(null);
+                return userRepository != null ? userRepository.findByName(username).orElse(null) : null;
             }
         } catch (Exception e) {
             log.warn("Error retrieving current user from SecurityContext", e);
+        }
+        return null;
+    }
+
+    public String getCurrentUsername() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            if (authentication != null && authentication.isAuthenticated()
+                    && !"anonymousUser".equals(authentication.getPrincipal())) {
+                return authentication.getName();
+            }
+        } catch (Exception e) {
+            log.warn("Error retrieving current username from SecurityContext", e);
         }
         return null;
     }

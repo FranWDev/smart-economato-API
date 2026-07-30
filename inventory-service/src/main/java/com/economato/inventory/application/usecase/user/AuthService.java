@@ -1,3 +1,4 @@
+// DEPRECATED: migrado a user-service (Fase 3). Eliminar tras validación en producción (48h).
 package com.economato.inventory.application.usecase.user;
 
 import com.economato.inventory.infrastructure.config.web.shared.I18nService;

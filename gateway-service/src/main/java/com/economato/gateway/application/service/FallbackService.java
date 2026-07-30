@@ -24,6 +24,11 @@ public class FallbackService implements FallbackUseCase {
     }
 
     @Override
+    public Mono<FallbackResponse> getUserFallback(Locale locale) {
+        return Mono.fromCallable(() -> buildResponse("fallback.user", locale));
+    }
+
+    @Override
     public Mono<FallbackResponse> getPredictorFallback(Locale locale) {
         return Mono.fromCallable(() -> buildResponse("fallback.predictor", locale));
     }

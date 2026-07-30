@@ -13,10 +13,19 @@ spring:
               enabled: true
               lower-case-service-id: true
           routes:
+            - id: user-route
+              uri: lb://user-service
+              predicates:
+                - Path=/api/v1/auth/**,/api/v1/users/**,/api/v1/activity/**,/api/auth/**,/api/users/**,/api/activity/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: userCB
+                    fallbackUri: forward:/fallback/user
             - id: inventory-route
               uri: lb://inventory
               predicates:
-                - Path=/api/**,/v3/api-docs,/v3/api-docs/**,/scalar,/scalar/**
+                - Path=/api/**,/v3/api-docs,/v3/api-docs/**,/scalar,/scalar/**,/ws-alerts,/ws-alerts/**,/ws-notifications,/ws-notifications/**
               filters:
                 - name: CircuitBreaker
                   args:
@@ -44,6 +53,11 @@ spring:
 resilience4j:
   circuitbreaker:
     instances:
+      userCB:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
       inventoryCB:
         slidingWindowSize: 10
         failureRateThreshold: 50
@@ -59,6 +73,8 @@ resilience4j:
         waitDurationInOpenState: 10s
   timelimiter:
     instances:
+      userCB:
+        timeoutDuration: 5s
       inventoryCB:
         timeoutDuration: 5s
       predictorCB:

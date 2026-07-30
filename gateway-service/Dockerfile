@@ -9,6 +9,7 @@ COPY config-service/pom.xml config-service/
 COPY discovery-service/pom.xml discovery-service/
 COPY gateway-service/pom.xml gateway-service/
 COPY inventory-service/pom.xml inventory-service/
+COPY user-service/pom.xml user-service/
 
 RUN mvn dependency:go-offline -B -pl gateway-service -am || true
 

@@ -5,24 +5,7 @@ import com.economato.inventory.application.usecase.recipe.AllergenService;
 import com.economato.inventory.application.usecase.recipe.RecipeComponentService;
 import com.economato.inventory.application.usecase.recipe.RecipeService;
 import com.economato.inventory.application.usecase.stock.StockAlertService;
-import com.economato.inventory.application.usecase.user.UserService;
-
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.text.Normalizer;
-import java.util.HashMap;
-import java.util.Map;
-
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Profile;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Component;
-
 import com.economato.inventory.application.dto.recipe.response.RecipeResponseDTO;
-import com.economato.inventory.application.dto.user.response.UserResponseDTO;
 import com.economato.inventory.application.dto.product.response.ProductResponseDTO;
 import com.economato.inventory.domain.model.product.Product;
 import com.economato.inventory.domain.model.recipe.Recipe;
@@ -32,6 +15,20 @@ import com.economato.inventory.infrastructure.config.ai.ai.AiSmgProperties;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Profile;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
+
+import java.text.Normalizer;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -46,7 +43,6 @@ public class CacheWarmupService implements CommandLineRunner {
 
     private final ProductService productService;
     private final RecipeService recipeService;
-    private final UserService userService;
     private final AllergenService allergenService;
     private final SupplierService supplierService;
     private final StockAlertService stockAlertService;
@@ -65,15 +61,14 @@ public class CacheWarmupService implements CommandLineRunner {
 
             CompletableFuture<Void> productsWarmup = CompletableFuture.runAsync(this::warmupProducts);
             CompletableFuture<Void> recipesWarmup = CompletableFuture.runAsync(this::warmupRecipes);
-            CompletableFuture<Void> usersWarmup = CompletableFuture.runAsync(this::warmupUsers);
-                CompletableFuture<Void> allergensWarmup = CompletableFuture.runAsync(this::warmupAllergens);
-                CompletableFuture<Void> suppliersWarmup = CompletableFuture.runAsync(this::warmupSuppliers);
-                CompletableFuture<Void> alertsWarmup = CompletableFuture.runAsync(this::warmupAlerts);
-                CompletableFuture<Void> statsWarmup = CompletableFuture.runAsync(this::warmupStats);
-                CompletableFuture<Void> recipeComponentsWarmup = CompletableFuture.runAsync(this::warmupRecipeComponents);
-                CompletableFuture<Void> aiCatalogWarmup = CompletableFuture.runAsync(this::warmupAiCatalogs);
+            CompletableFuture<Void> allergensWarmup = CompletableFuture.runAsync(this::warmupAllergens);
+            CompletableFuture<Void> suppliersWarmup = CompletableFuture.runAsync(this::warmupSuppliers);
+            CompletableFuture<Void> alertsWarmup = CompletableFuture.runAsync(this::warmupAlerts);
+            CompletableFuture<Void> statsWarmup = CompletableFuture.runAsync(this::warmupStats);
+            CompletableFuture<Void> recipeComponentsWarmup = CompletableFuture.runAsync(this::warmupRecipeComponents);
+            CompletableFuture<Void> aiCatalogWarmup = CompletableFuture.runAsync(this::warmupAiCatalogs);
 
-                CompletableFuture.allOf(productsWarmup, recipesWarmup, usersWarmup, allergensWarmup,
+            CompletableFuture.allOf(productsWarmup, recipesWarmup, allergensWarmup,
                     suppliersWarmup, alertsWarmup, statsWarmup, recipeComponentsWarmup, aiCatalogWarmup)
                     .get(60, TimeUnit.SECONDS);
 
@@ -139,29 +134,6 @@ public class CacheWarmupService implements CommandLineRunner {
         }
     }
 
-    private void warmupUsers() {
-        try {
-            log.info("Pre-cargando usuarios...");
-
-            Pageable page1 = PageRequest.of(0, 10);
-            Page<UserResponseDTO> users = userService.findAll(page1);
-
-            users.stream()
-                    .limit(3)
-                    .forEach(user -> {
-                        try {
-                            userService.findById(user.getId());
-                        } catch (Exception e) {
-                            log.warn("Error cargando detalle de usuario {}: {}", user.getId(), e.getMessage());
-                        }
-                    });
-
-            log.info("Usuarios pre-cargados (1 página + 3 detalles)");
-        } catch (Exception e) {
-            log.warn("Error pre-cargando usuarios: {}", e.getMessage());
-        }
-    }
-
     private void warmupAllergens() {
         try {
             log.info("Pre-cargando alérgenos...");
@@ -197,7 +169,6 @@ public class CacheWarmupService implements CommandLineRunner {
             log.info("Pre-cargando estadísticas...");
             productService.getProductStats();
             recipeService.getRecipeStats();
-            userService.getUserStats();
             log.info("Estadísticas pre-cargadas");
         } catch (Exception e) {
             log.warn("Error pre-cargando estadísticas: {}", e.getMessage());

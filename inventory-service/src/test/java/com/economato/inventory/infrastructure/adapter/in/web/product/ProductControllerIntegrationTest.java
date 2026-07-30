@@ -65,18 +65,7 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                 adminUser.setPassword(passwordEncoder.encode("admin123"));
                 userRepository.saveAndFlush(adminUser);
 
-                LoginRequestDTO loginRequest = new LoginRequestDTO();
-                loginRequest.setName(adminUser.getName());
-                loginRequest.setPassword("admin123");
-
-                String response = mockMvc.perform(post(AUTH_URL)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(asJsonString(loginRequest)))
-                                .andExpect(status().isOk())
-                                .andReturn().getResponse().getContentAsString();
-
-                LoginResponseDTO loginResponse = objectMapper.readValue(response, LoginResponseDTO.class);
-                jwtToken = loginResponse.getToken();
+                jwtToken = loginAsAdmin();
 
                 testProduct = TestDataUtil.createFlour();
                 testProduct = productRepository.saveAndFlush(testProduct);

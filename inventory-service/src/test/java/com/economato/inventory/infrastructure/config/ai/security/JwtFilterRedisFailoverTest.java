@@ -71,7 +71,7 @@ class JwtFilterRedisFailoverTest {
                 tokenLocaleCache,
                 circuitBreakerRegistry,
                 i18nService);
-        jwtFilter = new JwtFilter(jwtUtils, userDetailsService, tokenBlacklistService);
+        jwtFilter = new JwtFilter(jwtUtils, tokenBlacklistService);
     }
 
     @Test

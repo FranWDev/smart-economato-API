@@ -103,17 +103,7 @@ class WeeklyPlanServiceTest extends BaseIntegrationTest {
     }
 
     private String getToken(String username, String pass) throws Exception {
-        LoginRequestDTO login = new LoginRequestDTO();
-        login.setName(username);
-        login.setPassword(pass);
-
-        String rb = mockMvc.perform(post("/api/auth/login")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(login)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-        
-        return objectMapper.readValue(rb, LoginResponseDTO.class).getToken();
+        return login(username, pass);
     }
 
     @Test

@@ -1,0 +1,19 @@
+package com.economato.user.application.dto.event;
+
+import java.time.Instant;
+
+public record UserRoleChangedEvent(
+    String eventId,
+    String eventType,
+    String aggregateId,
+    String aggregateType,
+    Instant occurredAt,
+    String version,
+    UserRoleChangedPayload payload
+) {
+    public record UserRoleChangedPayload(
+        Integer userId,
+        String oldRole,
+        String newRole
+    ) {}
+}

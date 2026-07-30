@@ -1,22 +1,24 @@
 package com.economato.inventory.infrastructure.config.shared.security;
 
+import com.economato.inventory.application.usecase.user.TokenBlacklistService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.economato.inventory.application.usecase.user.TokenBlacklistService;
-
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 @Slf4j
@@ -24,7 +26,6 @@ import java.util.Set;
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
-    private final UserDetailsService userDetailsService;
     private final TokenBlacklistService tokenBlacklistService;
 
     private static final WebAuthenticationDetailsSource DETAILS_SOURCE = new WebAuthenticationDetailsSource();
@@ -50,17 +51,16 @@ public class JwtFilter extends OncePerRequestFilter {
             "/sitemap.xml",
             "/manifest.json");
 
-    public JwtFilter(JwtUtils jwtUtils, UserDetailsService userDetailsService,
-            TokenBlacklistService tokenBlacklistService) {
+    public JwtFilter(JwtUtils jwtUtils,
+                     TokenBlacklistService tokenBlacklistService) {
         this.jwtUtils = jwtUtils;
-        this.userDetailsService = userDetailsService;
         this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain) throws ServletException, IOException {
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
 
         String jwt = jwtUtils.resolveToken(request);
 
@@ -74,21 +74,22 @@ public class JwtFilter extends OncePerRequestFilter {
                     if (username != null) {
                         request.setAttribute("jwt_username", username);
 
-                        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                        String role = jwtUtils.getRoleFromJwtToken(jwt);
+                        String authorityName = (role != null) ? (role.startsWith("ROLE_") ? role : "ROLE_" + role) : "ROLE_USER";
+                        List<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(authorityName));
+
+                        UserDetails userDetails = new User(username, "", authorities);
                         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                                 userDetails,
                                 null,
-                                userDetails.getAuthorities());
+                                authorities);
                         authentication.setDetails(DETAILS_SOURCE.buildDetails(request));
 
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                     }
                 }
             } catch (Exception e) {
-                // Logea los errores de validación del JWT o de la consulta a la blacklist, pero no bloquea la solicitud
-                log.debug("Error during JWT validation or blacklist check: {}", e.getMessage());
-                // El token no es válido o está en la blacklist, pero no se bloquea la solicitud aquí 
-                // porque el filtro de seguridad de Spring Security se encargará de rechazarla si el endpoint requiere autenticación 
+                log.debug("Error during JWT validation or blacklist check in inventory-service: {}", e.getMessage());
             }
         }
 
@@ -118,7 +119,4 @@ public class JwtFilter extends OncePerRequestFilter {
 
         return false;
     }
-
-
 }
-

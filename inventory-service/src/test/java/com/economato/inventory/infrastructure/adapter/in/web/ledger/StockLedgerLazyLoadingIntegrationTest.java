@@ -45,17 +45,7 @@ class StockLedgerLazyLoadingIntegrationTest extends BaseIntegrationTest {
 
         User adminUser = userRepository.saveAndFlush(TestDataUtil.createAdminUser());
 
-        LoginRequestDTO loginRequest = new LoginRequestDTO(adminUser.getUser(), "admin123");
-        String response = mockMvc.perform(post("/api/auth/login")
-                        .contentType("application/json")
-                        .content(objectMapper.writeValueAsString(loginRequest)))
-                .andExpect(status().isOk())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-
-        LoginResponseDTO loginResponse = objectMapper.readValue(response, LoginResponseDTO.class);
-        jwtToken = loginResponse.getToken();
+        jwtToken = login(adminUser.getName(), "admin123");
 
         Product product = new Product();
         product.setName("Producto Lazy User");

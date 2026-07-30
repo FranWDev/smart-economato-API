@@ -1,11 +1,13 @@
 package com.economato.inventory.infrastructure.config.web.shared;
-import com.economato.inventory.domain.model.user.User;
-
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.User;
 import com.economato.inventory.infrastructure.shared.WebSocketConnectedEvent;
 import com.economato.inventory.infrastructure.shared.WebSocketDisconnectedEvent;
 import com.economato.inventory.infrastructure.config.shared.security.JwtUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import java.util.Collections;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
@@ -52,8 +54,12 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws-alerts")
+                .setAllowedOriginPatterns("*");
+        registry.addEndpoint("/ws-alerts")
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
+        registry.addEndpoint("/ws-notifications")
+                .setAllowedOriginPatterns("*");
         registry.addEndpoint("/ws-notifications")
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
@@ -98,9 +104,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                             String role = jwtUtils.getRoleFromJwtToken(authToken);
 
                             if (username != null && role != null) {
-                                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                                String authorityName = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                                List<GrantedAuthority> authorities = Collections.singletonList(new SimpleGrantedAuthority(authorityName));
+                                UserDetails userDetails = new User(username, "", authorities);
                                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                                        userDetails, null, userDetails.getAuthorities());
+                                        userDetails, null, authorities);
                                 accessor.setUser(authentication);
                                 SecurityContextHolder.getContext().setAuthentication(authentication);
                                 log.debug("WebSocket authenticated user: {} with role: {}", username, role);

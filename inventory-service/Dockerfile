@@ -11,6 +11,7 @@ COPY config-service/pom.xml config-service/
 COPY inventory-service/pom.xml inventory-service/
 COPY discovery-service/pom.xml discovery-service/
 COPY gateway-service/pom.xml gateway-service/
+COPY user-service/pom.xml user-service/
 RUN mvn dependency:go-offline -B -pl inventory-service -am
 COPY inventory-service/src inventory-service/src
 RUN mvn clean package -DskipTests -B -pl inventory-service -am

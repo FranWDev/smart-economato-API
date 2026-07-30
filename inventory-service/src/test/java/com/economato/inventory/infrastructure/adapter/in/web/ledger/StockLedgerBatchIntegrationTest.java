@@ -77,18 +77,7 @@ class StockLedgerBatchIntegrationTest extends BaseIntegrationTest {
         batches.add(createDummyBatch(product3));
         productBatchRepository.saveAllAndFlush(batches);
 
-        LoginRequestDTO loginRequest = new LoginRequestDTO();
-        loginRequest.setName(testUser.getName());
-        loginRequest.setPassword("admin123");
-
-        String response = mockMvc.perform(post(AUTH_URL)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(loginRequest)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-
-        LoginResponseDTO loginResponse = objectMapper.readValue(response, LoginResponseDTO.class);
-        jwtToken = loginResponse.getToken();
+        jwtToken = loginAsAdmin();
     }
 
     private ProductBatch createDummyBatch(Product p) {

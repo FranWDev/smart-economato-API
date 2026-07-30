@@ -7,6 +7,7 @@ import java.util.Locale;
 
 public interface FallbackUseCase {
     Mono<FallbackResponse> getInventoryFallback(Locale locale);
+    Mono<FallbackResponse> getUserFallback(Locale locale);
     Mono<FallbackResponse> getPredictorFallback(Locale locale);
     Mono<FallbackResponse> getMcpFallback(Locale locale);
 }

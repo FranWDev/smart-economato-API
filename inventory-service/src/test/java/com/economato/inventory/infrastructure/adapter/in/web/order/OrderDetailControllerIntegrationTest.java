@@ -56,18 +56,7 @@ public class OrderDetailControllerIntegrationTest extends BaseIntegrationTest {
                 testUser = TestDataUtil.createAdminUser();
                 userRepository.saveAndFlush(testUser);
 
-                LoginRequestDTO loginRequest = new LoginRequestDTO();
-                loginRequest.setName(testUser.getName());
-                loginRequest.setPassword("admin123");
-
-                String response = mockMvc.perform(post(AUTH_URL)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(asJsonString(loginRequest)))
-                                .andExpect(status().isOk())
-                                .andReturn().getResponse().getContentAsString();
-
-                LoginResponseDTO loginResponse = objectMapper.readValue(response, LoginResponseDTO.class);
-                jwtToken = loginResponse.getToken();
+                jwtToken = loginAsAdmin();
 
                 testProduct = new Product();
                 testProduct.setName("Producto test");

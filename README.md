@@ -32,9 +32,10 @@ graph TD
         GW["Spring Cloud Gateway (gateway-service:8080)"]
     end
 
-    subgraph "Capas de Aplicación"
+    subgraph "Microservicios y Aplicaciones"
         FE["Frontend-service (Angular SPA)"]
         BE["Monolito Hexagonal (inventory-service:8081)"]
+        US["user-service (Gestión de Usuarios:8082)"]
     end
 
     subgraph "Servicios Satélite Políglotas"
@@ -43,8 +44,9 @@ graph TD
     end
 
     subgraph "Datos y Mensajería"
-        PG[(PostgreSQL Primary)]
-        PGR[(PostgreSQL Replica)]
+        PG[(PostgreSQL Primary Inventory)]
+        PGR[(PostgreSQL Replica Inventory)]
+        PGU[(PostgreSQL User DB)]
         RD[(Redis Cache)]
         KF[(Kafka KRaft)]
     end
@@ -59,6 +61,7 @@ graph TD
     EUK -- "Fetch Config" --> CFG
     GW -- "Fetch Config" --> CFG
     BE -- "Fetch Config" --> CFG
+    US -- "Fetch Config" --> CFG
 
     %% Flujos Externos (Vía Proxy)
     User -- "HTTP (3000) / HTTPS (3443)" --> NG
@@ -69,25 +72,32 @@ graph TD
     %% Gateway & Service Discovery
     GW -- "Discover & Route" --> EUK
     BE -- "Register (INVENTORY)" --> EUK
+    US -- "Register (USER-SERVICE)" --> EUK
+    GW -- "LB Route /api/auth/** /api/users/**" --> US
     GW -- "LB Route /api/**" --> BE
     GW -- "LB Route /predictor/**" --> PRED
     GW -- "LB Route /ai/**" --> MCP
 
     %% Comunicación Inter-Servicio
+    US -- "Write/Read SQL" --> PGU
     BE -- "Write SQL" --> PG
     BE -- "Read SQL" --> PGR
     PG -- "Replicación" --> PGR
     BE -- "Cache" --> RD
+    US -- "Blacklist Cache" --> RD
+    US -- "User Events" --> KF
     BE -- "Events / Outbox" --> KF
     KF -- "Message Stream (W3C Headers)" --> PRED
     BE -- "HTTP (Service-Key)" --> MCP
 
     %% Observabilidad
     BE -. "JSON Logs & Trace Context" .-> OTEL
+    US -. "JSON Logs & Trace Context" .-> OTEL
     GW -. "Correlation ID & Trace Context" .-> OTEL
     PRED -. "FastAPI Trace Context" .-> OTEL
     PROM -- "Scrape Actuator" --> BE
     PROM -- "Scrape Actuator" --> GW
+    PROM -- "Scrape Actuator" --> US
     GRAF -- "Query" --> PROM
 ```
 
@@ -98,12 +108,14 @@ graph TD
 | **config-service** | Spring Cloud Config Server, Java 21 | `8888` | **Config Server centralizado**: Repositorio de configuración YAML único para todos los microservicios en bootstrap. |
 | **gateway-service** | Spring Cloud Gateway, Java 21 | `8080` | **API Gateway reactivo (WebFlux)**: Enrutamiento dinámico guiado por Eureka, agregador OpenAPI/Swagger UI y propagación de `X-Correlation-ID`. |
 | **discovery-service** | Spring Cloud Netflix Eureka, Java 21 | `8761` | **Service Discovery Server**: Registro y descubrimiento de microservicios. |
-| **inventory-service** | Spring Boot 4.0, Java 25 | `8081` | **Monolito hexagonal (Core)**: Dominio de inventario, pedidos, recetas, ledger inmutable, blockchain. |
+| **user-service** | Spring Boot 4.0, Java 25 | `8082` | **Microservicio de Usuarios (Fase 3)**: Dominio de usuarios, autenticación JWT, API Keys, registro de actividad y eventos Kafka. |
+| **inventory-service** | Spring Boot 4.0, Java 25 | `8081` | **Core Inventario (Monolito Modular)**: Inventario, pedidos, recetas, alérgenos, ledger inmutable, blockchain. |
 | **mcp-service** | NestJS 11, TypeScript | `3000` | **Servicio satélite**: Agente IA (Model Context Protocol) — OpenAI, Anthropic, Google, etc. |
 | **predictor-service** | FastAPI, Python, Prophet | `8000` | **Servicio satélite**: Predicción de demanda basada en Kafka streams y series temporales. |
 | **frontend-service** | Angular + Nginx | `80` | SPA del cliente -> [Smart Economato Frontend](https://github.com/user-ijavieh/smart-economato) |
 | **reverse-proxy** | Nginx 1.27 | `80/443` | Terminación SSL, balanceo de entrada y enrutamiento hacia el API Gateway. |
-| **postgres** | PostgreSQL 16 Alpine | `5432` | Base de datos primaria (escritura) — **Catálogo cargado (1.165 productos)**. |
+| **postgres-user** | PostgreSQL 16 Alpine | `5435` | Base de datos aislada para `user-service` (`user_service`). |
+| **postgres** | PostgreSQL 16 Alpine | `5432` | Base de datos primaria de inventario — **Catálogo cargado (1.165 productos)**. |
 | **postgres-replica** | PostgreSQL 16 Alpine | `5433` | Réplica de lectura (CQRS) |
 | **redis** | Redis 7 Alpine | `6379` | Caché, blacklist JWT |
 | **kafka** | Confluent Kafka 7.6 (KRaft) | `9092` | Mensajería event-driven, auditoría |

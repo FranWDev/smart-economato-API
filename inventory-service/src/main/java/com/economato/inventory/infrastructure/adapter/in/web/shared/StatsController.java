@@ -3,10 +3,8 @@ package com.economato.inventory.infrastructure.adapter.in.web.shared;
 import com.economato.inventory.application.dto.recipe.response.RecipeAverageCostResponseDTO;
 import com.economato.inventory.application.dto.recipe.response.RecipeCountResponseDTO;
 import com.economato.inventory.application.dto.recipe.response.RecipeStatsResponseDTO;
-import com.economato.inventory.application.dto.user.response.UserStatsResponseDTO;
 import com.economato.inventory.application.dto.product.response.ProductStatsResponseDTO;
 import com.economato.inventory.application.usecase.recipe.RecipeService;
-import com.economato.inventory.application.usecase.user.UserService;
 import com.economato.inventory.application.usecase.product.ProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,7 +23,6 @@ import org.springframework.web.bind.annotation.RestController;
 public class StatsController {
 
     private final RecipeService recipeService;
-    private final UserService userService;
     private final ProductService productService;
 
     @GetMapping("/recipes")
@@ -51,13 +48,6 @@ public class StatsController {
     @Operation(summary = "Obtener costo promedio de recetas", description = "Devuelve el costo promedio de las recetas visibles [Rol requerido: ADMIN]")
     public ResponseEntity<RecipeAverageCostResponseDTO> getRecipesAverageCost() {
         return ResponseEntity.ok(recipeService.getRecipesAverageCost());
-    }
-
-    @GetMapping("/users")
-    @Operation(summary = "Obtener estadísticas de los usuarios", description = "Devuelve estadísticas de los usuarios como la cantidad total "
-            + "de usuarios y la cantidad de usuarios por rol [Rol requerido: ADMIN]")
-    public ResponseEntity<UserStatsResponseDTO> getUserStats() {
-        return ResponseEntity.ok(userService.getUserStats());
     }
 
     @GetMapping("/products")

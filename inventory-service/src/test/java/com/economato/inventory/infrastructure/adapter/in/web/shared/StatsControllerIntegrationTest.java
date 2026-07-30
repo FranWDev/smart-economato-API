@@ -120,32 +120,9 @@ class StatsControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void getUserStats_WhenAdmin_ShouldReturnStats() throws Exception {
-        String token = loginAsAdmin();
-
-        // Admin already created in setUp (adminUser / admin123)
-        userRepository.save(TestDataUtil.createUser("user1", "u1", "Pass123", Role.USER));
-        userRepository.save(TestDataUtil.createUser("user2", "u2", "Pass123", Role.USER));
-        userRepository.save(TestDataUtil.createUser("chef1", "c1", "Pass123", Role.CHEF));
-
-        ResultActions response = mockMvc.perform(get("/api/stats/users")
-                .header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON));
-
-        response.andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalUsers", is(4))) // 1 admin + 2 users + 1 chef
-                .andExpect(jsonPath("$.usersByRole.ADMIN", is(1)))
-                .andExpect(jsonPath("$.usersByRole.USER", is(2)))
-                .andExpect(jsonPath("$.usersByRole.CHEF", is(1)));
-    }
-
-    @Test
     void getProductStats_WhenAdmin_ShouldReturnStats() throws Exception {
         String token = loginAsAdmin();
 
-        // Create some products
-        // total inventory value = (10.00 * 5.0) + (20.00 * 2.0) = 50 + 40 = 90
-        // average price = (10 + 20) / 2 = 15
         Product p1 = TestDataUtil.createProduct("Product 1", "KG", new BigDecimal("10.00"), "P1", new BigDecimal("5.0"));
         Product p2 = TestDataUtil.createProduct("Product 2", "KG", new BigDecimal("20.00"), "P2", new BigDecimal("2.0"));
         
@@ -166,10 +143,6 @@ class StatsControllerIntegrationTest extends BaseIntegrationTest {
         String token = login("Regular", "user123");
 
         mockMvc.perform(get("/api/stats/recipes")
-                .header("Authorization", "Bearer " + token))
-                .andExpect(status().isForbidden());
-
-        mockMvc.perform(get("/api/stats/users")
                 .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
 

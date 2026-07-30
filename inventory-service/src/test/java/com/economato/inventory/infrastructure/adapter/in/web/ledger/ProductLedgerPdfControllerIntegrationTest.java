@@ -54,18 +54,7 @@ class ProductLedgerPdfControllerIntegrationTest extends BaseIntegrationTest {
                 testUser = TestDataUtil.createChefUser();
                 userRepository.saveAndFlush(testUser);
 
-                LoginRequestDTO loginRequest = new LoginRequestDTO();
-                loginRequest.setName(testUser.getName());
-                loginRequest.setPassword("chef123");
-
-                String response = mockMvc.perform(post(AUTH_URL)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(asJsonString(loginRequest)))
-                                .andExpect(status().isOk())
-                                .andReturn().getResponse().getContentAsString();
-
-                LoginResponseDTO loginResponse = objectMapper.readValue(response, LoginResponseDTO.class);
-                jwtToken = loginResponse.getToken();
+                jwtToken = login(testUser.getName(), "chef123");
 
                 // Create test product
                 testProduct = TestDataUtil.createFlour();
@@ -134,18 +123,7 @@ class ProductLedgerPdfControllerIntegrationTest extends BaseIntegrationTest {
                 User regularUser = TestDataUtil.createRegularUser();
                 userRepository.save(regularUser);
 
-                LoginRequestDTO loginRequest = new LoginRequestDTO();
-                loginRequest.setName(regularUser.getName());
-                loginRequest.setPassword("user123");
-
-                String response = mockMvc.perform(post(AUTH_URL)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(asJsonString(loginRequest)))
-                                .andExpect(status().isOk())
-                                .andReturn().getResponse().getContentAsString();
-
-                LoginResponseDTO loginResponse = objectMapper.readValue(response, LoginResponseDTO.class);
-                String regularToken = loginResponse.getToken();
+                String regularToken = login(regularUser.getName(), "user123");
 
                 mockMvc.perform(get(BASE_URL + "/{id}/ledger/pdf", testProduct.getId())
                                 .header("Authorization", "Bearer " + regularToken))

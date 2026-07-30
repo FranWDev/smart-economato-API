@@ -136,17 +136,7 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     private String getToken(String username, String pass) throws Exception {
-        LoginRequestDTO login = new LoginRequestDTO();
-        login.setName(username);
-        login.setPassword(pass);
-
-        String rb = mockMvc.perform(post(AUTH_URL)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(login)))
-                .andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString();
-        
-        return objectMapper.readValue(rb, LoginResponseDTO.class).getToken();
+        return login(username, pass);
     }
 
     private LocalDate getNextMonday() {
@@ -1170,16 +1160,7 @@ class WeeklyPlanControllerIntegrationTest extends BaseIntegrationTest {
             .andExpect(jsonPath("$[?(@.productName == 'Harina')].requiredQuantity").value(Matchers.hasItem(11.0)));
         }
 
-    @Test
-    void whenStudentIsDeleted_withActivePlan_thenFailsDueToConstraint() throws Exception {
-        WeeklyPlanSlotRequestDTO slot1 = TestDataUtil.createWeeklyPlanSlotRequestDTO(recipe.getId(), new BigDecimal("1.0"), 1, LocalTime.of(10,0), LocalTime.of(11,0), 1, Arrays.asList(student1.getId()));
-        WeeklyPlanRequestDTO req = TestDataUtil.createWeeklyPlanRequestDTO(null, getNextMonday(), Arrays.asList(slot1));
 
-        mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON).content(asJsonString(req)).header("Authorization", "Bearer " + chef1Token)).andExpect(status().isCreated());
-
-        mockMvc.perform(delete("/api/users/" + student1.getId()).header("Authorization", "Bearer " + adminToken))
-                .andExpect(status().isBadRequest());
-    }
 
     // -------------------------------------------------------------------------------------------------------------------------
     // G. Edición activos (3 tests)

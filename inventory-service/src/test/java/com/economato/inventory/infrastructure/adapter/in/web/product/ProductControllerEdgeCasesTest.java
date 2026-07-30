@@ -35,18 +35,7 @@ class ProductControllerEdgeCasesTest extends BaseIntegrationTest {
                 testAdmin = TestDataUtil.createAdminUser();
                 userRepository.saveAndFlush(testAdmin);
 
-                LoginRequestDTO loginRequest = new LoginRequestDTO();
-                loginRequest.setName(testAdmin.getName());
-                loginRequest.setPassword("admin123");
-
-                String response = mockMvc.perform(post(AUTH_URL)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(asJsonString(loginRequest)))
-                                .andExpect(status().isOk())
-                                .andReturn().getResponse().getContentAsString();
-
-                LoginResponseDTO loginResponse = objectMapper.readValue(response, LoginResponseDTO.class);
-                jwtToken = loginResponse.getToken();
+                jwtToken = loginAsAdmin();
         }
 
         @Test

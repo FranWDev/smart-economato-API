@@ -1,3 +1,4 @@
+// DEPRECATED: migrado a user-service (Fase 3). Eliminar tras validación en producción (48h).
 package com.economato.inventory.application.usecase.user;
 import com.economato.inventory.application.dto.shared.RestPage;
 import com.economato.inventory.application.dto.shared.request.ChangePasswordRequestDTO;

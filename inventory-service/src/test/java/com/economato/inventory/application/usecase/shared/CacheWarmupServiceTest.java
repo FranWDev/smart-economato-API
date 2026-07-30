@@ -1,20 +1,16 @@
 package com.economato.inventory.application.usecase.shared;
+
+import com.economato.inventory.application.dto.product.response.ProductResponseDTO;
+import com.economato.inventory.application.dto.recipe.response.RecipeResponseDTO;
 import com.economato.inventory.application.usecase.product.ProductService;
 import com.economato.inventory.application.usecase.product.SupplierService;
 import com.economato.inventory.application.usecase.recipe.AllergenService;
 import com.economato.inventory.application.usecase.recipe.RecipeComponentService;
 import com.economato.inventory.application.usecase.recipe.RecipeService;
 import com.economato.inventory.application.usecase.stock.StockAlertService;
-import com.economato.inventory.application.usecase.user.UserService;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.util.List;
-import java.math.BigDecimal;
-
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
+import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
+import com.economato.inventory.infrastructure.config.ai.ai.AiSmgProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -23,12 +19,13 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
-import com.economato.inventory.application.dto.product.response.ProductResponseDTO;
-import com.economato.inventory.application.dto.recipe.response.RecipeResponseDTO;
-import com.economato.inventory.application.dto.user.response.UserResponseDTO;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.product.ProductRepository;
-import com.economato.inventory.infrastructure.adapter.out.persistence.repository.recipe.RecipeRepository;
-import com.economato.inventory.infrastructure.config.ai.ai.AiSmgProperties;
+import java.math.BigDecimal;
+import java.util.List;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class CacheWarmupServiceTest {
@@ -38,8 +35,6 @@ class CacheWarmupServiceTest {
     @Mock
     private RecipeService recipeService;
     @Mock
-    private UserService userService;
-    @Mock
     private AllergenService allergenService;
     @Mock
     private SupplierService supplierService;
@@ -47,14 +42,14 @@ class CacheWarmupServiceTest {
     private StockAlertService stockAlertService;
     @Mock
     private RecipeComponentService recipeComponentService;
-        @Mock
-        private StringRedisTemplate stringRedisTemplate;
-        @Mock
-        private ProductRepository productRepository;
-        @Mock
-        private RecipeRepository recipeRepository;
-        @Mock
-        private AiSmgProperties aiSmgProperties;
+    @Mock
+    private StringRedisTemplate stringRedisTemplate;
+    @Mock
+    private ProductRepository productRepository;
+    @Mock
+    private RecipeRepository recipeRepository;
+    @Mock
+    private AiSmgProperties aiSmgProperties;
 
     @Test
     void run_executesExpandedWarmupFlows() throws Exception {
@@ -66,15 +61,10 @@ class CacheWarmupServiceTest {
                 List.of(new RecipeResponseDTO(1, "Pan", null, null, null, null, false, null, List.of(), List.of())),
                 PageRequest.of(0, 10),
                 1));
-        when(userService.findAll(any())).thenReturn(new PageImpl<>(
-                List.of(new UserResponseDTO(1, "Admin", "admin", false, false, null, null, null)),
-                PageRequest.of(0, 10),
-                1));
 
         CacheWarmupService warmup = new CacheWarmupService(
                 productService,
                 recipeService,
-                userService,
                 allergenService,
                 supplierService,
                 stockAlertService,
@@ -90,8 +80,6 @@ class CacheWarmupServiceTest {
         verify(productService, atLeastOnce()).findById(1);
         verify(recipeService, atLeastOnce()).findAll(any());
         verify(recipeService, atLeastOnce()).findById(1);
-        verify(userService, atLeastOnce()).findAll(any());
-        verify(userService, atLeastOnce()).findById(1);
 
         verify(allergenService).findAll(PageRequest.of(0, 100));
         verify(supplierService).findAll(PageRequest.of(0, 50));
@@ -100,6 +88,5 @@ class CacheWarmupServiceTest {
 
         verify(productService).getProductStats();
         verify(recipeService).getRecipeStats();
-        verify(userService).getUserStats();
     }
 }
