@@ -259,7 +259,7 @@ smart-economato-API/
 - **Circuit breakers (Resilience4j)** — degradación graceful ante fallos de DB, Redis, Kafka y el servicio MCP; el sistema continúa operativo en modo reducido (ver sección Resiliencia)
 - **RBAC con 3 roles** (`ADMIN`, `CHEF`, `STUDENT`) implementado a nivel de endpoint y reflejado en la UI
 
-### Observabilidad y Trazado Distribuido (Fase 2)
+### Observabilidad y Trazado Distribuido
 - **Trazado Distribuido OpenTelemetry (W3C)** — Propagación automática de contextos `traceparent` a través de HTTP endpoints y encabezados de mensajes en Apache Kafka.
 - **Logs Estructurados en Formato JSON** — Emisión de registros de log de una sola línea enriquecidos con `trace_id`, `span_id` y `correlation_id` en todos los microservicios (`gateway-service`, `inventory-service`, `predictor-service`, `mcp-service`).
 - **Correlación de Negocio (`X-Correlation-ID`)** — Generación y propagación del encabezado de correlación desde el API Gateway a través de MDC en el backend y servicios políglotas.
